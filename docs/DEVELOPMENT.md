@@ -1,5 +1,26 @@
 # Agent development and CI
 
+## D0. Execution location and local storage
+
+The repository is now initialized in Git and has `origin` at `https://github.com/amanosatosi/taiyou.git`. The user has uploaded it to GitHub. **GitHub Actions is the primary and required execution environment for compilation and renderer validation.** The local PC cannot accommodate compilation storage; this is an ongoing project constraint, not a temporary missing-toolchain problem.
+
+| Work | Execution location |
+|---|---|
+| Editing, Git inspection/commits, reading existing reference trees, small text/JSON/documentation checks and selected-file hashing | Local PC is permitted |
+| Cargo commands (including check/test/run/clippy/fmt/metadata/tree), Rust/C/C++ compilation, native library builds, dependency resolution and lockfile generation | GitHub Actions runners |
+| Unit/integration/image/determinism tests, CLI/C ABI smoke, fuzzing, sanitizers, Miri and performance smoke | GitHub Actions runners |
+| Definitive performance measurements | Actions-dispatched controlled runner, provisioned separately; never assume the user's PC is available as a runner |
+
+Do not install Rust/native SDKs, start Docker/VM build environments, fetch build dependencies or full test corpora, create `target/` or local native build trees, or download large CI artifacts onto this PC. Keep existing local sources read-only for inspection. Small logs and individual failure reports may be inspected locally; leave full binaries, symbol files, corpus archives and image collections in CI storage. Do not delete the user's existing files to make room.
+
+Verification commands in task files are **runner commands** unless explicitly identified as lightweight local checks. Lack of a local compiler is expected and is not a blocker to authoring a change. Add or repair the appropriate focused workflow as part of the task, following the protected validation rules. Run on the exact candidate commit through the authorized branch/PR or dispatch path; inspect job logs and resolve failures. Do not publish a change solely because the remote exists; use the session's Git publishing authorization. If CI cannot be triggered or is not yet implemented, report verification pending and the exact missing prerequisite. Do not substitute local compilation or claim success from writing a workflow.
+
+Completion evidence includes candidate SHA, workflow/run URL, relevant job names, commands, pass/fail/unsupported results and small artifact links. A queued/skipped/cancelled run is not a pass. Subsequent code changes need validation of the new SHA. T001 must establish both cheap documentation CI and a minimal source-check lane so its own workspace/CLI checks can run remotely; later tasks expand that lane. T002 generates dependency locks and validates native recipes on runners, returning small lockfiles/reports as artifacts for reviewed inclusion in the repository.
+
+Actions cannot read `C:\taiyou-time\refrences` on this PC. Provision required sources/fonts on the runner from verified pinned origins or approved archive storage, verify hashes, and cache them there. This is an explicit CI acquisition step and does not change the local-first rule for source study. Never assume the unversioned local archives equal the upstream pins. The full external corpus inventory remains T005 work.
+
+Keep hosted-runner timing as performance smoke only. If controlled hardware for R003 is unavailable, leave that measurement gate open; do not run it on this PC or invent benchmark evidence.
+
 ## D1. Roles and merge ownership
 
 **Astra:** owns contracts/ADRs, R001–R004 decisions, cross-profile behavior, high-risk native/FFI/concurrency reviews and difficult performance analysis. **Sol 6.1:** implements scoped stage modules and integration with explicit acceptance criteria. **Luna 6:** implements deterministic parsing helpers, value types, scalar arithmetic, manifests and narrowly scoped tests where no architectural decision is required. These are task assignments, not claims that a model's output is inherently correct.
@@ -16,7 +37,7 @@ Serialize: `taiyou-types`, contracts/ADRs, native dependency recipes, lockfile u
 
 ## D3. GitHub Actions design
 
-Planned workflows (T001 creates only docs checks; later tasks establish these):
+Planned workflows (T001 creates documentation checks and the minimal source lane; later tasks expand these):
 
 | Workflow | Trigger / cost control | Required outputs |
 |---|---|---|
@@ -32,10 +53,10 @@ Use job-level conditions and an always-running gate aggregator so documentation-
 
 Cache dependency downloads and native build artifacts by OS/arch/compiler version/flags, Cargo.lock and native source hashes. Cache Rust build artifacts only with compatible keys; untrusted candidate jobs cannot publish cache entries consumed by privileged validation. Cancel superseded PR jobs, cap matrices, use concurrency groups and upload only bounded failure artifacts plus compact summaries. Source compilation happens once per target where possible; focused comparison reuses that binary. Expensive cross-platform full corpora wait for milestone gates.
 
-GitHub permissions default read-only, actions pinned by full commit SHA, no secrets for candidate code, no untrusted forks on persistent benchmark runners. Protected runner/harness design is [V4](TESTING.md#v4-protected-validation-trust-model). The current empty local directory has no GitHub remote or organization policy, so this blueprint does not claim these protections are active.
+GitHub permissions default read-only, actions pinned by full commit SHA, no secrets for candidate code, no untrusted forks on persistent benchmark runners. Protected runner/harness design is [V4](TESTING.md#v4-protected-validation-trust-model). Git and the GitHub remote are now established; workflow execution and repository/organization protections must still be verified separately before claiming they are active.
 
 ## D4. Acceptance and cost control
 
-An implementation task normally fits one focused session. If its preconditions expose an unresolved rule, stop that slice and open a bounded research item; do not spend days guessing. A coordinator may split a task while preserving its ID as an umbrella and declaring child scopes. Prefer local fast checks followed by one focused CI run; full matrices are not necessary for prose changes. Do not buy speed by omitting meaningful verification or hiding failures.
+An implementation task normally fits one focused session. If its preconditions expose an unresolved rule, stop that slice and open a bounded research item; do not spend days guessing. A coordinator may split a task while preserving its ID as an umbrella and declaring child scopes. Use lightweight local document checks followed by focused Actions jobs for source changes; no local compilation. Full matrices are not necessary for prose changes. Keep artifact retention short (initial policy: 7 days for ordinary diagnostic artifacts), upload bounded failure details, and cache dependencies on runners rather than this PC. Do not buy speed by omitting meaningful verification or hiding failures.
 
 Architect review is required for new native/unsafe boundaries, accepted external differences, budget/rounding changes, cache dependency reductions and output reordering. Routine private refactoring within a task is permitted only if necessary for its objective. Every completion report follows [guidelines](GUIDELINES.md#required-report).

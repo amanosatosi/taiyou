@@ -2,6 +2,8 @@
 
 All tasks are **planned**, not completed. Filenames mentioned inside tasks are planned unless already delivered by this blueprint. Cargo commands are contracts for the future workspace, not commands that can run today. Read the task's linked contracts before implementation; an unresolved research prerequisite is a real gate.
 
+**Verification runs in GitHub Actions.** Do not compile or install build dependencies on the user's PC. All Cargo/native/test commands below target CI runners; local work is editing and lightweight documentation/hash checks. Read the [execution policy](../DEVELOPMENT.md#d0-execution-location-and-local-storage), provide candidate SHA and Actions run/job links, and report unrun checks as pending. T001 supplies the initial remote source-check lane; this policy does not mean workflows already exist or have passed.
+
 For every source-study task, use the [local reference map](../LOCAL_REFERENCES.md) first. Read the supplied archives directly; upstream URLs elsewhere in tasks/documents are provenance, not requests to browse again. Do not infer archive-to-commit equivalence or replace immutable oracle pins.
 
 Assign **[T001](T001.md)** first. T001 establishes the workspace and cheap checks. After it, T002, T003 and inventory preparation in T005 can proceed in disjoint file sets; shared manifests/lockfiles still have one owner. [Roadmap](../ROADMAP.md) determines milestone order; this table's numeric order is not a topological execution order.

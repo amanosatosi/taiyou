@@ -2,6 +2,8 @@
 
 All phases are planned. A gate requires observable results, not just compilation. See [task specifications](tasks/README.md) for exact scope and dependencies. Source paths and Rust commands are planned until their creating task lands. The blueprint itself supplies documentation, reference revision pins and a structural checker only.
 
+Git and the GitHub remote are now established. All compilation and renderer/test execution occurs in GitHub Actions under the [CI-first execution policy](DEVELOPMENT.md#d0-execution-location-and-local-storage); the user's PC cannot host builds. T001 must establish the remote source-check lane as well as documentation CI before its Cargo/CLI verification can pass. This does not mark any implementation phase complete.
+
 ## P0. Foundation and trustworthy evidence
 
 Tasks: [T001](tasks/T001.md) workspace → [T002](tasks/T002.md) dependencies and [T003](tasks/T003.md) shared types; [T005](tasks/T005.md) inventory/protected validation can proceed alongside independent foundation work.

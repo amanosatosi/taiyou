@@ -2,6 +2,8 @@
 
 No renderer tests have run yet. The blueprint checker is the only executable check delivered now. The workflows, Rust harnesses and corpus manifests below are planned tasks, with exact command contracts established by those tasks. Reference pins already exist in [references.lock.json](references.lock.json).
 
+Execution location: all compiler/Cargo/native build commands and renderer, safety and performance test executables run in GitHub Actions under the [CI-first policy](DEVELOPMENT.md#d0-execution-location-and-local-storage). The user's PC is limited to editing and lightweight documentation/hash checks. Preserve every acceptance criterion; moving execution to CI does not waive tests. Reports must identify the candidate SHA and Actions run/jobs. Controlled benchmark hardware is provisioned separately, never assumed to be this PC. CI provisions its own verified reference sources; local Windows archive paths are not runner inputs.
+
 ## V1. Test layers
 
 | Layer | Inputs and oracle | Required checks |

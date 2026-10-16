@@ -22,6 +22,8 @@ Use scalar integer blend/coverage kernels as the oracle. SIMD must have scalar f
 
 ## Testing and measurement
 
+Follow the [CI-first execution policy](DEVELOPMENT.md#d0-execution-location-and-local-storage): no compilation, Cargo commands, native dependency setup or renderer/test execution on the user's storage-constrained PC. Run them in GitHub Actions and report the exact tested commit and run/job links. Local editing, existing-source inspection and lightweight documentation/hash checks remain permitted. Do not download whole build artifacts or corpora locally to reproduce failures; use focused remote jobs and small diagnostic reports.
+
 Each task supplies tests of observable behavior, edge cases and failures; do not write assertions merely restating private implementation. Compare full buffer including alpha and initialized padding where relevant. Test repeated timestamps, backward seeks, cache off, tiny budgets and multiple worker counts as stages become concurrent. Do not make an ignored test stand in for unsupported-case reporting. All external expected assets stay immutable.
 
 Optimize only after collecting stage time, pixels touched, cache misses, construction count, allocation volume and peak retained/transient bytes. Benchmark cold and warm cases separately on a controlled machine. Report distributions and raw data; neither a single fast run nor noisy hosted-runner timing proves an improvement. Prefer reduced work to more threads. Keep benchmarks outside correctness gates unless the controlled-runner policy explicitly enables a calibrated threshold.

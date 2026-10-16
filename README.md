@@ -8,6 +8,8 @@ Start with [AGENTS.md](AGENTS.md), then [the task index](docs/tasks/README.md). 
 
 Reference source folders are now available locally in `C:\taiyou-time\refrences`. Use the [local reference map](docs/LOCAL_REFERENCES.md) before browsing online. Run `pwsh -NoProfile -File scripts/check-local-references.ps1` to verify the recorded entry-point files.
 
+**Development is CI-first.** Git is now initialized and the project has been uploaded to GitHub. The user's PC is for editing and lightweight checks only because storage is limited. Compilation, native dependencies and renderer/test execution belong in GitHub Actions; do not set up local builds. See the [execution policy](docs/DEVELOPMENT.md#d0-execution-location-and-local-storage). Workflow implementation and successful CI runs are still task deliverables, not implied by this policy.
+
 | Document | Purpose |
 |---|---|
 | [Architecture](docs/ARCHITECTURE.md) | Pipeline, modules, ownership and execution |
