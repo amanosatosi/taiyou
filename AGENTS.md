@@ -1,0 +1,15 @@
+# Instructions for Taiyou coding agents
+
+1. Read your task, linked contracts, and relevant ADRs before editing. All unimplemented paths are planned. Implement one assigned task, not the entire roadmap.
+2. `docs/CONTRACTS.md` is normative for interfaces; `docs/COMPATIBILITY.md` for behavior; `docs/CACHING.md` for reuse. Keep dependencies acyclic. Core contract changes require a separate ADR and architect review before dependent implementation.
+3. When a task conflicts with a contract, stop the conflicting portion, record the smallest concrete conflict and proposed choices, and continue independent authorized work. Never invent an undocumented compatibility rule.
+4. Preserve worker-count determinism, event order, integer blending and immutable stage outputs. No shared mutable font faces or schedule-dependent visual decisions.
+5. No silent compatibility changes. Give every change a fixture, profile, evidence and review. Use **pinterf/xy-VSFilter** as the main and only xy-VSFilter reference; other historical renderers are separately named evidence.
+   Read reference sources locally first: see [local reference map](docs/LOCAL_REFERENCES.md) for `C:\taiyou-time\refrences`. Use `rg` and local file reads; do not repeatedly browse GitHub, fetch, clone or pull available sources. Online links in the blueprint are provenance, not instructions to refetch. Report missing sources or revision mismatches; go online only when the task specifically requires unavailable material or a requested update. Treat reference trees as read-only, and never infer a Git commit from an archive folder name.
+6. Never rewrite reference outputs, widen tolerances, skip tests, reduce the supported set, or alter trusted validation to make an implementation pass. Report unsupported cases and failures separately. Baseline changes follow `docs/TESTING.md`.
+7. Use safe, explicit Rust interfaces. Confine justified unsafe code to reviewed native adapters, FFI and measured SIMD kernels. Check dimensions and allocation arithmetic; do not panic on malformed subtitles.
+8. Add no dependency without recording version, license, purpose and alternatives. No speculative optimization, new framework, plugin architecture or unrelated refactoring.
+9. Work on `task/<ID>-<slug>` from the agreed integration revision. One writer per file set; serialize shared contracts and lockfiles. Commit focused changes when Git is established; never reset user changes, force-push or merge your own protected changes.
+10. Run the task's checks and applicable fast suite. Never report unrun tests as passed. Report commit/base, files, tests, failed/unsupported cases, limitations and benchmark evidence where relevant. A compile-only result does not complete a rendering task.
+
+See [development](docs/DEVELOPMENT.md) for model assignment and [guidelines](docs/GUIDELINES.md) for implementation standards. No renderer exists at blueprint delivery; do not claim otherwise.

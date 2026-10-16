@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "recorded_on": "2026-10-17",
+  "root_relative_to_repository": "../refrences",
+  "observed_root": "C:/taiyou-time/refrences",
+  "scope": "Selected entry-point fingerprints only, not complete source-tree or corpus hashes",
+  "sources": [
+    {
+      "id": "libass",
+      "directory": "libass-master",
+      "identity": "RELEASEVERSION: 0.17.5",
+      "git_metadata_present": false,
+      "verified_commit": null,
+      "upstream_pin_equivalence": "unverified",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "ebca71588f5450479ac644a448d5a8dedc63d96f973769d4034de2616893e152"
+        },
+        {
+          "path": "COPYING",
+          "sha256": "f7e30699d02798351e7f839e3d3bfeb29ce65e44efa7735c225464c4fd7dfe9c"
+        },
+        {
+          "path": "RELEASEVERSION",
+          "sha256": "c023a1fcb3128ceec3c14ea262c66aabd075b94b2424a5c14bef8bc90c69e8f3"
+        },
+        {
+          "path": "compare/README.md",
+          "sha256": "3d140869609a5406080d8c964f13162d40d0e4f813725071ae2d7bad6e3f9227"
+        },
+        {
+          "path": "libass/ass_render.c",
+          "sha256": "20705ef4101c09080f4d27798bf6e04cce0fa40dbebd073c9c7480ca8ab36440"
+        },
+        {
+          "path": "libass/ass_shaper.c",
+          "sha256": "29872fc346f9e2dd1be3e8e29d724d0fdacf21bfcc25adeba9751d25d3c99776"
+        },
+        {
+          "path": "libass/ass_cache_template.h",
+          "sha256": "5f388b50434e64da69f5f05384709e0797025fa708e3676cfa0893e41c6cf8e9"
+        },
+        {
+          "path": "libass/ass_bitmap_engine.c",
+          "sha256": "019af0f36201e6d2b17ad6f01777b2229b35b1091e79418803aa00008508c792"
+        }
+      ]
+    },
+    {
+      "id": "xy-vsfilter",
+      "directory": "xy-VSFilter-3.2.0.810",
+      "identity": "README: pinterf pfmod 3.2.0.810",
+      "git_metadata_present": false,
+      "verified_commit": null,
+      "upstream_pin_equivalence": "unverified",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "daa5075f77078787d9645c6d3d86c726f21c1d19ee6b33eec535979f74af2f89"
+        },
+        {
+          "path": "License.txt",
+          "sha256": "19404e184cf45ec991b54e1e6f05f847ad8f13fee2a51f3a2d9a960c8f7cb26b"
+        },
+        {
+          "path": "src/subtitles/STS.cpp",
+          "sha256": "59f431e3ac36d99e2b694cdab106a530edaf7bbc8c85410f91647d3ff4578895"
+        },
+        {
+          "path": "src/subtitles/RTS.cpp",
+          "sha256": "dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb"
+        },
+        {
+          "path": "src/subtitles/Rasterizer.cpp",
+          "sha256": "29b113f2c927793005afd25d8d0c861a430b55462f6e8e057e1bbaceccf08334"
+        },
+        {
+          "path": "src/filters/transform/vsfilter/version_in.h",
+          "sha256": "395251cdc886dc2656355c2ef5feebf1c6939625ce2111b0b526219c25f2247f"
+        }
+      ]
+    },
+    {
+      "id": "original-vsfilter",
+      "directory": "guliverkli2-code-r114",
+      "identity": "Directory label: Guliverkli2 r114; upstream revision unverified",
+      "git_metadata_present": false,
+      "verified_commit": null,
+      "upstream_pin_equivalence": "unverified",
+      "files": [
+        {
+          "path": "License.txt",
+          "sha256": "19404e184cf45ec991b54e1e6f05f847ad8f13fee2a51f3a2d9a960c8f7cb26b"
+        },
+        {
+          "path": "src/subtitles/STS.cpp",
+          "sha256": "53cd8bd328a4681482f2640b6bd8bc8b55eb3c009c19637dd2a62c76cc2d8a67"
+        },
+        {
+          "path": "src/subtitles/RTS.cpp",
+          "sha256": "72ebc5da279aae208df7b025cc39c484e459573fb9bc0a9cfc61d559db708efb"
+        },
+        {
+          "path": "src/subtitles/Rasterizer.cpp",
+          "sha256": "63d9248facd89a45595b2cb682469c6a73c125f4d2fc4a4e4a2fc2260d76d07f"
+        }
+      ]
+    },
+    {
+      "id": "libassmod",
+      "directory": "mangetsu",
+      "identity": "README identifies libassmod; exact upstream revision unverified",
+      "git_metadata_present": false,
+      "verified_commit": null,
+      "upstream_pin_equivalence": "unverified",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "86025be38b9a06d45f016b06fa49e2dfcfab97bd73508311ea7251a845d025c0"
+        },
+        {
+          "path": "COPYING",
+          "sha256": "f7e30699d02798351e7f839e3d3bfeb29ce65e44efa7735c225464c4fd7dfe9c"
+        },
+        {
+          "path": "docs/rgba-rendering.md",
+          "sha256": "a452391d85e37c02f85306cfedd759a56f777545a1d0bc6996c71db1f23f30d7"
+        },
+        {
+          "path": "docs/ortho-tag.md",
+          "sha256": "40bf60c23d34a23e731b4cb89678e40b94f3eb216a7664e5aba8e6eb2a8170e7"
+        },
+        {
+          "path": "libass/ass_render_rgba.c",
+          "sha256": "b0e9c19c1d25537173a55becaa1ce9534e9c97c738773fd9ee721e2acaa805b2"
+        },
+        {
+          "path": "libass/ass_render.c",
+          "sha256": "4a16589bbc32177c4a5f8e808d26c285bab978df476ed764cd00b4cbb256e135"
+        }
+      ]
+    }
+  ],
+  "missing_sources": [
+    "libass-tests"
+  ]
+}

@@ -1,0 +1,9 @@
+/target/
+/build/
+/artifacts/
+/.vs/
+/.idea/
+/references/
+.env
+.env.*
+!.env.example

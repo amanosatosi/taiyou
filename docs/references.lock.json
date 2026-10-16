@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "inspected_on": "2026-10-17",
+  "references": [
+    {
+      "id": "libass",
+      "repository": "https://github.com/libass/libass",
+      "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+      "role": "engineering-and-separate-oracle",
+      "corpus_inventory": "pending-T005"
+    },
+    {
+      "id": "libass-tests",
+      "repository": "https://github.com/libass/libass-tests",
+      "commit": "a5073319af8117271d8ac13ef5c088197ff2d59b",
+      "role": "immutable-external-tests",
+      "corpus_inventory": "pending-T005"
+    },
+    {
+      "id": "libassmod",
+      "repository": "https://github.com/amanosatosi/libassmod",
+      "commit": "3f5640045bbd737661f3858480ec948fece929cb",
+      "role": "extension-study",
+      "corpus_inventory": "pending-T031"
+    },
+    {
+      "id": "xy-vsfilter",
+      "repository": "https://github.com/pinterf/xy-VSFilter",
+      "commit": "25cf3e8433b3a83a5489e47a2c335516492bb815",
+      "role": "main-xy-behavioral-reference",
+      "corpus_inventory": "pending-R001"
+    }
+  ],
+  "original_vsfilter": {
+    "status": "local-archive-supplied-revision-unverified",
+    "commit": null,
+    "local_source_id": "original-vsfilter"
+  },
+  "reference_builds": "not-executed",
+  "asset_hashes": "must-be-created-by-T005-before-validation",
+  "source_access": {
+    "policy": "local-first",
+    "manifest": "local-sources.json",
+    "online_links": "provenance-only; no routine refetch",
+    "archive_pin_equivalence": "unverified; existing upstream pins unchanged"
+  }
+}
