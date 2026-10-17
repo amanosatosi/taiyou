@@ -20,11 +20,13 @@
 //! ```
 
 mod error;
+mod evaluation;
 mod scene;
 mod track;
 mod units;
 
 pub use error::*;
+pub use evaluation::*;
 pub use scene::*;
 pub use track::*;
 pub use units::*;
