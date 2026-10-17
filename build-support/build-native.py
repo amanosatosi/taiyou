@@ -79,6 +79,8 @@ for name in ["freetype2", "harfbuzz"]:
     if Path(actual).resolve() != prefix.resolve(): raise RuntimeError("pkgconf selected a host library")
 
 os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
+os.environ["TAIYOU_TEST_FONT"] = str(sources / "font.otf")
+native_features = ["--features", "taiyou-font/native"]
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"
@@ -87,11 +89,11 @@ for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Car
     print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
     print(lock.read_text(encoding="utf-8"), flush=True)
     print("LOCK_END", flush=True)
-run("cargo", "build", "--locked", "--workspace")
+run("cargo", "build", "--locked", "--workspace", *native_features)
 run("cargo", "fmt", "--all", "--", "--check")
-run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
-run("cargo", "test", "--locked", "--workspace")
-run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1")
+run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+run("cargo", "test", "--locked", "--workspace", *native_features)
+run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1", "-SelfTest")
 manifest = root / "build-support/dependency-smoke/Cargo.toml"
 run("cargo", "fmt", "--manifest-path", manifest, "--", "--check")
 run("cargo", "tree", "--locked", "--manifest-path", manifest)
@@ -107,6 +109,6 @@ if platform.system() == "Linux":
     run("python", root / "build-support/audit.py")
     run("rustup", "toolchain", "install", "1.85.0", "--profile", "minimal")
     minimum = dict(os.environ, RUSTUP_TOOLCHAIN="1.85.0")
-    run("cargo", "test", "--locked", "--workspace", env=minimum)
+    run("cargo", "test", "--locked", "--workspace", *native_features, env=minimum)
     run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf", env=minimum)
 print("NATIVE_RECIPE_COMPLETE", flush=True)

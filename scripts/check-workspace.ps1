@@ -12,10 +12,11 @@ $external = @{
 function Assert-ExternalDependency($packageName, $dependency) {
     if ($packageName -cne 'taiyou-font' -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
     $spec = $external[$dependency.name]
+    $externalPath = if ($dependency -is [System.Collections.IDictionary]) { $dependency['path'] } elseif ($dependency.PSObject.Properties['path']) { $dependency.path } else { $null }
     if ($dependency.source -cne 'registry+https://github.com/rust-lang/crates.io-index' -or
         $dependency.req -cne $spec[0] -or $dependency.uses_default_features -ne $spec[1] -or
         (($dependency.features | Sort-Object) -join ',') -cne $spec[2] -or
-        -not $dependency.optional -or $dependency.kind -or $dependency.target -or $dependency.rename -or $dependency.path) {
+        -not $dependency.optional -or $dependency.kind -or $dependency.target -or $dependency.rename -or $externalPath) {
         throw 'External dependency version/source/features/ownership mismatch'
     }
 }
