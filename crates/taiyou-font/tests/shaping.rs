@@ -430,6 +430,15 @@ fn shaping_limits_unmappable_inputs_repeatability_and_foreign_maps() {
     assert_eq!(a.placement(), event.placement());
     assert_eq!(a.clip(), event.clip());
     assert_eq!(a.evaluated(), &event);
+    let zero = FiniteF64::new(0.0).unwrap();
+    let negative = FiniteF64::new(-1.0).unwrap();
+    assert!(RunMetrics::new(zero, zero, zero, 0).is_err());
+    assert!(RunMetrics::new(negative, zero, zero, 1000).is_err());
+    assert!(RunMetrics::new(zero, negative, zero, 1000).is_err());
+    assert!(RunMetrics::new(zero, zero, negative, 1000).is_ok());
+    let mut wrong = a.runs()[0].face_metrics()[0].clone();
+    wrong.glyphs = 1..usize::MAX;
+    assert!(a.runs()[0].clone().with_face_metrics(Arc::from([wrong])).is_err());
     for bound in [
         limits().with_transient_bytes(1).unwrap(),
         limits().with_text_bytes_per_event(1).unwrap(),
