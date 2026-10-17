@@ -4,11 +4,24 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use taiyou_types::*;
 
-fn push(program: &mut Vec<TextOp>, op: TextOp, limit: u64) -> Result<(), ParseError> {
+struct Program {
+    ops: Vec<TextOp>,
+    spans: Vec<Option<SourceSpan>>,
+    transient: u64,
+}
+fn push(program: &mut Program, op: TextOp, limit: u64) -> Result<(), ParseError> {
+    push_at(program, op, limit, None)
+}
+fn push_at(
+    program: &mut Program,
+    op: TextOp,
+    limit: u64,
+    explicit: Option<SourceSpan>,
+) -> Result<(), ParseError> {
     // At most one operation per input byte, also enforced for empty input's
     // single empty literal. This derives a token bound from the existing text
     // byte limit rather than silently introducing a new independent policy cap.
-    if u64::try_from(program.len()).map_err(|_| invalid("token count conversion overflow"))?
+    if u64::try_from(program.ops.len()).map_err(|_| invalid("token count conversion overflow"))?
         >= limit
     {
         return Err(ParseError::new(
@@ -16,8 +29,26 @@ fn push(program: &mut Vec<TextOp>, op: TextOp, limit: u64) -> Result<(), ParseEr
             "text-derived token limit exceeded",
         ));
     }
-    reserve(program)?;
-    program.push(op);
+    let cost = (program.ops.len() as u64 + 1)
+        .checked_mul(
+            3 * (std::mem::size_of::<TextOp>() + std::mem::size_of::<Option<SourceSpan>>()) as u64,
+        )
+        .and_then(|n| n.checked_add(256));
+    if cost.is_none_or(|n| n > program.transient) {
+        return Err(ParseError::new(
+            ErrorCode::LimitExceeded,
+            "token provenance transient limit exceeded",
+        ));
+    }
+    let span = match &op {
+        TextOp::Text { source, .. } | TextOp::Unsupported { source, .. } => Some(*source),
+        TextOp::Override(op) => Some(op.source()),
+        _ => explicit,
+    };
+    reserve(&mut program.ops)?;
+    reserve(&mut program.spans)?;
+    program.ops.push(op);
+    program.spans.push(span);
     Ok(())
 }
 
@@ -27,13 +58,17 @@ pub(crate) fn tokenize(
     event: EventId,
     styles: &BTreeMap<Arc<str>, usize>,
     ctx: &mut Context<'_>,
-) -> Result<Vec<TextOp>, ParseError> {
+) -> Result<(Vec<TextOp>, Vec<Option<SourceSpan>>), ParseError> {
     let text = span
         .slice(source)
         .ok_or_else(|| invalid("invalid tokenizer source span"))?;
     let base =
         usize::try_from(span.start()).map_err(|_| invalid("text offset conversion overflow"))?;
-    let mut program = Vec::new();
+    let mut program = Program {
+        ops: Vec::new(),
+        spans: Vec::new(),
+        transient: ctx.options.limits().transient_bytes(),
+    };
     let mut cursor = 0;
     let mut literal_start = 0;
     let limit = ctx.options.limits().text_bytes_per_event();
@@ -64,7 +99,12 @@ pub(crate) fn tokenize(
             push(&mut program, literal(literal_start, cursor)?, limit)?;
         }
         if let Some(op) = escape {
-            push(&mut program, op, limit)?;
+            push_at(
+                &mut program,
+                op,
+                limit,
+                Some(SourceSpan::new(source, base + cursor, base + cursor + 2)?),
+            )?;
             cursor += 2;
         } else {
             let start = cursor;
@@ -100,7 +140,7 @@ pub(crate) fn tokenize(
     if literal_start < text.len() || text.is_empty() {
         push(&mut program, literal(literal_start, text.len())?, limit)?;
     }
-    Ok(program)
+    Ok((program.ops, program.spans))
 }
 
 fn block(
@@ -110,7 +150,7 @@ fn block(
     event: EventId,
     styles: &BTreeMap<Arc<str>, usize>,
     ctx: &mut Context<'_>,
-    program: &mut Vec<TextOp>,
+    program: &mut Program,
 ) -> Result<(), ParseError> {
     let mut cursor = 0;
     while cursor < text.len() {

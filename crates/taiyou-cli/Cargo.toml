@@ -11,3 +11,6 @@ taiyou-render.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+native = ["taiyou-render/native"]

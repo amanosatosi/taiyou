@@ -1,4 +1,4 @@
-"""Linux CI only: instrument pinned FreeType, then run the actual Rust font tests.
+"""Linux CI only: instrument pinned FreeType/HarfBuzz and run actual font tests.
 
 The C library is ASan/UBSan instrumented; this is not a Rust ASan build or fuzzing.
 """
@@ -23,6 +23,13 @@ run("meson", "setup", build, source, "--prefix", prefix, "--libdir", "lib",
     *["-D" + name + "=disabled" for name in ["brotli", "bzip2", "harfbuzz", "mmap", "png", "tests", "zlib"]])
 run("meson", "compile", "-C", build, "-j", "2")
 run("meson", "install", "-C", build)
+hb_build = temporary / "taiyou-harfbuzz-sanitizer-build"
+hb_flags = ["-D" + name + "=disabled" for name in ["glib", "gobject", "cairo", "chafa", "png", "zlib", "icu", "graphite", "graphite2", "freetype", "fontations", "gdi", "directwrite", "coretext", "harfrust", "kbts", "wasm", "raster", "vector", "gpu", "gpu_demo", "subset", "tests", "introspection", "docs", "utilities", "benchmark"]]
+run("meson", "setup", hb_build, temporary / "taiyou-native-sources/h", "--prefix", prefix,
+    "--libdir", "lib", "--default-library", "static", "--buildtype", "debugoptimized",
+    "--wrap-mode", "nodownload", "-Dauto_features=disabled", "-Db_sanitize=address,undefined", "-Db_lundef=false", *hb_flags)
+run("meson", "compile", "-C", hb_build, "-j", "2")
+run("meson", "install", "-C", hb_build)
 environment = dict(os.environ)
 environment.update(PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"),
                    PKG_CONFIG_PATH=str(prefix / "lib/pkgconfig"),
@@ -31,7 +38,10 @@ environment.update(PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"),
 actual = subprocess.check_output([environment["PKG_CONFIG"], "--variable=prefix", "freetype2"], env=environment, text=True).strip()
 if Path(actual).resolve() != prefix.resolve():
     raise RuntimeError("sanitizer selected a different FreeType")
-run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), root / "build-support/font-abi.c")
+actual_hb = subprocess.check_output([environment["PKG_CONFIG"], "--variable=prefix", "harfbuzz"], env=environment, text=True).strip()
+if Path(actual_hb).resolve() != prefix.resolve():
+    raise RuntimeError("sanitizer selected a different HarfBuzz")
+run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), "-I" + str(prefix / "include/harfbuzz"), root / "build-support/font-abi.c")
 result = run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native",
              "--no-run", "--message-format=json", env=environment, stdout=subprocess.PIPE, text=True)
 executables = []
@@ -39,8 +49,8 @@ for line in result.stdout.splitlines():
     item = json.loads(line)
     if item.get("reason") == "compiler-artifact" and item.get("profile", {}).get("test") and item.get("executable"):
         executables.append(item["executable"])
-if len(executables) != 2:
-    raise RuntimeError("expected font unit and integration test executables")
+if len(executables) != 3 or {Path(exe).name.split('-')[0] for exe in executables} != {"taiyou_font", "catalog", "shaping"}:
+    raise RuntimeError("expected exact font unit, catalog and shaping executables")
 environment["LD_PRELOAD"] = ":".join(subprocess.check_output(["cc", "-print-file-name=" + name], text=True).strip() for name in ["libasan.so", "libubsan.so"])
 environment["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1"
 environment["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"

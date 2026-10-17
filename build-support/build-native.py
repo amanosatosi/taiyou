@@ -86,7 +86,16 @@ os.environ["TAIYOU_TEST_FONT"] = str(sources / "font.otf")
 run("python", root / "build-support/font-fixtures.py")
 os.environ["TAIYOU_TEST_BOLD"] = str(sources / "bold.otf")
 os.environ["TAIYOU_TEST_COLLECTION"] = str(sources / "collection.otc")
-native_features = ["--features", "taiyou-font/native"]
+native_features = ["--features", "taiyou-cli/native"]
+reference_args = ["--discover"] if os.environ.get("TAIYOU_DISCOVER_SHAPING") == "1" else []
+run(sys.executable, root / "build-support/shaping-reference.py", *reference_args)
+os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-reference.tsv")
+run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "--test", "shaping")
+run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "shaping")
+if os.environ.get("TAIYOU_FOCUSED_SHAPING") == "1":
+    run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+    print("FOCUSED_T009_COMPLETE; full matrix/workspace verification remains required", flush=True)
+    sys.exit(0)
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"

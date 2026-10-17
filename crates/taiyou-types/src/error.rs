@@ -143,6 +143,7 @@ pub enum DiagnosticCode {
     InactiveEvent,
     UnsupportedFeature,
     DiagnosticsSuppressed,
+    MissingGlyph,
 }
 
 impl DiagnosticCode {
@@ -156,6 +157,7 @@ impl DiagnosticCode {
             Self::InactiveEvent => "InactiveEvent",
             Self::UnsupportedFeature => "UnsupportedFeature",
             Self::DiagnosticsSuppressed => "DiagnosticsSuppressed",
+            Self::MissingGlyph => "MissingGlyph",
         }
     }
 }

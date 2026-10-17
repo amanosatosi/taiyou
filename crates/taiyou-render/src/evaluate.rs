@@ -55,12 +55,23 @@ fn preflight(event: &Event) -> Result<u64, RenderError> {
     let count = event.program().len();
     let per = std::mem::size_of::<EvaluatedRun>()
         .checked_mul(3)
-        .and_then(|v| v.checked_add(128))
+        .and_then(|v| v.checked_add(3 * (std::mem::size_of::<TextSourcePiece>() + 32) + 128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))?;
     u64::try_from(count)
         .ok()
         .and_then(|n| n.checked_mul(u64::try_from(per).ok()?))
-        .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 256))
+        .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 512))
+        .and_then(|n| {
+            event.program().iter().try_fold(n, |n, op| {
+                let bytes = match op {
+                    TextOp::Text { text, .. } => text.len() as u64,
+                    TextOp::NoBreakSpace => 2,
+                    TextOp::HardBreak | TextOp::SoftBreak => 1,
+                    _ => 0,
+                };
+                n.checked_add(bytes.checked_mul(3)?)
+            })
+        })
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))
 }
 fn validate_style(
@@ -90,6 +101,7 @@ fn one(
     event: &Event,
     policy: UnsupportedPolicy,
     d: &mut DiagnosticBuffer,
+    limits: &Limits,
 ) -> Result<EvaluatedEvent, RenderError> {
     let base = track
         .styles()
@@ -102,6 +114,8 @@ fn one(
     let mut anchor = Anchor::Default;
     let mut changes = ChangeClass::default();
     let mut runs = Vec::new();
+    let source_map = event_map(track, event, limits)?;
+    let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
     if !event.effect().is_empty() || track.script().wrap().get() != 2 {
         unsupported(
@@ -116,7 +130,13 @@ fn one(
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                runs.push(EvaluatedRun::new(text.clone(), *source, &state));
+                runs.push(mapped_run(
+                    text.clone(),
+                    *source,
+                    &state,
+                    &source_map,
+                    &mut decoded_end,
+                )?);
             }
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
                 let text = match operation {
@@ -125,7 +145,13 @@ fn one(
                     _ => "\n",
                 };
                 reserve(&mut runs)?;
-                runs.push(EvaluatedRun::new(Arc::from(text), event.source(), &state));
+                runs.push(mapped_run(
+                    Arc::from(text),
+                    event.source(),
+                    &state,
+                    &source_map,
+                    &mut decoded_end,
+                )?);
             }
             TextOp::Unsupported { source, .. } => unsupported(
                 event,
@@ -236,13 +262,76 @@ fn one(
         }
     }
     let placement = Placement::new(&state, event.margins(), anchor);
-    Ok(EvaluatedEvent::new(
+    let evaluated = EvaluatedEvent::new(
         event.id(),
         EventOrder::new(event.layer(), event.id().ordinal()),
         runs.into(),
         placement,
         changes,
-    ))
+    );
+    match source_map {
+        Some(map) => evaluated.with_source_map(map),
+        None => Ok(evaluated),
+    }
+}
+fn event_map(
+    track: &Track,
+    event: &Event,
+    limits: &Limits,
+) -> Result<Option<Arc<SourceMappedText>>, RenderError> {
+    let mut pieces = Vec::new();
+    pieces
+        .try_reserve_exact(event.program().len())
+        .map_err(|_| error(ErrorCode::AllocationFailed, "event map allocation failed"))?;
+    for (i, operation) in event.program().iter().enumerate() {
+        let piece = match operation {
+            TextOp::Text { source, .. } => TextSourcePiece::Literal(*source),
+            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
+                let Some(span) = event.operation_sources().and_then(|s| s[i]) else {
+                    return Ok(None);
+                };
+                match operation {
+                    TextOp::HardBreak => TextSourcePiece::HardBreak(span),
+                    TextOp::SoftBreak => TextSourcePiece::SoftBreak(span),
+                    _ => TextSourcePiece::NoBreakSpace(span),
+                }
+            }
+            _ => continue,
+        };
+        pieces.push(piece);
+    }
+    SourceMappedText::from_pieces(
+        track.source_storage().clone(),
+        &pieces,
+        track.script().wrap(),
+        limits,
+    )
+    .map(|map| Some(Arc::new(map)))
+    .map_err(|e| error(e.code(), e.detail()))
+}
+fn mapped_run(
+    text: Arc<str>,
+    source: SourceSpan,
+    style: &Style,
+    map: &Option<Arc<SourceMappedText>>,
+    end: &mut u32,
+) -> Result<EvaluatedRun, RenderError> {
+    let run = EvaluatedRun::new(text, source, style);
+    if let Some(map) = map {
+        let next = end
+            .checked_add(
+                u32::try_from(run.text().len())
+                    .map_err(|_| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?,
+            )
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?;
+        let span = map
+            .decoded_span(*end..next)
+            .map_err(|e| error(e.code(), e.detail()))?;
+        *end = next;
+        run.with_decoded(span)
+    } else {
+        Ok(run)
+    }
 }
 /// Contract C3 entry point: strict Core evaluation of one active event.
 pub fn evaluate(
@@ -294,7 +383,7 @@ pub fn evaluate_with_policy(
         ));
     }
     let mut diagnostics = DiagnosticBuffer::new();
-    let result = one(track, event, policy, &mut diagnostics)?;
+    let result = one(track, event, policy, &mut diagnostics, limits)?;
     Ok((result, diagnostics.finish().map_err(convert)?.into()))
 }
 pub fn evaluate_active(
@@ -326,7 +415,7 @@ pub fn evaluate_active(
     let mut events = Vec::new();
     for event in track.events().iter().filter(|e| e.is_active(now)) {
         reserve(&mut events)?;
-        events.push(one(track, event, policy, &mut diagnostics)?);
+        events.push(one(track, event, policy, &mut diagnostics, limits)?);
     }
     // Event IDs are unique; this total key preserves source order without the
     // scratch allocation used by a stable sort.
