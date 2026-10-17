@@ -2,6 +2,7 @@
 //!
 //! The explicit native feature uses the T002 pinned source recipe, never system
 //! discovery. Native/unsafe and shared-interface review remain acceptance gates.
+pub mod source_map;
 #[cfg(feature = "native")]
 mod catalog;
 #[cfg(feature = "native")]
