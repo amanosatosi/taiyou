@@ -199,9 +199,15 @@ fn evaluate_selection_boundaries_negative_time_and_layer_order() {
         }
     }
     assert_eq!(
-        evaluate_active(&t, TimeUs::from_micros(0), Profile::CoreV1,
-            UnsupportedPolicy::Strict, &Limits::default().with_transient_bytes(1).unwrap())
-            .unwrap_err().code(),
+        evaluate_active(
+            &t,
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+            UnsupportedPolicy::Strict,
+            &Limits::default().with_transient_bytes(1).unwrap()
+        )
+        .unwrap_err()
+        .code(),
         ErrorCode::LimitExceeded
     );
 }
@@ -302,16 +308,34 @@ fn evaluate_escapes_and_tiny_budget_fail_without_partial_output() {
 #[test]
 fn evaluate_dependency_classes_distinguish_rotation_scale_effects_and_placement() {
     let base = Style::core_default();
-    let rotation = ChangeClass::between_styles(&base, &base.clone().with_angle(FiniteF64::new(90.0).unwrap()));
+    let rotation = ChangeClass::between_styles(
+        &base,
+        &base.clone().with_angle(FiniteF64::new(90.0).unwrap()),
+    );
     assert!(rotation.geometry());
     assert!(!rotation.shape() && !rotation.layout() && !rotation.paint() && !rotation.placement());
-    let scale = ChangeClass::between_styles(&base, &base.clone().with_scale(FiniteF64::new(2.0).unwrap(), FiniteF64::ONE).unwrap());
+    let scale = ChangeClass::between_styles(
+        &base,
+        &base
+            .clone()
+            .with_scale(FiniteF64::new(2.0).unwrap(), FiniteF64::ONE)
+            .unwrap(),
+    );
     assert!(scale.layout() && scale.geometry());
     assert!(!scale.shape() && !scale.paint());
-    let border = ChangeClass::between_styles(&base, &base.clone().with_border(FiniteF64::new(4.0).unwrap()).unwrap());
+    let border = ChangeClass::between_styles(
+        &base,
+        &base
+            .clone()
+            .with_border(FiniteF64::new(4.0).unwrap())
+            .unwrap(),
+    );
     assert!(border.effects());
     assert!(!border.shape() && !border.geometry() && !border.paint());
-    let alignment = ChangeClass::between_styles(&base, &base.clone().with_alignment(Alignment::new(9).unwrap()));
+    let alignment = ChangeClass::between_styles(
+        &base,
+        &base.clone().with_alignment(Alignment::new(9).unwrap()),
+    );
     assert!(alignment.placement());
     assert!(!alignment.shape() && !alignment.geometry() && !alignment.paint());
 }
@@ -319,11 +343,20 @@ fn evaluate_dependency_classes_distinguish_rotation_scale_effects_and_placement(
 #[test]
 fn evaluate_weight_and_italic_updates_retain_family_storage() {
     let family: Arc<str> = Arc::from("Host family");
-    let t = track(vec![Style::core_default().with_font(FontRequest::new(family.clone(), 400, false, false))], vec![
-        TextOp::Override(OverrideOp::SetWeight { weight: 700, source: span(0, 0) }),
-        TextOp::Override(OverrideOp::SetItalic { italic: true, source: span(0, 0) }),
-        text(0),
-    ]);
+    let t = track(
+        vec![Style::core_default().with_font(FontRequest::new(family.clone(), 400, false, false))],
+        vec![
+            TextOp::Override(OverrideOp::SetWeight {
+                weight: 700,
+                source: span(0, 0),
+            }),
+            TextOp::Override(OverrideOp::SetItalic {
+                italic: true,
+                source: span(0, 0),
+            }),
+            text(0),
+        ],
+    );
     let e = at(&t, 0);
     let request = e.runs()[0].shaping().font();
     assert_eq!(request.weight(), 700);
