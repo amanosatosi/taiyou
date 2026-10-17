@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import unittest
+from unittest.mock import patch
 import urllib.parse
 import urllib.request
 
@@ -31,7 +32,7 @@ def verify(data, record, discover=False):
 def acquire(record, repository, commit, discover):
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ValueError("fixture must use an exact commit")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or any(part in {".", ".."} for part in repository.split("/")):
         raise ValueError("invalid official repository")
     path = record["path"]
     if any(part in {"", ".", ".."} for part in path.split("/")) or "\\" in path:
@@ -49,11 +50,17 @@ def main(discover):
     destination = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts"
     destination.mkdir(exist_ok=True)
     manifest = json.loads((ROOT / "build-support/shaping-fonts.proposed.json").read_text(encoding="utf-8"))
+    if manifest["schema"] != 1 or {item["id"] for item in manifest["fonts"]} != {"latin", "arabic", "indic", "cjk"} or len(manifest["fonts"]) != 4:
+        raise ValueError("expected the complete four-font proposal")
     from fontTools.ttLib import TTFont
+    total = 0
     for record in manifest["fonts"]:
         data, digest = acquire(record, record["repository"], record["commit"], discover)
+        total += len(data)
+        if total > MAX_BYTES:
+            raise ValueError("combined fixture input budget exceeded")
         license_data, license_digest = acquire(record["license"], record["repository"], record["commit"], discover)
-        if "SIL OPEN FONT LICENSE Version 1.1" not in license_data.decode("utf-8"):
+        if record["license"]["spdx"] != "OFL-1.1" or "SIL OPEN FONT LICENSE Version 1.1" not in license_data.decode("utf-8"):
             raise ValueError("expected OFL-1.1 license text")
         path = destination / (record["id"] + Path(record["path"]).suffix)
         path.write_bytes(data)
@@ -95,8 +102,10 @@ class IntegrityTests(unittest.TestCase):
         for repository, commit, path in [("google/fonts", "main", "font.ttf"),
                                          ("../fonts", "a" * 40, "font.ttf"),
                                          ("google/fonts", "a" * 40, "../font.ttf")]:
-            with self.subTest(path=path), self.assertRaises(ValueError):
-                acquire({"path": path}, repository, commit, False)
+            with self.subTest(path=path), patch("urllib.request.urlopen") as network:
+                with self.assertRaises(ValueError):
+                    acquire({"path": path}, repository, commit, False)
+                network.assert_not_called()
 
 
 if __name__ == "__main__":
