@@ -105,7 +105,8 @@ impl FontCatalogBuilder {
         };
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
-        let names = self.names
+        let names = self
+            .names
             .checked_add(metadata.family.len() as u64)
             .and_then(|n| n.checked_add(folded.len() as u64))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;

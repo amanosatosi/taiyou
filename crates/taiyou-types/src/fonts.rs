@@ -112,10 +112,19 @@ mod tests {
     use super::*;
     #[test]
     fn catalog_revision_exhaustion_does_not_recycle() {
-        let mut owner = CatalogIngestor { next: Some(u64::MAX), initialized: true };
-        assert_eq!(owner.publish(Arc::from([])).unwrap().revision().get(), u64::MAX);
+        let mut owner = CatalogIngestor {
+            next: Some(u64::MAX),
+            initialized: true,
+        };
+        assert_eq!(
+            owner.publish(Arc::from([])).unwrap().revision().get(),
+            u64::MAX
+        );
         for _ in 0..2 {
-            assert_eq!(owner.publish(Arc::from([])).unwrap_err().code(), ErrorCode::LimitExceeded);
+            assert_eq!(
+                owner.publish(Arc::from([])).unwrap_err().code(),
+                ErrorCode::LimitExceeded
+            );
         }
     }
 }

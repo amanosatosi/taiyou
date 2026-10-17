@@ -18,7 +18,13 @@ fn catalog_identity_dedup_order_and_owned_lifetime() {
     assert_eq!(ctx.version(), (2, 14, 3));
     let mut builder = FontCatalogBuilder::new(Limits::default());
     let a = builder.register(&mut ctx, &regular, 0).unwrap();
-    assert_eq!(a.sha256().iter().map(|b| format!("{b:02x}")).collect::<String>(), "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6");
+    assert_eq!(
+        a.sha256()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>(),
+        "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6"
+    );
     let b = builder.register(&mut ctx, &bold, 0).unwrap();
     assert_ne!(a, b);
     assert_eq!(builder.register(&mut ctx, &regular, 0).unwrap(), a);
@@ -195,10 +201,16 @@ fn catalog_transient_reservations_fail_before_publication_and_native_work() {
     let mut context = FontContext::new().unwrap();
     let limits = Limits::default().with_transient_bytes(1).unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
-    assert_eq!(builder.register(&mut context, &font, 0).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        builder.register(&mut context, &font, 0).unwrap_err().code(),
+        ErrorCode::LimitExceeded
+    );
     assert_eq!(builder.registered_bytes(), 0);
     assert!(builder.snapshot().unwrap().faces().is_empty());
     let blob = FontBlob::new(FontId::new([0; 32], 0), font.into());
     let mut restricted = FontContext::with_limits(limits).unwrap();
-    assert_eq!(restricted.glyph_count(&blob).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        restricted.glyph_count(&blob).unwrap_err().code(),
+        ErrorCode::LimitExceeded
+    );
 }

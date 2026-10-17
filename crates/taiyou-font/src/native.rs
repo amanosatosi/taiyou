@@ -48,7 +48,10 @@ impl Drop for Library {
             ft::FT_Done_FreeType(self.0);
         }
         #[cfg(test)]
-        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries - 1, faces)); });
+        LIVE.with(|n| {
+            let (libraries, faces) = n.get();
+            n.set((libraries - 1, faces));
+        });
     }
 }
 struct Face<'a> {
@@ -63,7 +66,10 @@ impl Drop for Face<'_> {
             ft::FT_Done_Face(self.raw);
         }
         #[cfg(test)]
-        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries, faces - 1)); });
+        LIVE.with(|n| {
+            let (libraries, faces) = n.get();
+            n.set((libraries, faces - 1));
+        });
     }
 }
 pub(crate) struct Metadata {
@@ -109,7 +115,10 @@ impl FontContext {
         }
         let library = Library(raw);
         #[cfg(test)]
-        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries + 1, faces)); });
+        LIVE.with(|n| {
+            let (libraries, faces) = n.get();
+            n.set((libraries + 1, faces));
+        });
         let (mut major, mut minor, mut patch) = (0, 0, 0);
         // SAFETY: initialized live library and valid local integer out slots.
         unsafe {
@@ -150,7 +159,10 @@ impl FontContext {
             ));
         }
         #[cfg(test)]
-        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries, faces + 1)); });
+        LIVE.with(|n| {
+            let (libraries, faces) = n.get();
+            n.set((libraries, faces + 1));
+        });
         Ok(Face {
             raw,
             _library: &self.library,
@@ -166,7 +178,7 @@ impl FontContext {
         let probe = self.open(bytes.clone(), -1)?;
         // SAFETY: live initialized probe returned by FreeType.
         let count = unsafe { (*probe.raw).num_faces };
-        if index > 0xffff || i64::from(index) >= i64::from(count) {
+        if index > 0xffff || !u32::try_from(count).is_ok_and(|count| index < count) {
             return Err(FontError::new(
                 ErrorCode::InvalidArgument,
                 "collection face index out of range or named-instance selector",
@@ -178,10 +190,17 @@ impl FontContext {
     }
     pub(crate) fn inspect(&mut self, bytes: Arc<[u8]>, index: u32) -> Result<Metadata, FontError> {
         let byte_limit = bytes.len();
-        let cost = (byte_limit as u64).checked_mul(12).and_then(|n| n.checked_add(64 * 1024));
-        if byte_limit == 0 || byte_limit as u64 > self.limits.font_bytes()
-            || cost.is_none_or(|n| n > self.limits.transient_bytes()) {
-            return Err(FontError::new(ErrorCode::LimitExceeded, "native intake reservation exceeded"));
+        let cost = (byte_limit as u64)
+            .checked_mul(12)
+            .and_then(|n| n.checked_add(64 * 1024));
+        if byte_limit == 0
+            || byte_limit as u64 > self.limits.font_bytes()
+            || cost.is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "native intake reservation exceeded",
+            ));
         }
         self.with_face(bytes, index, |face| {
             // SAFETY: live face, native APIs guarantee successful SFNT records
