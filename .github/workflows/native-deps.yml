@@ -47,6 +47,7 @@ jobs:
     timeout-minutes: 35
     env:
       CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      TAIYOU_REFRESH_LOCK: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:

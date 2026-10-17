@@ -80,11 +80,14 @@ for name in ["freetype2", "harfbuzz"]:
 
 os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
 os.environ["TAIYOU_TEST_FONT"] = str(sources / "font.otf")
+run("python", root / "build-support/font-fixtures.py")
+os.environ["TAIYOU_TEST_BOLD"] = str(sources / "bold.otf")
+os.environ["TAIYOU_TEST_COLLECTION"] = str(sources / "collection.otc")
 native_features = ["--features", "taiyou-font/native"]
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"
-    if not lock.exists():
+    if not lock.exists() or os.environ.get("TAIYOU_REFRESH_LOCK") == "1":
         run("cargo", "generate-lockfile", "--manifest-path", manifest)
     print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
     print(lock.read_text(encoding="utf-8"), flush=True)
