@@ -50,16 +50,9 @@ fn unsupported(
         .map_err(convert)
 }
 fn preflight(event: &Event) -> Result<u64, RenderError> {
-    let count = event
-        .program()
-        .iter()
-        .filter(|op| {
-            matches!(
-                op,
-                TextOp::Text { .. } | TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace
-            )
-        })
-        .count();
+    // Include override-only diagnostics and empty-event storage as well as runs.
+    // The multiplier covers Vec growth and Vec-to-Arc publication overlap.
+    let count = event.program().len();
     let per = std::mem::size_of::<EvaluatedRun>()
         .checked_mul(3)
         .and_then(|v| v.checked_add(128))
@@ -67,6 +60,7 @@ fn preflight(event: &Event) -> Result<u64, RenderError> {
     u64::try_from(count)
         .ok()
         .and_then(|n| n.checked_mul(u64::try_from(per).ok()?))
+        .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 256))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))
 }
 fn validate_style(
@@ -344,7 +338,9 @@ pub fn evaluate_active(
         reserve(&mut events)?;
         events.push(one(track, event, policy, &mut diagnostics)?);
     }
-    events.sort_by_key(EvaluatedEvent::order);
+    // Event IDs are unique; this total key preserves source order without the
+    // scratch allocation used by a stable sort.
+    events.sort_unstable_by_key(EvaluatedEvent::order);
     Ok(Evaluation::new(
         events.into(),
         diagnostics.finish().map_err(convert)?.into(),
