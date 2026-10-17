@@ -1,4 +1,7 @@
-//! Provisional T008 immutable font records and session publication ownership.
+//! Unverified host font descriptors and session publication ownership.
+//!
+//! These shared containers do not authenticate bytes or native family metadata.
+//! Production font resolution requires taiyou-font's sealed validated catalog.
 use crate::*;
 use std::sync::Arc;
 #[derive(Clone, Debug)]
@@ -7,8 +10,8 @@ pub struct FontBlob {
     bytes: Arc<[u8]>,
 }
 impl FontBlob {
-    /// Native catalog intake is responsible for verifying the digest/face index.
-    pub fn new(id: FontId, bytes: Arc<[u8]>) -> Self {
+    /// Creates an explicitly unverified descriptor, not a validated font identity.
+    pub fn from_unverified(id: FontId, bytes: Arc<[u8]>) -> Self {
         Self { id, bytes }
     }
     pub const fn id(&self) -> FontId {
@@ -30,7 +33,9 @@ pub struct FontRecord {
     italic: bool,
 }
 impl FontRecord {
-    pub fn new(
+    /// Nonempty names are structural checks only. Native intake must verify all
+    /// metadata against the actual bytes before any production font resolution.
+    pub fn from_unverified(
         blob: FontBlob,
         family: Arc<str>,
         folded_family: Arc<str>,
@@ -68,6 +73,7 @@ impl FontRecord {
     }
 }
 #[derive(Clone, Debug)]
+/// Immutable unverified descriptors; not a native-validated runtime catalog.
 pub struct FontCatalog {
     revision: CatalogRevision,
     faces: Arc<[FontRecord]>,
@@ -90,7 +96,9 @@ impl CatalogIngestor {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn publish(&mut self, faces: Arc<[FontRecord]>) -> Result<Arc<FontCatalog>, FontError> {
+    /// Publishes descriptors without authenticating their claimed identities or
+    /// metadata. Production code must pass these through native validation.
+    pub fn publish_unverified(&mut self, faces: Arc<[FontRecord]>) -> Result<Arc<FontCatalog>, FontError> {
         let value = if self.initialized {
             self.next.ok_or_else(|| {
                 FontError::new(ErrorCode::LimitExceeded, "catalog revision exhausted")
@@ -117,12 +125,12 @@ mod tests {
             initialized: true,
         };
         assert_eq!(
-            owner.publish(Arc::from([])).unwrap().revision().get(),
+            owner.publish_unverified(Arc::from([])).unwrap().revision().get(),
             u64::MAX
         );
         for _ in 0..2 {
             assert_eq!(
-                owner.publish(Arc::from([])).unwrap_err().code(),
+                owner.publish_unverified(Arc::from([])).unwrap_err().code(),
                 ErrorCode::LimitExceeded
             );
         }

@@ -6,6 +6,38 @@ use taiyou_types::*;
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
 }
+/// Immutable native-validated publication. Only this module can construct it;
+/// shared unverified descriptors cannot be converted without validation.
+/// ```compile_fail
+/// use taiyou_types::{FontCatalog, FontRequest, Limits};
+/// fn forged(draft: &FontCatalog, request: &FontRequest) {
+///     taiyou_font::resolve_family(draft, request, &Limits::default());
+/// }
+/// ```
+/// ```compile_fail
+/// fn forged(raw: std::sync::Arc<taiyou_types::FontCatalog>) {
+///     let catalog = taiyou_font::ValidatedFontCatalog { inner: raw };
+/// }
+/// ```
+#[derive(Clone, Debug)]
+pub struct ValidatedFontCatalog {
+    inner: Arc<FontCatalog>,
+}
+impl ValidatedFontCatalog {
+    pub fn revision(&self) -> CatalogRevision {
+        self.inner.revision()
+    }
+    pub fn faces(&self) -> &[FontRecord] {
+        self.inner.faces()
+    }
+}
+pub(crate) fn check_blob_identity(blob: &FontBlob) -> Result<(), FontError> {
+    let actual: [u8; 32] = Sha256::digest(blob.bytes()).into();
+    if actual != *blob.id().sha256() {
+        return Err(error(ErrorCode::InvalidArgument, "font bytes do not match claimed SHA-256"));
+    }
+    Ok(())
+}
 pub fn fold_family(name: &str, limits: &Limits) -> Result<String, FontError> {
     let cost = u64::try_from(name.len())
         .ok()
@@ -112,8 +144,8 @@ impl FontCatalogBuilder {
             .checked_add(metadata.family.len() as u64)
             .and_then(|n| n.checked_add(folded.len() as u64))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;
-        let record = FontRecord::new(
-            FontBlob::new(id, data.clone()),
+        let record = FontRecord::from_unverified(
+            FontBlob::from_unverified(id, data.clone()),
             Arc::from(metadata.family),
             Arc::from(folded),
             metadata.weight,
@@ -138,7 +170,7 @@ impl FontCatalogBuilder {
     }
     /// A renderer/session owns one ingestion owner across all catalog builders,
     /// so replacing a catalog cannot accidentally recycle a resolution identity.
-    pub fn snapshot(&self, ingestion: &mut CatalogIngestor) -> Result<Arc<FontCatalog>, FontError> {
+    pub fn snapshot(&self, ingestion: &mut CatalogIngestor) -> Result<Arc<ValidatedFontCatalog>, FontError> {
         let mut records = Vec::new();
         records.try_reserve_exact(self.records.len()).map_err(|_| {
             error(
@@ -147,14 +179,49 @@ impl FontCatalogBuilder {
             )
         })?;
         records.extend(self.records.iter().cloned());
-        ingestion.publish(records.into())
+        // All builder records originate from register: digest, native face index,
+        // family and attributes were verified, with collisions checked by bytes.
+        Ok(Arc::new(ValidatedFontCatalog { inner: ingestion.publish_unverified(records.into())? }))
     }
 }
+/// Imports unverified shared descriptors. All fields are checked against freshly
+/// derived native records; no claimed digest, family or revision is trusted.
+/// Failure publishes no validated catalog and consumes no output revision.
+pub fn validate_catalog(
+    draft: &FontCatalog,
+    context: &mut FontContext,
+    ingestion: &mut CatalogIngestor,
+    limits: Limits,
+) -> Result<Arc<ValidatedFontCatalog>, FontError> {
+    let mut builder = FontCatalogBuilder::new(limits);
+    for claimed in draft.faces() {
+        context.check_bytes(claimed.blob().bytes())?;
+        check_blob_identity(claimed.blob())?;
+        let previous = builder.records.len();
+        let id = builder.register(context, claimed.blob().bytes(), claimed.blob().id().face_index())?;
+        if builder.records.len() == previous {
+            return Err(error(ErrorCode::InvalidArgument, "duplicate font identity in imported catalog"));
+        }
+        let actual = &builder.records[previous];
+        if id != claimed.blob().id()
+            || actual.family() != claimed.family()
+            || actual.folded_family() != claimed.folded_family()
+            || actual.weight() != claimed.weight()
+            || actual.italic() != claimed.italic()
+        {
+            return Err(error(ErrorCode::InvalidArgument, "unverified font metadata differs from native bytes"));
+        }
+    }
+    builder.snapshot(ingestion)
+}
 pub fn resolve_family(
-    catalog: &FontCatalog,
+    catalog: &ValidatedFontCatalog,
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
+    select_family(catalog.faces(), request, limits)
+}
+fn select_family(records: &[FontRecord], request: &FontRequest, limits: &Limits) -> Result<FontId, FontError> {
     if request.vertical() || request.family().starts_with('@') {
         return Err(error(
             ErrorCode::UnsupportedFeature,
@@ -162,8 +229,7 @@ pub fn resolve_family(
         ));
     }
     let folded = fold_family(request.family(), limits)?;
-    catalog
-        .faces()
+    records
         .iter()
         .enumerate()
         .filter(|(_, record)| record.folded_family() == folded)
@@ -181,4 +247,27 @@ pub fn resolve_family(
                 "requested family is absent from host catalog",
             )
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn catalog_ties_follow_weight_then_italic_then_registration_order_synthetic() {
+        // Synthetic descriptors only reach the private selector. No native
+        // validation marker, fixture feature or unchecked runtime constructor.
+        let bytes: Arc<[u8]> = Arc::from([1]);
+        let records = [(0, 300, false), (1, 500, true), (2, 500, false), (3, 500, false)]
+            .into_iter().map(|(ordinal, weight, italic)| {
+                FontRecord::from_unverified(
+                    FontBlob::from_unverified(FontId::new([ordinal; 32], 0), bytes.clone()),
+                    Arc::from("Family"), Arc::from("family"), weight, italic,
+                ).unwrap()
+            }).collect::<Vec<_>>();
+        let request = |family: &str, weight, italic| FontRequest::new(Arc::from(family), weight, italic, false);
+        let limits = Limits::default();
+        assert_eq!(select_family(&records, &request("Family", 400, true), &limits).unwrap().sha256(), &[1; 32]);
+        assert_eq!(select_family(&records, &request("Family", 500, false), &limits).unwrap().sha256(), &[2; 32]);
+        assert_eq!(select_family(&records, &request("absent", 400, false), &limits).unwrap_err().code(), ErrorCode::FontUnavailable);
+    }
 }

@@ -11,7 +11,7 @@ fn request(family: &str, weight: u16, italic: bool) -> FontRequest {
 #[test]
 fn catalog_identity_dedup_order_and_owned_lifetime() {
     fn shared<T: Send + Sync>() {}
-    shared::<FontCatalog>();
+    shared::<ValidatedFontCatalog>();
     let regular = fixture("TAIYOU_TEST_FONT");
     let bold = fixture("TAIYOU_TEST_BOLD");
     let mut ingestion = CatalogIngestor::new();
@@ -164,41 +164,23 @@ fn catalog_default_full_unicode_fold_is_locale_free_without_normalization() {
 }
 #[test]
 fn catalog_ties_follow_weight_then_italic_then_registration_order() {
-    // Independently authored immutable metadata isolates C4 tie ordering from font
-    // availability. Runtime catalogs are produced by the validated native builder.
-    let bytes: Arc<[u8]> = Arc::from([1]);
-    let mut owner = CatalogIngestor::new();
-    let records = [
-        (0, 300, false),
-        (1, 500, true),
-        (2, 500, false),
-        (3, 500, false),
-    ]
-    .into_iter()
-    .map(|(ordinal, weight, italic)| {
-        FontRecord::new(
-            FontBlob::new(FontId::new([ordinal; 32], 0), bytes.clone()),
-            Arc::from("Family"),
-            Arc::from("family"),
-            weight,
-            italic,
-        )
-        .unwrap()
-    })
-    .collect::<Vec<_>>();
-    let catalog = owner.publish(records.into()).unwrap();
+    // The synthetic 300/500/italic fixture and its original assertions now live
+    // in the private selector unit test, never in validated runtime publication.
+    let mut context = FontContext::new().unwrap();
+    let mut ingestion = CatalogIngestor::new();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let regular = builder.register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0).unwrap();
+    let bold = builder.register(&mut context, &fixture("TAIYOU_TEST_BOLD"), 0).unwrap();
+    let catalog = builder.snapshot(&mut ingestion).unwrap();
+    let family = catalog.faces()[0].family();
     let limits = Limits::default();
     assert_eq!(
-        resolve_family(&catalog, &request("Family", 400, true), &limits)
-            .unwrap()
-            .sha256(),
-        &[1; 32]
+        resolve_family(&catalog, &request(family, 550, true), &limits).unwrap(),
+        regular
     );
     assert_eq!(
-        resolve_family(&catalog, &request("Family", 500, false), &limits)
-            .unwrap()
-            .sha256(),
-        &[2; 32]
+        resolve_family(&catalog, &request(family, 700, false), &limits).unwrap(),
+        bold
     );
     assert_eq!(
         resolve_family(&catalog, &request("absent", 400, false), &limits)
@@ -221,7 +203,7 @@ fn catalog_transient_reservations_fail_before_publication_and_native_work() {
     );
     assert_eq!(builder.registered_bytes(), 0);
     assert!(builder.snapshot(&mut ingestion).unwrap().faces().is_empty());
-    let blob = FontBlob::new(FontId::new([0; 32], 0), font.into());
+    let blob = FontBlob::from_unverified(FontId::new([0; 32], 0), font.into());
     let mut restricted = FontContext::with_limits(limits).unwrap();
     assert_eq!(
         restricted.glyph_count(&blob).unwrap_err().code(),
@@ -246,4 +228,56 @@ fn catalog_replacement_builders_share_one_session_identity_owner() {
     assert_eq!(newer.revision().get(), 1);
     assert_ne!(old.faces()[0].blob().id(), newer.faces()[0].blob().id());
     assert_eq!(context.glyph_count(old.faces()[0].blob()).unwrap(), 2478);
+}
+
+#[test]
+fn catalog_unverified_import_recomputes_identity_and_metadata_before_publication() {
+    let mut context = FontContext::new().unwrap();
+    let mut session = CatalogIngestor::new();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    builder.register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0).unwrap();
+    let verified = builder.snapshot(&mut session).unwrap();
+    let original = &verified.faces()[0];
+    let mut drafts = CatalogIngestor::new();
+    let draft = drafts.publish_unverified(Arc::from([original.clone()])).unwrap();
+    let imported = validate_catalog(&draft, &mut context, &mut session, Limits::default()).unwrap();
+    assert_eq!(verified.revision().get(), 0);
+    assert_eq!(imported.revision().get(), 1);
+    assert_eq!(imported.faces()[0].blob().id(), original.blob().id());
+    assert_eq!(resolve_family(&imported, &request(original.family(), 400, false), &Limits::default()).unwrap(), original.blob().id());
+
+    let forge = |blob, family: &str, folded: &str, weight, italic| {
+        FontRecord::from_unverified(blob, Arc::from(family), Arc::from(folded), weight, italic).unwrap()
+    };
+    let genuine_blob = original.blob().clone();
+    let forged_identity = forge(FontBlob::from_unverified(FontId::new([0; 32], 0), genuine_blob.shared_bytes()), original.family(), original.folded_family(), original.weight(), original.italic());
+    let conflicting_bytes = forge(FontBlob::from_unverified(genuine_blob.id(), fixture("TAIYOU_TEST_BOLD").into()), original.family(), original.folded_family(), original.weight(), original.italic());
+    let cases = [
+        vec![forged_identity],
+        vec![original.clone(), conflicting_bytes],
+        vec![original.clone(), original.clone()],
+        vec![forge(genuine_blob.clone(), "Forged family", original.folded_family(), original.weight(), original.italic())],
+        vec![forge(genuine_blob.clone(), original.family(), "forged folded family", original.weight(), original.italic())],
+        vec![forge(genuine_blob.clone(), original.family(), original.folded_family(), 700, original.italic())],
+        vec![forge(genuine_blob, original.family(), original.folded_family(), original.weight(), !original.italic())],
+    ];
+    for records in cases {
+        let draft = drafts.publish_unverified(records.into()).unwrap();
+        assert_eq!(validate_catalog(&draft, &mut context, &mut session, Limits::default()).unwrap_err().code(), ErrorCode::InvalidArgument);
+    }
+    let after = builder.snapshot(&mut session).unwrap();
+    assert_eq!(after.revision().get(), 2, "failed imports must not consume validated output identities");
+    assert_eq!(context.glyph_count(original.blob()).unwrap(), 2478);
+}
+
+#[test]
+fn catalog_native_blob_consumption_rejects_forged_digests_and_face_indices() {
+    let bytes: Arc<[u8]> = fixture("TAIYOU_TEST_FONT").into();
+    let forged = FontBlob::from_unverified(FontId::new([0; 32], 0), bytes);
+    let mut context = FontContext::new().unwrap();
+    assert_eq!(context.glyph_count(&forged).unwrap_err().code(), ErrorCode::InvalidArgument);
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let id = builder.register(&mut context, forged.bytes(), 0).unwrap();
+    let bad_index = FontBlob::from_unverified(FontId::new(*id.sha256(), 1), forged.shared_bytes());
+    assert_eq!(context.glyph_count(&bad_index).unwrap_err().code(), ErrorCode::InvalidArgument);
 }

@@ -188,7 +188,7 @@ impl FontContext {
         let face = self.open(bytes, ft::FT_Long::from(index as u16))?;
         read(&face)
     }
-    pub(crate) fn inspect(&mut self, bytes: Arc<[u8]>, index: u32) -> Result<Metadata, FontError> {
+    pub(crate) fn check_bytes(&self, bytes: &[u8]) -> Result<(), FontError> {
         let byte_limit = bytes.len();
         if byte_limit == 0 {
             return Err(FontError::new(
@@ -207,6 +207,11 @@ impl FontContext {
                 "native intake reservation exceeded",
             ));
         }
+        Ok(())
+    }
+    pub(crate) fn inspect(&mut self, bytes: Arc<[u8]>, index: u32) -> Result<Metadata, FontError> {
+        self.check_bytes(&bytes)?;
+        let byte_limit = bytes.len();
         self.with_face(bytes, index, |face| {
             // SAFETY: live face, native APIs guarantee successful SFNT records
             // reference face-owned memory. Copy all names before dropping face.
@@ -315,6 +320,8 @@ impl FontContext {
         })
     }
     pub fn glyph_count(&mut self, blob: &FontBlob) -> Result<u32, FontError> {
+        self.check_bytes(blob.bytes())?;
+        crate::catalog::check_blob_identity(blob)?;
         Ok(self
             .inspect(blob.shared_bytes(), blob.id().face_index())?
             .glyphs)

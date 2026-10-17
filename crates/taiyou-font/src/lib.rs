@@ -7,6 +7,6 @@ mod catalog;
 #[cfg(feature = "native")]
 mod native;
 #[cfg(feature = "native")]
-pub use catalog::{FontCatalogBuilder, fold_family, resolve_family};
+pub use catalog::{FontCatalogBuilder, ValidatedFontCatalog, fold_family, resolve_family, validate_catalog};
 #[cfg(feature = "native")]
 pub use native::FontContext;
