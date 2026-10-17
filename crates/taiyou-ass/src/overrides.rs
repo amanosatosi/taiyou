@@ -124,7 +124,10 @@ fn block(
         // Named resets may contain literal parentheses. Only a final exact style
         // match gets that unstructured treatment; unsupported r-prefixed tags
         // retain nested parameters as one operation and cannot execute children.
-        let reset = remaining.split('\\').next().and_then(|raw| raw.strip_prefix('r'));
+        let reset = remaining
+            .split('\\')
+            .next()
+            .and_then(|raw| raw.strip_prefix('r'));
         let unstructured = remaining.starts_with("fn")
             || reset.is_some_and(|name| {
                 let name = decode::trim(name);
@@ -207,8 +210,12 @@ fn channel(name: &str) -> PaintChannel {
         _ => PaintChannel::Primary,
     }
 }
-fn parse(raw: &str, source: SourceSpan, styles: &BTreeMap<Arc<str>, usize>) -> Result<Option<OverrideOp>, ParseError> {
-    // Longest names first; fn/r intentionally consume literal names as suffixes.
+fn parse(
+    raw: &str,
+    source: SourceSpan,
+    styles: &BTreeMap<Arc<str>, usize>,
+) -> Result<Option<OverrideOp>, ParseError> {
+    // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
         "fscx", "fscy", "alpha", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a", "3a", "4a",
         "fn", "fs", "an", "b", "i", "c", "r",
@@ -245,14 +252,14 @@ fn parse(raw: &str, source: SourceSpan, styles: &BTreeMap<Arc<str>, usize>) -> R
                 return Ok(None);
             }
             OverrideOp::ResetStyle {
-            name: if value.is_empty() {
-                None
-            } else {
-                Some(Arc::from(value))
-            },
-            source,
+                name: if value.is_empty() {
+                    None
+                } else {
+                    Some(Arc::from(value))
+                },
+                source,
             }
-        },
+        }
         "fs" => {
             let size = decode::number(value)?;
             if size.get() <= 0.0 {

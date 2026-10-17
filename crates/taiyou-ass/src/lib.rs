@@ -230,7 +230,8 @@ pub fn parse_ass(
         };
         let index = u32::try_from(index)
             .map_err(|_| ParseError::new(ErrorCode::LimitExceeded, "style index overflow"))?;
-        let program = overrides::tokenize(source, event.text_span, event.id, &style_indices, &mut ctx)?;
+        let program =
+            overrides::tokenize(source, event.text_span, event.id, &style_indices, &mut ctx)?;
         reserve(&mut events)?;
         events.push(event.publish(StyleId::new(index), program.into()));
     }
