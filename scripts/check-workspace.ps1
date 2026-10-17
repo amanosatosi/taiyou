@@ -37,6 +37,21 @@ if ($SelfTest) {
     try { Assert-ExternalDependency 'taiyou-render' $sample } catch { $rejected = $true }
     if (-not $rejected) { throw 'Dependency owner self-test failed' }
     Write-Output 'PASS: exact dependency admission and ten tamper scenarios.'
+    foreach ($name in @('harfbuzz-sys','unicode-bidi','unicode-script')) {
+        $admitted = $sample.Clone()
+        $admitted.name = $name
+        $admitted.req = $external[$name][0]
+        $admitted.uses_default_features = $external[$name][1]
+        Assert-ExternalDependency 'taiyou-font' $admitted
+        foreach ($mutation in @(@{req='*'}, @{uses_default_features=(-not $admitted.uses_default_features)}, @{features=@('freetype')})) {
+            $changed = $admitted.Clone()
+            foreach ($key in $mutation.Keys) { $changed[$key] = $mutation[$key] }
+            $rejected = $false
+            try { Assert-ExternalDependency 'taiyou-font' $changed } catch { $rejected = $true }
+            if (-not $rejected) { throw 'T009 exact dependency tamper test failed' }
+        }
+    }
+    Write-Output 'PASS: exact T002 shaping dependencies with nine additional tamper scenarios.'
 }
 Push-Location -LiteralPath $Root
 try {

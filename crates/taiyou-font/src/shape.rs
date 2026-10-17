@@ -517,7 +517,18 @@ fn shape_item(
     );
     let mut diagnostics = DiagnosticBuffer::new();
     for item in &missing {
-        diagnostics.push(Diagnostic::new(DiagnosticCode::MissingGlyph, None, None, &format!("missing glyph in decoded bytes {}..{}; exact original intervals retained", item.decoded.start(), item.decoded.end()))).map_err(|e| error(e.code(), e.detail()))?;
+        diagnostics
+            .push(Diagnostic::new(
+                DiagnosticCode::MissingGlyph,
+                None,
+                None,
+                &format!(
+                    "missing glyph in decoded bytes {}..{}; exact original intervals retained",
+                    item.decoded.start(),
+                    item.decoded.end()
+                ),
+            ))
+            .map_err(|e| error(e.code(), e.detail()))?;
     }
     Ok((
         ShapedRun::new(
@@ -527,7 +538,13 @@ fn shape_item(
             input.item.level,
             input.item.script,
             input.options.language.clone(),
-        )?.with_diagnostics(diagnostics.finish().map_err(|e| error(e.code(), e.detail()))?.into())?,
+        )?
+        .with_diagnostics(
+            diagnostics
+                .finish()
+                .map_err(|e| error(e.code(), e.detail()))?
+                .into(),
+        )?,
         missing,
     ))
 }

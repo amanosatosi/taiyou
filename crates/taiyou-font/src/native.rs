@@ -649,23 +649,44 @@ mod tests {
         assert_eq!(std::mem::size_of::<hb::hb_glyph_position_t>(), 20);
         assert_eq!(std::mem::size_of::<hb::hb_font_extents_t>(), 48);
         assert_eq!(std::mem::size_of::<hb::hb_feature_t>(), 16);
-        let bytes: Arc<[u8]> = std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap().into();
-        let hash: [u8;32] = Sha256::digest(&bytes).into();
-        let invalid_face = FontBlob::from_unverified(FontId::new(hash,u32::MAX),bytes.clone());
-        let valid = FontBlob::from_unverified(FontId::new(hash,0),bytes);
-        let junk: Arc<[u8]> = Arc::from([0_u8;32]);
-        let malformed = FontBlob::from_unverified(FontId::new(Sha256::digest(&junk).into(),0),junk);
-        let request = NativeRequest { text:"fi",context:0..2,range:0..2,rtl:false,script:u32::from_be_bytes(*b"Latn"),language:"en",ligatures:true };
+        let bytes: Arc<[u8]> = std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap())
+            .unwrap()
+            .into();
+        let hash: [u8; 32] = Sha256::digest(&bytes).into();
+        let invalid_face = FontBlob::from_unverified(FontId::new(hash, u32::MAX), bytes.clone());
+        let valid = FontBlob::from_unverified(FontId::new(hash, 0), bytes);
+        let junk: Arc<[u8]> = Arc::from([0_u8; 32]);
+        let malformed =
+            FontBlob::from_unverified(FontId::new(Sha256::digest(&junk).into(), 0), junk);
+        let request = NativeRequest {
+            text: "fi",
+            context: 0..2,
+            range: 0..2,
+            rtl: false,
+            script: u32::from_be_bytes(*b"Latn"),
+            language: "en",
+            ligatures: true,
+        };
         let retained = {
             let mut context = FontContext::new().unwrap();
             for _ in 0..16 {
-                assert!(context.shape_raw(&invalid_face,&request,&Limits::default()).is_err());
-                assert!(context.shape_raw(&malformed,&request,&Limits::default()).is_err());
+                assert!(
+                    context
+                        .shape_raw(&invalid_face, &request, &Limits::default())
+                        .is_err()
+                );
+                assert!(
+                    context
+                        .shape_raw(&malformed, &request, &Limits::default())
+                        .is_err()
+                );
             }
-            context.shape_raw(&valid,&request,&Limits::default()).unwrap()
+            context
+                .shape_raw(&valid, &request, &Limits::default())
+                .unwrap()
         };
         assert!(retained.glyphs.iter().all(|g| g.glyph != 0));
-        assert_eq!(retained.upem,1000);
+        assert_eq!(retained.upem, 1000);
     }
     #[test]
     fn rejected_library_initialization_finishes_native_owner() {
