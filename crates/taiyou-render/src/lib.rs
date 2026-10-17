@@ -6,8 +6,8 @@
 
 mod compose;
 mod evaluate;
-pub mod layout;
 pub mod geometry;
+pub mod layout;
 mod paint;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy};

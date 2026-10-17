@@ -74,7 +74,12 @@ impl Drop for HbBuffer {
 impl FontContext {
     /// Extract an owned, unhinted y-up vector path. This reauthenticates the blob,
     /// checks the collection face and glyph, and never publishes a native handle.
-    pub fn outline(&mut self, blob: &FontBlob, glyph: u32, limits: &Limits) -> Result<GlyphOutline, FontError> {
+    pub fn outline(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
         self.check_bytes(blob.bytes())?;
         crate::catalog::check_blob_identity(blob)?;
         let native_limits = self.limits.clone();
@@ -83,44 +88,116 @@ impl FontContext {
             // the call. FreeType validates its font storage; all native array counts,
             // pointers and contour endpoints are checked before decomposition.
             unsafe {
-                if !u32::try_from((*face.raw).num_glyphs).is_ok_and(|n| glyph < n) || (*face.raw).units_per_EM == 0 {
-                    return Err(FontError::new(ErrorCode::InvalidArgument,"outline glyph/metrics out of range"));
+                if !u32::try_from((*face.raw).num_glyphs).is_ok_and(|n| glyph < n)
+                    || (*face.raw).units_per_EM == 0
+                {
+                    return Err(FontError::new(
+                        ErrorCode::InvalidArgument,
+                        "outline glyph/metrics out of range",
+                    ));
                 }
-                let flags = ft::FT_LOAD_NO_SCALE | ft::FT_LOAD_NO_HINTING | ft::FT_LOAD_NO_BITMAP | ft::FT_LOAD_IGNORE_TRANSFORM;
+                let flags = ft::FT_LOAD_NO_SCALE
+                    | ft::FT_LOAD_NO_HINTING
+                    | ft::FT_LOAD_NO_BITMAP
+                    | ft::FT_LOAD_IGNORE_TRANSFORM;
                 let code = ft::FT_Load_Glyph(face.raw, glyph, flags);
-                if code != 0 { return Err(native_error(code,"FT_Load_Glyph outline failed")); }
+                if code != 0 {
+                    return Err(native_error(code, "FT_Load_Glyph outline failed"));
+                }
                 let record = &*face.raw;
-                let slot = record.glyph.as_ref().ok_or_else(|| native_error(0,"null glyph slot"))?;
-                if slot.format != ft::FT_GLYPH_FORMAT_OUTLINE { return Err(FontError::new(ErrorCode::UnsupportedFeature,"glyph has no vector outline")); }
+                let slot = record
+                    .glyph
+                    .as_ref()
+                    .ok_or_else(|| native_error(0, "null glyph slot"))?;
+                if slot.format != ft::FT_GLYPH_FORMAT_OUTLINE {
+                    return Err(FontError::new(
+                        ErrorCode::UnsupportedFeature,
+                        "glyph has no vector outline",
+                    ));
+                }
                 let outline = &slot.outline;
-                let points = usize::try_from(outline.n_points).map_err(|_| native_error(0,"negative outline point count"))?;
-                let contours = usize::try_from(outline.n_contours).map_err(|_| native_error(0,"negative contour count"))?;
-                if (points == 0) != (contours == 0) || contours > points { return Err(native_error(0,"inconsistent empty outline")); }
+                let points = usize::try_from(outline.n_points)
+                    .map_err(|_| native_error(0, "negative outline point count"))?;
+                let contours = usize::try_from(outline.n_contours)
+                    .map_err(|_| native_error(0, "negative contour count"))?;
+                if (points == 0) != (contours == 0) || contours > points {
+                    return Err(native_error(0, "inconsistent empty outline"));
+                }
                 // Core nonzero winding cannot silently reinterpret an even-odd outline.
-                if outline.flags & 2 != 0 { return Err(FontError::new(ErrorCode::UnsupportedFeature,"even-odd native glyph outline")); }
-                let capacity = points.checked_mul(2).and_then(|n| n.checked_add(contours.checked_mul(2)?)).ok_or_else(|| native_error(0,"outline count overflow"))?;
-                for cap in [limits, &native_limits] { check_path_budget(capacity,cap).map_err(|e| FontError::new(e.code(),e.detail()))?; }
-                let mut state = OutlineCopy { ops: Vec::new(), failed: false, open: false };
-                state.ops.try_reserve_exact(capacity).map_err(|_| FontError::new(ErrorCode::AllocationFailed,"outline copy allocation failed"))?;
+                if outline.flags & 2 != 0 {
+                    return Err(FontError::new(
+                        ErrorCode::UnsupportedFeature,
+                        "even-odd native glyph outline",
+                    ));
+                }
+                let capacity = points
+                    .checked_mul(2)
+                    .and_then(|n| n.checked_add(contours.checked_mul(2)?))
+                    .ok_or_else(|| native_error(0, "outline count overflow"))?;
+                for cap in [limits, &native_limits] {
+                    check_path_budget(capacity, cap)
+                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                }
+                let mut state = OutlineCopy {
+                    ops: Vec::new(),
+                    failed: false,
+                    open: false,
+                };
+                state.ops.try_reserve_exact(capacity).map_err(|_| {
+                    FontError::new(
+                        ErrorCode::AllocationFailed,
+                        "outline copy allocation failed",
+                    )
+                })?;
                 if points != 0 {
-                    if outline.points.is_null() || outline.tags.is_null() || outline.contours.is_null() { return Err(native_error(0,"null outline arrays")); }
+                    if outline.points.is_null()
+                        || outline.tags.is_null()
+                        || outline.contours.is_null()
+                    {
+                        return Err(native_error(0, "null outline arrays"));
+                    }
                     let mut previous = -1;
                     for &end in std::slice::from_raw_parts(outline.contours, contours) {
-                        if end <= previous || usize::try_from(end).map_or(true,|n| n >= points) { return Err(native_error(0,"invalid contour endpoint")); }
+                        if end <= previous || usize::try_from(end).map_or(true, |n| n >= points) {
+                            return Err(native_error(0, "invalid contour endpoint"));
+                        }
                         previous = end;
                     }
-                    if usize::try_from(previous).ok() != points.checked_sub(1) { return Err(native_error(0,"unconsumed outline points")); }
-                    for point in std::slice::from_raw_parts(outline.points,points) { copy_point(point).ok_or_else(|| native_error(0,"native outline coordinate overflow"))?; }
+                    if usize::try_from(previous).ok() != points.checked_sub(1) {
+                        return Err(native_error(0, "unconsumed outline points"));
+                    }
+                    for point in std::slice::from_raw_parts(outline.points, points) {
+                        copy_point(point)
+                            .ok_or_else(|| native_error(0, "native outline coordinate overflow"))?;
+                    }
                     let code = FT_Outline_Check(outline);
-                    if code != 0 { return Err(native_error(code,"FT_Outline_Check failed")); }
-                    let funcs = OutlineFuncs { move_to: copy_move, line_to: copy_line, conic_to: copy_quad, cubic_to: copy_cubic, shift: 0, delta: 0 };
-                    let code = FT_Outline_Decompose(outline, &funcs, (&mut state as *mut OutlineCopy).cast());
-                    if code != 0 || state.failed { return Err(native_error(code,"FT_Outline_Decompose copy failed")); }
+                    if code != 0 {
+                        return Err(native_error(code, "FT_Outline_Check failed"));
+                    }
+                    let funcs = OutlineFuncs {
+                        move_to: copy_move,
+                        line_to: copy_line,
+                        conic_to: copy_quad,
+                        cubic_to: copy_cubic,
+                        shift: 0,
+                        delta: 0,
+                    };
+                    let code = FT_Outline_Decompose(
+                        outline,
+                        &funcs,
+                        (&mut state as *mut OutlineCopy).cast(),
+                    );
+                    if code != 0 || state.failed {
+                        return Err(native_error(code, "FT_Outline_Decompose copy failed"));
+                    }
                     state.close();
-                    if state.failed { return Err(native_error(0,"outline copy capacity exceeded")); }
+                    if state.failed {
+                        return Err(native_error(0, "outline copy capacity exceeded"));
+                    }
                 }
-                let owned = Outline::new(state.ops,limits).map_err(|e| FontError::new(e.code(),e.detail()))?;
-                GlyphOutline::new(blob.id(),glyph,record.units_per_EM,Arc::new(owned))
+                let owned = Outline::new(state.ops, limits)
+                    .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
             }
         })
     }
@@ -388,49 +465,115 @@ impl FontContext {
 // callback state cross the one reviewed unsafe boundary. C ABI checks accompany it.
 #[repr(C)]
 struct OutlineFuncs {
-    move_to: extern "C" fn(*const ft::FT_Vector,*mut std::ffi::c_void)->i32,
-    line_to: extern "C" fn(*const ft::FT_Vector,*mut std::ffi::c_void)->i32,
-    conic_to: extern "C" fn(*const ft::FT_Vector,*const ft::FT_Vector,*mut std::ffi::c_void)->i32,
-    cubic_to: extern "C" fn(*const ft::FT_Vector,*const ft::FT_Vector,*const ft::FT_Vector,*mut std::ffi::c_void)->i32,
-    shift: ft::FT_Int, delta: ft::FT_Pos,
+    move_to: extern "C" fn(*const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    line_to: extern "C" fn(*const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    conic_to:
+        extern "C" fn(*const ft::FT_Vector, *const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    cubic_to: extern "C" fn(
+        *const ft::FT_Vector,
+        *const ft::FT_Vector,
+        *const ft::FT_Vector,
+        *mut std::ffi::c_void,
+    ) -> i32,
+    shift: ft::FT_Int,
+    delta: ft::FT_Pos,
 }
 unsafe extern "C" {
-    fn FT_Outline_Check(outline: *const ft::FT_Outline)->ft::FT_Error;
-    fn FT_Outline_Decompose(outline: *const ft::FT_Outline, funcs: *const OutlineFuncs, user: *mut std::ffi::c_void)->ft::FT_Error;
+    fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
+    fn FT_Outline_Decompose(
+        outline: *const ft::FT_Outline,
+        funcs: *const OutlineFuncs,
+        user: *mut std::ffi::c_void,
+    ) -> ft::FT_Error;
 }
-struct OutlineCopy { ops: Vec<PathOp<FontPoint>>, failed: bool, open: bool }
+struct OutlineCopy {
+    ops: Vec<PathOp<FontPoint>>,
+    failed: bool,
+    open: bool,
+}
 impl OutlineCopy {
-    fn push(&mut self,op: PathOp<FontPoint>) {
+    fn push(&mut self, op: PathOp<FontPoint>) {
         // No allocation, indexing panic or unwinding across a C callback.
-        if self.ops.len() == self.ops.capacity() { self.failed=true; } else { self.ops.push(op); }
+        if self.ops.len() == self.ops.capacity() {
+            self.failed = true;
+        } else {
+            self.ops.push(op);
+        }
     }
-    fn close(&mut self) { if self.open { self.push(PathOp::Close); self.open=false; } }
+    fn close(&mut self) {
+        if self.open {
+            self.push(PathOp::Close);
+            self.open = false;
+        }
+    }
 }
-fn copy_point(p: &ft::FT_Vector)->Option<FontPoint> {
-    FontPoint::new(f64::from(i32::try_from(p.x).ok()?),f64::from(i32::try_from(p.y).ok()?)).ok()
+fn copy_point(p: &ft::FT_Vector) -> Option<FontPoint> {
+    FontPoint::new(
+        f64::from(i32::try_from(p.x).ok()?),
+        f64::from(i32::try_from(p.y).ok()?),
+    )
+    .ok()
 }
-fn copy_callback(user: *mut std::ffi::c_void, pointers: &[*const ft::FT_Vector], kind: u8)->i32 {
+fn copy_callback(user: *mut std::ffi::c_void, pointers: &[*const ft::FT_Vector], kind: u8) -> i32 {
     // SAFETY: only FT_Outline_Decompose invokes these private callbacks with the
     // live exclusive OutlineCopy and checked native vectors. No references escape.
     unsafe {
-        let Some(state)=user.cast::<OutlineCopy>().as_mut() else { return 1; };
-        if state.failed { return 1; }
-        let mut points=[FontPoint::ZERO;3];
-        for (index,&pointer) in pointers.iter().enumerate() {
-            let Some(p)=pointer.as_ref().and_then(copy_point) else { state.failed=true; return 1; };
-            let Some(slot)=points.get_mut(index) else { state.failed=true; return 1; };
-            *slot=p;
+        let Some(state) = user.cast::<OutlineCopy>().as_mut() else {
+            return 1;
+        };
+        if state.failed {
+            return 1;
         }
-        if kind==0 { state.close(); state.open=true; }
-        if !state.open { state.failed=true; return 1; }
-        state.push(match kind { 0=>PathOp::MoveTo(points[0]), 1=>PathOp::LineTo(points[0]), 2=>PathOp::QuadTo(points[0],points[1]), _=>PathOp::CubicTo(points[0],points[1],points[2]) });
+        let mut points = [FontPoint::ZERO; 3];
+        for (index, &pointer) in pointers.iter().enumerate() {
+            let Some(p) = pointer.as_ref().and_then(copy_point) else {
+                state.failed = true;
+                return 1;
+            };
+            let Some(slot) = points.get_mut(index) else {
+                state.failed = true;
+                return 1;
+            };
+            *slot = p;
+        }
+        if kind == 0 {
+            state.close();
+            state.open = true;
+        }
+        if !state.open {
+            state.failed = true;
+            return 1;
+        }
+        state.push(match kind {
+            0 => PathOp::MoveTo(points[0]),
+            1 => PathOp::LineTo(points[0]),
+            2 => PathOp::QuadTo(points[0], points[1]),
+            _ => PathOp::CubicTo(points[0], points[1], points[2]),
+        });
         i32::from(state.failed)
     }
 }
-extern "C" fn copy_move(p:*const ft::FT_Vector,u:*mut std::ffi::c_void)->i32 { copy_callback(u,&[p],0) }
-extern "C" fn copy_line(p:*const ft::FT_Vector,u:*mut std::ffi::c_void)->i32 { copy_callback(u,&[p],1) }
-extern "C" fn copy_quad(a:*const ft::FT_Vector,b:*const ft::FT_Vector,u:*mut std::ffi::c_void)->i32 { copy_callback(u,&[a,b],2) }
-extern "C" fn copy_cubic(a:*const ft::FT_Vector,b:*const ft::FT_Vector,c:*const ft::FT_Vector,u:*mut std::ffi::c_void)->i32 { copy_callback(u,&[a,b,c],3) }
+extern "C" fn copy_move(p: *const ft::FT_Vector, u: *mut std::ffi::c_void) -> i32 {
+    copy_callback(u, &[p], 0)
+}
+extern "C" fn copy_line(p: *const ft::FT_Vector, u: *mut std::ffi::c_void) -> i32 {
+    copy_callback(u, &[p], 1)
+}
+extern "C" fn copy_quad(
+    a: *const ft::FT_Vector,
+    b: *const ft::FT_Vector,
+    u: *mut std::ffi::c_void,
+) -> i32 {
+    copy_callback(u, &[a, b], 2)
+}
+extern "C" fn copy_cubic(
+    a: *const ft::FT_Vector,
+    b: *const ft::FT_Vector,
+    c: *const ft::FT_Vector,
+    u: *mut std::ffi::c_void,
+) -> i32 {
+    copy_callback(u, &[a, b, c], 3)
+}
 
 #[cfg(target_os = "linux")]
 #[link(name = "stdc++")]
@@ -778,42 +921,109 @@ mod tests {
     use super::*;
     #[test]
     fn geometry_native_outlines_are_owned_curves_and_checked() {
-        use sha2::{Digest,Sha256};
-        let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();
-        let read=|path:String,index| {
-            let bytes:Arc<[u8]>=std::fs::read(path).unwrap().into();
-            FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(),index),bytes)
+        use sha2::{Digest, Sha256};
+        let limits = Limits::default()
+            .with_transient_bytes(512 * 1024 * 1024)
+            .unwrap();
+        let read = |path: String, index| {
+            let bytes: Arc<[u8]> = std::fs::read(path).unwrap().into();
+            FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(), index), bytes)
         };
-        let blob=read(std::env::var("TAIYOU_TEST_FONT").unwrap(),0);
-        fn request(text:&str,script:[u8;4],rtl:bool)->NativeRequest<'_> { NativeRequest {text,context:0..text.len(),range:0..text.len(),rtl,script:u32::from_be_bytes(script),language:"und",ligatures:true} }
-        let retained={
-            let mut ctx=FontContext::with_limits(limits.clone()).unwrap();
-            let raw=ctx.shape_raw(&blob,&request("O",*b"Latn",false),&limits).unwrap();
-            let path=ctx.outline(&blob,raw.glyphs[0].glyph,&limits).unwrap();
-            assert!(path.outline().ops().iter().any(|op|matches!(op,PathOp::CubicTo(..))));
-            assert!(path.outline().ops().iter().filter(|op|matches!(op,PathOp::Close)).count()>=2);
-            let space=ctx.shape_raw(&blob,&request(" ",*b"Latn",false),&limits).unwrap();
-            assert!(ctx.outline(&blob,space.glyphs[0].glyph,&limits).unwrap().outline().ops().is_empty());
-            assert!(ctx.outline(&blob,u32::MAX,&limits).is_err());
-            assert!(ctx.outline(&blob,raw.glyphs[0].glyph,&limits.clone().with_path_segments_per_frame(1).unwrap()).is_err());
-            assert_eq!(LIVE.with(|n|n.get()),(1,0));
+        let blob = read(std::env::var("TAIYOU_TEST_FONT").unwrap(), 0);
+        fn request(text: &str, script: [u8; 4], rtl: bool) -> NativeRequest<'_> {
+            NativeRequest {
+                text,
+                context: 0..text.len(),
+                range: 0..text.len(),
+                rtl,
+                script: u32::from_be_bytes(script),
+                language: "und",
+                ligatures: true,
+            }
+        }
+        let retained = {
+            let mut ctx = FontContext::with_limits(limits.clone()).unwrap();
+            let raw = ctx
+                .shape_raw(&blob, &request("O", *b"Latn", false), &limits)
+                .unwrap();
+            let path = ctx.outline(&blob, raw.glyphs[0].glyph, &limits).unwrap();
+            assert!(
+                path.outline()
+                    .ops()
+                    .iter()
+                    .any(|op| matches!(op, PathOp::CubicTo(..)))
+            );
+            assert!(
+                path.outline()
+                    .ops()
+                    .iter()
+                    .filter(|op| matches!(op, PathOp::Close))
+                    .count()
+                    >= 2
+            );
+            let space = ctx
+                .shape_raw(&blob, &request(" ", *b"Latn", false), &limits)
+                .unwrap();
+            assert!(
+                ctx.outline(&blob, space.glyphs[0].glyph, &limits)
+                    .unwrap()
+                    .outline()
+                    .ops()
+                    .is_empty()
+            );
+            assert!(ctx.outline(&blob, u32::MAX, &limits).is_err());
+            assert!(
+                ctx.outline(
+                    &blob,
+                    raw.glyphs[0].glyph,
+                    &limits.clone().with_path_segments_per_frame(1).unwrap()
+                )
+                .is_err()
+            );
+            assert_eq!(LIVE.with(|n| n.get()), (1, 0));
             path
         };
-        assert_eq!(LIVE.with(|n|n.get()),(0,0));
-        let mut fresh=FontContext::with_limits(limits.clone()).unwrap();
-        assert_eq!(retained,fresh.outline(&blob,retained.glyph(),&limits).unwrap());
-        let ttf=read(std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts/indic.ttf").to_str().unwrap().to_owned(),0);
-        let raw=fresh.shape_raw(&ttf,&request("क",*b"Deva",false),&limits).unwrap();
-        let path=fresh.outline(&ttf,raw.glyphs[0].glyph,&limits).unwrap();
-        assert!(path.outline().ops().iter().any(|op|matches!(op,PathOp::QuadTo(..))));
-        let collection=std::env::var("TAIYOU_TEST_COLLECTION").unwrap();
-        let a=read(collection.clone(),0); let b=read(collection,1);
-        let a_raw=fresh.shape_raw(&a,&request("O",*b"Latn",false),&limits).unwrap();
-        let b_raw=fresh.shape_raw(&b,&request("O",*b"Latn",false),&limits).unwrap();
-        let a=fresh.outline(&a,a_raw.glyphs[0].glyph,&limits).unwrap();
-        let b=fresh.outline(&b,b_raw.glyphs[0].glyph,&limits).unwrap();
-        assert_ne!(a.font().face_index(),b.font().face_index()); assert_ne!(a.outline(),b.outline());
-        assert_eq!(std::mem::size_of::<OutlineFuncs>(),4*std::mem::size_of::<usize>()+std::mem::size_of::<ft::FT_Pos>()*2);
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+        let mut fresh = FontContext::with_limits(limits.clone()).unwrap();
+        assert_eq!(
+            retained,
+            fresh.outline(&blob, retained.glyph(), &limits).unwrap()
+        );
+        let ttf = read(
+            std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+                .join("taiyou-shaping-fonts/indic.ttf")
+                .to_str()
+                .unwrap()
+                .to_owned(),
+            0,
+        );
+        let raw = fresh
+            .shape_raw(&ttf, &request("क", *b"Deva", false), &limits)
+            .unwrap();
+        let path = fresh.outline(&ttf, raw.glyphs[0].glyph, &limits).unwrap();
+        assert!(
+            path.outline()
+                .ops()
+                .iter()
+                .any(|op| matches!(op, PathOp::QuadTo(..)))
+        );
+        let collection = std::env::var("TAIYOU_TEST_COLLECTION").unwrap();
+        let a = read(collection.clone(), 0);
+        let b = read(collection, 1);
+        let a_raw = fresh
+            .shape_raw(&a, &request("O", *b"Latn", false), &limits)
+            .unwrap();
+        let b_raw = fresh
+            .shape_raw(&b, &request("O", *b"Latn", false), &limits)
+            .unwrap();
+        let a = fresh.outline(&a, a_raw.glyphs[0].glyph, &limits).unwrap();
+        let b = fresh.outline(&b, b_raw.glyphs[0].glyph, &limits).unwrap();
+        assert_ne!(a.font().face_index(), b.font().face_index());
+        assert_ne!(a.outline(), b.outline());
+        assert_eq!(
+            std::mem::size_of::<OutlineFuncs>(),
+            4 * std::mem::size_of::<usize>() + std::mem::size_of::<ft::FT_Pos>() * 2
+        );
     }
     #[test]
     fn harfbuzz_abi_owned_results_and_rejected_requests_cleanup() {

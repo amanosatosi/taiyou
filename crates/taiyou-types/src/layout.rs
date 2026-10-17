@@ -305,12 +305,24 @@ impl LocalLayout {
         ink: Option<ScriptBounds>,
         collision: ScriptBounds,
     ) -> Result<Self, RenderError> {
-        Self::new_with_scale(input, lines, glyphs, logical, ink, collision, (FiniteF64::ONE, FiniteF64::ONE))
+        Self::new_with_scale(
+            input,
+            lines,
+            glyphs,
+            logical,
+            ink,
+            collision,
+            (FiniteF64::ONE, FiniteF64::ONE),
+        )
     }
     /// Retains the additional local layout factors needed to map font contours.
     pub fn new_with_scale(
-        input: Arc<ShapedEvent>, lines: Arc<[Line]>, glyphs: Arc<[PositionedGlyph]>,
-        logical: ScriptBounds, ink: Option<ScriptBounds>, collision: ScriptBounds,
+        input: Arc<ShapedEvent>,
+        lines: Arc<[Line]>,
+        glyphs: Arc<[PositionedGlyph]>,
+        logical: ScriptBounds,
+        ink: Option<ScriptBounds>,
+        collision: ScriptBounds,
         local_scale: (FiniteF64, FiniteF64),
     ) -> Result<Self, RenderError> {
         let invalid = || {
@@ -319,7 +331,10 @@ impl LocalLayout {
                 "invalid local layout publication",
             )
         };
-        if local_scale.0.get() < 0.0 || local_scale.1.get() < 0.0 || lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)? {
+        if local_scale.0.get() < 0.0
+            || local_scale.1.get() < 0.0
+            || lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)?
+        {
             return Err(invalid());
         }
         let mut end = 0;
@@ -384,7 +399,9 @@ impl LocalLayout {
     pub fn shaped(&self) -> &ShapedEvent {
         &self.input
     }
-    pub const fn local_scale(&self) -> (FiniteF64, FiniteF64) { self.local_scale }
+    pub const fn local_scale(&self) -> (FiniteF64, FiniteF64) {
+        self.local_scale
+    }
     pub fn lines(&self) -> &[Line] {
         &self.lines
     }
@@ -402,7 +419,8 @@ impl LocalLayout {
     }
     /// Geometry comparison only, explicitly not a cache key or source identity.
     pub fn geometry_eq(&self, b: &Self) -> bool {
-        self.local_scale == b.local_scale && self.logical == b.logical
+        self.local_scale == b.local_scale
+            && self.logical == b.logical
             && self.ink == b.ink
             && self.collision == b.collision
             && self.lines.len() == b.lines.len()
