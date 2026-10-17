@@ -210,17 +210,25 @@ fn itemize(
         }
         for i in 0..chars.len() {
             let (offset, ch, intrinsic, mark) = chars[i];
-            let after_control = i == 0 || chars[i - 1].1.is_control() || matches!(
-                bidi.original_classes[chars[i - 1].0],
-                BidiClass::LRE | BidiClass::RLE | BidiClass::LRO | BidiClass::RLO
-                    | BidiClass::PDF | BidiClass::LRI | BidiClass::RLI
-                    | BidiClass::FSI | BidiClass::PDI
-            );
+            let after_control = i == 0
+                || chars[i - 1].1.is_control()
+                || matches!(
+                    bidi.original_classes[chars[i - 1].0],
+                    BidiClass::LRE
+                        | BidiClass::RLE
+                        | BidiClass::LRO
+                        | BidiClass::RLO
+                        | BidiClass::PDF
+                        | BidiClass::LRI
+                        | BidiClass::RLI
+                        | BidiClass::FSI
+                        | BidiClass::PDI
+                );
             let attached = mark
                 && !after_control
-                && items.last().is_some_and(|last| {
-                    last.context == context && last.range.end == offset
-                });
+                && items
+                    .last()
+                    .is_some_and(|last| last.context == context && last.range.end == offset);
             let script = if specific(intrinsic) {
                 intrinsic
             } else if intrinsic == Script::Inherited {
