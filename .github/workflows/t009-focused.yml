@@ -21,6 +21,7 @@ jobs:
       - name: Inspect formatting; preserve required checks in existing workflows
         run: cargo +1.99.1 fmt --all -- --check
       - name: Prepare candidate lock on runner; not a replacement for locked checks
+        if: always()
         run: |
           cargo +1.99.1 fetch
           echo LOCK_BEGIN

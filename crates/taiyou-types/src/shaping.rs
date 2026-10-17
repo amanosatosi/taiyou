@@ -217,6 +217,17 @@ impl ShapedEvent {
                 "shaped event contains a foreign decoded map",
             ));
         }
+        let (mut r, mut b, mut cursor) = (0, 0, 0);
+        while r < runs.len() || b < breaks.len() {
+            let next = if b == breaks.len() || (r < runs.len() && runs[r].decoded.start() < breaks[b].start()) {
+                let span = &runs[r].decoded; r += 1; span
+            } else { let span = &breaks[b]; b += 1; span };
+            if next.is_empty() || next.start() != cursor { return Err(FontError::new(ErrorCode::InvalidArgument, "logical shape/break ranges overlap or omit decoded text")); }
+            cursor = next.end();
+        }
+        if cursor as usize != source_map.text().len() || diagnostics.len() > MAX_DIAGNOSTICS + 1 || missing.len() > MAX_DIAGNOSTICS {
+            return Err(FontError::new(ErrorCode::InvalidArgument, "shaped publication extent or diagnostic bound is invalid"));
+        }
         let mut end = 0;
         for p in paints.iter() {
             if p.decoded.start() != end {
