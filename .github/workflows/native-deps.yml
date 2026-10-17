@@ -24,6 +24,10 @@ jobs:
           persist-credentials: false
       - name: Test conservative selector
         run: python scripts/select-platforms.py --self-test
+      - name: Enforce native unsafe boundary before platform selection
+        run: |
+          python scripts/check-unsafe.py --self-test
+          python scripts/check-unsafe.py
       - name: Select platform checks
         id: select
         env:
