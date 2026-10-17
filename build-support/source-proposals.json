@@ -1,0 +1,8 @@
+{
+  "status": "acquisition proposals; SHA-256 lock generated and reviewed from Actions before builds",
+  "sources": [
+    {"id":"harfbuzz","version":"14.5.0","commit":"863d3f7787c6df18d20e4535c5906bf3eb803bd5","url":"https://codeload.github.com/harfbuzz/harfbuzz/tar.gz/863d3f7787c6df18d20e4535c5906bf3eb803bd5"},
+    {"id":"freetype","version":"2.14.3","commit":"0a0221a1347e2f1e07c395263540026e9a0aa7c7","url":"https://codeload.github.com/freetype/freetype/tar.gz/0a0221a1347e2f1e07c395263540026e9a0aa7c7"},
+    {"id":"font","version":"Source Sans 3 3.052R","commit":"ed1808970eb3c7301c9a523bee26473ba0bb62fa","git_blob":"7a261d93d6bd4046f5e51a865b6957849b8e14b5","url":"https://raw.githubusercontent.com/adobe-fonts/source-sans/ed1808970eb3c7301c9a523bee26473ba0bb62fa/OTF/SourceSans3-Regular.otf"}
+  ]
+}
