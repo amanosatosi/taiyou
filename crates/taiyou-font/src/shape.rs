@@ -704,11 +704,8 @@ pub fn shape_event(
         }
         let scale = (run.geometry().scale_x(), run.geometry().scale_y());
         if let Some((last, style)) = styles.last_mut().filter(|(last, style)| {
-            last.end() == span.start()
-                && style == run.shaping()
-                && previous_scale == Some(scale)
-        })
-        {
+            last.end() == span.start() && style == run.shaping() && previous_scale == Some(scale)
+        }) {
             *last = map.decoded_span(last.start()..span.end())?;
             let _ = style;
         } else {

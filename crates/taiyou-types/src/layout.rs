@@ -113,6 +113,7 @@ pub struct LayoutConstraints {
     limits: Limits,
 }
 impl LayoutConstraints {
+    /// CoreV1, WrapStyle 2, unlimited hard-line width and unit additional scale.
     pub fn new(alignment: Alignment) -> Self {
         Self {
             width: FiniteF64::ZERO,
@@ -134,6 +135,8 @@ impl LayoutConstraints {
         self.width = width;
         Ok(self)
     }
+    /// Additional local factors, multiplied by each evaluated run's ASS scale.
+    /// These are not viewport mapping or absolute placement.
     pub fn with_scale(mut self, x: FiniteF64, y: FiniteF64) -> Result<Self, RenderError> {
         if x.get() < 0.0 || y.get() < 0.0 {
             return Err(RenderError::new(
