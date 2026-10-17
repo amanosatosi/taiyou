@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "status": "Provisional independently observed HarfBuzz numeric expectations; not an approved reference baseline",
+  "cases": [
+    {"id":"fi", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"office", "font":"latin", "text":"office AV", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"spacing", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr", "ligatures":false},
+    {"id":"kern", "font":"latin", "text":"AV", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"A", "font":"latin", "text":"A", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"V", "font":"latin", "text":"V", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"combining", "font":"latin", "text":"á", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"arabic", "font":"arabic", "text":"السَّلَامُ", "script":"Arab", "language":"ar", "direction":"rtl"},
+    {"id":"joining", "font":"arabic", "text":"سلام", "script":"Arab", "language":"ar", "direction":"rtl"},
+    {"id":"indic", "font":"indic", "text":"किरण क्षि", "script":"Deva", "language":"hi", "direction":"ltr"},
+    {"id":"cjk", "font":"cjk", "text":"日本語", "script":"Hani", "language":"ja", "direction":"ltr"},
+    {"id":"mixed-latin", "font":"latin", "text":"abc سلام", "range":[0,4], "script":"Latn", "language":"und", "direction":"ltr"},
+    {"id":"mixed-arabic", "font":"arabic", "text":"abc سلام", "range":[4,12], "script":"Arab", "language":"und", "direction":"rtl"},
+    {"id":"collection", "font":"collection", "face":1, "text":"fi", "script":"Latn", "language":"en", "direction":"ltr"}
+  ]
+}

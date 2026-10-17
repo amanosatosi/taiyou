@@ -55,12 +55,18 @@ fn preflight(event: &Event) -> Result<u64, RenderError> {
     let count = event.program().len();
     let per = std::mem::size_of::<EvaluatedRun>()
         .checked_mul(3)
-        .and_then(|v| v.checked_add(128))
+        .and_then(|v| v.checked_add(3 * (std::mem::size_of::<TextSourcePiece>() + 32) + 128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))?;
     u64::try_from(count)
         .ok()
         .and_then(|n| n.checked_mul(u64::try_from(per).ok()?))
-        .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 256))
+        .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 512))
+        .and_then(|n| {
+            event.program().iter().try_fold(n, |n, op| {
+                let bytes = match op { TextOp::Text { text, .. } => text.len() as u64, TextOp::NoBreakSpace => 2, TextOp::HardBreak | TextOp::SoftBreak => 1, _ => 0 };
+                n.checked_add(bytes.checked_mul(3)?)
+            })
+        })
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))
 }
 fn validate_style(

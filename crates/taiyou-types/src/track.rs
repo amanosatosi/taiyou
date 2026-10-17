@@ -1143,4 +1143,32 @@ mod tests {
             ErrorCode::LimitExceeded
         );
     }
+
+    #[test]
+    fn provenance_checks_actual_text_field_escape_bytes_order_and_program_replacement() {
+        let source = "actor\\N|a\\Nb";
+        let span = |a,b| SourceSpan::new(source,a,b).unwrap();
+        let field = span(8,12);
+        let program: Arc<[TextOp]> = Arc::from([TextOp::Text { text: Arc::from("a"), source: span(8,9) },TextOp::HardBreak,TextOp::Text { text: Arc::from("b"), source: span(11,12) }]);
+        let event = Event::new(EventId::new(0),TimeUs::from_micros(0),TimeUs::from_micros(1),StyleId::new(0),span(0,12)).with_program(program.clone()).with_text_source(field);
+        let valid: Arc<[Option<SourceSpan>]> = Arc::from([Some(span(8,9)),Some(span(9,11)),Some(span(11,12))]);
+        let publish = |event: Event| TrackIngestor::new().ingest(Arc::from(source),ScriptInfo::core_default(),Arc::from([Style::core_default()]),Arc::from([event]),&Limits::default());
+        assert!(publish(event.clone().with_operation_sources(valid.clone())).is_ok());
+        for bad in [Arc::from([Some(span(8,9)),Some(span(5,7)),Some(span(11,12))]),Arc::from([Some(span(8,9)),Some(span(9,10)),Some(span(11,12))]),Arc::from([Some(span(11,12)),Some(span(9,11)),Some(span(8,9))])] {
+            assert_eq!(publish(event.clone().with_operation_sources(bad)).unwrap_err().code(),ErrorCode::InvalidArgument);
+        }
+        assert!(event.clone().with_operation_sources(valid).with_program(program).operation_sources().is_none());
+        let unknown = Event::new(EventId::new(0),TimeUs::from_micros(0),TimeUs::from_micros(1),StyleId::new(0),span(0,12)).with_program(Arc::from([TextOp::HardBreak]));
+        assert!(publish(unknown).is_ok());
+    }
+    #[test]
+    fn provenance_cannot_claim_escape_inside_override_or_omit_visible_text() {
+        let source = "a{\\fn\\N}b";
+        let s = |a,b| SourceSpan::new(source,a,b).unwrap();
+        let event = Event::new(EventId::new(0),TimeUs::from_micros(0),TimeUs::from_micros(1),StyleId::new(0),s(0,source.len())).with_program(Arc::from([TextOp::Text { text: Arc::from("a"), source: s(0,1) },TextOp::HardBreak,TextOp::Text {text:Arc::from("b"),source:s(source.len()-1,source.len())}])).with_text_source(s(0,source.len())).with_operation_sources(Arc::from([Some(s(0,1)),Some(s(5,7)),Some(s(source.len()-1,source.len()))]));
+        assert!(TrackIngestor::new().ingest(Arc::from(source),ScriptInfo::core_default(),Arc::from([Style::core_default()]),Arc::from([event]),&Limits::default()).is_err());
+        let source="ab"; let span=SourceSpan::new(source,0,1).unwrap();
+        let event=Event::new(EventId::new(0),TimeUs::from_micros(0),TimeUs::from_micros(1),StyleId::new(0),SourceSpan::new(source,0,2).unwrap()).with_program(Arc::from([TextOp::Text {text:Arc::from("a"),source:span}])).with_text_source(SourceSpan::new(source,0,2).unwrap()).with_operation_sources(Arc::from([Some(span)]));
+        assert!(TrackIngestor::new().ingest(Arc::from(source),ScriptInfo::core_default(),Arc::from([Style::core_default()]),Arc::from([event]),&Limits::default()).is_err());
+    }
 }

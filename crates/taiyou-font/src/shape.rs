@@ -78,7 +78,9 @@ fn itemize(text: &str, options: &ShapeOptions, limits: &Limits) -> Result<(Vec<I
         for i in (0..chars.len()).rev() { following[i] = next; if specific(chars[i].2) { next = Some(chars[i].2); } }
         for i in 0..chars.len() {
             let (offset, ch, intrinsic) = chars[i];
-            let script = if specific(intrinsic) { intrinsic } else {
+            let script = if specific(intrinsic) { intrinsic } else if intrinsic == Script::Inherited {
+                previous.or(following[i]).unwrap_or(intrinsic)
+            } else {
                 let extension = ch.script_extension();
                 previous.filter(|s| extension.contains_script(*s)).or_else(|| following[i].filter(|s| extension.contains_script(*s))).or_else(|| extension.iter().find(|s| specific(*s))).unwrap_or(intrinsic)
             };
@@ -180,7 +182,7 @@ fn shape_item(ctx: &mut FontContext, input: &ResolvedRun) -> Result<(ShapedRun, 
     }
     if input.item.level % 2 != 0 { groups.reverse(); } // reorder font groups only; native glyph arrays are never reversed.
     let mut glyphs = Vec::new(); let mut missing = Vec::new();
-    let (mut ascent, mut descent, mut gap) = (0.0_f64, 0.0_f64, 0.0_f64);
+    let (mut ascent, mut descent, mut gap) = (f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     for (a, b, selected, notdef) in groups {
         let face = input.catalog.faces()[candidates[selected].index].blob();
         // Reshape selected font ranges with paragraph context: do not carry
@@ -199,7 +201,8 @@ fn shape_item(ctx: &mut FontContext, input: &ResolvedRun) -> Result<(ShapedRun, 
             let cluster = map.decoded_span(g.cluster..end)?;
             let position = GlyphPosition::new(finite(f64::from(g.advance_x) * scale)?, finite(-f64::from(g.advance_y) * scale)?, finite(f64::from(g.offset_x) * scale)?, finite(-f64::from(g.offset_y) * scale)?);
             glyphs.push(ShapedGlyph::new(face.id(), g.glyph, cluster.clone(), position));
-            if (notdef || g.glyph == 0) && g.glyph == 0 && missing.last().is_none_or(|m: &MissingCluster| m.decoded != cluster) && missing.len() < MAX_DIAGNOSTICS { reserve(&mut missing, 1, limits)?; missing.push(MissingCluster { font: face.id(), decoded: cluster }); }
+            if g.glyph == 0 && missing.last().is_none_or(|m: &MissingCluster| m.decoded != cluster) { reserve(&mut missing, 1, limits)?; missing.push(MissingCluster { font: face.id(), decoded: cluster }); }
+            let _ = notdef;
         }
     }
     let metrics = RunMetrics::new(FiniteF64::new(ascent).map_err(|_| limited())?, FiniteF64::new(descent).map_err(|_| limited())?, FiniteF64::new(gap).map_err(|_| limited())?);

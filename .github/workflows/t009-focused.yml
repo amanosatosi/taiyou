@@ -28,3 +28,19 @@ jobs:
           echo LOCK_END
           cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
           cargo +1.99.1 test --locked --workspace
+  native:
+    name: Focused Linux shaping and source pipeline
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_SHAPING: '1'
+      TAIYOU_DISCOVER_SHAPING: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py

@@ -9,3 +9,7 @@ mod paint;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy};
 pub use paint::{blend_pixel, mul255};
+#[cfg(feature = "native")]
+pub mod shaping {
+    pub use taiyou_font::{FontCatalogBuilder, FontContext, ShapeOptions, shape_event};
+}

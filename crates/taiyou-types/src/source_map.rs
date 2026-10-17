@@ -225,6 +225,16 @@ impl DecodedSpan {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn source_map_decoded_span_checks_owning_map_and_utf8() {
+        let a = Arc::new(build("é", &[TextSourcePiece::Literal(span("é", "é"))]));
+        let b = Arc::new(build("é", &[TextSourcePiece::Literal(span("é", "é"))]));
+        assert!(a.decoded_span(0..1).is_err());
+        let range = a.decoded_span(0..2).unwrap();
+        assert!(range.belongs_to(&a)); assert!(!range.belongs_to(&b));
+        drop(a); assert_eq!(range.text(), "é");
+        assert_eq!(range.original_ranges(&Limits::default()).unwrap()[0].slice(range.source_map().original_source()), Some("é"));
+    }
     fn span(s: &str, needle: &str) -> SourceSpan {
         let start = s.find(needle).unwrap();
         SourceSpan::new(s, start, start + needle.len()).unwrap()
