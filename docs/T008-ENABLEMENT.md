@@ -6,6 +6,10 @@ The seven-package A3 internal DAG and all existing source/native tests remain re
 
 Only taiyou-font changes its crate-level unsafe lint from forbid to deny so its isolated native module can explicitly allow justified FFI. Every other crate retains forbid; no unsafe Send/Sync is authorized. The implementation must keep public handles opaque and contexts neither Send nor Sync. This policy change and the native implementation require independent protected/native review before integration.
 
+Review follow-up: `scripts/check-unsafe.py` enforces exact manifest lint inheritance and permits exactly the module-level exception in `crates/taiyou-font/src/native.rs`. It rejects other allow/expect/cfg_attr/macro exceptions, executable unsafe outside that file, code includes/custom module paths, workspace build/proc-macro scripts and custom target paths. Negative tests exercise each rejection. Strings/comments are lexically skipped, including nested comments and raw strings. This conservative source/manifest check runs in an always-selected Fast policy job and before native platform selection. Forbid/deny, compiler checks and warnings-denied Clippy remain required. This candidate-side scanner does not replace independently trusted validation, branch rules, or required GitHub reviews under T005.
+
+The owner accepts the pinned sha2/ICU4X selections as proposed implementation dependencies in this follow-up; technical, dependency and license reviews remain required. This is not blanket dependency or protected-policy approval.
+
 Exact intake:
 
 | Dependency | License, purpose and alternatives |
