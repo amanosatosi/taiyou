@@ -95,6 +95,7 @@ for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Car
 run("cargo", "build", "--locked", "--workspace", *native_features)
 run("cargo", "fmt", "--all", "--", "--check")
 run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "catalog_")
 run("cargo", "test", "--locked", "--workspace", *native_features)
 run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1", "-SelfTest")
 manifest = root / "build-support/dependency-smoke/Cargo.toml"
