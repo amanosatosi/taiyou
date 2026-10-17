@@ -559,13 +559,7 @@ fn source_order_is_independent_of_time_layer_and_literal_span_order_is_checked()
     )
     .with_layer(-99);
     let mut owner = TrackIngestor::new();
-    let track = ingest(
-        &mut owner,
-        source,
-        vec![first, second],
-        &Limits::default(),
-    )
-    .unwrap();
+    let track = ingest(&mut owner, source, vec![first, second], &Limits::default()).unwrap();
     assert_eq!(track.events()[0].id(), EventId::new(2));
     assert_eq!(track.events()[1].id(), EventId::new(7));
     let reversed = sample_event(source, 0, 1).with_program(Arc::from([
