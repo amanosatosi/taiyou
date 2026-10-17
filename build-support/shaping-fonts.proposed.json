@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "profile": "CoreV1",
+  "status": "Proposed fixture inputs, not approved expected outputs",
+  "fonts": [
+    {
+      "id": "latin",
+      "repository": "adobe-fonts/source-sans",
+      "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+      "path": "OTF/SourceSans3-Regular.otf",
+      "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "license": { "spdx": "OFL-1.1", "path": "LICENSE.md", "git_blob": "88c07f795dfd5e1a149d73ae970db35c8d818659", "size": 4579 },
+      "sample": "office AV á",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr"
+    },
+    {
+      "id": "arabic",
+      "repository": "google/fonts",
+      "commit": "47d54ca1ebb14fd864695f1d39dc734f39017c33",
+      "path": "ofl/notonaskharabic/NotoNaskhArabic[wght].ttf",
+      "git_blob": "a8d2867262dc7bb28492ad746de5d56235735c8b",
+      "size": 307592,
+      "license": { "spdx": "OFL-1.1", "path": "ofl/notonaskharabic/OFL.txt", "git_blob": "d4e170557fc8bcf8d1dcb317d9f1accaf8acf223", "size": 4382 },
+      "sample": "السَّلَامُ",
+      "script": "Arab",
+      "language": "ar",
+      "direction": "rtl"
+    },
+    {
+      "id": "indic",
+      "repository": "google/fonts",
+      "commit": "47d54ca1ebb14fd864695f1d39dc734f39017c33",
+      "path": "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf",
+      "git_blob": "163f04bddc5a96fc523e4080466cac5c588f6594",
+      "size": 641944,
+      "license": { "spdx": "OFL-1.1", "path": "ofl/notosansdevanagari/OFL.txt", "git_blob": "cd2cc5c94b4151933eba6ee508e3975274d6fa07", "size": 4386 },
+      "sample": "किरण क्षि",
+      "script": "Deva",
+      "language": "hi",
+      "direction": "ltr"
+    },
+    {
+      "id": "cjk",
+      "repository": "notofonts/noto-cjk",
+      "commit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+      "path": "Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf",
+      "git_blob": "f56224957fb13a81b4c14bac34f2f058a017f9fb",
+      "size": 16467736,
+      "license": { "spdx": "OFL-1.1", "path": "Sans/LICENSE", "git_blob": "d952d62c065f3f35fb83a173496e90b21525aef3", "size": 4301 },
+      "sample": "日本語",
+      "script": "Hani",
+      "language": "ja",
+      "direction": "ltr"
+    }
+  ]
+}
