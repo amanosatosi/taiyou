@@ -4,25 +4,60 @@ use std::sync::Arc;
 
 use taiyou_types::*;
 
-fn finite(value: f64) -> FiniteF64 { FiniteF64::new(value).unwrap() }
+fn finite(value: f64) -> FiniteF64 {
+    FiniteF64::new(value).unwrap()
+}
 
 fn sample_event(source: &str, start: i64, end: i64) -> Event {
     let span = SourceSpan::new(source, 0, source.len()).unwrap();
-    Event::new(EventId::new(0), TimeUs::from_micros(start), TimeUs::from_micros(end), StyleId::new(0), span)
-        .with_program(Arc::from([TextOp::Text { text: Arc::from(source), source: span }]))
+    Event::new(
+        EventId::new(0),
+        TimeUs::from_micros(start),
+        TimeUs::from_micros(end),
+        StyleId::new(0),
+        span,
+    )
+    .with_program(Arc::from([TextOp::Text {
+        text: Arc::from(source),
+        source: span,
+    }]))
 }
 
-fn ingest(owner: &mut TrackIngestor, source: &str, events: Vec<Event>, limits: &Limits) -> Result<Arc<Track>, ParseError> {
-    owner.ingest(Arc::from(source), ScriptInfo::core_default(), Arc::from([Style::core_default()]), events.into(), limits)
+fn ingest(
+    owner: &mut TrackIngestor,
+    source: &str,
+    events: Vec<Event>,
+    limits: &Limits,
+) -> Result<Arc<Track>, ParseError> {
+    owner.ingest(
+        Arc::from(source),
+        ScriptInfo::core_default(),
+        Arc::from([Style::core_default()]),
+        events.into(),
+        limits,
+    )
 }
 
 #[test]
 fn timestamp_conversions_are_exact_and_checked() {
-    assert_eq!(TimeUs::from_ass_components(1, 2, 3, 45).unwrap().as_micros(), 3_723_450_000);
-    assert_eq!(TimeUs::from_ass_components(0, 0, 0, 1).unwrap(), TimeUs::from_centis(1).unwrap());
+    assert_eq!(
+        TimeUs::from_ass_components(1, 2, 3, 45)
+            .unwrap()
+            .as_micros(),
+        3_723_450_000
+    );
+    assert_eq!(
+        TimeUs::from_ass_components(0, 0, 0, 1).unwrap(),
+        TimeUs::from_centis(1).unwrap()
+    );
     assert_eq!(TimeUs::from_millis(-123).unwrap().as_micros(), -123_000);
     assert_eq!(TimeUs::from_centis(-1).unwrap().as_micros(), -10_000);
-    for (h, m, s, c) in [(u64::MAX, 0, 0, 0), (0, 60, 0, 0), (0, 0, 60, 0), (0, 0, 0, 100)] {
+    for (h, m, s, c) in [
+        (u64::MAX, 0, 0, 0),
+        (0, 60, 0, 0),
+        (0, 0, 60, 0),
+        (0, 0, 0, 100),
+    ] {
         assert!(TimeUs::from_ass_components(h, m, s, c).is_err());
     }
     for value in [i64::MIN, i64::MAX] {
@@ -32,20 +67,42 @@ fn timestamp_conversions_are_exact_and_checked() {
     let largest_ms = i64::MAX / 1_000;
     assert!(TimeUs::from_millis(largest_ms).is_ok());
     assert!(TimeUs::from_millis(largest_ms + 1).is_err());
-    assert!(TimeUs::from_micros(i64::MAX).checked_add(TimeUs::from_micros(1)).is_err());
-    assert!(TimeUs::from_micros(i64::MIN).checked_sub(TimeUs::from_micros(1)).is_err());
-    assert_eq!(TimeUs::from_micros(-1).checked_add(TimeUs::from_micros(1)).unwrap(), TimeUs::from_micros(0));
+    assert!(
+        TimeUs::from_micros(i64::MAX)
+            .checked_add(TimeUs::from_micros(1))
+            .is_err()
+    );
+    assert!(
+        TimeUs::from_micros(i64::MIN)
+            .checked_sub(TimeUs::from_micros(1))
+            .is_err()
+    );
+    assert_eq!(
+        TimeUs::from_micros(-1)
+            .checked_add(TimeUs::from_micros(1))
+            .unwrap(),
+        TimeUs::from_micros(0)
+    );
 }
 
 #[test]
 fn finite_numbers_reject_nonfinite_results_and_canonicalize_zero() {
-    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] { assert!(FiniteF64::new(value).is_err()); }
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(FiniteF64::new(value).is_err());
+    }
     let negative_zero = finite(-0.0);
     assert_eq!(negative_zero.bits(), 0);
     assert_eq!(negative_zero, FiniteF64::ZERO);
-    let hash = |value: FiniteF64| { let mut state = DefaultHasher::new(); value.hash(&mut state); state.finish() };
+    let hash = |value: FiniteF64| {
+        let mut state = DefaultHasher::new();
+        value.hash(&mut state);
+        state.finish()
+    };
     assert_eq!(hash(negative_zero), hash(FiniteF64::ZERO));
-    assert_eq!(negative_zero.cmp(&FiniteF64::ZERO), std::cmp::Ordering::Equal);
+    assert_eq!(
+        negative_zero.cmp(&FiniteF64::ZERO),
+        std::cmp::Ordering::Equal
+    );
     assert!(finite(f64::MAX).checked_mul(finite(2.0)).is_err());
     assert!(finite(f64::MAX).checked_add(finite(f64::MAX)).is_err());
     assert!(finite(-f64::MAX).checked_sub(finite(f64::MAX)).is_err());
@@ -56,11 +113,31 @@ fn finite_numbers_reject_nonfinite_results_and_canonicalize_zero() {
 
 #[test]
 fn q6_ties_floor_phase_and_overflow_follow_c1() {
-    for (pixels, ticks) in [(0.5 / 64.0, 1), (-0.5 / 64.0, -1), (1.5 / 64.0, 2), (-1.5 / 64.0, -2)] {
+    for (pixels, ticks) in [
+        (0.5 / 64.0, 1),
+        (-0.5 / 64.0, -1),
+        (1.5 / 64.0, 2),
+        (-1.5 / 64.0, -2),
+    ] {
         assert_eq!(Q6::from_pixels(finite(pixels)).unwrap().ticks(), ticks);
     }
     assert_eq!(Q6::from_ticks(-1).split(), (-1, 63));
-    for ticks in [i32::MIN, -129, -128, -127, -65, -64, -63, -1, 0, 1, 63, 64, 65, i32::MAX] {
+    for ticks in [
+        i32::MIN,
+        -129,
+        -128,
+        -127,
+        -65,
+        -64,
+        -63,
+        -1,
+        0,
+        1,
+        63,
+        64,
+        65,
+        i32::MAX,
+    ] {
         let q = Q6::from_ticks(ticks);
         let (whole, phase) = q.split();
         assert!((0..64).contains(&phase));
@@ -70,8 +147,16 @@ fn q6_ties_floor_phase_and_overflow_follow_c1() {
     assert!(Q6::from_pixels(finite(f64::MAX)).is_err());
     assert!(Q6::from_pixels(finite((f64::from(i32::MAX) + 0.5) / 64.0)).is_err());
     assert!(Q6::from_pixels(finite((f64::from(i32::MIN) - 0.5) / 64.0)).is_err());
-    assert!(Q6::from_ticks(i32::MAX).checked_add(Q6::from_ticks(1)).is_err());
-    assert!(Q6::from_ticks(i32::MIN).checked_sub(Q6::from_ticks(1)).is_err());
+    assert!(
+        Q6::from_ticks(i32::MAX)
+            .checked_add(Q6::from_ticks(1))
+            .is_err()
+    );
+    assert!(
+        Q6::from_ticks(i32::MIN)
+            .checked_sub(Q6::from_ticks(1))
+            .is_err()
+    );
     assert!(Q6::from_ticks(i32::MIN).checked_neg().is_err());
     assert!(Q6::from_ticks(i32::MAX).checked_mul(2).is_err());
     assert_eq!(Q6::from_ticks(-32).checked_mul(2).unwrap().split(), (-1, 0));
@@ -80,12 +165,19 @@ fn q6_ties_floor_phase_and_overflow_follow_c1() {
 #[test]
 fn spans_validate_utf8_boundaries_empty_ranges_and_containment() {
     let source = "aé日z";
-    assert_eq!(SourceSpan::new(source, 1, 6).unwrap().slice(source), Some("é日"));
+    assert_eq!(
+        SourceSpan::new(source, 1, 6).unwrap().slice(source),
+        Some("é日")
+    );
     assert!(SourceSpan::new(source, 2, 3).is_err());
     assert!(SourceSpan::new(source, 1, 4).is_err());
     assert!(SourceSpan::new(source, 6, 1).is_err());
     assert!(SourceSpan::new(source, 0, usize::MAX).is_err());
-    assert!(SourceSpan::new(source, source.len(), source.len()).unwrap().is_empty());
+    assert!(
+        SourceSpan::new(source, source.len(), source.len())
+            .unwrap()
+            .is_empty()
+    );
     let whole = SourceSpan::new(source, 0, source.len()).unwrap();
     assert!(whole.contains(SourceSpan::new(source, 1, 3).unwrap()));
     assert_eq!(whole.len(), 7);
@@ -100,7 +192,10 @@ fn rectangles_are_half_open_and_checked_across_full_i32_range() {
     assert!(!a.contains_pixel(0, 2));
     assert!(!a.intersects(PixelRect::new(1, -2, 2, 2).unwrap()));
     assert!(a.intersects(PixelRect::new(0, 0, 2, 3).unwrap()));
-    for empty in [PixelRect::new(0, 0, 0, 4).unwrap(), PixelRect::new(0, 0, 4, 0).unwrap()] {
+    for empty in [
+        PixelRect::new(0, 0, 0, 4).unwrap(),
+        PixelRect::new(0, 0, 4, 0).unwrap(),
+    ] {
         assert!(empty.is_empty());
         assert!(!a.intersects(empty));
     }
@@ -110,7 +205,10 @@ fn rectangles_are_half_open_and_checked_across_full_i32_range() {
     assert_eq!(largest.height(), u32::MAX);
     assert!(largest.checked_translate(1, 0).is_err());
     assert!(largest.checked_translate(0, -1).is_err());
-    assert_eq!(a.checked_translate(2, 3).unwrap(), PixelRect::new(1, 1, 3, 5).unwrap());
+    assert_eq!(
+        a.checked_translate(2, 3).unwrap(),
+        PixelRect::new(1, 1, 3, 5).unwrap()
+    );
     assert!(Size::new(u32::MAX, u32::MAX).rgba_layout().is_err());
     assert_eq!(Size::new(2, 3).rgba_layout().unwrap(), (8, 24));
 }
@@ -149,12 +247,24 @@ fn core_defaults_and_style_invariants_are_explicit() {
     assert!(style.clone().with_size(FiniteF64::ZERO).is_err());
     assert!(style.clone().with_size(finite(-1.0)).is_err());
     assert!(style.clone().with_border(finite(-1.0)).is_err());
-    assert!(style.clone().with_scale(finite(-1.0), FiniteF64::ONE).is_err());
+    assert!(
+        style
+            .clone()
+            .with_scale(finite(-1.0), FiniteF64::ONE)
+            .is_err()
+    );
     assert!(style.with_scale(FiniteF64::ZERO, FiniteF64::ZERO).is_ok());
-    for value in [0, 10, 255] { assert!(Alignment::new(value).is_err()); }
-    for value in 1..=9 { assert_eq!(Alignment::new(value).unwrap().get(), value); }
+    for value in [0, 10, 255] {
+        assert!(Alignment::new(value).is_err());
+    }
+    for value in 1..=9 {
+        assert_eq!(Alignment::new(value).unwrap().get(), value);
+    }
     assert!(WrapMode::new(4).is_err());
-    assert_eq!(Margins::new(0, 2, 0).inherit(Margins::new(10, 10, 10)), Margins::new(10, 2, 10));
+    assert_eq!(
+        Margins::new(0, 2, 0).inherit(Margins::new(10, 10, 10)),
+        Margins::new(10, 2, 10)
+    );
     let script = ScriptInfo::core_default();
     assert_eq!(script.play_res(), Size::new(384, 288));
     assert_eq!(script.wrap().get(), 2);
@@ -186,24 +296,52 @@ fn default_limits_and_tiny_allocation_limits_are_enforced() {
     assert!(limits.check_output_size(Size::new(0, 10)).is_err());
     assert!(limits.check_output_size(Size::new(16_385, 1)).is_err());
     assert!(limits.check_output_size(Size::new(8_000, 8_000)).is_err());
-    assert_eq!(limits.clone().with_output_bytes(15).unwrap().check_output_size(Size::new(2, 2)).unwrap_err().code(), ErrorCode::LimitExceeded);
-    assert!(limits.with_output_bytes(16).unwrap().check_output_size(Size::new(2, 2)).is_ok());
+    assert_eq!(
+        limits
+            .clone()
+            .with_output_bytes(15)
+            .unwrap()
+            .check_output_size(Size::new(2, 2))
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
+    assert!(
+        limits
+            .with_output_bytes(16)
+            .unwrap()
+            .check_output_size(Size::new(2, 2))
+            .is_ok()
+    );
 }
 
 #[test]
 fn event_intervals_are_end_exclusive_and_do_not_subtract_overflowing_times() {
     let event = sample_event("x", -10, 10);
-    for now in [-10, -1, 0, 9] { assert!(event.is_active(TimeUs::from_micros(now))); }
-    for now in [-11, 10, i64::MAX] { assert!(!event.is_active(TimeUs::from_micros(now))); }
+    for now in [-10, -1, 0, 9] {
+        assert!(event.is_active(TimeUs::from_micros(now)));
+    }
+    for now in [-11, 10, i64::MAX] {
+        assert!(!event.is_active(TimeUs::from_micros(now)));
+    }
     let widest = sample_event("x", i64::MIN, i64::MAX);
     assert!(widest.is_active(TimeUs::from_micros(0)));
     for (start, end) in [(0, 0), (1, 0)] {
         let event = sample_event("x", start, end);
         assert!(!event.is_active(TimeUs::from_micros(0)));
-        let track = ingest(&mut TrackIngestor::new(), "x", vec![event], &Limits::default()).unwrap();
+        let track = ingest(
+            &mut TrackIngestor::new(),
+            "x",
+            vec![event],
+            &Limits::default(),
+        )
+        .unwrap();
         let parsed = ParsedTrack::new(track, DiagnosticBuffer::new()).unwrap();
         assert_eq!(parsed.diagnostics().len(), 1);
-        assert_eq!(parsed.diagnostics()[0].code(), DiagnosticCode::InactiveEvent);
+        assert_eq!(
+            parsed.diagnostics()[0].code(),
+            DiagnosticCode::InactiveEvent
+        );
     }
 }
 
@@ -214,19 +352,33 @@ fn snapshot_clones_share_storage_and_new_ingestions_get_new_identities() {
     assert_send_sync::<Style>();
     assert_send_sync::<Event>();
     let mut owner = TrackIngestor::new();
-    let track = ingest(&mut owner, "hello", vec![sample_event("hello", 0, 1)], &Limits::default()).unwrap();
+    let track = ingest(
+        &mut owner,
+        "hello",
+        vec![sample_event("hello", 0, 1)],
+        &Limits::default(),
+    )
+    .unwrap();
     let clone = track.as_ref().clone();
     assert!(Arc::ptr_eq(track.source_storage(), clone.source_storage()));
     assert!(Arc::ptr_eq(track.style_storage(), clone.style_storage()));
     assert!(Arc::ptr_eq(track.event_storage(), clone.event_storage()));
-    assert!(Arc::ptr_eq(track.events()[0].program_storage(), clone.events()[0].program_storage()));
+    assert!(Arc::ptr_eq(
+        track.events()[0].program_storage(),
+        clone.events()[0].program_storage()
+    ));
     assert_eq!(track.revision(), clone.revision());
     let edited_style = track.styles()[0].clone().with_name(Arc::from("Other"));
     assert_eq!(track.styles()[0].name(), "Default");
     assert_eq!(edited_style.name(), "Other");
-    let next = ingest(&mut owner, "hello", vec![sample_event("hello", 0, 1)], &Limits::default()).unwrap();
+    let next = ingest(
+        &mut owner,
+        "hello",
+        vec![sample_event("hello", 0, 1)],
+        &Limits::default(),
+    )
+    .unwrap();
     assert_ne!(track.revision(), next.revision());
-    drop(owner);
     drop(track);
     assert_eq!(clone.source(), "hello");
     assert_eq!(clone.events().len(), 1);
@@ -237,35 +389,100 @@ fn publication_rejects_cross_record_errors_without_consuming_identity() {
     let mut owner = TrackIngestor::new();
     let source = "ab";
     let span = SourceSpan::new(source, 0, 1).unwrap();
-    let base = Event::new(EventId::new(0), TimeUs::from_micros(0), TimeUs::from_micros(1), StyleId::new(0), span);
-    let mismatch = base.clone().with_program(Arc::from([TextOp::Text { text: Arc::from("b"), source: span }]));
+    let base = Event::new(
+        EventId::new(0),
+        TimeUs::from_micros(0),
+        TimeUs::from_micros(1),
+        StyleId::new(0),
+        span,
+    );
+    let mismatch = base.clone().with_program(Arc::from([TextOp::Text {
+        text: Arc::from("b"),
+        source: span,
+    }]));
     assert!(ingest(&mut owner, source, vec![mismatch], &Limits::default()).is_err());
-    let outside = Event::new(EventId::new(0), base.start(), base.end(), StyleId::new(99), span);
+    let outside = Event::new(
+        EventId::new(0),
+        base.start(),
+        base.end(),
+        StyleId::new(99),
+        span,
+    );
     assert!(ingest(&mut owner, source, vec![outside], &Limits::default()).is_err());
-    assert!(ingest(&mut owner, source, vec![base.clone(), base.clone()], &Limits::default()).is_err());
+    assert!(
+        ingest(
+            &mut owner,
+            source,
+            vec![base.clone(), base.clone()],
+            &Limits::default()
+        )
+        .is_err()
+    );
     let track = ingest(&mut owner, source, vec![base], &Limits::default()).unwrap();
     assert_eq!(track.revision().get(), 0);
     let limited = Limits::default().with_input_bytes(1).unwrap();
-    assert_eq!(ingest(&mut owner, source, vec![], &limited).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        ingest(&mut owner, source, vec![], &limited)
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
     let limited = Limits::default().with_text_bytes_per_event(1).unwrap();
-    assert_eq!(ingest(&mut owner, source, vec![sample_event(source, 0, 1)], &limited).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        ingest(
+            &mut owner,
+            source,
+            vec![sample_event(source, 0, 1)],
+            &limited
+        )
+        .unwrap_err()
+        .code(),
+        ErrorCode::LimitExceeded
+    );
     let limited = Limits::default().with_events(1).unwrap();
-    assert_eq!(ingest(&mut owner, source, vec![sample_event(source, 0, 1), sample_event(source, 1, 2)], &limited).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        ingest(
+            &mut owner,
+            source,
+            vec![sample_event(source, 0, 1), sample_event(source, 1, 2)],
+            &limited
+        )
+        .unwrap_err()
+        .code(),
+        ErrorCode::LimitExceeded
+    );
 }
 
 #[test]
 fn diagnostics_are_bounded_sorted_and_suppression_is_explicit() {
     let mut buffer = DiagnosticBuffer::new();
     for ordinal in (0..1_030).rev() {
-        buffer.push(Diagnostic::new(DiagnosticCode::UnknownStyle, Some(EventId::new(ordinal)), None, "unknown style")).unwrap();
+        buffer
+            .push(Diagnostic::new(
+                DiagnosticCode::UnknownStyle,
+                Some(EventId::new(ordinal)),
+                None,
+                "unknown style",
+            ))
+            .unwrap();
     }
-    buffer.push(Diagnostic::new(DiagnosticCode::MissingDefaultStyle, None, None, "missing Default")).unwrap();
+    buffer
+        .push(Diagnostic::new(
+            DiagnosticCode::MissingDefaultStyle,
+            None,
+            None,
+            "missing Default",
+        ))
+        .unwrap();
     assert_eq!(buffer.suppressed_count(), 7);
     let diagnostics = buffer.finish().unwrap();
     assert_eq!(diagnostics.len(), MAX_DIAGNOSTICS + 1);
     assert_eq!(diagnostics[0].event(), None);
     assert_eq!(diagnostics[1].event(), Some(EventId::new(0)));
-    assert_eq!(diagnostics[MAX_DIAGNOSTICS - 1].event(), Some(EventId::new(1022)));
+    assert_eq!(
+        diagnostics[MAX_DIAGNOSTICS - 1].event(),
+        Some(EventId::new(1022))
+    );
     let summary = diagnostics.last().unwrap();
     assert_eq!(summary.code(), DiagnosticCode::DiagnosticsSuppressed);
     assert_eq!(summary.detail(), "7 diagnostics suppressed");
@@ -285,12 +502,32 @@ fn diagnostic_order_uses_header_event_then_span_then_code() {
     let span1 = SourceSpan::new("ab", 1, 2).unwrap();
     let mut buffer = DiagnosticBuffer::new();
     for (event, span, code) in [
-        (Some(EventId::new(1)), Some(span0), DiagnosticCode::UnknownStyle),
-        (Some(EventId::new(0)), Some(span1), DiagnosticCode::UnknownStyle),
-        (Some(EventId::new(0)), Some(span0), DiagnosticCode::UnknownStyle),
-        (Some(EventId::new(0)), Some(span0), DiagnosticCode::MalformedRecord),
+        (
+            Some(EventId::new(1)),
+            Some(span0),
+            DiagnosticCode::UnknownStyle,
+        ),
+        (
+            Some(EventId::new(0)),
+            Some(span1),
+            DiagnosticCode::UnknownStyle,
+        ),
+        (
+            Some(EventId::new(0)),
+            Some(span0),
+            DiagnosticCode::UnknownStyle,
+        ),
+        (
+            Some(EventId::new(0)),
+            Some(span0),
+            DiagnosticCode::MalformedRecord,
+        ),
         (None, Some(span1), DiagnosticCode::UnknownSection),
-    ] { buffer.push(Diagnostic::new(code, event, span, "test")).unwrap(); }
+    ] {
+        buffer
+            .push(Diagnostic::new(code, event, span, "test"))
+            .unwrap();
+    }
     let result = buffer.finish().unwrap();
     assert_eq!(result[0].event(), None);
     assert_eq!(result[1].code(), DiagnosticCode::MalformedRecord);

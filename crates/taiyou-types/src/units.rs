@@ -23,34 +23,54 @@ impl TimeUs {
     }
 
     pub fn from_millis(value: i64) -> Result<Self, ParseError> {
-        value.checked_mul(1_000).map(Self).ok_or_else(|| invalid("millisecond conversion overflow"))
+        value
+            .checked_mul(1_000)
+            .map(Self)
+            .ok_or_else(|| invalid("millisecond conversion overflow"))
     }
 
     pub fn from_centis(value: i64) -> Result<Self, ParseError> {
-        value.checked_mul(10_000).map(Self).ok_or_else(|| invalid("centisecond conversion overflow"))
+        value
+            .checked_mul(10_000)
+            .map(Self)
+            .ok_or_else(|| invalid("centisecond conversion overflow"))
     }
 
     /// Converts ASS timestamp components, without parsing or accepting malformed grammar.
-    pub fn from_ass_components(hours: u64, minutes: u8, seconds: u8, centis: u8) -> Result<Self, ParseError> {
+    pub fn from_ass_components(
+        hours: u64,
+        minutes: u8,
+        seconds: u8,
+        centis: u8,
+    ) -> Result<Self, ParseError> {
         if minutes >= 60 || seconds >= 60 || centis >= 100 {
             return Err(invalid("ASS timestamp component out of range"));
         }
-        let value = hours.checked_mul(3_600)
+        let value = hours
+            .checked_mul(3_600)
             .and_then(|v| v.checked_add(u64::from(minutes) * 60))
             .and_then(|v| v.checked_add(u64::from(seconds)))
             .and_then(|v| v.checked_mul(100))
             .and_then(|v| v.checked_add(u64::from(centis)))
             .and_then(|v| v.checked_mul(10_000))
             .and_then(|v| i64::try_from(v).ok());
-        value.map(Self).ok_or_else(|| invalid("ASS timestamp overflow"))
+        value
+            .map(Self)
+            .ok_or_else(|| invalid("ASS timestamp overflow"))
     }
 
     pub fn checked_add(self, other: Self) -> Result<Self, ParseError> {
-        self.0.checked_add(other.0).map(Self).ok_or_else(|| invalid("time addition overflow"))
+        self.0
+            .checked_add(other.0)
+            .map(Self)
+            .ok_or_else(|| invalid("time addition overflow"))
     }
 
     pub fn checked_sub(self, other: Self) -> Result<Self, ParseError> {
-        self.0.checked_sub(other.0).map(Self).ok_or_else(|| invalid("time subtraction overflow"))
+        self.0
+            .checked_sub(other.0)
+            .map(Self)
+            .ok_or_else(|| invalid("time subtraction overflow"))
     }
 }
 
@@ -62,11 +82,8 @@ impl FiniteF64 {
     pub const ZERO: Self = Self(0.0);
     pub const ONE: Self = Self(1.0);
 
-    // Only named literal Core defaults are passed by this crate's record module.
-    // This private helper is deliberately unavailable to external callers.
-    pub(crate) fn from_core_default(value: f64) -> Self {
-        Self(value)
-    }
+    pub(crate) const CORE_FONT_SIZE: Self = Self(20.0);
+    pub(crate) const CORE_BORDER: Self = Self(2.0);
 
     pub fn new(value: f64) -> Result<Self, ParseError> {
         if !value.is_finite() {
@@ -171,7 +188,9 @@ impl Q6 {
     }
 
     fn narrow(ticks: i64) -> Result<Self, ParseError> {
-        i32::try_from(ticks).map(Self).map_err(|_| invalid("Q6 arithmetic overflow"))
+        i32::try_from(ticks)
+            .map(Self)
+            .map_err(|_| invalid("Q6 arithmetic overflow"))
     }
 }
 
@@ -193,10 +212,18 @@ impl SourceSpan {
         })
     }
 
-    pub const fn start(self) -> u32 { self.start }
-    pub const fn end(self) -> u32 { self.end }
-    pub const fn len(self) -> u32 { self.end - self.start }
-    pub const fn is_empty(self) -> bool { self.start == self.end }
+    pub const fn start(self) -> u32 {
+        self.start
+    }
+    pub const fn end(self) -> u32 {
+        self.end
+    }
+    pub const fn len(self) -> u32 {
+        self.end - self.start
+    }
+    pub const fn is_empty(self) -> bool {
+        self.start == self.end
+    }
 
     pub fn slice(self, source: &str) -> Option<&str> {
         let start = usize::try_from(self.start).ok()?;
@@ -213,41 +240,65 @@ impl SourceSpan {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct EventId(u32);
 impl EventId {
-    pub const fn new(ordinal: u32) -> Self { Self(ordinal) }
-    pub const fn ordinal(self) -> u32 { self.0 }
+    pub const fn new(ordinal: u32) -> Self {
+        Self(ordinal)
+    }
+    pub const fn ordinal(self) -> u32 {
+        self.0
+    }
 }
 
 /// Index into the immutable style-definition array; checked at Track publication.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StyleId(u32);
 impl StyleId {
-    pub const fn new(index: u32) -> Self { Self(index) }
-    pub const fn index(self) -> u32 { self.0 }
+    pub const fn new(index: u32) -> Self {
+        Self(index)
+    }
+    pub const fn index(self) -> u32 {
+        self.0
+    }
 }
 
 /// Session identity minted only by the renderer-owned TrackIngestor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TrackRevision(pub(crate) u64);
 impl TrackRevision {
-    pub const fn get(self) -> u64 { self.0 }
+    pub const fn get(self) -> u64 {
+        self.0
+    }
 }
 
 /// Catalog snapshot identity; allocation belongs to the future catalog owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct CatalogRevision(u64);
 impl CatalogRevision {
-    pub const fn get(self) -> u64 { self.0 }
+    pub const fn get(self) -> u64 {
+        self.0
+    }
 }
 
 /// Font content SHA-256 and collection face index, never a native pointer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct FontId { sha256: [u8; 32], face_index: u32 }
+pub struct FontId {
+    sha256: [u8; 32],
+    face_index: u32,
+}
 impl FontId {
-    pub const fn new(sha256: [u8; 32], face_index: u32) -> Self { Self { sha256, face_index } }
-    pub const fn sha256(&self) -> &[u8; 32] { &self.sha256 }
-    pub const fn face_index(self) -> u32 { self.face_index }
+    pub const fn new(sha256: [u8; 32], face_index: u32) -> Self {
+        Self { sha256, face_index }
+    }
+    pub const fn sha256(&self) -> &[u8; 32] {
+        &self.sha256
+    }
+    pub const fn face_index(self) -> u32 {
+        self.face_index
+    }
 }
 
 /// LegacyXyV1 is representable, but enabling its behavior remains R001-gated.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum Profile { CoreV1, LegacyXyV1 }
+pub enum Profile {
+    CoreV1,
+    LegacyXyV1,
+}

@@ -75,7 +75,11 @@ macro_rules! error_wrapper {
                 })
             }
 
-            pub fn with_context(mut self, event: Option<EventId>, span: Option<SourceSpan>) -> Self {
+            pub fn with_context(
+                mut self,
+                event: Option<EventId>,
+                span: Option<SourceSpan>,
+            ) -> Self {
                 self.0.event = event;
                 self.0.span = span;
                 self
@@ -86,11 +90,21 @@ macro_rules! error_wrapper {
                 self
             }
 
-            pub fn code(&self) -> ErrorCode { self.0.code }
-            pub fn event(&self) -> Option<EventId> { self.0.event }
-            pub fn span(&self) -> Option<SourceSpan> { self.0.span }
-            pub fn native_code(&self) -> Option<i64> { self.0.native_code }
-            pub fn detail(&self) -> &str { &self.0.detail }
+            pub fn code(&self) -> ErrorCode {
+                self.0.code
+            }
+            pub fn event(&self) -> Option<EventId> {
+                self.0.event
+            }
+            pub fn span(&self) -> Option<SourceSpan> {
+                self.0.span
+            }
+            pub fn native_code(&self) -> Option<i64> {
+                self.0.native_code
+            }
+            pub fn detail(&self) -> &str {
+                &self.0.detail
+            }
         }
 
         impl fmt::Display for $name {
@@ -108,8 +122,14 @@ macro_rules! error_wrapper {
 }
 
 error_wrapper!(ParseError, "Owned bounded parse/ingestion error.");
-error_wrapper!(RenderError, "Owned bounded render-stage error; no renderer is implemented here.");
-error_wrapper!(FontError, "Owned bounded font-stage error; no native adapter is implemented here.");
+error_wrapper!(
+    RenderError,
+    "Owned bounded render-stage error; no renderer is implemented here."
+);
+error_wrapper!(
+    FontError,
+    "Owned bounded font-stage error; no native adapter is implemented here."
+);
 
 /// Stable diagnostic codes for the static record subset and publication limits.
 /// Declaration order is the canonical code ordering used by C7 publication.
@@ -150,13 +170,31 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    pub fn new(code: DiagnosticCode, event: Option<EventId>, span: Option<SourceSpan>, detail: &str) -> Self {
-        Self { code, event, span, detail: bounded_detail(detail) }
+    pub fn new(
+        code: DiagnosticCode,
+        event: Option<EventId>,
+        span: Option<SourceSpan>,
+        detail: &str,
+    ) -> Self {
+        Self {
+            code,
+            event,
+            span,
+            detail: bounded_detail(detail),
+        }
     }
-    pub fn code(&self) -> DiagnosticCode { self.code }
-    pub fn event(&self) -> Option<EventId> { self.event }
-    pub fn span(&self) -> Option<SourceSpan> { self.span }
-    pub fn detail(&self) -> &str { &self.detail }
+    pub fn code(&self) -> DiagnosticCode {
+        self.code
+    }
+    pub fn event(&self) -> Option<EventId> {
+        self.event
+    }
+    pub fn span(&self) -> Option<SourceSpan> {
+        self.span
+    }
+    pub fn detail(&self) -> &str {
+        &self.detail
+    }
 
     fn sort_key(&self) -> (Option<EventId>, Option<u32>, DiagnosticCode) {
         (self.event, self.span.map(SourceSpan::start), self.code)
@@ -173,32 +211,55 @@ pub struct DiagnosticBuffer {
 }
 
 impl DiagnosticBuffer {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn push(&mut self, diagnostic: Diagnostic) -> Result<(), ParseError> {
         if diagnostic.code == DiagnosticCode::DiagnosticsSuppressed {
-            return Err(ParseError::new(ErrorCode::InvalidArgument, "suppression records are builder-owned"));
+            return Err(ParseError::new(
+                ErrorCode::InvalidArgument,
+                "suppression records are builder-owned",
+            ));
         }
-        let index = self.records.partition_point(|d| d.sort_key() <= diagnostic.sort_key());
+        let index = self
+            .records
+            .partition_point(|d| d.sort_key() <= diagnostic.sort_key());
         if self.records.len() == MAX_DIAGNOSTICS {
-            self.suppressed = self.suppressed.checked_add(1).ok_or_else(||
-                ParseError::new(ErrorCode::LimitExceeded, "diagnostic counter overflow"))?;
-            if index == MAX_DIAGNOSTICS { return Ok(()); }
+            self.suppressed = self.suppressed.checked_add(1).ok_or_else(|| {
+                ParseError::new(ErrorCode::LimitExceeded, "diagnostic counter overflow")
+            })?;
+            if index == MAX_DIAGNOSTICS {
+                return Ok(());
+            }
             self.records.pop();
         } else {
-            self.records.try_reserve(1).map_err(|_| ParseError::new(ErrorCode::AllocationFailed, "diagnostic allocation failed"))?;
+            self.records.try_reserve(1).map_err(|_| {
+                ParseError::new(ErrorCode::AllocationFailed, "diagnostic allocation failed")
+            })?;
         }
         self.records.insert(index, diagnostic);
         Ok(())
     }
 
-    pub fn suppressed_count(&self) -> u64 { self.suppressed }
+    pub fn suppressed_count(&self) -> u64 {
+        self.suppressed
+    }
 
     pub fn finish(mut self) -> Result<Vec<Diagnostic>, ParseError> {
         if self.suppressed > 0 {
-            self.records.try_reserve(1).map_err(|_| ParseError::new(ErrorCode::AllocationFailed, "diagnostic summary allocation failed"))?;
-            self.records.push(Diagnostic::new(DiagnosticCode::DiagnosticsSuppressed, None, None,
-                &format!("{} diagnostics suppressed", self.suppressed)));
+            self.records.try_reserve(1).map_err(|_| {
+                ParseError::new(
+                    ErrorCode::AllocationFailed,
+                    "diagnostic summary allocation failed",
+                )
+            })?;
+            self.records.push(Diagnostic::new(
+                DiagnosticCode::DiagnosticsSuppressed,
+                None,
+                None,
+                &format!("{} diagnostics suppressed", self.suppressed),
+            ));
         }
         Ok(self.records)
     }
