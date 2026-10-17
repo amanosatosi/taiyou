@@ -87,7 +87,7 @@ native_features = ["--features", "taiyou-font/native"]
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"
-    if not lock.exists() or os.environ.get("TAIYOU_REFRESH_LOCK") == "1":
+    if not lock.exists():
         run("cargo", "generate-lockfile", "--manifest-path", manifest)
     print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
     print(lock.read_text(encoding="utf-8"), flush=True)
