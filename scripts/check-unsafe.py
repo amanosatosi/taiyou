@@ -84,8 +84,19 @@ def check_sources(sources):
             for index, token in enumerate(tokens[:-1]):
                 if token == "include" and tokens[index + 1] == "!":
                     raise ValueError(f"code include requires boundary policy review: {path}")
-                if token == "path" and tokens[index + 1] == "=":
-                    raise ValueError(f"custom module path requires boundary policy review: {path}")
+                if token == "#":
+                    start = index + 1
+                    if tokens[start] == "!":
+                        start += 1
+                    if start < len(tokens) and tokens[start] == "[":
+                        depth = 1
+                        end = start + 1
+                        while end < len(tokens) and depth:
+                            depth += (tokens[end] == "[") - (tokens[end] == "]")
+                            end += 1
+                        attribute = tokens[start:end]
+                        if any(a == "path" and b == "=" for a, b in zip(attribute, attribute[1:])):
+                            raise ValueError(f"custom module path requires boundary policy review: {path}")
             if path.endswith("/build.rs") or path == "build.rs":
                 raise ValueError("workspace build scripts require boundary policy review")
 
@@ -134,6 +145,10 @@ class BoundaryTests(unittest.TestCase):
     def test_comments_strings_and_lifetimes_are_not_executable_code(self):
         text = "/* nested /* unsafe */ comment */ // unsafe\nlet x = r###\"unsafe #![allow(unsafe_code)]\"###; let y = \"unsafe\"; fn f<'a>(x: &'a str) { let c = '\\u{61}'; }"
         check_sources({"crates/taiyou-font/src/catalog.rs": text})
+        # A normal local path assignment is not a #[path] module attribute.
+        check_sources({"crates/taiyou-cli/tests/smoke.rs": "let path = temp_file(); path = next_file();"})
+        with self.assertRaises(ValueError):
+            check_sources({"crates/taiyou-font/src/catalog.rs": '#[cfg_attr(feature="x", path="outside.rs")] mod x;'})
 
     def test_manifest_exceptions_rejected(self):
         manifests = {"Cargo.toml": {"workspace": {"lints": {"rust": {"unsafe_code": "forbid"}}}}}
