@@ -23,6 +23,9 @@ Owned paths survive all native owners. Outline identity contains font digest,
 face, glyph and extraction revision, without paint or placement. Variable-font
 coordinates and synthetic decorations are not introduced in this task.
 Even-odd native outlines and non-vector glyphs return explicit unsupported errors.
+Instruction-dependent faces marked `FT_FACE_FLAG_TRICKY` also return unsupported:
+FreeType documents that NO_SCALE can otherwise produce meaningless outlines.
+Supporting those faces requires a separately reviewed unhinted extraction policy.
 
 ## Coordinate handoff
 

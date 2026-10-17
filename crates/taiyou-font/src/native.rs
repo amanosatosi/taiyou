@@ -113,6 +113,7 @@ impl FontContext {
                         "outline glyph/metrics out of range",
                     ));
                 }
+                check_outline_face((*face.raw).face_flags)?;
                 let flags = ft::FT_LOAD_NO_SCALE
                     | ft::FT_LOAD_NO_HINTING
                     | ft::FT_LOAD_NO_BITMAP
@@ -521,6 +522,17 @@ struct OutlineCopy {
     ops: Vec<PathOp<FontPoint>>,
     failed: bool,
     open: bool,
+}
+fn check_outline_face(flags: ft::FT_Long) -> Result<(), FontError> {
+    // FreeType documents that NO_SCALE can produce meaningless contours for
+    // instruction-dependent tricky faces. Do not claim those are unhinted paths.
+    if flags & ft::FT_FACE_FLAG_TRICKY != 0 {
+        return Err(FontError::new(
+            ErrorCode::UnsupportedFeature,
+            "instruction-dependent tricky font requires a reviewed extraction policy",
+        ));
+    }
+    Ok(())
 }
 impl OutlineCopy {
     fn push(&mut self, op: PathOp<FontPoint>) {
@@ -1108,6 +1120,8 @@ mod tests {
     }
     #[test]
     fn geometry_native_copy_failure_stays_inside_callback_boundary() {
+        assert!(check_outline_face(0).is_ok());
+        assert!(check_outline_face(ft::FT_FACE_FLAG_TRICKY).is_err());
         let mut state = OutlineCopy {
             ops: Vec::new(),
             failed: false,

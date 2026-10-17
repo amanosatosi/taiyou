@@ -221,3 +221,43 @@ fn geometry_empty_and_malformed_paths_and_budget_rejection() {
     }
     assert!(DeviceMapping::new(Size::new(0, 1), PixelRect::new(0, 0, 1, 1).unwrap()).is_err());
 }
+
+#[test]
+fn geometry_general_rotation_and_checked_dimension_budget() {
+    for (angle, expected) in [(45.0, (45, -45)), (-45.0, (45, 45))] {
+        assert_eq!(xy(mapping((1.0, 1.0), (0.0, 0.0), angle).point(p(1.0, 0.0)).unwrap()), expected);
+    }
+    let limits = Limits::default().with_max_dimension(1).unwrap();
+    assert!(map_outline(square(), mapping((2.0, 1.0), (0.0, 0.0), 0.0), &limits).is_err());
+    assert!(check_path_budget(usize::MAX, &Limits::default()).is_err());
+    fn require_owned<T: Send + Sync>() {}
+    require_owned::<GeometryInstance>();
+    require_owned::<GlyphOutline>();
+}
+
+#[test]
+fn geometry_absolute_ties_are_not_falsely_reused_across_zero() {
+    let path = Arc::new(Outline::new(vec![PathOp::MoveTo(p(1.0 / 128.0, 0.0)), PathOp::Close], &Limits::default()).unwrap());
+    let a = map_outline(path.clone(), mapping((1.0, 1.0), (0.0, 0.0), 0.0), &Limits::default()).unwrap();
+    let b = map_outline(path, mapping((1.0, 1.0), (-1.0, 0.0), 0.0), &Limits::default()).unwrap();
+    // C1 ties away: +.5 tick -> +1; -63.5 ticks -> -64. K2 permits
+    // factoring only when equivalent; phase alone is not a contour cache key.
+    assert_eq!(a.bounds().unwrap().min().x().ticks(), 1);
+    assert_eq!(b.bounds().unwrap().min().x().ticks(), -64);
+    assert_eq!(a.phase(), b.phase());
+    assert_ne!(a.ops(), b.ops());
+}
+
+#[test]
+fn geometry_opposite_contours_preserve_winding_under_y_flip() {
+    let mut ops = square().ops().to_vec();
+    ops.extend([PathOp::MoveTo(p(0.25, 0.25)), PathOp::LineTo(p(0.25, 0.75)), PathOp::LineTo(p(0.75, 0.75)), PathOp::LineTo(p(0.75, 0.25)), PathOp::Close]);
+    let path = Arc::new(Outline::new(ops, &Limits::default()).unwrap());
+    let output = map_outline(path, mapping((1.0, 1.0), (0.0, 0.0), 0.0), &Limits::default()).unwrap();
+    let areas: Vec<i64> = output.ops().chunks_exact(5).map(|contour| {
+        let points: Vec<_> = contour.iter().filter_map(|op| match op { PathOp::MoveTo(p) | PathOp::LineTo(p) => Some(xy(*p)), _ => None }).collect();
+        points.iter().zip(points.iter().cycle().skip(1)).map(|(&(x,y),&(u,v))| i64::from(x)*i64::from(v)-i64::from(u)*i64::from(y)).sum()
+    }).collect();
+    assert_eq!(areas, [-8192, 2048]);
+    assert_eq!(output.outline().fill_rule(), FillRule::Nonzero);
+}
