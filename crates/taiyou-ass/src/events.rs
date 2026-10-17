@@ -15,13 +15,15 @@ pub(crate) struct PendingEvent<'a> {
     pub text_span: SourceSpan,
 }
 impl PendingEvent<'_> {
-    pub fn publish(self, style: StyleId, program: Arc<[TextOp]>) -> Event {
+    pub fn publish(self, style: StyleId, program: Arc<[TextOp]>, spans: Arc<[Option<SourceSpan>]>) -> Event {
         Event::new(self.id, self.start, self.end, style, self.source)
             .with_layer(self.layer)
             .with_margins(self.margins)
             .with_actor(Arc::from(self.actor))
             .with_effect(Arc::from(self.effect))
             .with_program(program)
+            .with_text_source(self.text_span)
+            .with_operation_sources(spans)
     }
 }
 pub(crate) fn parse<'a>(

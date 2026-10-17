@@ -713,6 +713,8 @@ pub struct Event {
     effect: Arc<str>,
     program: Arc<[TextOp]>,
     source: SourceSpan,
+    text_source: Option<SourceSpan>,
+    operation_sources: Option<Arc<[Option<SourceSpan>]>>,
 }
 impl Event {
     pub fn new(
@@ -733,6 +735,8 @@ impl Event {
             effect: Arc::from(""),
             program: Arc::from([]),
             source,
+            text_source: None,
+            operation_sources: None,
         }
     }
     pub fn with_layer(mut self, layer: i32) -> Self {
@@ -753,8 +757,19 @@ impl Event {
     }
     pub fn with_program(mut self, program: Arc<[TextOp]>) -> Self {
         self.program = program;
+        self.operation_sources = None;
         self
     }
+    pub fn with_text_source(mut self, source: SourceSpan) -> Self {
+        self.text_source = Some(source);
+        self
+    }
+    pub fn with_operation_sources(mut self, spans: Arc<[Option<SourceSpan>]>) -> Self {
+        self.operation_sources = Some(spans);
+        self
+    }
+    pub const fn text_source(&self) -> Option<SourceSpan> { self.text_source }
+    pub fn operation_sources(&self) -> Option<&[Option<SourceSpan>]> { self.operation_sources.as_deref() }
     pub const fn id(&self) -> EventId {
         self.id
     }
@@ -900,6 +915,7 @@ impl TrackIngestor {
             {
                 return Err(limit("text-derived operation count limit exceeded"));
             }
+            validate_event_provenance(event, &source)?;
             let mut text_end = event.source.start();
             for operation in event.program.iter() {
                 let (text, span) = match operation {
@@ -944,6 +960,73 @@ impl TrackIngestor {
             revision: TrackRevision(revision),
         }))
     }
+}
+
+fn advance_provenance(bytes: &[u8], cursor: &mut usize, block: &mut bool, end: usize, reject_visible: bool) -> Result<(), ParseError> {
+    while *cursor < end {
+        match bytes[*cursor] {
+            b'{' if !*block => *block = true,
+            b'}' if *block => *block = false,
+            _ if reject_visible && !*block => return Err(invalid("provenance omits visible event text")),
+            _ => (),
+        }
+        *cursor += 1;
+    }
+    Ok(())
+}
+fn validate_event_provenance(event: &Event, source: &str) -> Result<(), ParseError> {
+    let sidecar = event.operation_sources();
+    if sidecar.is_some_and(|spans| spans.len() != event.program.len()) {
+        return Err(invalid("operation provenance length differs from program"));
+    }
+    let field = event.text_source;
+    if field.is_some_and(|s| !event.source.contains(s) || s.slice(source).is_none()) {
+        return Err(invalid("event Text field is outside original event source"));
+    }
+    let complete = sidecar.is_some() && event.program.iter().enumerate().all(|(i, op)| {
+        !matches!(op, TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace) || sidecar.and_then(|s| s[i]).is_some()
+    });
+    let mut cursor = field.map_or(0, |s| s.start() as usize);
+    let mut block = false;
+    let mut previous = event.source.start();
+    for (i, op) in event.program.iter().enumerate() {
+        let intrinsic = match op {
+            TextOp::Text { source, .. } | TextOp::Unsupported { source, .. } => Some(*source),
+            TextOp::Override(op) => Some(op.source()),
+            _ => None,
+        };
+        let supplied = sidecar.and_then(|s| s[i]);
+        if intrinsic.is_some() && supplied.is_some() && intrinsic != supplied {
+            return Err(invalid("supplied provenance differs from operation source"));
+        }
+        let Some(span) = supplied.or(intrinsic) else { continue; };
+        let raw = span.slice(source).ok_or_else(|| invalid("invalid operation provenance"))?;
+        if span.start() < previous || !event.source.contains(span) || field.is_some_and(|f| !f.contains(span)) {
+            return Err(invalid("operation provenance escapes event Text field or source order"));
+        }
+        if field.is_some() {
+            advance_provenance(source.as_bytes(), &mut cursor, &mut block, span.start() as usize, complete)?;
+        }
+        match op {
+            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
+                let expected = match op { TextOp::HardBreak => "\\N", TextOp::SoftBreak => "\\n", _ => "\\h" };
+                if raw != expected || (field.is_some() && block) {
+                    return Err(invalid("escape provenance is not the exact visible original escape"));
+                }
+            }
+            TextOp::Text { text, .. } => {
+                if raw != text.as_ref() || (field.is_some() && (block || raw.contains('{') || raw.as_bytes().windows(2).any(|w| w[0] == b'\\' && matches!(w[1], b'N' | b'n' | b'h')))) {
+                    return Err(invalid("literal provenance differs from visible event Text bytes"));
+                }
+            }
+            _ if field.is_some() && !block => return Err(invalid("override provenance is outside its original block")),
+            _ => (),
+        }
+        if field.is_some() { advance_provenance(source.as_bytes(), &mut cursor, &mut block, span.end() as usize, false)?; }
+        previous = span.end();
+    }
+    if let Some(field) = field { advance_provenance(source.as_bytes(), &mut cursor, &mut block, field.end() as usize, complete)?; }
+    Ok(())
 }
 
 /// Parser result ownership from C2; diagnostics are ordered at publication by

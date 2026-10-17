@@ -11,9 +11,12 @@ freetype-sys = { workspace = true, optional = true }
 libz-sys = { version = "=1.1.30", features = ["static"], optional = true }
 sha2 = { workspace = true, optional = true }
 icu_casemap = { workspace = true, optional = true }
+harfbuzz-sys = { workspace = true, optional = true }
+unicode-bidi = { workspace = true, optional = true }
+unicode-script = { workspace = true, optional = true }
 
 [features]
-native = ["dep:freetype-sys", "dep:libz-sys", "dep:sha2", "dep:icu_casemap"]
+native = ["dep:freetype-sys", "dep:libz-sys", "dep:sha2", "dep:icu_casemap", "dep:harfbuzz-sys", "dep:unicode-bidi", "dep:unicode-script"]
 
 # Only this native-adapter crate may lower deny inside its reviewed native module.
 # Other workspace crates retain the workspace-wide forbid policy.

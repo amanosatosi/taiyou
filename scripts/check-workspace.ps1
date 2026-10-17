@@ -8,6 +8,9 @@ $external = @{
     'libz-sys' = @('=1.1.30', $true, 'static')
     'sha2' = @('=0.11.0', $true, '')
     'icu_casemap' = @('=2.0.1', $false, 'compiled_data')
+    'harfbuzz-sys' = @('=0.8.0', $false, '')
+    'unicode-bidi' = @('=0.3.18', $true, '')
+    'unicode-script' = @('=0.5.8', $true, '')
 }
 function Assert-ExternalDependency($packageName, $dependency) {
     if ($packageName -cne 'taiyou-font' -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
