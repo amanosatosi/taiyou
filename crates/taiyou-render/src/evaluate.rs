@@ -63,7 +63,12 @@ fn preflight(event: &Event) -> Result<u64, RenderError> {
         .and_then(|n| n.checked_add(3 * std::mem::size_of::<EvaluatedEvent>() as u64 + 512))
         .and_then(|n| {
             event.program().iter().try_fold(n, |n, op| {
-                let bytes = match op { TextOp::Text { text, .. } => text.len() as u64, TextOp::NoBreakSpace => 2, TextOp::HardBreak | TextOp::SoftBreak => 1, _ => 0 };
+                let bytes = match op {
+                    TextOp::Text { text, .. } => text.len() as u64,
+                    TextOp::NoBreakSpace => 2,
+                    TextOp::HardBreak | TextOp::SoftBreak => 1,
+                    _ => 0,
+                };
                 n.checked_add(bytes.checked_mul(3)?)
             })
         })
@@ -125,7 +130,13 @@ fn one(
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                runs.push(mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?);
+                runs.push(mapped_run(
+                    text.clone(),
+                    *source,
+                    &state,
+                    &source_map,
+                    &mut decoded_end,
+                )?);
             }
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
                 let text = match operation {
@@ -134,7 +145,13 @@ fn one(
                     _ => "\n",
                 };
                 reserve(&mut runs)?;
-                runs.push(mapped_run(Arc::from(text), event.source(), &state, &source_map, &mut decoded_end)?);
+                runs.push(mapped_run(
+                    Arc::from(text),
+                    event.source(),
+                    &state,
+                    &source_map,
+                    &mut decoded_end,
+                )?);
             }
             TextOp::Unsupported { source, .. } => unsupported(
                 event,
@@ -252,33 +269,69 @@ fn one(
         placement,
         changes,
     );
-    match source_map { Some(map) => evaluated.with_source_map(map), None => Ok(evaluated) }
+    match source_map {
+        Some(map) => evaluated.with_source_map(map),
+        None => Ok(evaluated),
+    }
 }
-fn event_map(track: &Track, event: &Event, limits: &Limits) -> Result<Option<Arc<SourceMappedText>>, RenderError> {
+fn event_map(
+    track: &Track,
+    event: &Event,
+    limits: &Limits,
+) -> Result<Option<Arc<SourceMappedText>>, RenderError> {
     let mut pieces = Vec::new();
-    pieces.try_reserve_exact(event.program().len()).map_err(|_| error(ErrorCode::AllocationFailed, "event map allocation failed"))?;
+    pieces
+        .try_reserve_exact(event.program().len())
+        .map_err(|_| error(ErrorCode::AllocationFailed, "event map allocation failed"))?;
     for (i, operation) in event.program().iter().enumerate() {
         let piece = match operation {
             TextOp::Text { source, .. } => TextSourcePiece::Literal(*source),
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
-                let Some(span) = event.operation_sources().and_then(|s| s[i]) else { return Ok(None); };
-                match operation { TextOp::HardBreak => TextSourcePiece::HardBreak(span), TextOp::SoftBreak => TextSourcePiece::SoftBreak(span), _ => TextSourcePiece::NoBreakSpace(span) }
+                let Some(span) = event.operation_sources().and_then(|s| s[i]) else {
+                    return Ok(None);
+                };
+                match operation {
+                    TextOp::HardBreak => TextSourcePiece::HardBreak(span),
+                    TextOp::SoftBreak => TextSourcePiece::SoftBreak(span),
+                    _ => TextSourcePiece::NoBreakSpace(span),
+                }
             }
             _ => continue,
         };
         pieces.push(piece);
     }
-    SourceMappedText::from_pieces(track.source_storage().clone(), &pieces, track.script().wrap(), limits)
-        .map(|map| Some(Arc::new(map))).map_err(|e| error(e.code(), e.detail()))
+    SourceMappedText::from_pieces(
+        track.source_storage().clone(),
+        &pieces,
+        track.script().wrap(),
+        limits,
+    )
+    .map(|map| Some(Arc::new(map)))
+    .map_err(|e| error(e.code(), e.detail()))
 }
-fn mapped_run(text: Arc<str>, source: SourceSpan, style: &Style, map: &Option<Arc<SourceMappedText>>, end: &mut u32) -> Result<EvaluatedRun, RenderError> {
+fn mapped_run(
+    text: Arc<str>,
+    source: SourceSpan,
+    style: &Style,
+    map: &Option<Arc<SourceMappedText>>,
+    end: &mut u32,
+) -> Result<EvaluatedRun, RenderError> {
     let run = EvaluatedRun::new(text, source, style);
     if let Some(map) = map {
-        let next = end.checked_add(u32::try_from(run.text().len()).map_err(|_| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?).ok_or_else(|| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?;
-        let span = map.decoded_span(*end..next).map_err(|e| error(e.code(), e.detail()))?;
+        let next = end
+            .checked_add(
+                u32::try_from(run.text().len())
+                    .map_err(|_| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?,
+            )
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "decoded run extent overflow"))?;
+        let span = map
+            .decoded_span(*end..next)
+            .map_err(|e| error(e.code(), e.detail()))?;
         *end = next;
         run.with_decoded(span)
-    } else { Ok(run) }
+    } else {
+        Ok(run)
+    }
 }
 /// Contract C3 entry point: strict Core evaluation of one active event.
 pub fn evaluate(

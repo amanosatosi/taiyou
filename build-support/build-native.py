@@ -86,7 +86,6 @@ os.environ["TAIYOU_TEST_FONT"] = str(sources / "font.otf")
 run("python", root / "build-support/font-fixtures.py")
 os.environ["TAIYOU_TEST_BOLD"] = str(sources / "bold.otf")
 os.environ["TAIYOU_TEST_COLLECTION"] = str(sources / "collection.otc")
-native_features = ["--features", "taiyou-font/native"]
 native_features = ["--features", "taiyou-cli/native"]
 reference_args = ["--discover"] if os.environ.get("TAIYOU_DISCOVER_SHAPING") == "1" else []
 run(sys.executable, root / "build-support/shaping-reference.py", *reference_args)

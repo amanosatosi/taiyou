@@ -2,8 +2,8 @@
 //!
 //! Pieces are explicit original-source intervals, never offsets inferred from
 //! T007's coarse event spans. The parser/evaluator bridge still requires review.
-use std::sync::Arc;
 use crate::{ErrorCode, FontError, Limits, SourceSpan, WrapMode};
+use std::sync::Arc;
 
 /// Exact source supplied by a producer that knows each token's provenance.
 /// Literal bytes are copied verbatim; escapes must name their original two bytes.
@@ -65,13 +65,22 @@ fn allocation() -> FontError {
     FontError::new(ErrorCode::AllocationFailed, "source-map allocation failed")
 }
 impl SourceMappedText {
-    pub fn decoded_span(self: &Arc<Self>, range: std::ops::Range<u32>) -> Result<DecodedSpan, FontError> {
+    pub fn decoded_span(
+        self: &Arc<Self>,
+        range: std::ops::Range<u32>,
+    ) -> Result<DecodedSpan, FontError> {
         let start = usize::try_from(range.start).map_err(|_| invalid("decoded range overflow"))?;
         let end = usize::try_from(range.end).map_err(|_| invalid("decoded range overflow"))?;
         if self.text.get(start..end).is_none() {
-            return Err(invalid("decoded span is not a UTF-8 range in its owning map"));
+            return Err(invalid(
+                "decoded span is not a UTF-8 range in its owning map",
+            ));
         }
-        Ok(DecodedSpan { map: self.clone(), start: range.start, end: range.end })
+        Ok(DecodedSpan {
+            map: self.clone(),
+            start: range.start,
+            end: range.end,
+        })
     }
     pub fn from_pieces(
         original: Arc<str>,
@@ -207,16 +216,28 @@ pub struct DecodedSpan {
     end: u32,
 }
 impl DecodedSpan {
-    pub const fn start(&self) -> u32 { self.start }
-    pub const fn end(&self) -> u32 { self.end }
-    pub const fn len(&self) -> u32 { self.end - self.start }
-    pub const fn is_empty(&self) -> bool { self.start == self.end }
-    pub fn source_map(&self) -> &Arc<SourceMappedText> { &self.map }
+    pub const fn start(&self) -> u32 {
+        self.start
+    }
+    pub const fn end(&self) -> u32 {
+        self.end
+    }
+    pub const fn len(&self) -> u32 {
+        self.end - self.start
+    }
+    pub const fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+    pub fn source_map(&self) -> &Arc<SourceMappedText> {
+        &self.map
+    }
     pub fn belongs_to(&self, map: &Arc<SourceMappedText>) -> bool {
         // Ownership check only, never a persisted ID, order or cache key.
         Arc::ptr_eq(&self.map, map)
     }
-    pub fn text(&self) -> &str { &self.map.text()[self.start as usize..self.end as usize] }
+    pub fn text(&self) -> &str {
+        &self.map.text()[self.start as usize..self.end as usize]
+    }
     pub fn original_ranges(&self, limits: &Limits) -> Result<Vec<SourceSpan>, FontError> {
         self.map.original_ranges(self.start..self.end, limits)
     }
@@ -231,9 +252,15 @@ mod tests {
         let b = Arc::new(build("é", &[TextSourcePiece::Literal(span("é", "é"))]));
         assert!(a.decoded_span(0..1).is_err());
         let range = a.decoded_span(0..2).unwrap();
-        assert!(range.belongs_to(&a)); assert!(!range.belongs_to(&b));
-        drop(a); assert_eq!(range.text(), "é");
-        assert_eq!(range.original_ranges(&Limits::default()).unwrap()[0].slice(range.source_map().original_source()), Some("é"));
+        assert!(range.belongs_to(&a));
+        assert!(!range.belongs_to(&b));
+        drop(a);
+        assert_eq!(range.text(), "é");
+        assert_eq!(
+            range.original_ranges(&Limits::default()).unwrap()[0]
+                .slice(range.source_map().original_source()),
+            Some("é")
+        );
     }
     fn span(s: &str, needle: &str) -> SourceSpan {
         let start = s.find(needle).unwrap();

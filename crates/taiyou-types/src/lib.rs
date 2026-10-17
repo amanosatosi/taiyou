@@ -23,8 +23,8 @@ mod error;
 mod evaluation;
 mod fonts;
 mod scene;
-pub mod source_map;
 mod shaping;
+pub mod source_map;
 mod track;
 mod units;
 

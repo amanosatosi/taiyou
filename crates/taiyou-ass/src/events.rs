@@ -15,7 +15,12 @@ pub(crate) struct PendingEvent<'a> {
     pub text_span: SourceSpan,
 }
 impl PendingEvent<'_> {
-    pub fn publish(self, style: StyleId, program: Arc<[TextOp]>, spans: Arc<[Option<SourceSpan>]>) -> Event {
+    pub fn publish(
+        self,
+        style: StyleId,
+        program: Arc<[TextOp]>,
+        spans: Arc<[Option<SourceSpan>]>,
+    ) -> Event {
         Event::new(self.id, self.start, self.end, style, self.source)
             .with_layer(self.layer)
             .with_margins(self.margins)

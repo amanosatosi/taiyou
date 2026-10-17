@@ -312,11 +312,18 @@ impl EvaluatedRun {
         &self.text
     }
     pub fn with_decoded(mut self, decoded: DecodedSpan) -> Result<Self, RenderError> {
-        if decoded.text() != self.text.as_ref() { return Err(RenderError::new(ErrorCode::InvalidArgument, "decoded range differs from evaluated text")); }
+        if decoded.text() != self.text.as_ref() {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "decoded range differs from evaluated text",
+            ));
+        }
         self.decoded = Some(decoded);
         Ok(self)
     }
-    pub fn decoded(&self) -> Option<&DecodedSpan> { self.decoded.as_ref() }
+    pub fn decoded(&self) -> Option<&DecodedSpan> {
+        self.decoded.as_ref()
+    }
     pub const fn source(&self) -> SourceSpan {
         self.source
     }
@@ -362,17 +369,32 @@ impl EvaluatedEvent {
     pub const fn id(&self) -> EventId {
         self.id
     }
-    pub fn source_map(&self) -> Option<&Arc<SourceMappedText>> { self.source_map.as_ref() }
+    pub fn source_map(&self) -> Option<&Arc<SourceMappedText>> {
+        self.source_map.as_ref()
+    }
     pub fn with_source_map(mut self, map: Arc<SourceMappedText>) -> Result<Self, RenderError> {
         let mut end = 0;
         for run in self.runs.iter() {
-            let span = run.decoded().ok_or_else(|| RenderError::new(ErrorCode::InvalidArgument, "evaluated run has no decoded provenance"))?;
+            let span = run.decoded().ok_or_else(|| {
+                RenderError::new(
+                    ErrorCode::InvalidArgument,
+                    "evaluated run has no decoded provenance",
+                )
+            })?;
             if !span.belongs_to(&map) || span.start() != end || span.text() != run.text() {
-                return Err(RenderError::new(ErrorCode::InvalidArgument, "evaluated range belongs to another map or is out of order"));
+                return Err(RenderError::new(
+                    ErrorCode::InvalidArgument,
+                    "evaluated range belongs to another map or is out of order",
+                ));
             }
             end = span.end();
         }
-        if end as usize != map.text().len() { return Err(RenderError::new(ErrorCode::InvalidArgument, "evaluated ranges do not cover decoded source")); }
+        if end as usize != map.text().len() {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "evaluated ranges do not cover decoded source",
+            ));
+        }
         self.source_map = Some(map);
         Ok(self)
     }
