@@ -57,7 +57,12 @@ fn main() {
     unsafe {
         let zlib = zlibVersion();
         assert!(!zlib.is_null());
-        println!("BUNDLED_ZLIB_VERSION={}", std::ffi::CStr::from_ptr(zlib).to_str().expect("zlib ASCII version"));
+        println!(
+            "BUNDLED_ZLIB_VERSION={}",
+            std::ffi::CStr::from_ptr(zlib)
+                .to_str()
+                .expect("zlib ASCII version")
+        );
         assert_eq!(ft::FT_Init_FreeType(&mut library), 0);
         assert!(!library.is_null());
         let error = ft::FT_New_Memory_Face(library, bytes.as_ptr(), ft_length, 0, &mut face);
