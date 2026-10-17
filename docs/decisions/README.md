@@ -9,3 +9,4 @@ Accepted means an implementation constraint, not a completed implementation. A g
 * [ADR-005: Versioned behavioral authority and protected evidence](005-profiles-and-references.md)
 * [ADR-006: Owned premultiplied RGBA output and opaque C handles](006-output-and-ffi.md)
 * [ADR-007: Preserve seams without speculative extension machinery](007-extension-scope.md)
+* [ADR-008: Explicit parser ingestion ownership (proposed)](008-track-ingestion-identity.md)

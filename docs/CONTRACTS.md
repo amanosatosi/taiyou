@@ -30,7 +30,7 @@ Script coordinates: top-left origin, x right, y down. Glyph contours start in fo
 ## C2. Input and immutable IR
 
 ```rust
-fn parse_ass(bytes: &[u8], options: &ParseOptions)
+fn parse_ass(bytes: &[u8], options: &ParseOptions, ingestion: &mut TrackIngestor)
     -> Result<ParsedTrack, ParseError>;
 struct ParsedTrack { track: Arc<Track>, diagnostics: Vec<Diagnostic> }
 struct Track {
@@ -48,6 +48,8 @@ enum TextOp {
     Unsupported { name: Arc<str>, source: SourceSpan },
 }
 ```
+
+The explicit ingestion argument is proposed in [ADR-008](decisions/008-track-ingestion-identity.md) and requires architect approval before T004 implementation. A renderer/session coordinator owns one non-cloneable TrackIngestor for all admitted tracks; it allocates revisions at immutable publication, never recycles them and fails on exhaustion. ParseOptions remains value configuration. No parser may invent a global or pointer-derived identity policy to avoid this gate.
 
 V1 input accepts UTF-8 and UTF-8 BOM, CRLF/LF/CR. Invalid UTF-8 is an error, never guessed using OS locale. T026 adds explicit host-selected legacy decoding and records encoding provenance. Section/field names are ASCII case-insensitive; preserve text and font names. Parse `Format:` dynamically with the text field last for the Core subset; reject unsupported text-not-last records with diagnostic rather than splitting text commas incorrectly. Trim structural whitespace only. Unknown sections are ignored with bounded diagnostics; `[Fonts]` and binary attachments are not decoded until T026. No implicit filesystem font paths.
 
