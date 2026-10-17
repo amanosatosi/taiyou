@@ -10,7 +10,7 @@ import sys
 root = Path(__file__).resolve().parent.parent
 sources = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-sources"
 prefix = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-install"
-builds = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-build"
+builds = sources / "b"
 builds.mkdir(exist_ok=True)
 if platform.system() == "Darwin":
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "15.0"
@@ -57,6 +57,14 @@ os.environ["LIBZ_SYS_STATIC"] = "1"
 os.environ.pop("PKG_CONFIG_SYSROOT_DIR", None)
 for name in ["freetype", "harfbuzz"]:
     source = next(path for path in (sources / name).iterdir() if path.is_dir())
+    # HarfBuzz's generated source-list command can exceed Windows CreateProcess
+    # limits with a commit-length archive directory repeated for every source.
+    # Keep unchanged verified sources at short paths next to the build directory.
+    short = sources / {"freetype": "f", "harfbuzz": "h"}[name]
+    source.resolve().relative_to(sources.resolve())
+    short.resolve().relative_to(sources.resolve())
+    source.rename(short)
+    source = short
     directory = builds / name
     common = ["--prefix", str(prefix), "--libdir", "lib", "--default-library", "static", "--buildtype", "release", "--wrap-mode", "nodownload", "-Dauto_features=disabled"]
     if os.name == "nt": common.append("-Db_vscrt=md")
@@ -74,7 +82,7 @@ os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"
-    if not lock.exists() or "--refresh-audit-lock" in sys.argv and manifest.parent.name == "dependency-smoke":
+    if not lock.exists():
         run("cargo", "generate-lockfile", "--manifest-path", manifest)
     print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
     print(lock.read_text(encoding="utf-8"), flush=True)
@@ -87,6 +95,7 @@ run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1")
 manifest = root / "build-support/dependency-smoke/Cargo.toml"
 run("cargo", "fmt", "--manifest-path", manifest, "--", "--check")
 run("cargo", "tree", "--locked", "--manifest-path", manifest)
+run("cargo", "clippy", "--locked", "--manifest-path", manifest, "--all-targets", "--", "-D", "warnings")
 run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf")
 metadata = json.loads(subprocess.check_output(["cargo","metadata","--locked","--manifest-path",str(manifest),"--format-version","1"], text=True))
 print("DEPENDENCY_LICENSES=" + json.dumps([{k:p.get(k) for k in ["name","version","license","repository","rust_version"]} for p in metadata["packages"]]), flush=True)

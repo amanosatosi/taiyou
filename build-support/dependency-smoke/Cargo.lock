@@ -75,6 +75,7 @@ version = "0.1.0"
 dependencies = [
  "freetype-sys",
  "harfbuzz-sys",
+ "libz-sys",
  "unicode-bidi",
  "unicode-script",
 ]

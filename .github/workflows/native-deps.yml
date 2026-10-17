@@ -35,4 +35,4 @@ jobs:
           cargo +1.99.1 fmt --all -- --check
           cargo +1.99.1 fmt --manifest-path build-support/dependency-smoke/Cargo.toml -- --check
       - name: Cold native build, locked workspace and binding glyph-count smoke
-        run: python build-support/build-native.py --refresh-audit-lock
+        run: python build-support/build-native.py

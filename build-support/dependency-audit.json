@@ -1,0 +1,237 @@
+{
+  "advisories": [
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "cc"
+        },
+        "version": "1.8.0"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "find-msvc-tools"
+        },
+        "version": "0.1.14"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "freetype-sys"
+        },
+        "version": "0.23.0"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "harfbuzz-sys"
+        },
+        "version": "0.8.0"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "libc"
+        },
+        "version": "0.2.191"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "libz-sys"
+        },
+        "version": "1.1.30"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "pkg-config"
+        },
+        "version": "0.3.34"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "shlex"
+        },
+        "version": "2.0.1"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "unicode-bidi"
+        },
+        "version": "0.3.18"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "unicode-script"
+        },
+        "version": "0.5.8"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "crates.io",
+          "name": "vcpkg"
+        },
+        "version": "0.2.15"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "PyPI",
+          "name": "meson"
+        },
+        "version": "1.12.1"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "PyPI",
+          "name": "ninja"
+        },
+        "version": "1.13.2"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "PyPI",
+          "name": "pkgconf"
+        },
+        "version": "3.0.7.post0"
+      }
+    },
+    {
+      "ids": [],
+      "query": {
+        "package": {
+          "ecosystem": "PyPI",
+          "name": "colorama"
+        },
+        "version": "0.4.6"
+      }
+    }
+  ],
+  "candidate": "0f37aa173cd3dce609c61d88368bb18a79455ee3",
+  "native_scope": "Native upstream release/security notices require separate review; OSV Rust/PyPI queries do not certify C/C++ dependencies.",
+  "packages": [
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "cc",
+      "repository": "https://github.com/rust-lang/cc-rs",
+      "rust_version": "1.65.0",
+      "version": "1.8.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "find-msvc-tools",
+      "repository": "https://github.com/rust-lang/cc-rs",
+      "rust_version": "1.65.0",
+      "version": "0.1.14"
+    },
+    {
+      "license": "MIT",
+      "name": "freetype-sys",
+      "repository": "https://github.com/PistonDevelopers/freetype-sys.git",
+      "rust_version": null,
+      "version": "0.23.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "harfbuzz-sys",
+      "repository": "https://github.com/servo/rust-harfbuzz",
+      "rust_version": null,
+      "version": "0.8.0"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "libc",
+      "repository": "https://github.com/rust-lang/libc",
+      "rust_version": "1.65",
+      "version": "0.2.191"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "libz-sys",
+      "repository": "https://github.com/rust-lang/libz-sys",
+      "rust_version": null,
+      "version": "1.1.30"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "pkg-config",
+      "repository": "https://github.com/rust-lang/pkg-config-rs",
+      "rust_version": "1.63",
+      "version": "0.3.34"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "shlex",
+      "repository": "https://github.com/comex/rust-shlex",
+      "rust_version": "1.46.0",
+      "version": "2.0.1"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "unicode-bidi",
+      "repository": "https://github.com/servo/unicode-bidi",
+      "rust_version": "1.47.0",
+      "version": "0.3.18"
+    },
+    {
+      "license": "MIT OR Apache-2.0",
+      "name": "unicode-script",
+      "repository": "https://github.com/unicode-rs/unicode-script",
+      "rust_version": null,
+      "version": "0.5.8"
+    },
+    {
+      "license": "MIT/Apache-2.0",
+      "name": "vcpkg",
+      "repository": "https://github.com/mcgoo/vcpkg-rs",
+      "rust_version": null,
+      "version": "0.2.15"
+    }
+  ],
+  "queried_at": "2026-10-17T14:31:51.933283+00:00",
+  "service": "https://api.osv.dev/v1/querybatch"
+}

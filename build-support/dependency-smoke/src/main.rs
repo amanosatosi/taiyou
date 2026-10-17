@@ -56,6 +56,7 @@ fn main() {
     unsafe {
         let zlib = libz_sys::zlibVersion();
         assert!(!zlib.is_null());
+        assert_eq!(std::ffi::CStr::from_ptr(zlib).to_bytes(), b"1.3.2");
         println!(
             "BUNDLED_ZLIB_VERSION={}",
             std::ffi::CStr::from_ptr(zlib)
