@@ -268,7 +268,7 @@ fn one(
         runs.into(),
         placement,
         changes,
-    );
+    ).with_terminal_style(state);
     match source_map {
         Some(map) => evaluated.with_source_map(map),
         None => Ok(evaluated),

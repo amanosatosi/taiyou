@@ -21,6 +21,7 @@
 
 mod error;
 mod evaluation;
+mod layout;
 mod fonts;
 mod scene;
 mod shaping;
@@ -30,6 +31,7 @@ mod units;
 
 pub use error::*;
 pub use evaluation::*;
+pub use layout::*;
 pub use fonts::*;
 pub use scene::*;
 pub use shaping::*;

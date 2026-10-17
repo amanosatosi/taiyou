@@ -298,6 +298,12 @@ impl FontContext {
                     return Err(failed());
                 }
                 glyphs.push(RawGlyph {
+                    ink: {
+                        let mut extents:hb::hb_glyph_extents_t=std::mem::zeroed();
+                        if hb::hb_font_get_glyph_extents(font.raw,g.codepoint,&mut extents)!=0 {
+                            Some([extents.x_bearing,extents.y_bearing,extents.width,extents.height])
+                        } else { None }
+                    },
                     glyph: g.codepoint,
                     cluster,
                     advance_x: p.x_advance,
