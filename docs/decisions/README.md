@@ -11,3 +11,4 @@ Accepted means an implementation constraint, not a completed implementation. A g
 * [ADR-007: Preserve seams without speculative extension machinery](007-extension-scope.md)
 * [ADR-008: Explicit parser ingestion ownership](008-track-ingestion-identity.md)
 * [ADR-009: Core reset-token disambiguation (owner-accepted; protected integration pending)](009-core-reset-token-disambiguation.md)
+* [ADR-010: Decoded cluster ranges and retained original-source maps (proposed)](010-shaped-cluster-provenance.md)
