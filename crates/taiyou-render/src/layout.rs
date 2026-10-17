@@ -393,12 +393,13 @@ pub fn layout(
         None => logical,
     };
     check(collision, limits)?;
-    LocalLayout::new(
+    LocalLayout::new_with_scale(
         Arc::new(input.clone()),
         output_lines.into(),
         positioned.into(),
         logical,
         ink,
         collision,
+        (constraints.scale_x(), constraints.scale_y()),
     )
 }

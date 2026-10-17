@@ -4,6 +4,7 @@
 #include <hb.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_OUTLINE_H
 #include FT_SFNT_NAMES_H
 #include FT_TRUETYPE_TABLES_H
 struct RustSfntName {
@@ -31,3 +32,15 @@ _Static_assert(sizeof(hb_glyph_extents_t) == 16, "HarfBuzz glyph extents ABI");
 _Static_assert(offsetof(hb_glyph_extents_t, height) == 12, "HarfBuzz glyph height offset");
 _Static_assert(sizeof(hb_feature_t) == 16, "HarfBuzz features ABI");
 _Static_assert(HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES == 0, "cluster policy");
+struct RustOutlineFuncs {
+    FT_Outline_MoveToFunc move_to;
+    FT_Outline_LineToFunc line_to;
+    FT_Outline_ConicToFunc conic_to;
+    FT_Outline_CubicToFunc cubic_to;
+    FT_Int shift;
+    FT_Pos delta;
+};
+_Static_assert(sizeof(struct RustOutlineFuncs) == sizeof(FT_Outline_Funcs), "outline callback ABI");
+_Static_assert(offsetof(struct RustOutlineFuncs, shift) == offsetof(FT_Outline_Funcs, shift), "outline shift offset");
+_Static_assert(offsetof(struct RustOutlineFuncs, delta) == offsetof(FT_Outline_Funcs, delta), "outline delta offset");
+_Static_assert((FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP | FT_LOAD_IGNORE_TRANSFORM) == 2059, "outline load policy");
