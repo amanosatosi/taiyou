@@ -1,6 +1,10 @@
 #![cfg(feature = "native")]
 use std::sync::Arc;
-use taiyou_render::{geometry::*, layout::{layout, LayoutConstraints}, shaping::*};
+use taiyou_render::{
+    geometry::*,
+    layout::{LayoutConstraints, layout},
+    shaping::*,
+};
 fn f(v: f64) -> FiniteF64 {
     FiniteF64::new(v).unwrap()
 }
@@ -95,32 +99,99 @@ fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
         }
     }
     assert!(output.glyphs().iter().any(|g| g.geometry.ops().is_empty()));
-    let ligature=output.glyphs().iter().find(|g|g.cluster.text()=="ff").unwrap();
-    assert_eq!(ligature.cluster.original_ranges(&Limits::default()).unwrap().len(),2);
+    let ligature = output
+        .glyphs()
+        .iter()
+        .find(|g| g.cluster.text() == "ff")
+        .unwrap();
+    assert_eq!(
+        ligature
+            .cluster
+            .original_ranges(&Limits::default())
+            .unwrap()
+            .len(),
+        2
+    );
 }
 
 #[test]
 fn geometry_real_multiscript_fallback_font_identities_and_event_limits() {
-    let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();
-    let input="[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Aبक語";
-    let options=Default::default();
-    let parsed=taiyou_ass::parse_ass(input.as_bytes(),&options,&mut Default::default()).unwrap();
-    let event=&parsed.track().events()[0];
-    let evaluated=taiyou_render::evaluate(parsed.track(),event.id(),event.start(),options.profile()).unwrap();
-    let mut context=FontContext::with_limits(limits.clone()).unwrap();
-    let mut builder=FontCatalogBuilder::new(limits.clone());
-    for (id,suffix) in [("latin","otf"),("arabic","ttf"),("indic","ttf"),("cjk","otf")] {
-        let path=std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts").join(format!("{id}.{suffix}"));
-        builder.register(&mut context,&std::fs::read(path).unwrap(),0).unwrap();
+    let limits = Limits::default()
+        .with_transient_bytes(512 * 1024 * 1024)
+        .unwrap();
+    let input = "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Aبक語";
+    let options = Default::default();
+    let parsed =
+        taiyou_ass::parse_ass(input.as_bytes(), &options, &mut Default::default()).unwrap();
+    let event = &parsed.track().events()[0];
+    let evaluated =
+        taiyou_render::evaluate(parsed.track(), event.id(), event.start(), options.profile())
+            .unwrap();
+    let mut context = FontContext::with_limits(limits.clone()).unwrap();
+    let mut builder = FontCatalogBuilder::new(limits.clone());
+    for (id, suffix) in [
+        ("latin", "otf"),
+        ("arabic", "ttf"),
+        ("indic", "ttf"),
+        ("cjk", "otf"),
+    ] {
+        let path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+            .join("taiyou-shaping-fonts")
+            .join(format!("{id}.{suffix}"));
+        builder
+            .register(&mut context, &std::fs::read(path).unwrap(), 0)
+            .unwrap();
     }
-    let catalog=builder.snapshot(&mut Default::default()).unwrap();
-    let shaped=shape_event(&mut context,&catalog,&evaluated,&ShapeOptions::default(),&limits).unwrap();
-    let local=Arc::new(layout(&shaped,&LayoutConstraints::new(shaped.placement().alignment()).with_limits(limits.clone())).unwrap());
-    let placement=GeometryPlacement{anchor:ScriptPoint::new(f(0.0),f(0.0)),origin:None,device:DeviceMapping::new(Size::new(100,100),PixelRect::new(0,0,100,100).unwrap()).unwrap()};
-    let output=geometry(&mut context,&catalog,local.clone(),placement,&limits).unwrap();
-    let ids:std::collections::BTreeSet<_>=output.glyphs().iter().map(|g|g.outline.font()).collect();
-    assert_eq!(ids.len(),4);
-    assert!(output.glyphs().iter().all(|g|g.outline.glyph()!=0 && !g.geometry.ops().is_empty()));
-    assert!(geometry(&mut context,&catalog,local.clone(),placement,&limits.clone().with_path_segments_per_frame(2).unwrap()).is_err());
-    assert!(geometry(&mut context,&catalog,local,placement,&limits.with_transient_bytes(1).unwrap()).is_err());
+    let catalog = builder.snapshot(&mut Default::default()).unwrap();
+    let shaped = shape_event(
+        &mut context,
+        &catalog,
+        &evaluated,
+        &ShapeOptions::default(),
+        &limits,
+    )
+    .unwrap();
+    let local = Arc::new(
+        layout(
+            &shaped,
+            &LayoutConstraints::new(shaped.placement().alignment()).with_limits(limits.clone()),
+        )
+        .unwrap(),
+    );
+    let placement = GeometryPlacement {
+        anchor: ScriptPoint::new(f(0.0), f(0.0)),
+        origin: None,
+        device: DeviceMapping::new(Size::new(100, 100), PixelRect::new(0, 0, 100, 100).unwrap())
+            .unwrap(),
+    };
+    let output = geometry(&mut context, &catalog, local.clone(), placement, &limits).unwrap();
+    let ids: std::collections::BTreeSet<_> =
+        output.glyphs().iter().map(|g| g.outline.font()).collect();
+    assert_eq!(ids.len(), 4);
+    assert!(
+        output
+            .glyphs()
+            .iter()
+            .all(|g| g.outline.glyph() != 0 && !g.geometry.ops().is_empty())
+    );
+    assert!(
+        geometry(
+            &mut context,
+            &catalog,
+            local.clone(),
+            placement,
+            &limits.clone().with_path_segments_per_frame(2).unwrap()
+        )
+        .is_err()
+    );
+    assert!(
+        geometry(
+            &mut context,
+            &catalog,
+            local,
+            placement,
+            &limits.with_transient_bytes(1).unwrap()
+        )
+        .is_err()
+    );
 }

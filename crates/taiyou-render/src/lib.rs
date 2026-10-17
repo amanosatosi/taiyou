@@ -1,7 +1,7 @@
 //! Immutable subtitle rendering stages.
 //!
 //! T013 provides a scalar compositor for explicit synthetic masks. Subtitle
-//! rendering, geometry and rasterization remain unimplemented. The explicit
+//! rendering and rasterization remain unimplemented. T011 provides owned geometry. The explicit
 //! native feature exposes the T009 font/shaping pipeline.
 
 mod compose;

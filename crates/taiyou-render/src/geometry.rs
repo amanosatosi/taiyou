@@ -1,7 +1,9 @@
 //! C5 design-unit contours -> checked Q6 paths. No rasterization or clipping.
 use std::sync::Arc;
 use taiyou_types::*;
-pub use taiyou_types::{DevicePoint, FiniteF64, FontPoint, Limits, PathOp, PixelRect, Q6, ScriptPoint, Size};
+pub use taiyou_types::{
+    DevicePoint, FiniteF64, FontPoint, Limits, PathOp, PixelRect, Q6, ScriptPoint, Size,
+};
 
 fn finite(v: f64) -> Result<FiniteF64, RenderError> {
     FiniteF64::new(v).map_err(|_| geometry_limit())
@@ -260,10 +262,24 @@ pub fn geometry(
                 )
             })?
             .blob();
-        let remaining = limits.transient_bytes().checked_sub(charge).filter(|n| *n > 0).ok_or_else(geometry_limit)?;
-        let remaining_segments = limits.path_segments_per_frame().checked_sub(total as u64).filter(|n| *n > 0).ok_or_else(geometry_limit)?;
-        let intake_limits = limits.clone().with_transient_bytes(remaining).and_then(|l| l.with_path_segments_per_frame(remaining_segments)).map_err(|_| geometry_limit())?;
-        let outline = context.outline(blob, glyph.glyph(), &intake_limits).map_err(fail)?;
+        let remaining = limits
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|n| *n > 0)
+            .ok_or_else(geometry_limit)?;
+        let remaining_segments = limits
+            .path_segments_per_frame()
+            .checked_sub(total as u64)
+            .filter(|n| *n > 0)
+            .ok_or_else(geometry_limit)?;
+        let intake_limits = limits
+            .clone()
+            .with_transient_bytes(remaining)
+            .and_then(|l| l.with_path_segments_per_frame(remaining_segments))
+            .map_err(|_| geometry_limit())?;
+        let outline = context
+            .outline(blob, glyph.glyph(), &intake_limits)
+            .map_err(fail)?;
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;

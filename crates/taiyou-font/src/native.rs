@@ -85,9 +85,19 @@ impl FontContext {
         let native_charge = (blob.bytes().len() as u64)
             .checked_mul(12)
             .and_then(|n| n.checked_add(64 * 1024))
-            .ok_or_else(|| FontError::new(ErrorCode::LimitExceeded, "outline native reservation overflow"))?;
-        if blob.bytes().len() as u64 > limits.font_bytes() || native_charge > limits.transient_bytes() {
-            return Err(FontError::new(ErrorCode::LimitExceeded, "outline native reservation exceeded"));
+            .ok_or_else(|| {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "outline native reservation overflow",
+                )
+            })?;
+        if blob.bytes().len() as u64 > limits.font_bytes()
+            || native_charge > limits.transient_bytes()
+        {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "outline native reservation exceeded",
+            ));
         }
         let native_limits = self.limits.clone();
         self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
@@ -142,7 +152,20 @@ impl FontContext {
                     .and_then(|n| n.checked_add(contours.checked_mul(2)?))
                     .ok_or_else(|| native_error(0, "outline count overflow"))?;
                 for cap in [limits, &native_limits] {
-                    let copy_limits = cap.clone().with_transient_bytes(cap.transient_bytes().checked_sub(native_charge).filter(|n| *n > 0).ok_or_else(|| FontError::new(ErrorCode::LimitExceeded,"outline copy reservation exceeded"))?).map_err(|e| FontError::new(e.code(),e.detail()))?;
+                    let copy_limits = cap
+                        .clone()
+                        .with_transient_bytes(
+                            cap.transient_bytes()
+                                .checked_sub(native_charge)
+                                .filter(|n| *n > 0)
+                                .ok_or_else(|| {
+                                    FontError::new(
+                                        ErrorCode::LimitExceeded,
+                                        "outline copy reservation exceeded",
+                                    )
+                                })?,
+                        )
+                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
                     check_path_budget(capacity, &copy_limits)
                         .map_err(|e| FontError::new(e.code(), e.detail()))?;
                 }
@@ -1015,25 +1038,44 @@ mod tests {
                 .iter()
                 .any(|op| matches!(op, PathOp::QuadTo(..)))
         );
-        let compound = fresh.with_face(ttf.shared_bytes(), 0, |face| {
-            // SAFETY: test-only inspection of this scoped face. NO_RECURSE asks
-            // FreeType to identify a real composite; no custom glyf parser.
-            unsafe {
-                let count = u32::try_from((*face.raw).num_glyphs).unwrap();
-                for glyph in 0..count.min(16_384) {
-                    let code = ft::FT_Load_Glyph(face.raw,glyph,ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP);
-                    if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE { return Ok(glyph); }
+        let compound = fresh
+            .with_face(ttf.shared_bytes(), 0, |face| {
+                // SAFETY: test-only inspection of this scoped face. NO_RECURSE asks
+                // FreeType to identify a real composite; no custom glyf parser.
+                unsafe {
+                    let count = u32::try_from((*face.raw).num_glyphs).unwrap();
+                    for glyph in 0..count.min(16_384) {
+                        let code = ft::FT_Load_Glyph(
+                            face.raw,
+                            glyph,
+                            ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP,
+                        );
+                        if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE
+                        {
+                            return Ok(glyph);
+                        }
+                    }
                 }
-            }
-            Err(FontError::new(ErrorCode::FontUnavailable,"pinned Indic fixture must contain a compound glyph"))
-        }).unwrap();
-        let compound = fresh.outline(&ttf,compound,&limits).unwrap();
+                Err(FontError::new(
+                    ErrorCode::FontUnavailable,
+                    "pinned Indic fixture must contain a compound glyph",
+                ))
+            })
+            .unwrap();
+        let compound = fresh.outline(&ttf, compound, &limits).unwrap();
         assert!(!compound.outline().ops().is_empty());
-        assert_eq!(compound.outline().ops().last(),Some(&PathOp::Close));
-        let forged = FontBlob::from_unverified(FontId::new([0;32],0),blob.shared_bytes());
-        assert!(fresh.outline(&forged,retained.glyph(),&limits).is_err());
-        let wrong_face = FontBlob::from_unverified(FontId::new(*blob.id().sha256(),u32::MAX),blob.shared_bytes());
-        assert!(fresh.outline(&wrong_face,retained.glyph(),&limits).is_err());
+        assert_eq!(compound.outline().ops().last(), Some(&PathOp::Close));
+        let forged = FontBlob::from_unverified(FontId::new([0; 32], 0), blob.shared_bytes());
+        assert!(fresh.outline(&forged, retained.glyph(), &limits).is_err());
+        let wrong_face = FontBlob::from_unverified(
+            FontId::new(*blob.id().sha256(), u32::MAX),
+            blob.shared_bytes(),
+        );
+        assert!(
+            fresh
+                .outline(&wrong_face, retained.glyph(), &limits)
+                .is_err()
+        );
         let collection = std::env::var("TAIYOU_TEST_COLLECTION").unwrap();
         let a = read(collection.clone(), 0);
         let b = read(collection, 1);
@@ -1051,20 +1093,33 @@ mod tests {
             std::mem::size_of::<OutlineFuncs>(),
             4 * std::mem::size_of::<usize>() + std::mem::size_of::<ft::FT_Pos>() * 2
         );
-        assert_eq!(std::mem::offset_of!(OutlineFuncs,shift),4*std::mem::size_of::<usize>());
-        assert_eq!(std::mem::offset_of!(OutlineFuncs,delta),std::mem::size_of::<OutlineFuncs>()-std::mem::size_of::<ft::FT_Pos>());
-        assert_eq!(std::mem::size_of::<ft::FT_Vector>(),2*std::mem::size_of::<ft::FT_Pos>());
+        assert_eq!(
+            std::mem::offset_of!(OutlineFuncs, shift),
+            4 * std::mem::size_of::<usize>()
+        );
+        assert_eq!(
+            std::mem::offset_of!(OutlineFuncs, delta),
+            std::mem::size_of::<OutlineFuncs>() - std::mem::size_of::<ft::FT_Pos>()
+        );
+        assert_eq!(
+            std::mem::size_of::<ft::FT_Vector>(),
+            2 * std::mem::size_of::<ft::FT_Pos>()
+        );
     }
     #[test]
     fn geometry_native_copy_failure_stays_inside_callback_boundary() {
-        let mut state = OutlineCopy {ops:Vec::new(),failed:false,open:false};
-        let point = ft::FT_Vector {x:0,y:0};
+        let mut state = OutlineCopy {
+            ops: Vec::new(),
+            failed: false,
+            open: false,
+        };
+        let point = ft::FT_Vector { x: 0, y: 0 };
         let user = (&mut state as *mut OutlineCopy).cast();
-        assert_eq!(copy_move(&point,user),1);
+        assert_eq!(copy_move(&point, user), 1);
         assert!(state.failed);
         assert!(state.ops.is_empty());
-        assert_eq!(copy_line(ptr::null(),user),1);
-        assert_eq!(copy_move(&point,ptr::null_mut()),1);
+        assert_eq!(copy_line(ptr::null(), user), 1);
+        assert_eq!(copy_move(&point, ptr::null_mut()), 1);
     }
     #[test]
     fn harfbuzz_abi_owned_results_and_rejected_requests_cleanup() {
