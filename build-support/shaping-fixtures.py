@@ -73,6 +73,8 @@ def main(discover):
                 raise ValueError(f"fixture sample lacks nominal coverage: {missing}")
             metadata = {"version": font["name"].getDebugName(5), "family": font["name"].getDebugName(1),
                         "upem": font["head"].unitsPerEm, "glyphs": font["maxp"].numGlyphs, "default_axes": axes}
+            if "metadata" in record and metadata != record["metadata"]:
+                raise ValueError("pinned font metadata differs")
         print("SHAPING_INPUT=" + json.dumps({"id": record["id"], "sha256": digest, "size": len(data),
               "license_sha256": license_digest, "license_git_blob": record["license"]["git_blob"],
               "license_size": len(license_data), **metadata}, sort_keys=True), flush=True)
