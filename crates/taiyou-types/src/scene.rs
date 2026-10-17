@@ -251,15 +251,26 @@ impl OutputBudget {
         self.retained.load(Ordering::Acquire)
     }
     pub fn reserve(&mut self, bytes: u64) -> Result<OutputReservation, RenderError> {
-        self.retained
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
-                current
-                    .checked_add(bytes)
-                    .filter(|next| *next <= self.limit)
-            })
-            .map_err(|_| {
-                RenderError::new(ErrorCode::LimitExceeded, "retained output budget exceeded")
-            })?;
+        // Explicit CAS keeps the same checked atomic reservation on the MSRV
+        // and pinned compiler (fetch_update was deprecated after the MSRV).
+        let mut current = self.retained.load(Ordering::Acquire);
+        loop {
+            let next = current
+                .checked_add(bytes)
+                .filter(|next| *next <= self.limit)
+                .ok_or_else(|| {
+                    RenderError::new(ErrorCode::LimitExceeded, "retained output budget exceeded")
+                })?;
+            match self.retained.compare_exchange_weak(
+                current,
+                next,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => break,
+                Err(observed) => current = observed,
+            }
+        }
         Ok(OutputReservation {
             bytes,
             retained: Arc::clone(&self.retained),

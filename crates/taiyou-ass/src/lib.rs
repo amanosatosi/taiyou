@@ -2,6 +2,7 @@
 
 mod decode;
 mod events;
+mod overrides;
 mod sections;
 mod styles;
 
@@ -229,8 +230,10 @@ pub fn parse_ass(
         };
         let index = u32::try_from(index)
             .map_err(|_| ParseError::new(ErrorCode::LimitExceeded, "style index overflow"))?;
+        let program =
+            overrides::tokenize(source, event.text_span, event.id, &style_indices, &mut ctx)?;
         reserve(&mut events)?;
-        events.push(event.publish(StyleId::new(index)));
+        events.push(event.publish(StyleId::new(index), program.into()));
     }
     let track = ingestion.ingest(
         Arc::from(source),

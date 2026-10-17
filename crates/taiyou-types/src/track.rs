@@ -574,10 +574,120 @@ impl ScriptInfo {
     }
 }
 
-/// T003/T004 literal-only subset. Escape/override variants belong to T006.
+/// Ordered text and static Core overrides. Drawing/animation remain unsupported.
+/// Text/Override/Unsupported carry exact original byte spans. The C2 unit escape
+/// variants below intentionally carry no individual span: their provenance is
+/// the containing Event::source() in Track::source(), not a fabricated span for
+/// a decoded newline/space. Host-created unit operations need not claim a source
+/// escape. Consumers requiring per-escape spans need a reviewed IR extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextOp {
     Text { text: Arc<str>, source: SourceSpan },
+    HardBreak,
+    SoftBreak,
+    NoBreakSpace,
+    Override(OverrideOp),
+    Unsupported { name: Arc<str>, source: SourceSpan },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum PaintChannel {
+    Primary,
+    Secondary,
+    Outline,
+    Shadow,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum ScaleAxis {
+    X,
+    Y,
+}
+
+/// Static subset authorized by T006. Numbers are script-space; scale is a factor.
+/// SetPaint changes RGB only (stored alpha must be 255); SetOpacity stores opacity
+/// after transparency inversion, with None selecting all channels. Source spans
+/// include the original backslash. Publication validates host-created operations.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OverrideOp {
+    SetFont {
+        family: Arc<str>,
+        source: SourceSpan,
+    },
+    SetSize {
+        size: FiniteF64,
+        source: SourceSpan,
+    },
+    SetWeight {
+        weight: u16,
+        source: SourceSpan,
+    },
+    SetItalic {
+        italic: bool,
+        source: SourceSpan,
+    },
+    SetScale {
+        axis: ScaleAxis,
+        factor: FiniteF64,
+        source: SourceSpan,
+    },
+    SetSpacing {
+        spacing: FiniteF64,
+        source: SourceSpan,
+    },
+    SetPaint {
+        channel: PaintChannel,
+        color: Rgba8,
+        source: SourceSpan,
+    },
+    SetOpacity {
+        channel: Option<PaintChannel>,
+        opacity: u8,
+        source: SourceSpan,
+    },
+    SetAlignment {
+        alignment: Alignment,
+        source: SourceSpan,
+    },
+    SetPosition {
+        point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    ResetStyle {
+        name: Option<Arc<str>>,
+        source: SourceSpan,
+    },
+}
+impl OverrideOp {
+    pub fn source(&self) -> SourceSpan {
+        match self {
+            Self::SetFont { source, .. }
+            | Self::SetSize { source, .. }
+            | Self::SetWeight { source, .. }
+            | Self::SetItalic { source, .. }
+            | Self::SetScale { source, .. }
+            | Self::SetSpacing { source, .. }
+            | Self::SetPaint { source, .. }
+            | Self::SetOpacity { source, .. }
+            | Self::SetAlignment { source, .. }
+            | Self::SetPosition { source, .. }
+            | Self::ResetStyle { source, .. } => *source,
+        }
+    }
+    pub fn validate(&self) -> Result<(), ParseError> {
+        let valid = match self {
+            Self::SetFont { family, .. } => !family.is_empty(),
+            Self::SetSize { size, .. } => size.get() > 0.0,
+            Self::SetScale { factor, .. } => factor.get() >= 0.0,
+            Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
+            Self::SetPaint { color, .. } => color.a() == 255,
+            _ => true,
+        };
+        if valid {
+            Ok(())
+        } else {
+            Err(invalid("override parameter outside Core bounds"))
+        }
+    }
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
@@ -717,8 +827,8 @@ impl Track {
 /// One non-cloneable ingestion owner per renderer session. The renderer owns this
 /// coordinator and all tracks it admits; revisions start at 0 and never recycle.
 /// Independent owners define independent sessions, not a process-global namespace.
-/// How the future parse_ass signature receives this owner remains issue #3;
-/// no implicit global allocator or ParseOptions field is introduced here.
+/// parse_ass receives this owner explicitly under accepted ADR-008; no implicit
+/// global allocator or ParseOptions field is introduced here.
 #[derive(Debug)]
 pub struct TrackIngestor {
     next_revision: Option<u64>,
@@ -772,19 +882,37 @@ impl TrackIngestor {
                 ));
             }
             let mut text_bytes = 0_u64;
+            // Match the tokenizer's existing text-byte-derived operation cap.
+            // Count every variant, including spanless escapes and empty text,
+            // before iterating a host-created program or allocating a revision.
+            if u64::try_from(event.program.len())
+                .map_err(|_| limit("operation count conversion overflow"))?
+                > limits.text_bytes_per_event
+            {
+                return Err(limit("text-derived operation count limit exceeded"));
+            }
             let mut text_end = event.source.start();
             for operation in event.program.iter() {
-                let TextOp::Text { text, source: span } = operation;
+                let (text, span) = match operation {
+                    TextOp::Text { text, source } => (Some(text), *source),
+                    TextOp::Override(op) => {
+                        op.validate()?;
+                        (None, op.source())
+                    }
+                    TextOp::Unsupported { source, .. } => (None, *source),
+                    TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => continue,
+                };
                 if span.start() < text_end
-                    || !event.source.contains(*span)
-                    || span.slice(&source) != Some(text.as_ref())
+                    || !event.source.contains(span)
+                    || span.slice(&source).is_none()
+                    || text.is_some_and(|text| span.slice(&source) != Some(text.as_ref()))
                 {
                     return Err(invalid(
                         "literal text spans must match track source in source order",
                     ));
                 }
                 text_end = span.end();
-                let length = u64::try_from(text.len())
+                let length = u64::try_from(text.map_or(0, |text| text.len()))
                     .map_err(|_| limit("text length conversion overflow"))?;
                 text_bytes = text_bytes
                     .checked_add(length)
@@ -847,6 +975,57 @@ impl ParsedTrack {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_program_operation_limit_counts_every_variant_before_publication() {
+        let limits = Limits::default().with_text_bytes_per_event(2).unwrap();
+        let source: Arc<str> = Arc::from("");
+        let span = SourceSpan::new(&source, 0, 0).unwrap();
+        let mut owner = TrackIngestor::new();
+        let operations = [
+            TextOp::HardBreak,
+            TextOp::SoftBreak,
+            TextOp::NoBreakSpace,
+            TextOp::Text {
+                text: Arc::from(""),
+                source: span,
+            },
+            TextOp::Unsupported {
+                name: Arc::from("unknown"),
+                source: span,
+            },
+            TextOp::Override(OverrideOp::ResetStyle {
+                name: None,
+                source: span,
+            }),
+        ];
+        for (index, operation) in operations.into_iter().enumerate() {
+            let publish = |owner: &mut TrackIngestor, count| {
+                let event = Event::new(
+                    EventId::new(0),
+                    TimeUs::from_micros(0),
+                    TimeUs::from_micros(1),
+                    StyleId::new(0),
+                    span,
+                )
+                .with_program(vec![operation.clone(); count].into());
+                owner.ingest(
+                    source.clone(),
+                    ScriptInfo::core_default(),
+                    Arc::from([Style::core_default()]),
+                    Arc::from([event]),
+                    &limits,
+                )
+            };
+            assert_eq!(
+                publish(&mut owner, 3).unwrap_err().code(),
+                ErrorCode::LimitExceeded
+            );
+            let track = publish(&mut owner, 2).unwrap();
+            assert_eq!(track.revision().get(), u64::try_from(index).unwrap());
+            assert_eq!(track.events()[0].program().len(), 2);
+        }
+    }
 
     #[test]
     fn exhausted_revision_owner_never_recycles_or_panics() {
