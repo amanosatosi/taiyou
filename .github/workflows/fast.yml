@@ -66,9 +66,13 @@ jobs:
           cargo --version
       - name: Formatting
         run: cargo fmt --all -- --check
+      - name: Fetch exact locked optional dependencies on runner only
+        env:
+          CARGO_NET_OFFLINE: 'false'
+        run: cargo fetch --locked
       - name: Workspace dependency graph
         shell: pwsh
-        run: ./scripts/check-workspace.ps1
+        run: ./scripts/check-workspace.ps1 -SelfTest
       - name: Clippy and safe API checks
         run: cargo clippy --offline --workspace --all-targets -- -D warnings
       - name: Workspace tests and CLI process smoke
