@@ -310,6 +310,42 @@ fn shaping_bidi_logical_order_and_arabic_fallback_with_context() {
     );
 }
 #[test]
+fn shaping_arabic_style_boundary_retains_neighboring_joining_context() {
+    let (mut ctx, catalog, _) = catalog();
+    let first = style("Noto Naskh Arabic");
+    let second = first
+        .clone()
+        .with_size(FiniteF64::new(20.0).unwrap())
+        .unwrap();
+    let map = plain("سلام", &first).source_map().unwrap().clone();
+    let event = evaluated(map, &[(0, 2, first), (2, 8, second)]);
+    let result = shape_event(
+        &mut ctx,
+        &catalog,
+        &event,
+        &ShapeOptions::default().with_language("ar").unwrap(),
+        &limits(),
+    )
+    .unwrap();
+    assert_eq!(result.runs().len(), 2);
+    let expected = reference("joining");
+    for (run, size) in result.runs().iter().zip([1000.0, 20.0]) {
+        for glyph in run.glyphs() {
+            let raw = expected
+                .glyphs
+                .iter()
+                .find(|g| g[1] as u32 == glyph.cluster().start())
+                .unwrap();
+            assert_eq!(glyph.glyph(), raw[0] as u32);
+            assert_eq!(
+                glyph.advance_x().get(),
+                raw[2] as f64 * (size / expected.upem)
+            );
+        }
+    }
+    assert!(result.missing().is_empty());
+}
+#[test]
 fn shaping_whole_cluster_fallback_and_explicit_notdef() {
     let (mut ctx, catalog, ids) = catalog();
     let result = shape_event(

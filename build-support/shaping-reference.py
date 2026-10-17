@@ -13,7 +13,8 @@ prefix = temporary / "taiyou-native-install"
 source = root / "build-support/shaping-reference.c"
 exe = temporary / ("taiyou-shaping-reference.exe" if os.name == "nt" else "taiyou-shaping-reference")
 if os.name == "nt":
-    args = ["cl", "/nologo", "/std:c11", "/O2", "/MD", "/D_CRT_SECURE_NO_WARNINGS", "/I" + str(prefix / "include/harfbuzz"), str(source), str(prefix / "lib/harfbuzz.lib"), "/Fe:" + str(exe), "/Fo:" + str(temporary / "shaping-reference.obj")]
+    # The pinned Meson recipe installs its MSVC static archive as libharfbuzz.a.
+    args = ["cl", "/nologo", "/std:c11", "/O2", "/MD", "/D_CRT_SECURE_NO_WARNINGS", "/I" + str(prefix / "include/harfbuzz"), str(source), str(prefix / "lib/libharfbuzz.a"), "/Fe:" + str(exe), "/Fo:" + str(temporary / "shaping-reference.obj")]
 else:
     args = ["cc", "-std=c11", "-O2", "-I" + str(prefix / "include/harfbuzz"), str(source), "-L" + str(prefix / "lib"), "-lharfbuzz", "-lc++" if platform.system() == "Darwin" else "-lstdc++", "-lm", "-o", str(exe)]
 subprocess.run(args, check=True)
