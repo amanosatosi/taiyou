@@ -12,6 +12,7 @@ struct CatalogRevision(u64);
 struct StyleId(u32);
 struct FontId { sha256: [u8; 32], face_index: u32 }
 struct SourceSpan { start: u32, end: u32 } // half-open UTF-8 source byte range
+struct DecodedSpan { source_map: Arc<SourceMappedText>, start: u32, end: u32 }
 struct ScriptPoint { x: FiniteF64, y: FiniteF64 }
 struct DevicePoint { x: Q6, y: Q6 }        // i32 ticks, 64 per output pixel
 struct PixelRect { x0: i32, y0: i32, x1: i32, y1: i32 }
@@ -41,6 +42,7 @@ struct Event {
     id: EventId, layer: i32, start: TimeUs, end: TimeUs,
     style: StyleId, margins: Margins, actor: Arc<str>, effect: Arc<str>,
     program: Arc<[TextOp]>, source: SourceSpan,
+    text_source: Option<SourceSpan>, operation_sources: Option<Arc<[Option<SourceSpan>]>>,
 }
 enum TextOp {
     Text { text: Arc<str>, source: SourceSpan }, HardBreak, SoftBreak, NoBreakSpace,
@@ -50,6 +52,8 @@ enum TextOp {
 ```
 
 The explicit ingestion argument is accepted by the repository owner's architectural decision in [ADR-008](decisions/008-track-ingestion-identity.md). A renderer/session coordinator owns one non-cloneable TrackIngestor for all admitted tracks; it allocates revisions at immutable publication, never recycles them and fails on exhaustion. ParseOptions remains value configuration. No parser may invent a global or pointer-derived identity policy.
+
+Under owner-accepted [ADR-010](decisions/010-shaped-cluster-provenance.md), the optional operation-span sidecar preserves TextOp construction compatibility. Parser spans are checked against the actual event Text field, source order and exact escape bytes. Replacing a program clears its old sidecar. A host-created spanless unit remains valid IR but cannot claim exact shaping provenance without explicit valid information. SourceMappedText lives in taiyou-types with the existing font-module re-export retained; it owns original source and ordered decoded-to-original intervals. DecodedSpan is constructed only against its retained immutable map and validates UTF-8 boundaries. APIs combining spans/maps reject foreign-map spans, even if byte extents coincide. Ownership checks are not persisted IDs or cache keys.
 
 V1 input accepts UTF-8 and UTF-8 BOM, CRLF/LF/CR. Invalid UTF-8 is an error, never guessed using OS locale. T026 adds explicit host-selected legacy decoding and records encoding provenance. Section/field names are ASCII case-insensitive; preserve text and font names. Parse `Format:` dynamically with the text field last for the Core subset; reject unsupported text-not-last records with diagnostic rather than splitting text commas incorrectly. Trim structural whitespace only. Unknown sections are ignored with bounded diagnostics; `[Fonts]` and binary attachments are not decoded until T026. No implicit filesystem font paths.
 
@@ -71,16 +75,20 @@ fn evaluate(track: &Track, event: EventId, now: TimeUs, profile: Profile)
 struct EvaluatedEvent {
     id: EventId, order: EventOrder, runs: Arc<[EvaluatedRun]>,
     placement: Placement, clip: ClipSpec, animation: ChangeClass,
+    source_map: Option<Arc<SourceMappedText>>,
 }
 struct EventOrder { layer: i32, source_ordinal: u32 }
 struct EvaluatedRun {
     text: Arc<str>, source: SourceSpan, shaping: ShapeStyle,
+    decoded: Option<DecodedSpan>,
     geometry: GeometryStyle, effects: EffectStyle, paint: PaintSet,
     karaoke: Option<KaraokeSpan>,
 }
 ```
 
 Evaluate overrides left to right; text captures current state. `\r` resets style state, named `\rName` uses its exact final resolved style under ADR-009, and does not reset the event clock. Unresolved r-prefixed tokens stay Unsupported, so they do not reset style state. Core repeated event placement uses last applicable operation; Legacy precedence is R001-gated. Unsupported operations generate diagnostics; a strict request fails with `UnsupportedFeature`, tolerant mode proceeds with a conspicuous report. Reference validation always records diagnostics and disallows unsupported behavior in a supported fixture.
+
+Evaluation retains one complete source map and checked decoded run ranges when every text operation has exact provenance. Otherwise ordinary evaluation remains available with no complete map, and exact shaping reports the missing provenance. The existing source field remains diagnostic provenance; it never becomes a fabricated escape/cluster span. Paint boundaries preserve decoded positions without forcing a shape split.
 
 `ChangeClass` is an optimization hint with independent shape/layout/geometry/effect/paint/placement/clip flags; actual cache reuse compares full keys. It is never permission to omit a key field. Static results can be retained across all timestamps in their active interval. Animated values are evaluated each request, but equal normalized values reuse artifacts. Do not key every stage by time.
 
@@ -92,16 +100,20 @@ Core `\t(t1,t2,accel,...)` uses `p=clamp((local-t1)/(t2-t1),0,1)^accel`; accel m
 struct FontBlob { id: FontId, bytes: Arc<[u8]> }
 struct FontCatalog { revision: CatalogRevision, faces: Arc<[FontRecord]> }
 struct FontRequest { family: Arc<str>, weight: u16, italic: bool, vertical: bool }
-fn resolve_runs(catalog: &FontCatalog, text: &str, style: &ShapeStyle)
+fn resolve_runs(catalog: &ValidatedFontCatalog, text: &str, style: &ShapeStyle)
     -> Result<Vec<ResolvedRun>, FontError>;
 fn shape(ctx: &mut FontContext, input: &ResolvedRun)
     -> Result<ShapedRun, FontError>;
 struct ShapedGlyph {
-    font: FontId, glyph: u32, cluster: SourceSpan,
+    font: FontId, glyph: u32, cluster: DecodedSpan,
     advance_x: FiniteF64, advance_y: FiniteF64,
     offset_x: FiniteF64, offset_y: FiniteF64,
 }
-struct ShapedRun { glyphs: Arc<[ShapedGlyph]>, metrics: RunMetrics, direction: Direction }
+struct ShapedRun {
+    glyphs: Arc<[ShapedGlyph]>, metrics: RunMetrics, direction: Direction,
+    decoded: DecodedSpan, source_map: Arc<SourceMappedText>, bidi_level: u8,
+    script: u32, language: Arc<str>,
+}
 fn layout(input: &ShapedEvent, constraints: &LayoutConstraints)
     -> Result<LocalLayout, RenderError>;
 fn resolve_collisions(events: &[CollisionInput], policy: &CollisionPolicy)
@@ -109,6 +121,8 @@ fn resolve_collisions(events: &[CollisionInput], policy: &CollisionPolicy)
 ```
 
 Font catalog is a deterministic ordered list supplied by the host. Match requested family case-insensitively using Unicode library normalization chosen in T008; exact same-family weight distance, then italic match, then catalog ordinal breaks ties. Never silently use host enumeration order in fixtures. Fallback considers a whole grapheme/shaping cluster with neighboring shaping context, not isolated combining marks. Retry missing-glyph runs against the next candidate, bounded by catalog length. If no face can shape a cluster, use explicit catalog fallback .notdef plus a diagnostic; no random installed font. Language, script, direction, features, variations and face identity belong to the shape key.
+
+Glyph cluster ranges are decoded-byte ranges bound to the run's immutable map. Original provenance is the complete ordered list of original intervals obtained from that map, including noncontiguous fi/combining clusters across overrides; never replace it with a continuous hull. Results retain source/map ownership after temporary/native owners are destroyed. A fallible event shaping coordinator may accept an EvaluatedEvent, validated catalog, explicit language/base-direction options and Limits, returning logical-order runs, retained break ranges, paint spans, bounded missing-cluster diagnostics and owned glyphs. The first logical scalar selects cluster paint. Hard-break delimitation is shaping preparation, not line layout or visual reordering. The plain-text resolve_runs entry point treats host text itself as its original source and must not imply ASS provenance.
 
 HarfBuzz consumes immutable font bytes through OpenType font functions, integer design-unit scale and per-call buffer. Do not mix FreeType advances with HarfBuzz advances. Core maps one em to `font_size` script units; scale factors follow shaping and are accounted in advances. Core kerning on, standard ligatures on unless nonzero spacing; Legacy metrics/features are R001-gated. Keep glyph positions and cluster maps through all later stages. Paint boundaries do not split shape runs in Core; map paint spans through clusters. If a cluster crosses a paint boundary, Core uses the first logical scalar's paint; legacy policy needs explicit fixtures. Bidi segmentation precedes shaping; reorder visual runs after line breaks, never reverse UTF-8 bytes or glyph arrays blindly.
 
