@@ -150,21 +150,11 @@ fn one(
                         state = state.with_size(*size).map_err(convert)?;
                     }
                     OverrideOp::SetWeight { weight, .. } => {
-                        let font = FontRequest::new(
-                            Arc::from(state.font().family()),
-                            *weight,
-                            state.font().italic(),
-                            state.font().vertical(),
-                        );
+                        let font = state.font().clone().with_weight(*weight);
                         state = state.with_font(font);
                     }
                     OverrideOp::SetItalic { italic, .. } => {
-                        let font = FontRequest::new(
-                            Arc::from(state.font().family()),
-                            state.font().weight(),
-                            *italic,
-                            state.font().vertical(),
-                        );
+                        let font = state.font().clone().with_italic(*italic);
                         state = state.with_font(font);
                     }
                     OverrideOp::SetScale { axis, factor, .. } => {

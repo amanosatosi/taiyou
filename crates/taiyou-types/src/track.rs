@@ -281,6 +281,15 @@ pub struct FontRequest {
     vertical: bool,
 }
 impl FontRequest {
+    /// Preserve the immutable family allocation when changing static attributes.
+    pub fn with_weight(mut self, weight: u16) -> Self {
+        self.weight = weight;
+        self
+    }
+    pub fn with_italic(mut self, italic: bool) -> Self {
+        self.italic = italic;
+        self
+    }
     pub fn new(family: Arc<str>, weight: u16, italic: bool, vertical: bool) -> Self {
         Self {
             family,
