@@ -1,0 +1,23 @@
+name: Corpus inventory candidate
+on:
+  pull_request:
+    paths: ['validation/**', 'xtask/**', '.github/workflows/inventory.yml', 'docs/references.lock.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: inventory-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  inventory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Acquire exact corpus on runner only
+        run: python validation/acquire.py
+      - name: Discover upstream inventory inputs
+        run: python validation/discover.py
