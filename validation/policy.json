@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "state": "candidate-pending-independent-review-and-maintainer-configuration",
+  "profiles": ["CoreV1", "LegacyXyV1"],
+  "selector": "all-active-inventory-cases",
+  "comparison": {"max_channel_delta": 0, "max_changed_pixels": 0, "max_alpha_delta": 0},
+  "environment": "forbid-ART_REG-prefix",
+  "allowed_results": ["PASS_EXACT", "PASS_APPROVED_TOLERANCE", "EXPECTED_DIFFERENCE", "UNSUPPORTED", "REGRESSION", "CRASH", "INFRA_ERROR"],
+  "trusted_issuer": null,
+  "required_rule_evidence": null,
+  "reviewers": []
+}
