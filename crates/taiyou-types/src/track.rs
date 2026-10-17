@@ -574,10 +574,60 @@ impl ScriptInfo {
     }
 }
 
-/// T003/T004 literal-only subset. Escape/override variants belong to T006.
+/// Ordered text and static Core overrides. Drawing/animation remain unsupported.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextOp {
     Text { text: Arc<str>, source: SourceSpan },
+    HardBreak,
+    SoftBreak,
+    NoBreakSpace,
+    Override(OverrideOp),
+    Unsupported { name: Arc<str>, source: SourceSpan },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum PaintChannel { Primary, Secondary, Outline, Shadow }
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum ScaleAxis { X, Y }
+
+/// Static subset authorized by T006. Numbers are script-space; scale is a factor.
+/// SetPaint changes RGB only (stored alpha must be 255); SetOpacity stores opacity
+/// after transparency inversion, with None selecting all channels. Source spans
+/// include the original backslash. Publication validates host-created operations.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OverrideOp {
+    SetFont { family: Arc<str>, source: SourceSpan },
+    SetSize { size: FiniteF64, source: SourceSpan },
+    SetWeight { weight: u16, source: SourceSpan },
+    SetItalic { italic: bool, source: SourceSpan },
+    SetScale { axis: ScaleAxis, factor: FiniteF64, source: SourceSpan },
+    SetSpacing { spacing: FiniteF64, source: SourceSpan },
+    SetPaint { channel: PaintChannel, color: Rgba8, source: SourceSpan },
+    SetOpacity { channel: Option<PaintChannel>, opacity: u8, source: SourceSpan },
+    SetAlignment { alignment: Alignment, source: SourceSpan },
+    SetPosition { point: crate::ScriptPoint, source: SourceSpan },
+    ResetStyle { name: Option<Arc<str>>, source: SourceSpan },
+}
+impl OverrideOp {
+    pub fn source(&self) -> SourceSpan {
+        match self {
+            Self::SetFont { source, .. } | Self::SetSize { source, .. } | Self::SetWeight { source, .. }
+            | Self::SetItalic { source, .. } | Self::SetScale { source, .. } | Self::SetSpacing { source, .. }
+            | Self::SetPaint { source, .. } | Self::SetOpacity { source, .. } | Self::SetAlignment { source, .. }
+            | Self::SetPosition { source, .. } | Self::ResetStyle { source, .. } => *source,
+        }
+    }
+    pub fn validate(&self) -> Result<(), ParseError> {
+        let valid = match self {
+            Self::SetFont { family, .. } => !family.is_empty(),
+            Self::SetSize { size, .. } => size.get() > 0.0,
+            Self::SetScale { factor, .. } => factor.get() >= 0.0,
+            Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
+            Self::SetPaint { color, .. } => color.a() == 255,
+            _ => true,
+        };
+        if valid { Ok(()) } else { Err(invalid("override parameter outside Core bounds")) }
+    }
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
@@ -774,17 +824,23 @@ impl TrackIngestor {
             let mut text_bytes = 0_u64;
             let mut text_end = event.source.start();
             for operation in event.program.iter() {
-                let TextOp::Text { text, source: span } = operation;
+                let (text, span) = match operation {
+                    TextOp::Text { text, source } => (Some(text), *source),
+                    TextOp::Override(op) => { op.validate()?; (None, op.source()) }
+                    TextOp::Unsupported { source, .. } => (None, *source),
+                    TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => continue,
+                };
                 if span.start() < text_end
-                    || !event.source.contains(*span)
-                    || span.slice(&source) != Some(text.as_ref())
+                    || !event.source.contains(span)
+                    || span.slice(&source).is_none()
+                    || text.is_some_and(|text| span.slice(&source) != Some(text.as_ref()))
                 {
                     return Err(invalid(
                         "literal text spans must match track source in source order",
                     ));
                 }
                 text_end = span.end();
-                let length = u64::try_from(text.len())
+                let length = u64::try_from(text.map_or(0, |text| text.len()))
                     .map_err(|_| limit("text length conversion overflow"))?;
                 text_bytes = text_bytes
                     .checked_add(length)

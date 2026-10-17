@@ -12,20 +12,16 @@ pub(crate) struct PendingEvent<'a> {
     margins: Margins,
     actor: &'a str,
     effect: &'a str,
-    text: &'a str,
-    text_span: SourceSpan,
+    pub text_span: SourceSpan,
 }
 impl PendingEvent<'_> {
-    pub fn publish(self, style: StyleId) -> Event {
+    pub fn publish(self, style: StyleId, program: Arc<[TextOp]>) -> Event {
         Event::new(self.id, self.start, self.end, style, self.source)
             .with_layer(self.layer)
             .with_margins(self.margins)
             .with_actor(Arc::from(self.actor))
             .with_effect(Arc::from(self.effect))
-            .with_program(Arc::from([TextOp::Text {
-                text: Arc::from(self.text),
-                source: self.text_span,
-            }]))
+            .with_program(program)
     }
 }
 pub(crate) fn parse<'a>(
@@ -72,7 +68,6 @@ pub(crate) fn parse<'a>(
         ),
         actor: get("name", ""),
         effect: get("effect", ""),
-        text: text.0,
         text_span: SourceSpan::new(source, offset + text.1, offset + text.1 + text.0.len())?,
     })
 }
