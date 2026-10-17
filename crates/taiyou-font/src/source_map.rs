@@ -351,10 +351,10 @@ mod tests {
     #[test]
     fn source_map_query_rejects_split_utf8_and_invalid_ranges() {
         let mapped = build("é", &[TextSourcePiece::Literal(span("é", "é"))]);
-        for range in [0..1, 1..2, 2..1, 0..3, u32::MAX..u32::MAX] {
+        for (start, end) in [(0, 1), (1, 2), (2, 1), (0, 3), (u32::MAX, u32::MAX)] {
             assert_eq!(
                 mapped
-                    .original_ranges(range, &Limits::default())
+                    .original_ranges(start..end, &Limits::default())
                     .unwrap_err()
                     .code(),
                 ErrorCode::InvalidArgument
