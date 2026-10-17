@@ -23,6 +23,8 @@ Published crate checksums inspected from crates.io: harfbuzz-sys `b13f1cead31867
 
 ## Build and linkage
 
+Platform selection is conservative: every PR and main push enters the workflow. Font adapters, C ABI/FFI, all Rust/native source, manifests/locks, build recipes, workflow/selector policy and unknown paths select the existing full three-OS matrix. Only known prose-only changes skip compilation; dependency/license prose still selects it. The always-running Platform gate rejects selector failure or any failed/cancelled selected matrix job. Selector regression tests run on Actions before selection. These are candidate CI changes requiring protected workflow review, not independently trusted T005 enforcement.
+
 All commands execute on Actions. [native-deps.yml](../.github/workflows/native-deps.yml) selects Windows 2022 MSVC x64, Ubuntu 24.04 x64 and macOS 15 ARM64. The macOS job checks the actual architecture. Compiler, image and Python versions are recorded; hosted images are not bit-identical compiler archives, and this is not a claim of binary reproducibility across OSes.
 
 `python build-support/acquire.py` verifies the lock before extracting sources under RUNNER_TEMP. Tar extraction uses the data safety filter. The pinned font is Source Sans 3 Regular, release 3.052R, commit `ed1808970eb3c7301c9a523bee26473ba0bb62fa`, OFL-1.1. It is downloaded only on runners and is not added to Taiyou or substituted into libass-tests.
