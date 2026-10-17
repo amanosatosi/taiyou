@@ -475,6 +475,33 @@ fn shaping_limits_unmappable_inputs_repeatability_and_foreign_maps() {
     );
 }
 #[test]
+fn shaping_missing_diagnostics_are_bounded_and_available_without_event_coordinator() {
+    let mut ctx = FontContext::new().unwrap();
+    let mut builder = FontCatalogBuilder::new(limits());
+    builder.register(&mut ctx, &fixture("latin"), 0).unwrap();
+    let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    let s = style("Source Sans 3");
+    let text = "\u{10ffff}".repeat(MAX_DIAGNOSTICS + 3);
+    let result = shape_event(
+        &mut ctx,
+        &catalog,
+        &plain(&text, &s),
+        &ShapeOptions::default(),
+        &limits(),
+    )
+    .unwrap();
+    assert_eq!(result.missing().len(), MAX_DIAGNOSTICS);
+    assert_eq!(result.diagnostics().len(), MAX_DIAGNOSTICS + 1);
+    assert_eq!(
+        result.diagnostics().last().unwrap().code(),
+        DiagnosticCode::DiagnosticsSuppressed
+    );
+    let input = resolve_runs(&catalog, "\u{10ffff}", &ShapeStyle::from_style(&s)).unwrap();
+    let run = shape(&mut ctx, &input[0]).unwrap();
+    assert_eq!(run.glyphs()[0].glyph(), 0);
+    assert_eq!(run.diagnostics()[0].code(), DiagnosticCode::MissingGlyph);
+}
+#[test]
 fn shaping_collection_face_identity_uses_requested_weight() {
     let mut ctx = FontContext::with_limits(limits()).unwrap();
     let mut builder = FontCatalogBuilder::new(limits());

@@ -146,7 +146,8 @@ impl FontContext {
             };
             let upem = hb::hb_face_get_upem(face.raw);
             let scale = i32::try_from(upem).map_err(|_| failed())?;
-            if scale <= 0 || hb::hb_face_get_glyph_count(face.raw) == 0 {
+            let face_glyphs = hb::hb_face_get_glyph_count(face.raw);
+            if scale <= 0 || face_glyphs == 0 {
                 return Err(failed());
             }
             let raw_font = hb::hb_font_create(face.raw);
@@ -270,7 +271,8 @@ impl FontContext {
                 let cluster = (request.context.start as u32)
                     .checked_add(g.cluster)
                     .ok_or_else(limited)?;
-                if (cluster as usize) < request.range.start
+                if g.codepoint >= face_glyphs
+                    || (cluster as usize) < request.range.start
                     || cluster as usize >= request.range.end
                     || !request.text.is_char_boundary(cluster as usize)
                 {

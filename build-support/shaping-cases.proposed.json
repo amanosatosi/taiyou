@@ -2,21 +2,743 @@
   "schema": 1,
   "status": "Provisional independently observed HarfBuzz numeric expectations; not an approved reference baseline",
   "cases": [
-    {"id":"ff", "font":"latin", "text":"ff", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"ff-spacing", "font":"latin", "text":"ff", "script":"Latn", "language":"en", "direction":"ltr", "ligatures":false},
-    {"id":"fi", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"office", "font":"latin", "text":"office AV", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"spacing", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr", "ligatures":false},
-    {"id":"kern", "font":"latin", "text":"AV", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"A", "font":"latin", "text":"A", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"V", "font":"latin", "text":"V", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"combining", "font":"latin", "text":"á", "script":"Latn", "language":"en", "direction":"ltr"},
-    {"id":"arabic", "font":"arabic", "text":"السَّلَامُ", "script":"Arab", "language":"ar", "direction":"rtl"},
-    {"id":"joining", "font":"arabic", "text":"سلام", "script":"Arab", "language":"ar", "direction":"rtl"},
-    {"id":"indic", "font":"indic", "text":"किरण क्षि", "script":"Deva", "language":"hi", "direction":"ltr"},
-    {"id":"cjk", "font":"cjk", "text":"日本語", "script":"Hani", "language":"ja", "direction":"ltr"},
-    {"id":"mixed-latin", "font":"latin", "text":"abc سلام", "range":[0,4], "script":"Latn", "language":"und", "direction":"ltr"},
-    {"id":"mixed-arabic", "font":"arabic", "text":"abc سلام", "range":[4,12], "script":"Arab", "language":"und", "direction":"rtl"},
-    {"id":"collection", "font":"collection", "face":1, "text":"fi", "script":"Latn", "language":"en", "direction":"ltr"}
-  ]
+    {
+      "id": "ff",
+      "font": "latin",
+      "text": "ff",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            687,
+            0,
+            577,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "ff-spacing",
+      "font": "latin",
+      "text": "ff",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "ligatures": false,
+      "expected": {
+        "glyphs": [
+          [
+            33,
+            0,
+            292,
+            0,
+            0,
+            0
+          ],
+          [
+            33,
+            1,
+            292,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "fi",
+      "font": "latin",
+      "text": "fi",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            33,
+            0,
+            292,
+            0,
+            0,
+            0
+          ],
+          [
+            36,
+            1,
+            246,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "office",
+      "font": "latin",
+      "text": "office AV",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            42,
+            0,
+            542,
+            0,
+            0,
+            0
+          ],
+          [
+            687,
+            1,
+            577,
+            0,
+            0,
+            0
+          ],
+          [
+            36,
+            3,
+            246,
+            0,
+            0,
+            0
+          ],
+          [
+            30,
+            4,
+            435,
+            0,
+            0,
+            0
+          ],
+          [
+            32,
+            5,
+            496,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            6,
+            200,
+            0,
+            0,
+            0
+          ],
+          [
+            2,
+            7,
+            530,
+            0,
+            0,
+            0
+          ],
+          [
+            23,
+            8,
+            515,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "spacing",
+      "font": "latin",
+      "text": "fi",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "ligatures": false,
+      "expected": {
+        "glyphs": [
+          [
+            33,
+            0,
+            292,
+            0,
+            0,
+            0
+          ],
+          [
+            36,
+            1,
+            246,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "kern",
+      "font": "latin",
+      "text": "AV",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            2,
+            0,
+            530,
+            0,
+            0,
+            0
+          ],
+          [
+            23,
+            1,
+            515,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "A",
+      "font": "latin",
+      "text": "A",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            2,
+            0,
+            544,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "V",
+      "font": "latin",
+      "text": "V",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            23,
+            0,
+            515,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "combining",
+      "font": "latin",
+      "text": "á",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            325,
+            0,
+            504,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "arabic",
+      "font": "arabic",
+      "text": "السَّلَامُ",
+      "script": "Arab",
+      "language": "ar",
+      "direction": "rtl",
+      "expected": {
+        "glyphs": [
+          [
+            381,
+            16,
+            0,
+            0,
+            123,
+            -196
+          ],
+          [
+            72,
+            16,
+            489,
+            0,
+            0,
+            0
+          ],
+          [
+            11,
+            14,
+            300,
+            0,
+            0,
+            0
+          ],
+          [
+            380,
+            10,
+            0,
+            0,
+            54,
+            -28
+          ],
+          [
+            69,
+            10,
+            310,
+            0,
+            0,
+            0
+          ],
+          [
+            380,
+            4,
+            0,
+            0,
+            256,
+            -150
+          ],
+          [
+            374,
+            4,
+            0,
+            0,
+            258,
+            -272
+          ],
+          [
+            34,
+            4,
+            663,
+            0,
+            0,
+            0
+          ],
+          [
+            70,
+            2,
+            212,
+            0,
+            0,
+            0
+          ],
+          [
+            8,
+            0,
+            238,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1069,
+          -634,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "joining",
+      "font": "arabic",
+      "text": "سلام",
+      "script": "Arab",
+      "language": "ar",
+      "direction": "rtl",
+      "expected": {
+        "glyphs": [
+          [
+            72,
+            6,
+            489,
+            0,
+            0,
+            0
+          ],
+          [
+            11,
+            4,
+            300,
+            0,
+            0,
+            0
+          ],
+          [
+            69,
+            2,
+            310,
+            0,
+            0,
+            0
+          ],
+          [
+            35,
+            0,
+            658,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1069,
+          -634,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "indic",
+      "font": "indic",
+      "text": "किरण क्षि",
+      "script": "Deva",
+      "language": "hi",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            545,
+            0,
+            259,
+            0,
+            0,
+            0
+          ],
+          [
+            56,
+            0,
+            768,
+            0,
+            0,
+            0
+          ],
+          [
+            82,
+            6,
+            409,
+            0,
+            0,
+            0
+          ],
+          [
+            70,
+            9,
+            723,
+            0,
+            0,
+            0
+          ],
+          [
+            3,
+            12,
+            260,
+            0,
+            0,
+            0
+          ],
+          [
+            551,
+            13,
+            259,
+            0,
+            0,
+            0
+          ],
+          [
+            90,
+            13,
+            717,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          896,
+          -408,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "cjk",
+      "font": "cjk",
+      "text": "日本語",
+      "script": "Hani",
+      "language": "ja",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            20220,
+            0,
+            1000,
+            0,
+            0,
+            0
+          ],
+          [
+            20758,
+            3,
+            1000,
+            0,
+            0,
+            0
+          ],
+          [
+            37860,
+            6,
+            1000,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1160,
+          -288,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "mixed-latin",
+      "font": "latin",
+      "text": "abc سلام",
+      "range": [
+        0,
+        4
+      ],
+      "script": "Latn",
+      "language": "und",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            28,
+            0,
+            504,
+            0,
+            0,
+            0
+          ],
+          [
+            29,
+            1,
+            553,
+            0,
+            0,
+            0
+          ],
+          [
+            30,
+            2,
+            456,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            3,
+            200,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "mixed-arabic",
+      "font": "arabic",
+      "text": "abc سلام",
+      "range": [
+        4,
+        12
+      ],
+      "script": "Arab",
+      "language": "und",
+      "direction": "rtl",
+      "expected": {
+        "glyphs": [
+          [
+            72,
+            10,
+            489,
+            0,
+            0,
+            0
+          ],
+          [
+            11,
+            8,
+            300,
+            0,
+            0,
+            0
+          ],
+          [
+            69,
+            6,
+            310,
+            0,
+            0,
+            0
+          ],
+          [
+            35,
+            4,
+            658,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1069,
+          -634,
+          0
+        ],
+        "upem": 1000
+      }
+    },
+    {
+      "id": "collection",
+      "font": "collection",
+      "face": 1,
+      "text": "fi",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "expected": {
+        "glyphs": [
+          [
+            33,
+            0,
+            341,
+            0,
+            0,
+            0
+          ],
+          [
+            36,
+            1,
+            276,
+            0,
+            0,
+            0
+          ]
+        ],
+        "metrics": [
+          1000,
+          -326,
+          0
+        ],
+        "upem": 1000
+      }
+    }
+  ],
+  "observation": {
+    "candidate": "5e6bd515908f0b54034457210c097492f5f42cd8",
+    "run": "https://github.com/amanosatosi/taiyou/actions/runs/39069272724",
+    "job": "https://github.com/amanosatosi/taiyou/actions/runs/39069272724/job/117503350407",
+    "client_sha256": "352c7071c480a936ac78485a8f921ae9ac1fa2095751b338a5269cee96e39bd5",
+    "native": "HarfBuzz 14.5.0 OpenType; independent C client; provisional, not reviewed goldens"
+  }
 }

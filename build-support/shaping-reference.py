@@ -23,6 +23,8 @@ discover = sys.argv[1:] == ["--discover"]
 lines = []
 for case in records:
     record = next((f for f in fonts if f["id"] == case["font"]), None)
+    if record is None and case["font"] != "collection":
+        raise RuntimeError("unknown reference font: " + case["font"])
     font = temporary / "taiyou-shaping-fonts" / (record["id"] + Path(record["path"]).suffix) if record else Path(os.environ["TAIYOU_TEST_COLLECTION"])
     data = case["text"].encode("utf-8")
     text_path = temporary / "taiyou-reference-input.txt"
