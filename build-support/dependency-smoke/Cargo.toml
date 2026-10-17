@@ -9,6 +9,7 @@ publish = false
 [workspace]
 
 [dependencies]
+libz-sys = { version = "=1.1.30", features = ["static"] }
 harfbuzz-sys = { version = "=0.8.0", default-features = false }
 freetype-sys = { version = "=0.23.0", default-features = false }
 unicode-bidi = "=0.3.18"

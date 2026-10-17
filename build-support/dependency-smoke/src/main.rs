@@ -7,7 +7,6 @@ use unicode_script::{Script, UnicodeScript};
 // freetype-sys 0.23.0 omits this stable diagnostic API. This temporary audit
 // declaration matches FreeType's pinned freetype.h; no production ABI is added.
 unsafe extern "C" {
-    fn zlibVersion() -> *const std::ffi::c_char;
     fn FT_Library_Version(
         library: ft::FT_Library,
         major: *mut ft::FT_Int,
@@ -55,7 +54,7 @@ fn main() {
     // bytes have checked extent and outlive every native face below. Successful
     // native results/nullness are checked before dereference. No pointers escape.
     unsafe {
-        let zlib = zlibVersion();
+        let zlib = libz_sys::zlibVersion();
         assert!(!zlib.is_null());
         println!(
             "BUNDLED_ZLIB_VERSION={}",

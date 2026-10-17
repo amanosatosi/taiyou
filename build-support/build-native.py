@@ -12,6 +12,8 @@ sources = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-sources"
 prefix = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-install"
 builds = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-build"
 builds.mkdir(exist_ok=True)
+if platform.system() == "Darwin":
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "15.0"
 
 def run(*args, **kwargs):
     print("RUN=" + json.dumps([str(arg) for arg in args]), flush=True)
@@ -72,7 +74,8 @@ os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
     lock = manifest.parent / "Cargo.lock"
-    if not lock.exists(): run("cargo", "generate-lockfile", "--manifest-path", manifest)
+    if not lock.exists() or "--refresh-audit-lock" in sys.argv and manifest.parent.name == "dependency-smoke":
+        run("cargo", "generate-lockfile", "--manifest-path", manifest)
     print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
     print(lock.read_text(encoding="utf-8"), flush=True)
     print("LOCK_END", flush=True)
