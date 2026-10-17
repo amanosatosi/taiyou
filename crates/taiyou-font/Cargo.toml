@@ -8,5 +8,10 @@ publish.workspace = true
 [dependencies]
 taiyou-types.workspace = true
 
-[lints]
-workspace = true
+[features]
+native = []
+
+# Only this native-adapter crate may lower deny inside its reviewed native module.
+# Other workspace crates retain the workspace-wide forbid policy.
+[lints.rust]
+unsafe_code = "deny"
