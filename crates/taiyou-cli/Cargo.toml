@@ -1,0 +1,12 @@
+[package]
+name = "taiyou-cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+taiyou-ass.workspace = true
+taiyou-render.workspace = true
+
+[lints]
+workspace = true

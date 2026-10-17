@@ -1,0 +1,100 @@
+name: Fast
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'task/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    name: Select source checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      source: ${{ steps.select.outputs.source }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test selector
+        run: python3 scripts/select-source.py --self-test
+      - name: Select source checks
+        id: select
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            echo 'source=true' >> "$GITHUB_OUTPUT"
+          else
+            python3 scripts/select-source.py "$BASE_SHA" "$HEAD_SHA"
+          fi
+
+  source:
+    name: Workspace and CLI (Rust 1.85.1)
+    needs: select
+    if: needs.select.outputs.source == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RUSTUP_TOOLCHAIN: 1.85.1
+      CARGO_NET_OFFLINE: 'true'
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Bootstrap foundation toolchain
+        # T002 owns the lasting compiler/dependency policy. No native setup here.
+        run: rustup toolchain install 1.85.1 --profile minimal --component rustfmt --component clippy
+      - name: Record candidate and compiler
+        run: |
+          git rev-parse HEAD
+          rustc --version --verbose
+          cargo --version
+      - name: Formatting
+        run: cargo fmt --all -- --check
+      - name: Workspace dependency graph
+        shell: pwsh
+        run: ./scripts/check-workspace.ps1
+      - name: Clippy and safe API checks
+        run: cargo clippy --offline --workspace --all-targets -- -D warnings
+      - name: Workspace tests and CLI process smoke
+        run: cargo test --offline --workspace
+      - name: CLI version
+        run: cargo run --offline -p taiyou-cli -- --version
+      - name: Validation launcher
+        run: cargo run --offline -p xtask -- check-workspace
+
+  gate:
+    name: Fast gate
+    needs: [select, source]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require selected checks
+        env:
+          SELECTION_RESULT: ${{ needs.select.result }}
+          SOURCE_NEEDED: ${{ needs.select.outputs.source }}
+          SOURCE_RESULT: ${{ needs.source.result }}
+        run: |
+          [[ "$SELECTION_RESULT" == success ]]
+          if [[ "$SOURCE_NEEDED" == true ]]; then
+            [[ "$SOURCE_RESULT" == success ]]
+          else
+            [[ "$SOURCE_NEEDED" == false && "$SOURCE_RESULT" == skipped ]]
+            echo 'Documentation-only change: no Rust setup or compilation.'
+          fi

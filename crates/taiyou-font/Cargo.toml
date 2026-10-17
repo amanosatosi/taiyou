@@ -1,0 +1,11 @@
+[package]
+name = "taiyou-font"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+taiyou-types.workspace = true
+
+[lints]
+workspace = true

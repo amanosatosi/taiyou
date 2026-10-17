@@ -1,0 +1,32 @@
+name: Blueprint
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'task/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blueprint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  documentation:
+    name: Documentation structure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record candidate
+        run: git rev-parse HEAD
+      - name: Validate blueprint
+        shell: pwsh
+        run: ./scripts/check-blueprint.ps1
+      - name: Check conservative source selection
+        run: python3 scripts/select-source.py --self-test
