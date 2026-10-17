@@ -575,6 +575,11 @@ impl ScriptInfo {
 }
 
 /// Ordered text and static Core overrides. Drawing/animation remain unsupported.
+/// Text/Override/Unsupported carry exact original byte spans. The C2 unit escape
+/// variants below intentionally carry no individual span: their provenance is
+/// the containing Event::source() in Track::source(), not a fabricated span for
+/// a decoded newline/space. Host-created unit operations need not claim a source
+/// escape. Consumers requiring per-escape spans need a reviewed IR extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextOp {
     Text { text: Arc<str>, source: SourceSpan },
@@ -822,8 +827,8 @@ impl Track {
 /// One non-cloneable ingestion owner per renderer session. The renderer owns this
 /// coordinator and all tracks it admits; revisions start at 0 and never recycle.
 /// Independent owners define independent sessions, not a process-global namespace.
-/// How the future parse_ass signature receives this owner remains issue #3;
-/// no implicit global allocator or ParseOptions field is introduced here.
+/// parse_ass receives this owner explicitly under accepted ADR-008; no implicit
+/// global allocator or ParseOptions field is introduced here.
 #[derive(Debug)]
 pub struct TrackIngestor {
     next_revision: Option<u64>,
@@ -877,6 +882,15 @@ impl TrackIngestor {
                 ));
             }
             let mut text_bytes = 0_u64;
+            // Match the tokenizer's existing text-byte-derived operation cap.
+            // Count every variant, including spanless escapes and empty text,
+            // before iterating a host-created program or allocating a revision.
+            if u64::try_from(event.program.len())
+                .map_err(|_| limit("operation count conversion overflow"))?
+                > limits.text_bytes_per_event
+            {
+                return Err(limit("text-derived operation count limit exceeded"));
+            }
             let mut text_end = event.source.start();
             for operation in event.program.iter() {
                 let (text, span) = match operation {
@@ -961,6 +975,33 @@ impl ParsedTrack {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_program_operation_limit_counts_every_variant_before_publication() {
+        let limits = Limits::default().with_text_bytes_per_event(2).unwrap();
+        let source: Arc<str> = Arc::from("");
+        let span = SourceSpan::new(&source, 0, 0).unwrap();
+        let mut owner = TrackIngestor::new();
+        let operations = [
+            TextOp::HardBreak,
+            TextOp::SoftBreak,
+            TextOp::NoBreakSpace,
+            TextOp::Text { text: Arc::from(""), source: span },
+            TextOp::Unsupported { name: Arc::from("unknown"), source: span },
+            TextOp::Override(OverrideOp::ResetStyle { name: None, source: span }),
+        ];
+        for (index, operation) in operations.into_iter().enumerate() {
+            let publish = |owner: &mut TrackIngestor, count| {
+                let event = Event::new(EventId::new(0), TimeUs::from_micros(0), TimeUs::from_micros(1), StyleId::new(0), span)
+                    .with_program(vec![operation.clone(); count].into());
+                owner.ingest(source.clone(), ScriptInfo::core_default(), Arc::from([Style::core_default()]), Arc::from([event]), &limits)
+            };
+            assert_eq!(publish(&mut owner, 3).unwrap_err().code(), ErrorCode::LimitExceeded);
+            let track = publish(&mut owner, 2).unwrap();
+            assert_eq!(track.revision().get(), u64::try_from(index).unwrap());
+            assert_eq!(track.events()[0].program().len(), 2);
+        }
+    }
 
     #[test]
     fn exhausted_revision_owner_never_recycles_or_panics() {
