@@ -51,7 +51,10 @@ impl RunMetrics {
         units_per_em: u16,
     ) -> Result<Self, FontError> {
         if ascent.get() < 0.0 || descent.get() < 0.0 || units_per_em == 0 {
-            return Err(FontError::new(ErrorCode::InvalidArgument, "invalid font metrics"));
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "invalid font metrics",
+            ));
         }
         Ok(Self {
             ascent,
@@ -169,21 +172,31 @@ impl ShapedRun {
     }
     pub fn with_face_metrics(mut self, metrics: Arc<[FaceMetrics]>) -> Result<Self, FontError> {
         if metrics.is_empty() || metrics[0].metrics != self.metrics {
-            return Err(FontError::new(ErrorCode::InvalidArgument, "incomplete face metrics"));
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "incomplete face metrics",
+            ));
         }
         let mut end = 0;
         for group in metrics.iter() {
             if group.glyphs.start != end
-                || self.glyphs.get(group.glyphs.clone()).is_none_or(|glyphs| {
-                    glyphs.iter().any(|g| g.font != group.font)
-                })
+                || self
+                    .glyphs
+                    .get(group.glyphs.clone())
+                    .is_none_or(|glyphs| glyphs.iter().any(|g| g.font != group.font))
             {
-                return Err(FontError::new(ErrorCode::InvalidArgument, "invalid face metric groups"));
+                return Err(FontError::new(
+                    ErrorCode::InvalidArgument,
+                    "invalid face metric groups",
+                ));
             }
             end = group.glyphs.end;
         }
         if end != self.glyphs.len() {
-            return Err(FontError::new(ErrorCode::InvalidArgument, "incomplete face metric groups"));
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "incomplete face metric groups",
+            ));
         }
         self.face_metrics = metrics;
         Ok(self)
@@ -262,7 +275,9 @@ impl ShapedEvent {
         missing: Arc<[MissingCluster]>,
         diagnostics: Arc<[Diagnostic]>,
     ) -> Result<Self, FontError> {
-        if evaluated.source_map().is_none_or(|map| !Arc::ptr_eq(map, &source_map))
+        if evaluated
+            .source_map()
+            .is_none_or(|map| !Arc::ptr_eq(map, &source_map))
             || runs.iter().any(|r| !r.decoded.belongs_to(&source_map))
             || breaks.iter().any(|s| !s.belongs_to(&source_map))
             || paints.iter().any(|s| !s.decoded.belongs_to(&source_map))

@@ -113,8 +113,7 @@ fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
     let scale = size / expected.upem;
     assert_eq!(f64::from(run.metrics().units_per_em()), expected.upem);
     assert!(run.face_metrics().iter().all(|m| {
-        run.glyphs().iter().any(|g| g.font() == m.font)
-            && m.metrics.units_per_em() != 0
+        run.glyphs().iter().any(|g| g.font() == m.font) && m.metrics.units_per_em() != 0
     }));
     assert_eq!(run.glyphs().len(), expected.glyphs.len(), "{id}");
     let mut starts: Vec<_> = expected.glyphs.iter().map(|g| g[1] as u32).collect();

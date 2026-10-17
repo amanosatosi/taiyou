@@ -83,11 +83,42 @@ struct Item {
 #[derive(Clone)]
 pub struct ResolvedRun {
     catalog: ValidatedFontCatalog,
+    primary: FontId,
     decoded: DecodedSpan,
     item: Item,
     style: ShapeStyle,
     options: ShapeOptions,
     limits: Limits,
+}
+impl ResolvedRun {
+    /// Deterministically requested face before whole-cluster fallback.
+    pub const fn font(&self) -> FontId {
+        self.primary
+    }
+    pub fn decoded(&self) -> &DecodedSpan {
+        &self.decoded
+    }
+    pub fn style(&self) -> &ShapeStyle {
+        &self.style
+    }
+    pub const fn script(&self) -> u32 {
+        self.item.script
+    }
+    pub const fn direction(&self) -> Direction {
+        if self.item.level % 2 == 0 {
+            Direction::Ltr
+        } else {
+            Direction::Rtl
+        }
+    }
+    pub fn language(&self) -> &str {
+        self.options.language()
+    }
+    pub fn context(&self) -> Result<DecodedSpan, FontError> {
+        self.decoded
+            .source_map()
+            .decoded_span(self.item.context.start as u32..self.item.context.end as u32)
+    }
 }
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
@@ -274,7 +305,12 @@ fn resolve_mapped(
                 "style span belongs to another map",
             ));
         }
-        priorities(catalog, style, limits)?;
+        let order = priorities(catalog, style, limits)?;
+        let primary = catalog.faces()[*order
+            .first()
+            .ok_or_else(|| error(ErrorCode::FontUnavailable, "empty font catalog"))?]
+        .blob()
+        .id();
         while item_cursor < items.len() && items[item_cursor].range.end <= span.start() as usize {
             item_cursor += 1;
         }
@@ -292,6 +328,7 @@ fn resolve_mapped(
             reserve(&mut result, 1, limits)?;
             result.push(ResolvedRun {
                 catalog: catalog.clone(),
+                primary,
                 decoded: map.decoded_span(start as u32..end as u32)?,
                 item,
                 style: style.clone(),
@@ -470,12 +507,17 @@ fn shape_item(
         reserve(&mut face_metrics, 1, limits)?;
         face_metrics.push(FaceMetrics {
             font: face.id(),
-            glyphs: glyphs.len()..glyphs.len().checked_add(raw.glyphs.len()).ok_or_else(limited)?,
+            glyphs: glyphs.len()
+                ..glyphs
+                    .len()
+                    .checked_add(raw.glyphs.len())
+                    .ok_or_else(limited)?,
             metrics: RunMetrics::new(
                 finite(f64::from(raw.ascent) * scale)?,
                 finite(-f64::from(raw.descent) * scale)?,
                 finite(f64::from(raw.line_gap) * scale)?,
-                u16::try_from(raw.upem).map_err(|_| error(ErrorCode::NativeFailure, "invalid native UPEM"))?,
+                u16::try_from(raw.upem)
+                    .map_err(|_| error(ErrorCode::NativeFailure, "invalid native UPEM"))?,
             )?,
         });
         if glyphs
@@ -517,7 +559,10 @@ fn shape_item(
             let _ = notdef;
         }
     }
-    let metrics = face_metrics.first().ok_or_else(|| error(ErrorCode::NativeFailure, "empty native font groups"))?.metrics;
+    let metrics = face_metrics
+        .first()
+        .ok_or_else(|| error(ErrorCode::NativeFailure, "empty native font groups"))?
+        .metrics;
     let mut diagnostics = DiagnosticBuffer::new();
     for item in &missing {
         diagnostics
