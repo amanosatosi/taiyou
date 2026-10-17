@@ -586,9 +586,17 @@ pub enum TextOp {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum PaintChannel { Primary, Secondary, Outline, Shadow }
+pub enum PaintChannel {
+    Primary,
+    Secondary,
+    Outline,
+    Shadow,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum ScaleAxis { X, Y }
+pub enum ScaleAxis {
+    X,
+    Y,
+}
 
 /// Static subset authorized by T006. Numbers are script-space; scale is a factor.
 /// SetPaint changes RGB only (stored alpha must be 255); SetOpacity stores opacity
@@ -596,25 +604,68 @@ pub enum ScaleAxis { X, Y }
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
-    SetFont { family: Arc<str>, source: SourceSpan },
-    SetSize { size: FiniteF64, source: SourceSpan },
-    SetWeight { weight: u16, source: SourceSpan },
-    SetItalic { italic: bool, source: SourceSpan },
-    SetScale { axis: ScaleAxis, factor: FiniteF64, source: SourceSpan },
-    SetSpacing { spacing: FiniteF64, source: SourceSpan },
-    SetPaint { channel: PaintChannel, color: Rgba8, source: SourceSpan },
-    SetOpacity { channel: Option<PaintChannel>, opacity: u8, source: SourceSpan },
-    SetAlignment { alignment: Alignment, source: SourceSpan },
-    SetPosition { point: crate::ScriptPoint, source: SourceSpan },
-    ResetStyle { name: Option<Arc<str>>, source: SourceSpan },
+    SetFont {
+        family: Arc<str>,
+        source: SourceSpan,
+    },
+    SetSize {
+        size: FiniteF64,
+        source: SourceSpan,
+    },
+    SetWeight {
+        weight: u16,
+        source: SourceSpan,
+    },
+    SetItalic {
+        italic: bool,
+        source: SourceSpan,
+    },
+    SetScale {
+        axis: ScaleAxis,
+        factor: FiniteF64,
+        source: SourceSpan,
+    },
+    SetSpacing {
+        spacing: FiniteF64,
+        source: SourceSpan,
+    },
+    SetPaint {
+        channel: PaintChannel,
+        color: Rgba8,
+        source: SourceSpan,
+    },
+    SetOpacity {
+        channel: Option<PaintChannel>,
+        opacity: u8,
+        source: SourceSpan,
+    },
+    SetAlignment {
+        alignment: Alignment,
+        source: SourceSpan,
+    },
+    SetPosition {
+        point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    ResetStyle {
+        name: Option<Arc<str>>,
+        source: SourceSpan,
+    },
 }
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetFont { source, .. } | Self::SetSize { source, .. } | Self::SetWeight { source, .. }
-            | Self::SetItalic { source, .. } | Self::SetScale { source, .. } | Self::SetSpacing { source, .. }
-            | Self::SetPaint { source, .. } | Self::SetOpacity { source, .. } | Self::SetAlignment { source, .. }
-            | Self::SetPosition { source, .. } | Self::ResetStyle { source, .. } => *source,
+            Self::SetFont { source, .. }
+            | Self::SetSize { source, .. }
+            | Self::SetWeight { source, .. }
+            | Self::SetItalic { source, .. }
+            | Self::SetScale { source, .. }
+            | Self::SetSpacing { source, .. }
+            | Self::SetPaint { source, .. }
+            | Self::SetOpacity { source, .. }
+            | Self::SetAlignment { source, .. }
+            | Self::SetPosition { source, .. }
+            | Self::ResetStyle { source, .. } => *source,
         }
     }
     pub fn validate(&self) -> Result<(), ParseError> {
@@ -626,7 +677,11 @@ impl OverrideOp {
             Self::SetPaint { color, .. } => color.a() == 255,
             _ => true,
         };
-        if valid { Ok(()) } else { Err(invalid("override parameter outside Core bounds")) }
+        if valid {
+            Ok(())
+        } else {
+            Err(invalid("override parameter outside Core bounds"))
+        }
     }
 }
 
@@ -826,7 +881,10 @@ impl TrackIngestor {
             for operation in event.program.iter() {
                 let (text, span) = match operation {
                     TextOp::Text { text, source } => (Some(text), *source),
-                    TextOp::Override(op) => { op.validate()?; (None, op.source()) }
+                    TextOp::Override(op) => {
+                        op.validate()?;
+                        (None, op.source())
+                    }
                     TextOp::Unsupported { source, .. } => (None, *source),
                     TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => continue,
                 };

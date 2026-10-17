@@ -2,9 +2,9 @@
 
 mod decode;
 mod events;
+mod overrides;
 mod sections;
 mod styles;
-mod overrides;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

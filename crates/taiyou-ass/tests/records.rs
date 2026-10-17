@@ -23,7 +23,9 @@ fn has(parsed: &ParsedTrack, code: DiagnosticCode) -> bool {
     parsed.diagnostics().iter().any(|d| d.code() == code)
 }
 fn literal(event: &Event) -> (&str, SourceSpan) {
-    let TextOp::Text { text, source } = &event.program()[0] else { panic!("expected a literal first operation") };
+    let TextOp::Text { text, source } = &event.program()[0] else {
+        panic!("expected a literal first operation")
+    };
     (text, *source)
 }
 
@@ -44,7 +46,10 @@ fn records_preserve_commas_whitespace_unicode_bom_and_line_endings() {
         assert_eq!(event.margins(), Margins::new(0, 20, 0));
         let (text, span) = literal(event);
         assert_eq!(text, "  héllo, 世界 ");
-        assert!(matches!(event.program()[1], TextOp::Override(OverrideOp::SetWeight { weight: 700, .. })));
+        assert!(matches!(
+            event.program()[1],
+            TextOp::Override(OverrideOp::SetWeight { weight: 700, .. })
+        ));
         assert!(matches!(&event.program()[2], TextOp::Text { text, .. } if text.as_ref() == " "));
         assert_eq!(span.slice(track.source()), Some(text));
         assert_eq!(
