@@ -13,7 +13,7 @@ production = json.loads(subprocess.check_output(["cargo", "metadata", "--locked"
 unique = {(package["name"], package["version"]): package for package in metadata["packages"] + production["packages"] if package["source"] is not None}
 packages = [{key: package.get(key) for key in ["name", "version", "license", "repository", "rust_version"]} for _, package in sorted(unique.items())]
 queries = [{"package": {"name": package["name"], "ecosystem": "crates.io"}, "version": package["version"]} for package in packages]
-for name, version in [("meson", "1.12.1"), ("ninja", "1.13.2"), ("pkgconf", "3.0.7.post0"), ("colorama", "0.4.6"), ("fonttools", "4.60.1")]:
+for name, version in [("meson", "1.12.1"), ("ninja", "1.13.2"), ("pkgconf", "3.0.7.post0"), ("colorama", "0.4.6"), ("fonttools", "4.60.2")]:
     queries.append({"package": {"name": name, "ecosystem": "PyPI"}, "version": version})
 request = urllib.request.Request("https://api.osv.dev/v1/querybatch", data=json.dumps({"queries": queries}).encode(), headers={"Content-Type": "application/json", "User-Agent": "Taiyou-T002-advisory-audit"})
 with urllib.request.urlopen(request, timeout=60) as response:

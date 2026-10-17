@@ -18,6 +18,6 @@ Original Taiyou licensing remains the repository owner's decision. This file is 
 | Source Sans 3 Bold, same 3.052R pin; generated catalog OTC | OFL-1.1 | Runner-only T008 collection fixture; see docs/T008-CANDIDATE.md. No reference expected output is changed. |
 | sha2 0.11.0 and its RustCrypto dependencies | MIT OR Apache-2.0 (see resolved per-package metadata) | SHA-256 font identity; exact checksums in root lock, notices/license choice require review. |
 | icu_casemap 2.0.1 and ICU4X/data dependencies | Unicode-3.0 (see resolved per-package metadata) | Full default family case folding; retain code and Unicode data notices, no normalization substitution. |
-| FontTools 4.60.1 | MIT | Runner-only OTC generator, exact wheel hash in build-support/requirements.txt. |
+| FontTools 4.60.2 | MIT | Runner-only OTC generator, exact wheel hash in build-support/requirements.txt. |
 
 The native job prints every resolved Rust dependency's exact version, repository, declared SPDX license and rust-version from Cargo metadata; Cargo.lock records transitive checksums. Transitive/component/advisory review remains pending until that evidence is inspected. Do not present this intake list as blanket legal compatibility approval. No GPL VSFilter/libass source is copied, translated or linked into these recipes.

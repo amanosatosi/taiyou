@@ -18,4 +18,4 @@ collection.fonts = [TTFont(directory / name, recalcTimestamp=False) for name in 
 collection.save(directory / "collection.otc", shareTables=True)
 for font in collection.fonts:
     font.close()
-print("FONT_FIXTURES=" + json.dumps({"source_commit":"ed1808970eb3c7301c9a523bee26473ba0bb62fa", "license":"OFL-1.1", "generator":"fonttools 4.60.1 TTCollection; unchanged input fonts; recalcTimestamp=False; shareTables=True", "sha256":{name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ["font.otf","bold.otf","collection.otc"]}}), flush=True)
+print("FONT_FIXTURES=" + json.dumps({"source_commit":"ed1808970eb3c7301c9a523bee26473ba0bb62fa", "license":"OFL-1.1", "generator":"fonttools 4.60.2 TTCollection; unchanged input fonts; recalcTimestamp=False; shareTables=True", "sha256":{name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ["font.otf","bold.otf","collection.otc"]}}), flush=True)
