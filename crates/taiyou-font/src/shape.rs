@@ -176,7 +176,14 @@ fn itemize(
     for paragraph in &bidi.paragraphs {
         // Hard lines are paragraphs in the initial WrapStyle-2 stage. Resolve L1
         // trailing whitespace here; L2 visual run ordering remains in layout.
-        let line_levels = bidi.reordered_levels(paragraph, paragraph.range.clone());
+        // Keep the L1 working vector paragraph-sized: reordered_levels clones
+        // its analysis vector, so a whole-event call per line would be quadratic.
+        let paragraph_text = &text[paragraph.range.clone()];
+        let local = BidiInfo::new(paragraph_text, Some(paragraph.level));
+        let local_paragraph = local.paragraphs.first().ok_or_else(|| {
+            error(ErrorCode::InvalidArgument, "missing paragraph analysis")
+        })?;
+        let line_levels = local.reordered_levels(local_paragraph, 0..paragraph_text.len());
         let mut end = paragraph.range.end;
         while end > paragraph.range.start && bidi.original_classes[end - 1] == BidiClass::B {
             end = text[..end]
@@ -251,7 +258,10 @@ fn itemize(
             let (level, tag) = if let Some(base) = items.last().filter(|_| attached) {
                 (base.level, base.script)
             } else {
-                (line_levels[offset].number(), script.as_iso15924_tag())
+                (
+                    line_levels[offset - paragraph.range.start].number(),
+                    script.as_iso15924_tag(),
+                )
             };
             let scalar_end = offset + ch.len_utf8();
             if let Some(last) = items.last_mut().filter(|last| {

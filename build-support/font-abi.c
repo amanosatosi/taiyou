@@ -27,5 +27,7 @@ _Static_assert(offsetof(hb_glyph_info_t, cluster) == 8, "HarfBuzz cluster offset
 _Static_assert(sizeof(hb_glyph_position_t) == 20, "HarfBuzz positions ABI");
 _Static_assert(offsetof(hb_glyph_position_t, y_offset) == 12, "HarfBuzz y offset");
 _Static_assert(sizeof(hb_font_extents_t) == 48, "HarfBuzz extents ABI");
+_Static_assert(sizeof(hb_glyph_extents_t) == 16, "HarfBuzz glyph extents ABI");
+_Static_assert(offsetof(hb_glyph_extents_t, height) == 12, "HarfBuzz glyph height offset");
 _Static_assert(sizeof(hb_feature_t) == 16, "HarfBuzz features ABI");
 _Static_assert(HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES == 0, "cluster policy");
