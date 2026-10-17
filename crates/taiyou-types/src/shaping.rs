@@ -41,14 +41,24 @@ pub struct RunMetrics {
     ascent: FiniteF64,
     descent: FiniteF64,
     line_gap: FiniteF64,
+    units_per_em: u16,
 }
 impl RunMetrics {
-    pub const fn new(ascent: FiniteF64, descent: FiniteF64, line_gap: FiniteF64) -> Self {
-        Self {
+    pub fn new(
+        ascent: FiniteF64,
+        descent: FiniteF64,
+        line_gap: FiniteF64,
+        units_per_em: u16,
+    ) -> Result<Self, FontError> {
+        if ascent.get() < 0.0 || descent.get() < 0.0 || units_per_em == 0 {
+            return Err(FontError::new(ErrorCode::InvalidArgument, "invalid font metrics"));
+        }
+        Ok(Self {
             ascent,
             descent,
             line_gap,
-        }
+            units_per_em,
+        })
     }
     pub const fn ascent(&self) -> FiniteF64 {
         self.ascent
@@ -59,6 +69,16 @@ impl RunMetrics {
     pub const fn line_gap(&self) -> FiniteF64 {
         self.line_gap
     }
+    pub const fn units_per_em(&self) -> u16 {
+        self.units_per_em
+    }
+}
+/// Per-face metrics remain meaningful even when fallback uses different UPEMs.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FaceMetrics {
+    pub font: FontId,
+    pub metrics: RunMetrics,
+    pub glyphs: std::ops::Range<usize>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedGlyph {
@@ -105,6 +125,7 @@ impl ShapedGlyph {
 pub struct ShapedRun {
     glyphs: Arc<[ShapedGlyph]>,
     metrics: RunMetrics,
+    face_metrics: Arc<[FaceMetrics]>,
     decoded: DecodedSpan,
     bidi_level: u8,
     script: u32,
@@ -135,6 +156,7 @@ impl ShapedRun {
         Ok(Self {
             glyphs,
             metrics,
+            face_metrics: Arc::from([]),
             decoded,
             bidi_level,
             script,
@@ -144,6 +166,31 @@ impl ShapedRun {
     }
     pub fn glyphs(&self) -> &[ShapedGlyph] {
         &self.glyphs
+    }
+    pub fn with_face_metrics(mut self, metrics: Arc<[FaceMetrics]>) -> Result<Self, FontError> {
+        if metrics.is_empty() || metrics[0].metrics != self.metrics {
+            return Err(FontError::new(ErrorCode::InvalidArgument, "incomplete face metrics"));
+        }
+        let mut end = 0;
+        for group in metrics.iter() {
+            if group.glyphs.start != end
+                || self.glyphs.get(group.glyphs.clone()).is_none_or(|glyphs| {
+                    glyphs.iter().any(|g| g.font != group.font)
+                })
+            {
+                return Err(FontError::new(ErrorCode::InvalidArgument, "invalid face metric groups"));
+            }
+            end = group.glyphs.end;
+        }
+        if end != self.glyphs.len() {
+            return Err(FontError::new(ErrorCode::InvalidArgument, "incomplete face metric groups"));
+        }
+        self.face_metrics = metrics;
+        Ok(self)
+    }
+    /// Native font groups in glyph order; layout can aggregate script metrics.
+    pub fn face_metrics(&self) -> &[FaceMetrics] {
+        &self.face_metrics
     }
     pub fn with_diagnostics(mut self, diagnostics: Arc<[Diagnostic]>) -> Result<Self, FontError> {
         if diagnostics.len() > MAX_DIAGNOSTICS + 1 {
@@ -158,6 +205,7 @@ impl ShapedRun {
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
+    /// Metrics of the first native font group. All fallback groups retain their own.
     pub const fn metrics(&self) -> RunMetrics {
         self.metrics
     }
@@ -196,7 +244,7 @@ pub struct PaintSpan {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedEvent {
-    id: EventId,
+    evaluated: EvaluatedEvent,
     source_map: Arc<SourceMappedText>,
     runs: Arc<[ShapedRun]>,
     breaks: Arc<[DecodedSpan]>,
@@ -206,7 +254,7 @@ pub struct ShapedEvent {
 }
 impl ShapedEvent {
     pub fn new(
-        id: EventId,
+        evaluated: &EvaluatedEvent,
         source_map: Arc<SourceMappedText>,
         runs: Arc<[ShapedRun]>,
         breaks: Arc<[DecodedSpan]>,
@@ -214,7 +262,8 @@ impl ShapedEvent {
         missing: Arc<[MissingCluster]>,
         diagnostics: Arc<[Diagnostic]>,
     ) -> Result<Self, FontError> {
-        if runs.iter().any(|r| !r.decoded.belongs_to(&source_map))
+        if evaluated.source_map().is_none_or(|map| !Arc::ptr_eq(map, &source_map))
+            || runs.iter().any(|r| !r.decoded.belongs_to(&source_map))
             || breaks.iter().any(|s| !s.belongs_to(&source_map))
             || paints.iter().any(|s| !s.decoded.belongs_to(&source_map))
             || missing.iter().any(|s| !s.decoded.belongs_to(&source_map))
@@ -271,7 +320,7 @@ impl ShapedEvent {
             ));
         }
         Ok(Self {
-            id,
+            evaluated: evaluated.clone(),
             source_map,
             runs,
             breaks,
@@ -281,7 +330,20 @@ impl ShapedEvent {
         })
     }
     pub const fn id(&self) -> EventId {
-        self.id
+        self.evaluated.id()
+    }
+    pub const fn order(&self) -> EventOrder {
+        self.evaluated.order()
+    }
+    pub fn placement(&self) -> &Placement {
+        self.evaluated.placement()
+    }
+    pub const fn clip(&self) -> ClipSpec {
+        self.evaluated.clip()
+    }
+    /// Original decoded ranges retain geometry, effects and paint associations.
+    pub fn evaluated(&self) -> &EvaluatedEvent {
+        &self.evaluated
     }
     pub fn source_map(&self) -> &Arc<SourceMappedText> {
         &self.source_map

@@ -111,6 +111,11 @@ fn reference(id: &str) -> Expected {
 fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
     let expected = reference(id);
     let scale = size / expected.upem;
+    assert_eq!(f64::from(run.metrics().units_per_em()), expected.upem);
+    assert!(run.face_metrics().iter().all(|m| {
+        run.glyphs().iter().any(|g| g.font() == m.font)
+            && m.metrics.units_per_em() != 0
+    }));
     assert_eq!(run.glyphs().len(), expected.glyphs.len(), "{id}");
     let mut starts: Vec<_> = expected.glyphs.iter().map(|g| g[1] as u32).collect();
     starts.push(run.decoded().end());
@@ -422,6 +427,10 @@ fn shaping_limits_unmappable_inputs_repeatability_and_foreign_maps() {
     let a = shape_event(&mut ctx, &catalog, &event, &options, &limits()).unwrap();
     let b = shape_event(&mut ctx, &catalog, &event, &options, &limits()).unwrap();
     assert_eq!(a, b);
+    assert_eq!(a.order(), event.order());
+    assert_eq!(a.placement(), event.placement());
+    assert_eq!(a.clip(), event.clip());
+    assert_eq!(a.evaluated(), &event);
     for bound in [
         limits().with_transient_bytes(1).unwrap(),
         limits().with_text_bytes_per_event(1).unwrap(),

@@ -452,8 +452,7 @@ fn shape_item(
     } // reorder font groups only; native glyph arrays are never reversed.
     let mut glyphs = Vec::new();
     let mut missing = Vec::new();
-    let (mut ascent, mut descent, mut gap) =
-        (f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+    let mut face_metrics = Vec::new();
     for (a, b, selected, notdef) in groups {
         let face = input.catalog.faces()[candidates[selected].index].blob();
         // Reshape selected font ranges with paragraph context: do not carry
@@ -468,9 +467,17 @@ fn shape_item(
         let ends = boundaries(raw, a, b, limits)?;
         let scale = input.style.font_size().get() / f64::from(raw.upem);
         let finite = |v| FiniteF64::new(v).map_err(|_| limited());
-        ascent = ascent.max(f64::from(raw.ascent) * scale);
-        descent = descent.max(-f64::from(raw.descent) * scale);
-        gap = gap.max(f64::from(raw.line_gap) * scale);
+        reserve(&mut face_metrics, 1, limits)?;
+        face_metrics.push(FaceMetrics {
+            font: face.id(),
+            glyphs: glyphs.len()..glyphs.len().checked_add(raw.glyphs.len()).ok_or_else(limited)?,
+            metrics: RunMetrics::new(
+                finite(f64::from(raw.ascent) * scale)?,
+                finite(-f64::from(raw.descent) * scale)?,
+                finite(f64::from(raw.line_gap) * scale)?,
+                u16::try_from(raw.upem).map_err(|_| error(ErrorCode::NativeFailure, "invalid native UPEM"))?,
+            )?,
+        });
         if glyphs
             .len()
             .checked_add(raw.glyphs.len())
@@ -510,11 +517,7 @@ fn shape_item(
             let _ = notdef;
         }
     }
-    let metrics = RunMetrics::new(
-        FiniteF64::new(ascent).map_err(|_| limited())?,
-        FiniteF64::new(descent).map_err(|_| limited())?,
-        FiniteF64::new(gap).map_err(|_| limited())?,
-    );
+    let metrics = face_metrics.first().ok_or_else(|| error(ErrorCode::NativeFailure, "empty native font groups"))?.metrics;
     let mut diagnostics = DiagnosticBuffer::new();
     for item in &missing {
         diagnostics
@@ -539,6 +542,7 @@ fn shape_item(
             input.item.script,
             input.options.language.clone(),
         )?
+        .with_face_metrics(face_metrics.into())?
         .with_diagnostics(
             diagnostics
                 .finish()
@@ -623,7 +627,7 @@ pub fn shape_event(
         runs.push(run);
     }
     ShapedEvent::new(
-        event.id(),
+        event,
         map.clone(),
         runs.into(),
         breaks.into(),
