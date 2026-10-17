@@ -371,8 +371,13 @@ impl EvaluatedEvent {
     pub const fn id(&self) -> EventId {
         self.id
     }
-    pub fn with_terminal_style(mut self, style: Style) -> Self { self.terminal_style=Some(style); self }
-    pub fn terminal_style(&self) -> Option<&Style> { self.terminal_style.as_ref() }
+    pub fn with_terminal_style(mut self, style: Style) -> Self {
+        self.terminal_style = Some(style);
+        self
+    }
+    pub fn terminal_style(&self) -> Option<&Style> {
+        self.terminal_style.as_ref()
+    }
     pub fn source_map(&self) -> Option<&Arc<SourceMappedText>> {
         self.source_map.as_ref()
     }
