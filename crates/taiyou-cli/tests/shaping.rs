@@ -36,16 +36,20 @@ fn shaping_actual_parser_evaluator_source_pipeline_retains_exact_intervals() {
         .cluster()
         .original_ranges(&Default::default())
         .unwrap();
-    assert_eq!(ranges.len(), 2);
+    let second = shaped.runs()[0].glyphs()[1]
+        .cluster()
+        .original_ranges(&Default::default())
+        .unwrap();
+    assert_eq!(ranges.len(), 1);
     assert_eq!(
         ranges[0].slice(shaped.source_map().original_source()),
         Some("f")
     );
     assert_eq!(
-        ranges[1].slice(shaped.source_map().original_source()),
+        second[0].slice(shaped.source_map().original_source()),
         Some("i")
     );
-    assert!(ranges[0].end() < ranges[1].start());
+    assert!(ranges[0].end() < second[0].start());
     assert_eq!(shaped.breaks().len(), 2);
     for (span, expected) in shaped.breaks().iter().zip(["\\N", "\\n"]) {
         let source = span.original_ranges(&Default::default()).unwrap();

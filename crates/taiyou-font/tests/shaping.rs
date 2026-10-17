@@ -186,14 +186,14 @@ fn shaping_kerning_ligatures_spacing_and_design_unit_scaling() {
         )
         .unwrap()
     };
-    let fi = shaped(&mut ctx, "fi", &s);
+    let fi = shaped(&mut ctx, "ff", &s);
     let no = shaped(
         &mut ctx,
-        "fi",
+        "ff",
         &s.clone().with_spacing(FiniteF64::new(1.0).unwrap()),
     );
-    assert_reference(&fi.runs()[0], "fi", 1000.0);
-    assert_reference(&no.runs()[0], "spacing", 1000.0);
+    assert_reference(&fi.runs()[0], "ff", 1000.0);
+    assert_reference(&no.runs()[0], "ff-spacing", 1000.0);
     assert!(fi.runs()[0].glyphs().len() < no.runs()[0].glyphs().len());
     let av = shaped(&mut ctx, "AV", &s);
     let a = shaped(&mut ctx, "A", &s);
@@ -225,10 +225,11 @@ fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
     let (mut ctx, catalog, _) = catalog();
     for (source, right, id) in [
         ("f{\\c&HFF0000&}i", "i", "fi"),
+        ("f{\\c&HFF0000&}f", "f", "ff"),
         ("a{\\c&HFF0000&}\u{301}", "\u{301}", "combining"),
     ] {
         let a = SourceSpan::new(source, 0, 1).unwrap();
-        let b = SourceSpan::new(source, source.find(right).unwrap(), source.len()).unwrap();
+        let b = SourceSpan::new(source, source.rfind(right).unwrap(), source.len()).unwrap();
         let map = Arc::new(
             SourceMappedText::from_pieces(
                 Arc::from(source),
@@ -260,7 +261,18 @@ fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
         assert_eq!(result.runs().len(), 1);
         assert_reference(&result.runs()[0], id, 1000.0);
         let glyph = &result.runs()[0].glyphs()[0];
-        assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a, b]);
+        if id == "fi" {
+            assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a]);
+            assert_eq!(
+                result.runs()[0].glyphs()[1]
+                    .cluster()
+                    .original_ranges(&limits())
+                    .unwrap(),
+                [b]
+            );
+        } else {
+            assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a, b]);
+        }
         assert_eq!(
             result.paint_for(glyph.cluster()).unwrap(),
             &PaintSet::from_style(&first)

@@ -2,6 +2,8 @@
   "schema": 1,
   "status": "Provisional independently observed HarfBuzz numeric expectations; not an approved reference baseline",
   "cases": [
+    {"id":"ff", "font":"latin", "text":"ff", "script":"Latn", "language":"en", "direction":"ltr"},
+    {"id":"ff-spacing", "font":"latin", "text":"ff", "script":"Latn", "language":"en", "direction":"ltr", "ligatures":false},
     {"id":"fi", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr"},
     {"id":"office", "font":"latin", "text":"office AV", "script":"Latn", "language":"en", "direction":"ltr"},
     {"id":"spacing", "font":"latin", "text":"fi", "script":"Latn", "language":"en", "direction":"ltr", "ligatures":false},
