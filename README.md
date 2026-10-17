@@ -2,9 +2,9 @@
 
 CPU-first ASS/SSA subtitle renderer: architecture and implementation blueprint.
 
-**Current state (2026-10-17): T001 foundation proposed; acceptance pending.** The seven-package Rust workspace and CI checks are present. The CLI supports `--version` and explicitly fails rendering requests. There is no renderer, parser, benchmark baseline, or verified compatibility claim. Other task source paths remain **planned** until their implementation is accepted.
+**Current state (2026-10-17): T001 and T003 are integrated.** The seven-package Rust workspace, checked shared types, immutable records and CI checks are present. The CLI supports `--version` and explicitly fails rendering requests. ADR-008's parser ingestion contract is owner-accepted. There is no renderer, parser, benchmark baseline, or verified compatibility claim yet. Other task source paths remain **planned** until their implementation is accepted.
 
-Start with [AGENTS.md](AGENTS.md), then [the task index](docs/tasks/README.md). T003 waits for accepted T001; its exported shared types require architect review before T004 starts.
+Start with [AGENTS.md](AGENTS.md), then [the task index](docs/tasks/README.md). The owner approved the integrated T003 interface as the T004 parser baseline; this is not independent third-party review or proof of T005 protections.
 
 Reference source folders are now available locally in `C:\taiyou-time\refrences`. Use the [local reference map](docs/LOCAL_REFERENCES.md) before browsing online. Run `pwsh -NoProfile -File scripts/check-local-references.ps1` to verify the recorded entry-point files.
 

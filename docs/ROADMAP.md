@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-All phases are planned. A gate requires observable results, not just compilation. See [task specifications](tasks/README.md) for exact scope and dependencies. Source paths and Rust commands are planned until their creating task lands. The blueprint itself supplies documentation, reference revision pins and a structural checker only.
+T001 and T003 are integrated; the owner accepted ADR-008 and the integrated T003 interface as the T004 parser baseline. Remaining phase gates require observable results, not just compilation. See [task specifications](tasks/README.md) for exact scope and dependencies. Source paths remain planned until their creating task lands. Owner acceptance does not establish independent review or T005 protection.
 
 Git and the GitHub remote are now established. All compilation and renderer/test execution occurs in GitHub Actions under the [CI-first execution policy](DEVELOPMENT.md#d0-execution-location-and-local-storage); the user's PC cannot host builds. T001 must establish the remote source-check lane as well as documentation CI before its Cargo/CLI verification can pass. This does not mark any implementation phase complete.
 
