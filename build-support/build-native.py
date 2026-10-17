@@ -19,6 +19,9 @@ def run(*args, **kwargs):
     print("RUN=" + json.dumps([str(arg) for arg in args]), flush=True)
     return subprocess.run([str(arg) for arg in args], cwd=root, check=True, **kwargs)
 
+run(sys.executable, "build-support/shaping-fixtures.py", "--self-test")
+run(sys.executable, "build-support/shaping-fixtures.py")
+
 if platform.system() == "Darwin" and platform.machine() != "arm64":
     raise RuntimeError("macOS acceptance requires ARM64")
 if os.name == "nt":

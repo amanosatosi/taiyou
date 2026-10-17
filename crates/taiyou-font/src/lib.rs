@@ -6,6 +6,7 @@
 mod catalog;
 #[cfg(feature = "native")]
 mod native;
+pub mod source_map;
 #[cfg(feature = "native")]
 pub use catalog::{
     FontCatalogBuilder, ValidatedFontCatalog, fold_family, resolve_family, validate_catalog,
