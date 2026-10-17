@@ -191,7 +191,10 @@ impl FontContext {
     pub(crate) fn inspect(&mut self, bytes: Arc<[u8]>, index: u32) -> Result<Metadata, FontError> {
         let byte_limit = bytes.len();
         if byte_limit == 0 {
-            return Err(FontError::new(ErrorCode::InvalidArgument, "font bytes are empty"));
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "font bytes are empty",
+            ));
         }
         let cost = (byte_limit as u64)
             .checked_mul(12)

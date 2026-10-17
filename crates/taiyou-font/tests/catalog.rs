@@ -117,7 +117,10 @@ fn catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot() {
         u64::try_from(font.len()).unwrap()
     );
     let mut malformed = FontCatalogBuilder::new(Limits::default());
-    assert_eq!(malformed.register(&mut ctx, &[], 0).unwrap_err().code(), ErrorCode::InvalidArgument);
+    assert_eq!(
+        malformed.register(&mut ctx, &[], 0).unwrap_err().code(),
+        ErrorCode::InvalidArgument
+    );
     for length in [1, 2, 16, 64, 128, 1024] {
         let e = malformed
             .register(&mut ctx, &vec![0xA5; length], 0)
@@ -126,7 +129,13 @@ fn catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot() {
         assert!(e.native_code().is_some());
     }
     assert_eq!(malformed.registered_bytes(), 0);
-    assert!(malformed.snapshot(&mut ingestion).unwrap().faces().is_empty());
+    assert!(
+        malformed
+            .snapshot(&mut ingestion)
+            .unwrap()
+            .faces()
+            .is_empty()
+    );
     assert_eq!(ctx.glyph_count(old.faces()[0].blob()).unwrap(), 2478);
     assert_eq!(old.faces()[0].blob().id(), id);
     assert_eq!(
