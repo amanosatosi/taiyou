@@ -174,15 +174,19 @@ fn itemize(
     let mut items: Vec<Item> = Vec::new();
     let mut breaks = Vec::new();
     for paragraph in &bidi.paragraphs {
+        if paragraph.range.is_empty() {
+            continue;
+        }
         // Hard lines are paragraphs in the initial WrapStyle-2 stage. Resolve L1
         // trailing whitespace here; L2 visual run ordering remains in layout.
         // Keep the L1 working vector paragraph-sized: reordered_levels clones
         // its analysis vector, so a whole-event call per line would be quadratic.
         let paragraph_text = &text[paragraph.range.clone()];
         let local = BidiInfo::new(paragraph_text, Some(paragraph.level));
-        let local_paragraph = local.paragraphs.first().ok_or_else(|| {
-            error(ErrorCode::InvalidArgument, "missing paragraph analysis")
-        })?;
+        let local_paragraph = local
+            .paragraphs
+            .first()
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "missing paragraph analysis"))?;
         let line_levels = local.reordered_levels(local_paragraph, 0..paragraph_text.len());
         let mut end = paragraph.range.end;
         while end > paragraph.range.start && bidi.original_classes[end - 1] == BidiClass::B {
@@ -676,6 +680,7 @@ pub fn shape_event(
     preflight(map.text(), limits)?;
     let mut styles: Vec<(DecodedSpan, ShapeStyle)> = Vec::new();
     let mut paints = Vec::new();
+    let mut previous_scale = None;
     for run in event.runs() {
         let span = run.decoded().ok_or_else(|| {
             error(
@@ -697,9 +702,12 @@ pub fn shape_event(
         if span.is_empty() {
             continue;
         }
-        if let Some((last, style)) = styles
-            .last_mut()
-            .filter(|(last, style)| last.end() == span.start() && style == run.shaping())
+        let scale = (run.geometry().scale_x(), run.geometry().scale_y());
+        if let Some((last, style)) = styles.last_mut().filter(|(last, style)| {
+            last.end() == span.start()
+                && style == run.shaping()
+                && previous_scale == Some(scale)
+        })
         {
             *last = map.decoded_span(last.start()..span.end())?;
             let _ = style;
@@ -707,6 +715,7 @@ pub fn shape_event(
             reserve(&mut styles, 1, limits)?;
             styles.push((span.clone(), run.shaping().clone()));
         }
+        previous_scale = Some(scale);
     }
     let (resolved, breaks) = resolve_mapped(catalog, map, &styles, options, limits)?;
     let mut runs = Vec::new();

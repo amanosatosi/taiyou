@@ -4,6 +4,28 @@ use taiyou_render::{
     shaping::*,
 };
 #[test]
+fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coalesce() {
+    for (text, glyph_count) in [("f{\\fscx200}f", 2), ("f{\\c&HFF0000&}f", 1)] {
+        let input = format!("[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}");
+        let options = Default::default();
+        let parsed = taiyou_ass::parse_ass(input.as_bytes(), &options, &mut Default::default()).unwrap();
+        let event = &parsed.track().events()[0];
+        let evaluated = taiyou_render::evaluate(parsed.track(), event.id(), event.start(), options.profile()).unwrap();
+        let mut ctx = FontContext::new().unwrap();
+        let mut builder = FontCatalogBuilder::new(Default::default());
+        builder.register(&mut ctx, &std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(), 0).unwrap();
+        let fonts = builder.snapshot(&mut Default::default()).unwrap();
+        let s = shape_event(&mut ctx, &fonts, &evaluated, &ShapeOptions::default(), &Default::default()).unwrap();
+        let l = layout(&s, &LayoutConstraints::new(s.placement().alignment())).unwrap();
+        assert_eq!(l.glyphs().len(), glyph_count);
+        if glyph_count == 2 {
+            let advance = 292.0 * (20.0 / 1000.0);
+            assert_eq!(l.glyphs()[1].position().x().get(), advance);
+            assert_eq!(l.lines()[0].advance().get(), advance + advance * 2.0);
+        }
+    }
+}
+#[test]
 fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
     for alignment in 1..=9 {
         let output = {
