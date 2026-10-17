@@ -38,9 +38,12 @@ fn overrides_color_reset_and_text_retain_exact_order_and_spans() {
 
 #[test]
 fn overrides_all_assigned_tags_have_typed_parameters() {
-    let parsed = parse(
-        r"{\fnSome Font\fs24\b-1\i1\fscx150\fscy50\fsp-2\c&H112233&\1c&HFF&\2c&H00FF00&\3c&H123&\4c&H0&\alpha&H80&\1a&HFF&\2a&H0&\3a&H01&\4a&H7F&\an9\pos(-2.5, 3)\rNamed}",
-    );
+    // ADR-009 requires a declared style for a legitimate named reset. Put its
+    // definition after Events to also exercise final, forward name resolution.
+    let text =
+        r"{\fnSome Font\fs24\b-1\i1\fscx150\fscy50\fsp-2\c&H112233&\1c&HFF&\2c&H00FF00&\3c&H123&\4c&H0&\alpha&H80&\1a&HFF&\2a&H0&\3a&H01&\4a&H7F&\an9\pos(-2.5, 3)\rNamed}";
+    let input = format!("{}\n[V4+ Styles]\nFormat: Name,Fontsize\nStyle: Named,24", script(text));
+    let parsed = parse_ass(input.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
     let ops = parsed.track().events()[0].program();
     assert_eq!(ops.len(), 20);
     assert!(
@@ -323,4 +326,38 @@ fn overrides_escape_provenance_is_original_event_source_not_decoded_text() {
             assert!(!text.contains(['\n', '\r']));
         }
     }
+}
+
+#[test]
+fn overrides_unresolved_r_prefixes_remain_unsupported_without_executing_children() {
+    for syntax in [SyntaxPolicy::Recover, SyntaxPolicy::Strict] {
+        let options = ParseOptions::new(InputEncoding::Utf8, Profile::CoreV1, Limits::default(), syntax);
+        let input = script(r"{\rnd\rnd30\rndx1\rndy2\rndz3\rndsABC\rMissing\rnd(1,\fs99\i1)}A{\rDefault}B");
+        let parsed = parse_ass(input.as_bytes(), &options, &mut TrackIngestor::new()).unwrap();
+        let track = parsed.track();
+        let ops = track.events()[0].program();
+        let tags = [r"\rnd", r"\rnd30", r"\rndx1", r"\rndy2", r"\rndz3", r"\rndsABC", r"\rMissing", r"\rnd(1,\fs99\i1)"];
+        assert_eq!(ops.len(), tags.len() + 3);
+        for (operation, raw) in ops.iter().zip(tags) {
+            assert!(matches!(operation, TextOp::Unsupported { source, .. } if source.slice(track.source()) == Some(raw)));
+        }
+        assert!(matches!(&ops[8], TextOp::Text { text, .. } if text.as_ref() == "A"));
+        assert!(matches!(&ops[9], TextOp::Override(OverrideOp::ResetStyle { name: Some(name), .. }) if name.as_ref() == "Default"));
+        assert!(matches!(&ops[10], TextOp::Text { text, .. } if text.as_ref() == "B"));
+        assert_eq!(parsed.diagnostics().iter().filter(|d| d.code() == DiagnosticCode::UnsupportedFeature).count(), 8);
+        assert!(ops.iter().all(|op| !matches!(op, TextOp::Override(OverrideOp::SetSize { .. } | OverrideOp::SetItalic { .. }))));
+    }
+}
+
+#[test]
+fn overrides_reset_matching_uses_final_exact_style_names_and_retains_unknown_names() {
+    let input = format!("{}\n[V4+ Styles]\nFormat: Name,Fontsize\nStyle: nd30,20\nStyle: nd30,40\nStyle: 日本語 Style,24", script(r"{\rnd30\rND30\r日本語 Style\rDefault\r}X"));
+    let parsed = parse_ass(input.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
+    let track = parsed.track();
+    let ops = track.events()[0].program();
+    assert!(matches!(&ops[0], TextOp::Override(OverrideOp::ResetStyle { name: Some(name), .. }) if name.as_ref() == "nd30"));
+    assert!(matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "rND30" && source.slice(track.source()) == Some(r"\rND30")));
+    assert!(matches!(&ops[2], TextOp::Override(OverrideOp::ResetStyle { name: Some(name), .. }) if name.as_ref() == "日本語 Style"));
+    assert_eq!(track.styles().iter().filter(|s| s.name() == "nd30").map(|s| s.font_size().get()).collect::<Vec<_>>(), [20.0, 40.0]);
+    assert!(parsed.diagnostics().iter().any(|d| d.code() == DiagnosticCode::DuplicateStyle));
 }

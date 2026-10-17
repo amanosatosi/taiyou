@@ -1,5 +1,6 @@
 //! Iterative Core tokenization. Legacy malformed/nesting behavior remains R001.
 use crate::{Context, decode, invalid, reserve};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use taiyou_types::*;
 
@@ -24,6 +25,7 @@ pub(crate) fn tokenize(
     source: &str,
     span: SourceSpan,
     event: EventId,
+    styles: &BTreeMap<Arc<str>, usize>,
     ctx: &mut Context<'_>,
 ) -> Result<Vec<TextOp>, ParseError> {
     let text = span
@@ -87,6 +89,7 @@ pub(crate) fn tokenize(
                 &text[cursor + 1..end],
                 base + cursor + 1,
                 event,
+                styles,
                 ctx,
                 &mut program,
             )?;
@@ -105,6 +108,7 @@ fn block(
     text: &str,
     base: usize,
     event: EventId,
+    styles: &BTreeMap<Arc<str>, usize>,
     ctx: &mut Context<'_>,
     program: &mut Vec<TextOp>,
 ) -> Result<(), ParseError> {
@@ -117,7 +121,15 @@ fn block(
         let start = cursor;
         cursor += 1;
         let remaining = &text[cursor..];
-        let unstructured = remaining.starts_with("fn") || remaining.starts_with('r');
+        // Named resets may contain literal parentheses. Only a final exact style
+        // match gets that unstructured treatment; unsupported r-prefixed tags
+        // retain nested parameters as one operation and cannot execute children.
+        let reset = remaining.split('\\').next().and_then(|raw| raw.strip_prefix('r'));
+        let unstructured = remaining.starts_with("fn")
+            || reset.is_some_and(|name| {
+                let name = decode::trim(name);
+                name.is_empty() || styles.contains_key(name)
+            });
         let mut depth = 0_u32;
         while cursor < text.len() {
             match text.as_bytes()[cursor] {
@@ -138,7 +150,7 @@ fn block(
         }
         let span = SourceSpan::new(source, base + start, base + cursor)?;
         let raw = &text[start + 1..cursor];
-        match parse(raw, span) {
+        match parse(raw, span, styles) {
             Ok(Some(op)) => {
                 op.validate()
                     .map_err(|_| invalid("invalid typed override"))?;
@@ -195,7 +207,7 @@ fn channel(name: &str) -> PaintChannel {
         _ => PaintChannel::Primary,
     }
 }
-fn parse(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError> {
+fn parse(raw: &str, source: SourceSpan, styles: &BTreeMap<Arc<str>, usize>) -> Result<Option<OverrideOp>, ParseError> {
     // Longest names first; fn/r intentionally consume literal names as suffixes.
     let names = [
         "fscx", "fscy", "alpha", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a", "3a", "4a",
@@ -228,13 +240,18 @@ fn parse(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError
                 source,
             }
         }
-        "r" => OverrideOp::ResetStyle {
+        "r" => {
+            if !value.is_empty() && !styles.contains_key(value) {
+                return Ok(None);
+            }
+            OverrideOp::ResetStyle {
             name: if value.is_empty() {
                 None
             } else {
                 Some(Arc::from(value))
             },
             source,
+            }
         },
         "fs" => {
             let size = decode::number(value)?;
