@@ -1,0 +1,13 @@
+{
+  "observed_on": "2026-10-17",
+  "scope": "public unauthenticated GitHub REST responses; no settings mutation",
+  "branch_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/branches/main",
+  "branch": "main",
+  "commit": "5b23d4df6c19b0f956c3d8225bccf02a89e15ee0",
+  "protected": false,
+  "rules_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/rules/branches/main",
+  "active_branch_rules": [],
+  "trusted_required_check_issuer": null,
+  "named_independent_reviewers": [],
+  "acceptance": "blocked: actual V4 protection is not established"
+}
