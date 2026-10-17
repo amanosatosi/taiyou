@@ -772,13 +772,18 @@ impl TrackIngestor {
                 ));
             }
             let mut text_bytes = 0_u64;
+            let mut text_end = event.source.start();
             for operation in event.program.iter() {
                 let TextOp::Text { text, source: span } = operation;
-                if !event.source.contains(*span) || span.slice(&source) != Some(text.as_ref()) {
+                if span.start() < text_end
+                    || !event.source.contains(*span)
+                    || span.slice(&source) != Some(text.as_ref())
+                {
                     return Err(invalid(
-                        "literal text and source span do not match track source",
+                        "literal text spans must match track source in source order",
                     ));
                 }
+                text_end = span.end();
                 let length = u64::try_from(text.len())
                     .map_err(|_| limit("text length conversion overflow"))?;
                 text_bytes = text_bytes

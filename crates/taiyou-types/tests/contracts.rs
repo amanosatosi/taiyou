@@ -292,6 +292,7 @@ fn default_limits_and_tiny_allocation_limits_are_enforced() {
     assert_eq!(limits.be_passes(), 64);
     assert!(limits.clone().with_events(0).is_err());
     assert!(limits.clone().with_input_bytes(0).is_err());
+    assert!(limits.check_input_bytes(usize::MAX).is_err());
     assert_eq!(limits.clone().with_cache_bytes(0).cache_bytes(), 0);
     assert!(limits.check_output_size(Size::new(0, 10)).is_err());
     assert!(limits.check_output_size(Size::new(16_385, 1)).is_err());
@@ -534,4 +535,48 @@ fn diagnostic_order_uses_header_event_then_span_then_code() {
     assert_eq!(result[2].span(), Some(span0));
     assert_eq!(result[3].span(), Some(span1));
     assert_eq!(result[4].event(), Some(EventId::new(1)));
+}
+
+#[test]
+fn source_order_is_independent_of_time_layer_and_literal_span_order_is_checked() {
+    let source = "ab";
+    let first_span = SourceSpan::new(source, 0, 1).unwrap();
+    let second_span = SourceSpan::new(source, 1, 2).unwrap();
+    let first = Event::new(
+        EventId::new(2),
+        TimeUs::from_micros(100),
+        TimeUs::from_micros(200),
+        StyleId::new(0),
+        first_span,
+    )
+    .with_layer(99);
+    let second = Event::new(
+        EventId::new(7),
+        TimeUs::from_micros(-100),
+        TimeUs::from_micros(0),
+        StyleId::new(0),
+        second_span,
+    )
+    .with_layer(-99);
+    let mut owner = TrackIngestor::new();
+    let track = ingest(
+        &mut owner,
+        source,
+        vec![first, second],
+        &Limits::default(),
+    )
+    .unwrap();
+    assert_eq!(track.events()[0].id(), EventId::new(2));
+    assert_eq!(track.events()[1].id(), EventId::new(7));
+    let reversed = sample_event(source, 0, 1).with_program(Arc::from([
+        TextOp::Text {
+            text: Arc::from("b"),
+            source: second_span,
+        },
+        TextOp::Text {
+            text: Arc::from("a"),
+            source: first_span,
+        },
+    ]));
+    assert!(ingest(&mut owner, source, vec![reversed], &Limits::default()).is_err());
 }
