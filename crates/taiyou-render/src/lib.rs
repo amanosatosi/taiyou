@@ -3,7 +3,7 @@
 //! T013 provides a scalar compositor for explicit synthetic masks. Subtitle
 //! rendering, fonts, geometry and rasterization remain unimplemented.
 
-mod paint;
 mod compose;
-pub use paint::{mul255, blend_pixel};
+mod paint;
 pub use compose::compose;
+pub use paint::{blend_pixel, mul255};

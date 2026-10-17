@@ -12,7 +12,12 @@ pub fn mul255(x: u8, y: u8) -> u8 {
 pub fn blend_pixel(dst: &mut [u8; 4], paint: Rgba8, mask: u8, clip: u8) {
     let coverage = mul255(mask, clip);
     let alpha = mul255(paint.a(), coverage);
-    let source = [mul255(paint.r(), alpha), mul255(paint.g(), alpha), mul255(paint.b(), alpha), alpha];
+    let source = [
+        mul255(paint.r(), alpha),
+        mul255(paint.g(), alpha),
+        mul255(paint.b(), alpha),
+        alpha,
+    ];
     for (dst, src) in dst.iter_mut().zip(source) {
         *dst = src.saturating_add(mul255(*dst, 255 - alpha));
     }
