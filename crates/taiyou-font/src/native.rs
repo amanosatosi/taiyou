@@ -36,6 +36,10 @@ unsafe extern "C" {
 fn native_error(code: ft::FT_Error, detail: &str) -> FontError {
     FontError::new(ErrorCode::NativeFailure, detail).with_native_code(i64::from(code))
 }
+#[cfg(test)]
+std::thread_local! {
+    static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
+}
 struct Library(ft::FT_Library);
 impl Drop for Library {
     fn drop(&mut self) {
@@ -43,6 +47,8 @@ impl Drop for Library {
         unsafe {
             ft::FT_Done_FreeType(self.0);
         }
+        #[cfg(test)]
+        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries - 1, faces)); });
     }
 }
 struct Face<'a> {
@@ -56,6 +62,8 @@ impl Drop for Face<'_> {
         unsafe {
             ft::FT_Done_Face(self.raw);
         }
+        #[cfg(test)]
+        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries, faces - 1)); });
     }
 }
 pub(crate) struct Metadata {
@@ -76,10 +84,17 @@ pub(crate) struct Metadata {
 pub struct FontContext {
     library: Library,
     version: (i32, i32, i32),
+    limits: Limits,
     _local: PhantomData<Rc<()>>,
 }
 impl FontContext {
     pub fn new() -> Result<Self, FontError> {
+        Self::with_limits(Limits::default())
+    }
+    pub fn with_limits(limits: Limits) -> Result<Self, FontError> {
+        Self::with_version(limits, (2, 14, 3))
+    }
+    fn with_version(limits: Limits, expected: (i32, i32, i32)) -> Result<Self, FontError> {
         let mut raw = ptr::null_mut();
         // SAFETY: valid out slot, owned only after successful initialization.
         let code = unsafe { ft::FT_Init_FreeType(&mut raw) };
@@ -93,12 +108,14 @@ impl FontContext {
             ));
         }
         let library = Library(raw);
+        #[cfg(test)]
+        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries + 1, faces)); });
         let (mut major, mut minor, mut patch) = (0, 0, 0);
         // SAFETY: initialized live library and valid local integer out slots.
         unsafe {
             FT_Library_Version(library.0, &mut major, &mut minor, &mut patch);
         }
-        if (major, minor, patch) != (2, 14, 3) {
+        if (major, minor, patch) != expected {
             return Err(FontError::new(
                 ErrorCode::NativeFailure,
                 "FreeType does not match pinned 2.14.3 recipe",
@@ -107,6 +124,7 @@ impl FontContext {
         Ok(Self {
             library,
             version: (major, minor, patch),
+            limits,
             _local: PhantomData,
         })
     }
@@ -131,6 +149,8 @@ impl FontContext {
                 "FreeType returned a null face",
             ));
         }
+        #[cfg(test)]
+        LIVE.with(|n| { let (libraries, faces) = n.get(); n.set((libraries, faces + 1)); });
         Ok(Face {
             raw,
             _library: &self.library,
@@ -158,6 +178,11 @@ impl FontContext {
     }
     pub(crate) fn inspect(&mut self, bytes: Arc<[u8]>, index: u32) -> Result<Metadata, FontError> {
         let byte_limit = bytes.len();
+        let cost = (byte_limit as u64).checked_mul(12).and_then(|n| n.checked_add(64 * 1024));
+        if byte_limit == 0 || byte_limit as u64 > self.limits.font_bytes()
+            || cost.is_none_or(|n| n > self.limits.transient_bytes()) {
+            return Err(FontError::new(ErrorCode::LimitExceeded, "native intake reservation exceeded"));
+        }
         self.with_face(bytes, index, |face| {
             // SAFETY: live face, native APIs guarantee successful SFNT records
             // reference face-owned memory. Copy all names before dropping face.
@@ -275,6 +300,16 @@ impl FontContext {
 mod tests {
     use super::*;
     #[test]
+    fn rejected_library_initialization_finishes_native_owner() {
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+        assert!(FontContext::with_version(Limits::default(), (0, 0, 0)).is_err());
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+        let context = FontContext::new().unwrap();
+        assert_eq!(LIVE.with(|n| n.get()), (1, 0));
+        drop(context);
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+    }
+    #[test]
     fn failure_after_face_initialization_releases_face_and_library_remains_usable() {
         let bytes: Arc<[u8]> =
             std::fs::read(std::env::var("TAIYOU_TEST_FONT").expect("native CI font required"))
@@ -291,7 +326,11 @@ mod tests {
                 })
                 .unwrap_err();
             assert_eq!(error.code(), ErrorCode::NativeFailure);
+            assert_eq!(LIVE.with(|n| n.get()), (1, 0));
             assert_eq!(context.inspect(bytes.clone(), 0).unwrap().glyphs, 2478);
+            assert_eq!(LIVE.with(|n| n.get()), (1, 0));
         }
+        drop(context);
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
     }
 }

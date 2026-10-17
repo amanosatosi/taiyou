@@ -24,6 +24,7 @@ pub struct FontCatalogBuilder {
     records: Vec<FontRecord>,
     blobs: Vec<([u8; 32], Arc<[u8]>)>,
     bytes: u64,
+    names: u64,
     publisher: CatalogIngestor,
 }
 impl FontCatalogBuilder {
@@ -33,6 +34,7 @@ impl FontCatalogBuilder {
             records: Vec::new(),
             blobs: Vec::new(),
             bytes: 0,
+            names: 0,
             publisher: CatalogIngestor::new(),
         }
     }
@@ -76,7 +78,16 @@ impl FontCatalogBuilder {
             .and_then(|n| n.checked_add(1))
             .and_then(|n| n.checked_mul(3 * std::mem::size_of::<FontRecord>() as u64))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog metadata overflow"))?;
-        if metadata_cost > self.limits.transient_bytes() || length > self.limits.transient_bytes() {
+        // Includes native scratch estimate, name decoding/folding, copy-to-Arc
+        // overlap, retained names and catalog publication overlap. Native RSS is
+        // measured separately in R003; this is the explicit C7 reservation.
+        let intake_cost = length
+            .checked_mul(12)
+            .and_then(|n| n.checked_add(64 * 1024))
+            .and_then(|n| n.checked_add(metadata_cost))
+            .and_then(|n| n.checked_add(self.names))
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "font intake size overflow"))?;
+        if intake_cost > self.limits.transient_bytes() {
             return Err(error(
                 ErrorCode::LimitExceeded,
                 "font intake transient budget exceeded",
@@ -94,6 +105,10 @@ impl FontCatalogBuilder {
         };
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
+        let names = self.names
+            .checked_add(metadata.family.len() as u64)
+            .and_then(|n| n.checked_add(folded.len() as u64))
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;
         let record = FontRecord::new(
             FontBlob::new(id, data.clone()),
             Arc::from(metadata.family),
@@ -115,6 +130,7 @@ impl FontCatalogBuilder {
         }
         self.records.push(record);
         self.bytes = new_total;
+        self.names = names;
         Ok(id)
     }
     pub fn snapshot(&mut self) -> Result<Arc<FontCatalog>, FontError> {

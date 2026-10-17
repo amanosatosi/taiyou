@@ -114,4 +114,5 @@ if platform.system() == "Linux":
     minimum = dict(os.environ, RUSTUP_TOOLCHAIN="1.85.0")
     run("cargo", "test", "--locked", "--workspace", *native_features, env=minimum)
     run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf", env=minimum)
+    run("python", root / "build-support/font-sanitizer.py")
 print("NATIVE_RECIPE_COMPLETE", flush=True)
