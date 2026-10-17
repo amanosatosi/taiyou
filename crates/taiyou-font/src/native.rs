@@ -43,6 +43,25 @@ impl Drop for HbFont {
     }
 }
 struct HbBuffer(*mut hb::hb_buffer_t);
+pub(crate) fn is_mark(ch: char) -> Result<bool, FontError> {
+    // SAFETY: HarfBuzz owns its immutable default Unicode funcs for process life.
+    // No mutation, ownership transfer, callbacks or native pointer escape occurs.
+    unsafe {
+        let funcs = hb::hb_unicode_funcs_get_default();
+        if funcs.is_null() {
+            return Err(FontError::new(
+                ErrorCode::NativeFailure,
+                "missing Unicode funcs",
+            ));
+        }
+        Ok(matches!(
+            hb::hb_unicode_general_category(funcs, u32::from(ch)),
+            hb::HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK
+                | hb::HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK
+                | hb::HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK
+        ))
+    }
+}
 impl Drop for HbBuffer {
     fn drop(&mut self) {
         /* SAFETY: unique per-call buffer, copied results outlive it. */

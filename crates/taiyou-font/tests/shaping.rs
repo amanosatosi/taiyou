@@ -346,6 +346,28 @@ fn shaping_arabic_style_boundary_retains_neighboring_joining_context() {
     assert!(result.missing().is_empty());
 }
 #[test]
+fn shaping_cross_script_marks_are_not_separated_before_fallback() {
+    let (mut ctx, catalog, _) = catalog();
+    for text in ["A\u{94d}", "A\u{93e}", "A\u{488}"] {
+        let result = shape_event(
+            &mut ctx,
+            &catalog,
+            &plain(text, &style("Source Sans 3")),
+            &ShapeOptions::default(),
+            &limits(),
+        )
+        .unwrap();
+        assert_eq!(result.runs().len(), 1);
+        let glyphs = result.runs()[0].glyphs();
+        assert!(!glyphs.is_empty());
+        assert!(glyphs.iter().all(|g| {
+            g.cluster().start() == 0
+                && g.cluster().end() as usize == text.len()
+                && g.font() == glyphs[0].font()
+        }));
+    }
+}
+#[test]
 fn shaping_whole_cluster_fallback_and_explicit_notdef() {
     let (mut ctx, catalog, ids) = catalog();
     let result = shape_event(

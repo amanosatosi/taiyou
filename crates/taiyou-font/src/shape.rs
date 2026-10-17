@@ -188,7 +188,12 @@ fn itemize(
         let mut chars = Vec::new();
         reserve(&mut chars, text[context.clone()].chars().count(), limits)?;
         for (offset, ch) in text[context.clone()].char_indices() {
-            chars.push((context.start + offset, ch, ch.script()));
+            chars.push((
+                context.start + offset,
+                ch,
+                ch.script(),
+                crate::native::is_mark(ch)?,
+            ));
         }
         // Resolve Common/Inherited with Script_Extensions and neighboring strong
         // scripts. Marks inherit their base's script; no byte reversal occurs.
@@ -199,12 +204,23 @@ fn itemize(
         let mut next = None;
         for i in (0..chars.len()).rev() {
             following[i] = next;
-            if specific(chars[i].2) {
+            if specific(chars[i].2) && !chars[i].3 {
                 next = Some(chars[i].2);
             }
         }
         for i in 0..chars.len() {
-            let (offset, ch, intrinsic) = chars[i];
+            let (offset, ch, intrinsic, mark) = chars[i];
+            let after_control = i == 0 || chars[i - 1].1.is_control() || matches!(
+                bidi.original_classes[chars[i - 1].0],
+                BidiClass::LRE | BidiClass::RLE | BidiClass::LRO | BidiClass::RLO
+                    | BidiClass::PDF | BidiClass::LRI | BidiClass::RLI
+                    | BidiClass::FSI | BidiClass::PDI
+            );
+            let attached = mark
+                && !after_control
+                && items.last().is_some_and(|last| {
+                    last.context == context && last.range.end == offset
+                });
             let script = if specific(intrinsic) {
                 intrinsic
             } else if intrinsic == Script::Inherited {
@@ -217,16 +233,20 @@ fn itemize(
                     .or_else(|| extension.iter().find(|s| specific(*s)))
                     .unwrap_or(intrinsic)
             };
-            if specific(script) {
+            if specific(script) && !attached {
                 previous = Some(script);
             }
-            let level = bidi.levels[offset].number();
+            let (level, tag) = if let Some(base) = items.last().filter(|_| attached) {
+                (base.level, base.script)
+            } else {
+                (bidi.levels[offset].number(), script.as_iso15924_tag())
+            };
             let scalar_end = offset + ch.len_utf8();
             if let Some(last) = items.last_mut().filter(|last| {
                 last.context == context
                     && last.range.end == offset
                     && last.level == level
-                    && last.script == script.as_iso15924_tag()
+                    && last.script == tag
             }) {
                 last.range.end = scalar_end;
             } else {
@@ -235,7 +255,7 @@ fn itemize(
                     range: offset..scalar_end,
                     context: context.clone(),
                     level,
-                    script: script.as_iso15924_tag(),
+                    script: tag,
                 });
             }
         }
