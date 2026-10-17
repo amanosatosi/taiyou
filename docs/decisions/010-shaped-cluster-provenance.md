@@ -1,6 +1,6 @@
 # ADR-010: Decoded cluster ranges with retained original-source maps
 
-Status: **Proposed; architect decision required before dependent implementation.**
+Status: **Accepted as architectural direction by explicit repository-owner decision in Session 4.** Provisional dependent T009 implementation is authorized against this ADR. This records owner-level architectural review, not a submitted independent GitHub approval. Both PRs remain unmerged for final technical review.
 
 ## Concrete conflict
 
@@ -37,7 +37,9 @@ Every glyph's cluster range is checked within its run and against that run's imm
 
 ## Migration and verification
 
-No executable C2/C3/C4 amendment is implemented by this policy PR. Once an architect explicitly accepts this decision and authorizes dependent candidate preparation, update the normative notation and implement the sidecar/map handoff in the focused T009 implementation PR. Final integration remains separately review-gated; owner acceptance is not an independent GitHub approval or T005 protection.
+No executable C2/C3/C4 amendment is implemented by this policy PR. The owner explicitly accepted the decoded-range/retained-map design and parser span sidecar, and authorized the necessary C2/C3/C4 updates and provisional dependent parser/evaluator/shaper implementation. Final integration remains separately review-gated; owner acceptance is not an independent GitHub approval or T005 protection.
+
+The owner's architectural review additionally requires: validate supplied provenance against the actual event text field whenever known, preserving operation ordering, source identity and exact escape bytes; and check every DecodedSpan against its owning decoded text/map, rejecting cross-map confusion. Existing TextOp construction remains compatible and host-created spanless units remain explicitly unmappable. These requirements apply to the candidate, not just a later integration.
 
 Preserve all existing tokenizer, evaluator and source-map regressions. Add parser-to-evaluator-to-shaped tests for all escapes, UTF-8/BOM/CRLF, fi and combining clusters crossing override/paint gaps, producer lifetime, invalid supplied sidecars and explicitly unmappable host-created units. Preflight sidecar/map/glyph allocations using existing C7 limits. Keep the native unsafe boundary, reference pins, expected outputs and seven-package DAG unchanged.
 
