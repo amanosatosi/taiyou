@@ -40,6 +40,9 @@ viewport margins or perform collision placement. Default rotation origin is that
 anchor. A host may supply an absolute script origin. The integrated evaluator's
 `Placement::origin()` is still None: parsed org support belongs to a future input
 extension, not an invented coordinate or a new tag in T011.
+The existing style `Angle` supplies evaluated z rotation. The tokenizer does not
+yet support the frz override; this task preserves that explicit unsupported case
+and tests the established style interface instead of adding a new tag family.
 
 Q6 quantization uses C1 nearest, ties away from zero. Whole-pixel decomposition
 uses Euclidean division: -1 tick is offset -1 and phase 63. Device commands retain
