@@ -1,6 +1,6 @@
 # Implementation task index
 
-All tasks are **planned**, not completed. Filenames mentioned inside tasks are planned unless already delivered by this blueprint. Cargo commands are contracts for the future workspace, not commands that can run today. Read the task's linked contracts before implementation; an unresolved research prerequisite is a real gate.
+T001 and T003 are integrated, and the owner accepted ADR-008 and the integrated T003 parser baseline. Other tasks remain planned until their implementation and acceptance evidence is recorded. Cargo commands run on Actions only. Read the task's linked contracts before implementation; unresolved research prerequisites remain real gates. Owner acceptance is not independent-review or T005 protection evidence.
 
 **Verification runs in GitHub Actions.** Do not compile or install build dependencies on the user's PC. All Cargo/native/test commands below target CI runners; local work is editing and lightweight documentation/hash checks. Read the [execution policy](../DEVELOPMENT.md#d0-execution-location-and-local-storage), provide candidate SHA and Actions run/job links, and report unrun checks as pending. T001 supplies the initial remote source-check lane; this policy does not mean workflows already exist or have passed.
 

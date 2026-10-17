@@ -1,12 +1,12 @@
 # ADR-008: Explicit parser ingestion ownership
 
-Status: **Proposed; architect decision required.** Date: 2026-10-17.
+Status: **Accepted by explicit repository-owner architectural decision.** Date: 2026-10-17. The owner accepted the explicit ingestion-owner argument and the integrated T003 interface as the parser baseline in the autonomous development session. This records owner-level acceptance, not independent third-party review or T005 protection evidence.
 
 ## Problem
 
 C1 requires renderer-assigned, session-scoped TrackRevision values. C2 returns an already identified immutable Track from `parse_ass(bytes, options)`, while C10 ParseOptions carries only encoding, profile, limits and syntax. T003 requires a documented ingestion owner that never recycles identities in a renderer session. The current parser signature provides no route for that owner. See [issue 3](https://github.com/amanosatosi/taiyou/issues/3).
 
-## Proposed decision
+## Decision
 
 Add one explicit argument to the planned parser interface:
 
@@ -29,4 +29,4 @@ No parser or external API consumer exists on the integration base `1c43f3c33097a
 
 ## Implementation gate
 
-An architect must decide this proposal and approve the T003 exported types before T004 branches. Both prerequisites must be integrated first. This proposal supplies no independent review or T005 protection evidence and is not accepted merely because documentation checks pass. If rejected, retain the existing contract and choose another explicitly reviewed resolution; do not implement a guessed identity policy.
+PRs 4 (T003) and 5 (the contract) are integrated. The owner explicitly accepted this decision and approved the integrated T003 interface as the parser baseline. T004 may use that baseline. Further core-interface changes still require their own reviewed decision; owner acceptance here does not establish independent review or the protections required by T005.

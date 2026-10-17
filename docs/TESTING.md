@@ -1,6 +1,6 @@
 # Testing and protected validation
 
-No renderer tests have run yet. The blueprint checker is the only executable check delivered now. The workflows, Rust harnesses and corpus manifests below are planned tasks, with exact command contracts established by those tasks. Reference pins already exist in [references.lock.json](references.lock.json).
+The integrated T001/T003 foundation has Actions evidence for workspace/CLI checks, checked shared types, immutable records and compile-fail tests (see PRs 2 and 4). No renderer image or compatibility tests have run. The external harnesses and corpus manifests below remain planned tasks. Reference pins exist in [references.lock.json](references.lock.json); actual protected validation remains T005 work.
 
 Execution location: all compiler/Cargo/native build commands and renderer, safety and performance test executables run in GitHub Actions under the [CI-first policy](DEVELOPMENT.md#d0-execution-location-and-local-storage). The user's PC is limited to editing and lightweight documentation/hash checks. Preserve every acceptance criterion; moving execution to CI does not waive tests. Reports must identify the candidate SHA and Actions run/jobs. Controlled benchmark hardware is provisioned separately, never assumed to be this PC. CI provisions its own verified reference sources; local Windows archive paths are not runner inputs.
 
