@@ -1,0 +1,49 @@
+"""Linux CI only: instrument pinned FreeType, then run the actual Rust font tests.
+
+The C library is ASan/UBSan instrumented; this is not a Rust ASan build or fuzzing.
+"""
+import json
+import os
+from pathlib import Path
+import subprocess
+
+root = Path(__file__).resolve().parent.parent
+temporary = Path(os.environ["RUNNER_TEMP"])
+source = temporary / "taiyou-native-sources/f"
+build = temporary / "taiyou-font-sanitizer-build"
+prefix = temporary / "taiyou-font-sanitizer-install"
+
+def run(*args, **kwargs):
+    print("SANITIZER_RUN=" + json.dumps([str(arg) for arg in args]), flush=True)
+    return subprocess.run([str(arg) for arg in args], cwd=root, check=True, **kwargs)
+
+run("meson", "setup", build, source, "--prefix", prefix, "--libdir", "lib",
+    "--default-library", "static", "--buildtype", "debugoptimized", "--wrap-mode", "nodownload",
+    "-Dauto_features=disabled", "-Db_sanitize=address,undefined", "-Db_lundef=false",
+    *["-D" + name + "=disabled" for name in ["brotli", "bzip2", "harfbuzz", "mmap", "png", "tests", "zlib"]])
+run("meson", "compile", "-C", build, "-j", "2")
+run("meson", "install", "-C", build)
+environment = dict(os.environ)
+environment.update(PKG_CONFIG_LIBDIR=str(prefix / "lib/pkgconfig"),
+                   PKG_CONFIG_PATH=str(prefix / "lib/pkgconfig"),
+                   CARGO_TARGET_DIR=str(temporary / "taiyou-font-sanitizer-target"),
+                   RUSTFLAGS="-C link-arg=-lasan -C link-arg=-lubsan")
+actual = subprocess.check_output([environment["PKG_CONFIG"], "--variable=prefix", "freetype2"], env=environment, text=True).strip()
+if Path(actual).resolve() != prefix.resolve():
+    raise RuntimeError("sanitizer selected a different FreeType")
+run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), root / "build-support/font-abi.c")
+result = run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native",
+             "--no-run", "--message-format=json", env=environment, stdout=subprocess.PIPE, text=True)
+executables = []
+for line in result.stdout.splitlines():
+    item = json.loads(line)
+    if item.get("reason") == "compiler-artifact" and item.get("profile", {}).get("test") and item.get("executable"):
+        executables.append(item["executable"])
+if len(executables) != 2:
+    raise RuntimeError("expected font unit and integration test executables")
+environment["LD_PRELOAD"] = ":".join(subprocess.check_output(["cc", "-print-file-name=" + name], text=True).strip() for name in ["libasan.so", "libubsan.so"])
+environment["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1"
+environment["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"
+for executable in sorted(executables):
+    run(executable, "--test-threads=1", env=environment)
+print("FONT_NATIVE_ASAN_UBSAN_COMPLETE", flush=True)

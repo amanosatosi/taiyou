@@ -271,7 +271,7 @@ impl TrackRevision {
 
 /// Catalog snapshot identity; allocation belongs to the future catalog owner.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct CatalogRevision(u64);
+pub struct CatalogRevision(pub(crate) u64);
 impl CatalogRevision {
     pub const fn get(self) -> u64 {
         self.0

@@ -83,6 +83,9 @@ for name in ["freetype2", "harfbuzz"]:
 
 os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
 os.environ["TAIYOU_TEST_FONT"] = str(sources / "font.otf")
+run("python", root / "build-support/font-fixtures.py")
+os.environ["TAIYOU_TEST_BOLD"] = str(sources / "bold.otf")
+os.environ["TAIYOU_TEST_COLLECTION"] = str(sources / "collection.otc")
 native_features = ["--features", "taiyou-font/native"]
 run("rustc", "--version", "--verbose")
 for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
@@ -95,6 +98,7 @@ for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Car
 run("cargo", "build", "--locked", "--workspace", *native_features)
 run("cargo", "fmt", "--all", "--", "--check")
 run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "catalog_")
 run("cargo", "test", "--locked", "--workspace", *native_features)
 run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1", "-SelfTest")
 manifest = root / "build-support/dependency-smoke/Cargo.toml"
@@ -114,4 +118,5 @@ if platform.system() == "Linux":
     minimum = dict(os.environ, RUSTUP_TOOLCHAIN="1.85.0")
     run("cargo", "test", "--locked", "--workspace", *native_features, env=minimum)
     run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf", env=minimum)
+    run("python", root / "build-support/font-sanitizer.py")
 print("NATIVE_RECIPE_COMPLETE", flush=True)
