@@ -1,0 +1,27 @@
+[workspace]
+members = [
+    "crates/taiyou-types",
+    "crates/taiyou-ass",
+    "crates/taiyou-font",
+    "crates/taiyou-render",
+    "crates/taiyou-capi",
+    "crates/taiyou-cli",
+    "xtask",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+publish = false
+# Licensing remains an owner decision; no license grant is implied.
+
+[workspace.dependencies]
+taiyou-types = { path = "crates/taiyou-types" }
+taiyou-ass = { path = "crates/taiyou-ass" }
+taiyou-font = { path = "crates/taiyou-font" }
+taiyou-render = { path = "crates/taiyou-render" }
+taiyou-cli = { path = "crates/taiyou-cli" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
