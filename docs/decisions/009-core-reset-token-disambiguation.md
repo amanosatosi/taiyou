@@ -1,6 +1,6 @@
 # ADR-009: Core reset-token disambiguation
 
-Status: **Proposed; architect decision required.** No owner acceptance or independent review is recorded. This proposal does not amend CONTRACTS.md or authorize dependent semantic implementation.
+Status: **Accepted by explicit repository-owner architectural decision (choice B), 2026-10-17.** The owner selected exact declared-style matching in the review follow-up. This records owner-level acceptance, not independent third-party review or protected integration approval. CONTRACTS.md is updated in this separate policy PR; implementation remains separately reviewable in PR 8.
 
 ## Concrete ambiguity
 
@@ -8,14 +8,14 @@ C2 retains unknown operations, while C3 permits `\rName`. Names are preserved wi
 
 Local source observation: `C:\taiyou-time\refrences\mangetsu\docs\rnd-tags.md` lines 3–9 documents rnd/rndx/rndy/rndz/rnds as extension syntax. This is an unverified local archive observation, not authenticated upstream revision evidence or a LegacyXyV1 rule. No reference implementation was copied and no renderer was run. The main xy authority remains pinterf as specified in COMPATIBILITY.md.
 
-## Proposed intended Core behavior (choice B)
+## Accepted intended Core behavior (choice B)
 
 1. Bare `\r` is always ResetStyle(None).
 2. After the existing structural whitespace trimming, `\rName` is ResetStyle(Some(Name)) only when Name exactly matches a retained declared style name. Match case-sensitively, using the same post-section name resolution as event styles; forward definitions and last-definition-wins remain valid. The synthesized Default also qualifies.
 3. Other `r`-prefixed operations remain Unsupported with their full original span and a diagnostic. Do not guess reset-to-Default or execute a future extension. Preserve the existing unknown-name extraction; no extension is enabled by this rule.
 4. If a style named `nd` exists, `\rnd` is its named reset. If a style named `nd30` exists, `\rnd30` is its reset. Style existence deliberately resolves the unavoidable collision; a future syntax addition must review that collision and its profile revision. Do not grow an ad hoc list of reserved future tag names.
 
-| Input | Declared style names | Proposed token |
+| Input | Declared style names | Core token |
 |---|---|---|
 | `\r` | any | reset current event style |
 | `\rNamed` | Named, Default | named reset Named |
@@ -26,7 +26,7 @@ Local source observation: `C:\taiyou-time\refrences\mangetsu\docs\rnd-tags.md` l
 | `\rMissing` | Default only | Unsupported rMissing, **not** implicit Default reset |
 | `\r日本語 Style` | 日本語 Style, Default | exact named reset |
 
-This changes handling of unresolved named-reset tokens in PR 8. The architect must explicitly decide whether that is the desired Core boundary before implementation. It is not a Legacy compatibility claim or support-registry promotion.
+This changes handling of unresolved named-reset tokens in PR 8 under the owner's explicit decision. It is not a Legacy compatibility claim or support-registry promotion.
 
 ## Alternative A: lexical reset prefix always wins
 
@@ -38,6 +38,6 @@ Reserve only known rnd spellings before matching r. This is incomplete for futur
 
 ## Migration and review gates
 
-After architect acceptance, update C2/C3 explicitly in this separate policy change, including the unknown named-reset behavior. Then PR 8 may tokenize against the final post-section style-name table and add executable regressions for every row above, forward style definitions, duplicate definitions, strict/tolerant diagnostics and retained unknown spans/order. Keep legacy nesting/recovery research in R001 and evaluation in T007. No dependent task or PR 8 integration may treat this proposal as accepted.
+The owner decision authorizes PR 8 to tokenize against the final post-section style-name table and add executable regressions for every row above, forward style definitions, duplicate definitions, strict/tolerant syntax diagnostics and retained unknown spans/order. Keep legacy nesting/recovery research in R001 and evaluation in T007. Integrate this policy PR before PR 8 only after the applicable protected review requirements are met. No owner acceptance is represented as independent review.
 
 Independent PR 8 repairs may proceed now: enforce the existing text-byte-derived operation cap for every host-created TextOp variant before iteration/publication, and document that C2's unit escape variants carry event-level rather than individual source spans. Those repairs do not resolve or approve the reset grammar decision.

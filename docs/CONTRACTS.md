@@ -61,6 +61,8 @@ Core numeric tokens accept optional sign and decimal digits with an optional fra
 
 `OverrideOp` is a closed enum introduced by supported tasks: SetFont, SetSize, SetWeight, SetItalic, SetScale, SetSpacing, SetPaint(channel), SetOpacity(channel/all), SetBorder, SetShadow, SetBlur, SetPosition, Move, SetAlignment, SetOrigin, SetRotation, SetClip, ResetStyle, Transform, Fade, Karaoke and DrawingMode. Store typed parsed parameters and original order, not precomputed frame values. Unknown operations retain spans, not executable strings. Parser recovery must advance input; cap token count and nesting. R001 owns malformed/nested tag tokenization for Legacy; do not recursively parse arbitrary nesting as a guessed compatibility fix.
 
+Core reset disambiguation follows owner-accepted [ADR-009](decisions/009-core-reset-token-disambiguation.md): bare `\r` is ResetStyle(None). After structural whitespace trimming, `\rName` is a named reset only when Name exactly matches a final declared style name (case-sensitive; forward definitions, last-definition-wins and synthesized Default apply). Other r-prefixed tokens are Unsupported with original spans and diagnostics, never implicit Default resets. Thus `\rnd` resets style nd if that style exists, otherwise it remains unsupported. Future extension admission must review collisions and profile policy; this is not a Legacy rule.
+
 ## C3. Evaluation and dependency classification
 
 ```rust
@@ -78,7 +80,7 @@ struct EvaluatedRun {
 }
 ```
 
-Evaluate overrides left to right; text captures current state. `\r` resets style state, named `\rName` uses resolved style, and does not reset the event clock. Core repeated event placement uses last applicable operation; Legacy precedence is R001-gated. Unsupported operations generate diagnostics; a strict request fails with `UnsupportedFeature`, tolerant mode proceeds with a conspicuous report. Reference validation always records diagnostics and disallows unsupported behavior in a supported fixture.
+Evaluate overrides left to right; text captures current state. `\r` resets style state, named `\rName` uses its exact final resolved style under ADR-009, and does not reset the event clock. Unresolved r-prefixed tokens stay Unsupported, so they do not reset style state. Core repeated event placement uses last applicable operation; Legacy precedence is R001-gated. Unsupported operations generate diagnostics; a strict request fails with `UnsupportedFeature`, tolerant mode proceeds with a conspicuous report. Reference validation always records diagnostics and disallows unsupported behavior in a supported fixture.
 
 `ChangeClass` is an optimization hint with independent shape/layout/geometry/effect/paint/placement/clip flags; actual cache reuse compares full keys. It is never permission to omit a key field. Static results can be retained across all timestamps in their active interval. Animated values are evaluated each request, but equal normalized values reuse artifacts. Do not key every stage by time.
 
