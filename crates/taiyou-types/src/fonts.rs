@@ -98,7 +98,10 @@ impl CatalogIngestor {
     }
     /// Publishes descriptors without authenticating their claimed identities or
     /// metadata. Production code must pass these through native validation.
-    pub fn publish_unverified(&mut self, faces: Arc<[FontRecord]>) -> Result<Arc<FontCatalog>, FontError> {
+    pub fn publish_unverified(
+        &mut self,
+        faces: Arc<[FontRecord]>,
+    ) -> Result<Arc<FontCatalog>, FontError> {
         let value = if self.initialized {
             self.next.ok_or_else(|| {
                 FontError::new(ErrorCode::LimitExceeded, "catalog revision exhausted")
@@ -125,7 +128,11 @@ mod tests {
             initialized: true,
         };
         assert_eq!(
-            owner.publish_unverified(Arc::from([])).unwrap().revision().get(),
+            owner
+                .publish_unverified(Arc::from([]))
+                .unwrap()
+                .revision()
+                .get(),
             u64::MAX
         );
         for _ in 0..2 {

@@ -169,8 +169,12 @@ fn catalog_ties_follow_weight_then_italic_then_registration_order() {
     let mut context = FontContext::new().unwrap();
     let mut ingestion = CatalogIngestor::new();
     let mut builder = FontCatalogBuilder::new(Limits::default());
-    let regular = builder.register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0).unwrap();
-    let bold = builder.register(&mut context, &fixture("TAIYOU_TEST_BOLD"), 0).unwrap();
+    let regular = builder
+        .register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0)
+        .unwrap();
+    let bold = builder
+        .register(&mut context, &fixture("TAIYOU_TEST_BOLD"), 0)
+        .unwrap();
     let catalog = builder.snapshot(&mut ingestion).unwrap();
     let family = catalog.faces()[0].family();
     let limits = Limits::default();
@@ -235,38 +239,96 @@ fn catalog_unverified_import_recomputes_identity_and_metadata_before_publication
     let mut context = FontContext::new().unwrap();
     let mut session = CatalogIngestor::new();
     let mut builder = FontCatalogBuilder::new(Limits::default());
-    builder.register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0).unwrap();
+    builder
+        .register(&mut context, &fixture("TAIYOU_TEST_FONT"), 0)
+        .unwrap();
     let verified = builder.snapshot(&mut session).unwrap();
     let original = &verified.faces()[0];
     let mut drafts = CatalogIngestor::new();
-    let draft = drafts.publish_unverified(Arc::from([original.clone()])).unwrap();
+    let draft = drafts
+        .publish_unverified(Arc::from([original.clone()]))
+        .unwrap();
     let imported = validate_catalog(&draft, &mut context, &mut session, Limits::default()).unwrap();
     assert_eq!(verified.revision().get(), 0);
     assert_eq!(imported.revision().get(), 1);
     assert_eq!(imported.faces()[0].blob().id(), original.blob().id());
-    assert_eq!(resolve_family(&imported, &request(original.family(), 400, false), &Limits::default()).unwrap(), original.blob().id());
+    assert_eq!(
+        resolve_family(
+            &imported,
+            &request(original.family(), 400, false),
+            &Limits::default()
+        )
+        .unwrap(),
+        original.blob().id()
+    );
 
     let forge = |blob, family: &str, folded: &str, weight, italic| {
-        FontRecord::from_unverified(blob, Arc::from(family), Arc::from(folded), weight, italic).unwrap()
+        FontRecord::from_unverified(blob, Arc::from(family), Arc::from(folded), weight, italic)
+            .unwrap()
     };
     let genuine_blob = original.blob().clone();
-    let forged_identity = forge(FontBlob::from_unverified(FontId::new([0; 32], 0), genuine_blob.shared_bytes()), original.family(), original.folded_family(), original.weight(), original.italic());
-    let conflicting_bytes = forge(FontBlob::from_unverified(genuine_blob.id(), fixture("TAIYOU_TEST_BOLD").into()), original.family(), original.folded_family(), original.weight(), original.italic());
+    let forged_identity = forge(
+        FontBlob::from_unverified(FontId::new([0; 32], 0), genuine_blob.shared_bytes()),
+        original.family(),
+        original.folded_family(),
+        original.weight(),
+        original.italic(),
+    );
+    let conflicting_bytes = forge(
+        FontBlob::from_unverified(genuine_blob.id(), fixture("TAIYOU_TEST_BOLD").into()),
+        original.family(),
+        original.folded_family(),
+        original.weight(),
+        original.italic(),
+    );
     let cases = [
         vec![forged_identity],
         vec![original.clone(), conflicting_bytes],
         vec![original.clone(), original.clone()],
-        vec![forge(genuine_blob.clone(), "Forged family", original.folded_family(), original.weight(), original.italic())],
-        vec![forge(genuine_blob.clone(), original.family(), "forged folded family", original.weight(), original.italic())],
-        vec![forge(genuine_blob.clone(), original.family(), original.folded_family(), 700, original.italic())],
-        vec![forge(genuine_blob, original.family(), original.folded_family(), original.weight(), !original.italic())],
+        vec![forge(
+            genuine_blob.clone(),
+            "Forged family",
+            original.folded_family(),
+            original.weight(),
+            original.italic(),
+        )],
+        vec![forge(
+            genuine_blob.clone(),
+            original.family(),
+            "forged folded family",
+            original.weight(),
+            original.italic(),
+        )],
+        vec![forge(
+            genuine_blob.clone(),
+            original.family(),
+            original.folded_family(),
+            700,
+            original.italic(),
+        )],
+        vec![forge(
+            genuine_blob,
+            original.family(),
+            original.folded_family(),
+            original.weight(),
+            !original.italic(),
+        )],
     ];
     for records in cases {
         let draft = drafts.publish_unverified(records.into()).unwrap();
-        assert_eq!(validate_catalog(&draft, &mut context, &mut session, Limits::default()).unwrap_err().code(), ErrorCode::InvalidArgument);
+        assert_eq!(
+            validate_catalog(&draft, &mut context, &mut session, Limits::default())
+                .unwrap_err()
+                .code(),
+            ErrorCode::InvalidArgument
+        );
     }
     let after = builder.snapshot(&mut session).unwrap();
-    assert_eq!(after.revision().get(), 2, "failed imports must not consume validated output identities");
+    assert_eq!(
+        after.revision().get(),
+        2,
+        "failed imports must not consume validated output identities"
+    );
     assert_eq!(context.glyph_count(original.blob()).unwrap(), 2478);
 }
 
@@ -275,9 +337,15 @@ fn catalog_native_blob_consumption_rejects_forged_digests_and_face_indices() {
     let bytes: Arc<[u8]> = fixture("TAIYOU_TEST_FONT").into();
     let forged = FontBlob::from_unverified(FontId::new([0; 32], 0), bytes);
     let mut context = FontContext::new().unwrap();
-    assert_eq!(context.glyph_count(&forged).unwrap_err().code(), ErrorCode::InvalidArgument);
+    assert_eq!(
+        context.glyph_count(&forged).unwrap_err().code(),
+        ErrorCode::InvalidArgument
+    );
     let mut builder = FontCatalogBuilder::new(Limits::default());
     let id = builder.register(&mut context, forged.bytes(), 0).unwrap();
     let bad_index = FontBlob::from_unverified(FontId::new(*id.sha256(), 1), forged.shared_bytes());
-    assert_eq!(context.glyph_count(&bad_index).unwrap_err().code(), ErrorCode::InvalidArgument);
+    assert_eq!(
+        context.glyph_count(&bad_index).unwrap_err().code(),
+        ErrorCode::InvalidArgument
+    );
 }
