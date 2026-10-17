@@ -22,8 +22,10 @@ if platform.system() == "Darwin" and platform.machine() != "arm64":
 if os.name == "nt":
     vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
     installation = subprocess.check_output([str(vswhere), "-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"], text=True).strip()
-    command = f'"{installation}\\Common7\\Tools\\VsDevCmd.bat" -no_logo -arch=x64 && set'
-    environment = subprocess.check_output(["cmd.exe", "/d", "/s", "/c", command], encoding="utf-8", errors="replace")
+    command = f'call "{installation}\\Common7\\Tools\\VsDevCmd.bat" -no_logo -arch=x64 >nul && set'
+    # Windows list2cmdline escapes inner quotes for C argv, not cmd builtins.
+    # Use the shell's own /c quoting for this trusted vswhere installation path.
+    environment = subprocess.check_output(command, shell=True, executable=os.environ["COMSPEC"], encoding="utf-8", errors="replace")
     for line in environment.splitlines():
         key, sep, value = line.partition("=")
         if sep and key.upper() in {"PATH", "INCLUDE", "LIB", "LIBPATH", "VCTOOLSINSTALLDIR", "WINDOWSSDKDIR", "WINDOWSSDKVERSION", "UNIVERSALCRTSDKDIR"}:
@@ -47,6 +49,9 @@ os.environ["PKG_CONFIG_LIBDIR"] = str(prefix / "lib/pkgconfig")
 os.environ["PKG_CONFIG_PATH"] = str(prefix / "lib/pkgconfig")
 os.environ["PKG_CONFIG_ALL_STATIC"] = "1"
 os.environ["PKG_CONFIG_ALLOW_SYSTEM_LIBS"] = "1"
+# freetype-sys unconditionally depends on libz-sys even with FreeType's zlib
+# support disabled. Force its checksummed vendored source, never host zlib.
+os.environ["LIBZ_SYS_STATIC"] = "1"
 os.environ.pop("PKG_CONFIG_SYSROOT_DIR", None)
 for name in ["freetype", "harfbuzz"]:
     source = next(path for path in (sources / name).iterdir() if path.is_dir())
@@ -82,4 +87,14 @@ run("cargo", "tree", "--locked", "--manifest-path", manifest)
 run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf")
 metadata = json.loads(subprocess.check_output(["cargo","metadata","--locked","--manifest-path",str(manifest),"--format-version","1"], text=True))
 print("DEPENDENCY_LICENSES=" + json.dumps([{k:p.get(k) for k in ["name","version","license","repository","rust_version"]} for p in metadata["packages"]]), flush=True)
+zlib = next(package for package in metadata["packages"] if package["name"] == "libz-sys")
+for header in Path(zlib["manifest_path"]).parent.rglob("zlib.h"):
+    versions = [line.strip() for line in header.read_text(encoding="utf-8").splitlines() if line.startswith("#define ZLIB_VERSION")]
+    print("BUNDLED_ZLIB=" + json.dumps({"crate": zlib["version"], "header": str(header), "versions": versions}), flush=True)
+if platform.system() == "Linux":
+    run("python", root / "build-support/audit.py")
+    run("rustup", "toolchain", "install", "1.85.0", "--profile", "minimal")
+    minimum = dict(os.environ, RUSTUP_TOOLCHAIN="1.85.0")
+    run("cargo", "test", "--locked", "--workspace", env=minimum)
+    run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf", env=minimum)
 print("NATIVE_RECIPE_COMPLETE", flush=True)

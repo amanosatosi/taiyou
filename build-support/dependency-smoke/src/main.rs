@@ -4,6 +4,18 @@ use harfbuzz_sys as hb;
 use std::ptr;
 use unicode_script::{Script, UnicodeScript};
 
+// freetype-sys 0.23.0 omits this stable diagnostic API. This temporary audit
+// declaration matches FreeType's pinned freetype.h; no production ABI is added.
+unsafe extern "C" {
+    fn zlibVersion() -> *const std::ffi::c_char;
+    fn FT_Library_Version(
+        library: ft::FT_Library,
+        major: *mut ft::FT_Int,
+        minor: *mut ft::FT_Int,
+        patch: *mut ft::FT_Int,
+    );
+}
+
 struct FreeType {
     library: ft::FT_Library,
     face: ft::FT_Face,
@@ -43,6 +55,9 @@ fn main() {
     // bytes have checked extent and outlive every native face below. Successful
     // native results/nullness are checked before dereference. No pointers escape.
     unsafe {
+        let zlib = zlibVersion();
+        assert!(!zlib.is_null());
+        println!("BUNDLED_ZLIB_VERSION={}", std::ffi::CStr::from_ptr(zlib).to_str().expect("zlib ASCII version"));
         assert_eq!(ft::FT_Init_FreeType(&mut library), 0);
         assert!(!library.is_null());
         let error = ft::FT_New_Memory_Face(library, bytes.as_ptr(), ft_length, 0, &mut face);
@@ -54,7 +69,7 @@ fn main() {
         let mut major = 0;
         let mut minor = 0;
         let mut patch = 0;
-        ft::FT_Library_Version(ft.library, &mut major, &mut minor, &mut patch);
+        FT_Library_Version(ft.library, &mut major, &mut minor, &mut patch);
         assert_eq!(
             (major, minor, patch),
             (2, 14, 3),
