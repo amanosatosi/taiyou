@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "provenance": "SHA-256 acquired on Actions run 39039556527/job/117416074251; upstream release tag commits resolved through official GitHub API; no local archive equivalence claim",
+  "sources": [
+    {
+      "commit": "863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+      "id": "harfbuzz",
+      "sha256": "35d6211b9310646c8d6b7c06d697439efd26d787ec8fff2508e6b936836ca492",
+      "url": "https://codeload.github.com/harfbuzz/harfbuzz/tar.gz/863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+      "version": "14.5.0"
+    },
+    {
+      "commit": "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "id": "freetype",
+      "sha256": "11cd478953fc1d382f20a233b8e2aed6c31b47cbf0568c4bdb3334bcc1550698",
+      "url": "https://codeload.github.com/freetype/freetype/tar.gz/0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "version": "2.14.3"
+    },
+    {
+      "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+      "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+      "id": "font",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "url": "https://raw.githubusercontent.com/adobe-fonts/source-sans/ed1808970eb3c7301c9a523bee26473ba0bb62fa/OTF/SourceSans3-Regular.otf",
+      "version": "Source Sans 3 3.052R"
+    }
+  ]
+}

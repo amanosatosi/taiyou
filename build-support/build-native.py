@@ -1,0 +1,85 @@
+"""CI-only cold native recipes and binding audit. No system library fallback."""
+import json
+import os
+from pathlib import Path
+import platform
+import shutil
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parent.parent
+sources = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-sources"
+prefix = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-install"
+builds = Path(os.environ["RUNNER_TEMP"]) / "taiyou-native-build"
+builds.mkdir(exist_ok=True)
+
+def run(*args, **kwargs):
+    print("RUN=" + json.dumps([str(arg) for arg in args]), flush=True)
+    return subprocess.run([str(arg) for arg in args], cwd=root, check=True, **kwargs)
+
+if platform.system() == "Darwin" and platform.machine() != "arm64":
+    raise RuntimeError("macOS acceptance requires ARM64")
+if os.name == "nt":
+    vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
+    installation = subprocess.check_output([str(vswhere), "-latest", "-products", "*", "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"], text=True).strip()
+    command = f'"{installation}\\Common7\\Tools\\VsDevCmd.bat" -no_logo -arch=x64 && set'
+    environment = subprocess.check_output(["cmd.exe", "/d", "/s", "/c", command], encoding="utf-8", errors="replace")
+    for line in environment.splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.upper() in {"PATH", "INCLUDE", "LIB", "LIBPATH", "VCTOOLSINSTALLDIR", "WINDOWSSDKDIR", "WINDOWSSDKVERSION", "UNIVERSALCRTSDKDIR"}:
+            os.environ[key] = value
+    os.environ["CC"] = "cl"
+    os.environ["CXX"] = "cl"
+
+print("ENVIRONMENT=" + json.dumps({"os":platform.platform(),"arch":platform.machine(),"image":os.environ.get("ImageVersion"),"python":platform.python_version()}), flush=True)
+run("meson", "--version")
+run("ninja", "--version")
+pkgconf = shutil.which("pkgconf")
+if not pkgconf:
+    raise RuntimeError("pinned pkgconf executable unavailable")
+run(pkgconf, "--version")
+flags = {
+    "freetype": ["-Dbrotli=disabled", "-Dbzip2=disabled", "-Dharfbuzz=disabled", "-Dmmap=disabled", "-Dpng=disabled", "-Dtests=disabled", "-Dzlib=disabled"],
+    "harfbuzz": ["-D" + name + "=disabled" for name in ["glib", "gobject", "cairo", "chafa", "png", "zlib", "icu", "graphite", "graphite2", "freetype", "fontations", "gdi", "directwrite", "coretext", "harfrust", "kbts", "wasm", "raster", "vector", "gpu", "gpu_demo", "subset", "tests", "introspection", "docs", "utilities", "benchmark"]],
+}
+os.environ["PKG_CONFIG"] = pkgconf
+os.environ["PKG_CONFIG_LIBDIR"] = str(prefix / "lib/pkgconfig")
+os.environ["PKG_CONFIG_PATH"] = str(prefix / "lib/pkgconfig")
+os.environ["PKG_CONFIG_ALL_STATIC"] = "1"
+os.environ["PKG_CONFIG_ALLOW_SYSTEM_LIBS"] = "1"
+os.environ.pop("PKG_CONFIG_SYSROOT_DIR", None)
+for name in ["freetype", "harfbuzz"]:
+    source = next(path for path in (sources / name).iterdir() if path.is_dir())
+    directory = builds / name
+    common = ["--prefix", str(prefix), "--libdir", "lib", "--default-library", "static", "--buildtype", "release", "--wrap-mode", "nodownload", "-Dauto_features=disabled"]
+    if os.name == "nt": common.append("-Db_vscrt=md")
+    run("meson", "setup", directory, source, *common, *flags[name])
+    run("meson", "compile", "-C", directory, "-j", "2")
+    run("meson", "install", "-C", directory)
+    options = json.loads(subprocess.check_output(["meson", "introspect", str(directory), "--buildoptions"], text=True))
+    print("BUILD_OPTIONS=" + json.dumps({"library":name,"options":[v for v in options if v["type"] in {"feature", "boolean", "combo"}]}), flush=True)
+for name in ["freetype2", "harfbuzz"]:
+    run(pkgconf, "--modversion", name)
+    actual = subprocess.check_output([pkgconf,"--variable=prefix",name], text=True).strip()
+    if Path(actual).resolve() != prefix.resolve(): raise RuntimeError("pkgconf selected a host library")
+
+os.environ["RUSTUP_TOOLCHAIN"] = "1.99.1"
+run("rustc", "--version", "--verbose")
+for manifest in [root / "Cargo.toml", root / "build-support/dependency-smoke/Cargo.toml"]:
+    lock = manifest.parent / "Cargo.lock"
+    if not lock.exists(): run("cargo", "generate-lockfile", "--manifest-path", manifest)
+    print("LOCK_BEGIN=" + str(manifest.relative_to(root)), flush=True)
+    print(lock.read_text(encoding="utf-8"), flush=True)
+    print("LOCK_END", flush=True)
+run("cargo", "build", "--locked", "--workspace")
+run("cargo", "fmt", "--all", "--", "--check")
+run("cargo", "clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings")
+run("cargo", "test", "--locked", "--workspace")
+run("pwsh", "-NoProfile", "-File", "scripts/check-workspace.ps1")
+manifest = root / "build-support/dependency-smoke/Cargo.toml"
+run("cargo", "fmt", "--manifest-path", manifest, "--", "--check")
+run("cargo", "tree", "--locked", "--manifest-path", manifest)
+run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf")
+metadata = json.loads(subprocess.check_output(["cargo","metadata","--locked","--manifest-path",str(manifest),"--format-version","1"], text=True))
+print("DEPENDENCY_LICENSES=" + json.dumps([{k:p.get(k) for k in ["name","version","license","repository","rust_version"]} for p in metadata["packages"]]), flush=True)
+print("NATIVE_RECIPE_COMPLETE", flush=True)

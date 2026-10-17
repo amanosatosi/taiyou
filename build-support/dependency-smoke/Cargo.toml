@@ -1,0 +1,15 @@
+[package]
+name = "taiyou-dependency-smoke"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+publish = false
+
+# Isolated build audit, not an eighth production workspace package.
+[workspace]
+
+[dependencies]
+harfbuzz-sys = { version = "=0.8.0", default-features = false }
+freetype-sys = { version = "=0.23.0", default-features = false }
+unicode-bidi = "=0.3.18"
+unicode-script = "=0.5.8"
