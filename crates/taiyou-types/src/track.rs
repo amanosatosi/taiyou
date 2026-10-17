@@ -986,17 +986,41 @@ mod tests {
             TextOp::HardBreak,
             TextOp::SoftBreak,
             TextOp::NoBreakSpace,
-            TextOp::Text { text: Arc::from(""), source: span },
-            TextOp::Unsupported { name: Arc::from("unknown"), source: span },
-            TextOp::Override(OverrideOp::ResetStyle { name: None, source: span }),
+            TextOp::Text {
+                text: Arc::from(""),
+                source: span,
+            },
+            TextOp::Unsupported {
+                name: Arc::from("unknown"),
+                source: span,
+            },
+            TextOp::Override(OverrideOp::ResetStyle {
+                name: None,
+                source: span,
+            }),
         ];
         for (index, operation) in operations.into_iter().enumerate() {
             let publish = |owner: &mut TrackIngestor, count| {
-                let event = Event::new(EventId::new(0), TimeUs::from_micros(0), TimeUs::from_micros(1), StyleId::new(0), span)
-                    .with_program(vec![operation.clone(); count].into());
-                owner.ingest(source.clone(), ScriptInfo::core_default(), Arc::from([Style::core_default()]), Arc::from([event]), &limits)
+                let event = Event::new(
+                    EventId::new(0),
+                    TimeUs::from_micros(0),
+                    TimeUs::from_micros(1),
+                    StyleId::new(0),
+                    span,
+                )
+                .with_program(vec![operation.clone(); count].into());
+                owner.ingest(
+                    source.clone(),
+                    ScriptInfo::core_default(),
+                    Arc::from([Style::core_default()]),
+                    Arc::from([event]),
+                    &limits,
+                )
             };
-            assert_eq!(publish(&mut owner, 3).unwrap_err().code(), ErrorCode::LimitExceeded);
+            assert_eq!(
+                publish(&mut owner, 3).unwrap_err().code(),
+                ErrorCode::LimitExceeded
+            );
             let track = publish(&mut owner, 2).unwrap();
             assert_eq!(track.revision().get(), u64::try_from(index).unwrap());
             assert_eq!(track.events()[0].program().len(), 2);

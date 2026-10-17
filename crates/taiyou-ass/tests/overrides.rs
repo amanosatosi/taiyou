@@ -266,20 +266,43 @@ fn overrides_every_byte_truncation_and_seeded_malformed_input_never_panics() {
 #[test]
 fn overrides_preserve_declared_named_resets_including_r_prefix_collisions() {
     for name in ["Named", "nd", "ndx", "nd42", "nd(1)", "日本語 Style"] {
-        let input = format!("[V4+ Styles]\nFormat: Name,Fontsize\nStyle: Default,20\nStyle: {name},24\n{}", script(&format!("{{\\r{name}\\r}}A")));
-        let parsed = parse_ass(input.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
+        let input = format!(
+            "[V4+ Styles]\nFormat: Name,Fontsize\nStyle: Default,20\nStyle: {name},24\n{}",
+            script(&format!("{{\\r{name}\\r}}A"))
+        );
+        let parsed = parse_ass(
+            input.as_bytes(),
+            &ParseOptions::default(),
+            &mut TrackIngestor::new(),
+        )
+        .unwrap();
         let ops = parsed.track().events()[0].program();
-        assert!(matches!(&ops[0], TextOp::Override(OverrideOp::ResetStyle { name: Some(actual), .. }) if actual.as_ref() == name));
-        assert!(matches!(&ops[1], TextOp::Override(OverrideOp::ResetStyle { name: None, .. })));
-        let TextOp::Override(op) = &ops[0] else { panic!("missing named reset") };
-        assert_eq!(op.source().slice(parsed.track().source()), Some(format!("\\r{name}").as_str()));
+        assert!(
+            matches!(&ops[0], TextOp::Override(OverrideOp::ResetStyle { name: Some(actual), .. }) if actual.as_ref() == name)
+        );
+        assert!(matches!(
+            &ops[1],
+            TextOp::Override(OverrideOp::ResetStyle { name: None, .. })
+        ));
+        let TextOp::Override(op) = &ops[0] else {
+            panic!("missing named reset")
+        };
+        assert_eq!(
+            op.source().slice(parsed.track().source()),
+            Some(format!("\\r{name}").as_str())
+        );
     }
 }
 
 #[test]
 fn overrides_escape_provenance_is_original_event_source_not_decoded_text() {
     let input = format!("\u{feff}{}", script("é\\N日\\nX\\hY")).replace('\n', "\r\n");
-    let parsed = parse_ass(input.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
+    let parsed = parse_ass(
+        input.as_bytes(),
+        &ParseOptions::default(),
+        &mut TrackIngestor::new(),
+    )
+    .unwrap();
     let track = parsed.track();
     let event = &track.events()[0];
     let ops = event.program();
@@ -287,7 +310,13 @@ fn overrides_escape_provenance_is_original_event_source_not_decoded_text() {
     assert_eq!(ops[1], TextOp::HardBreak);
     assert_eq!(ops[3], TextOp::SoftBreak);
     assert_eq!(ops[5], TextOp::NoBreakSpace);
-    assert!(event.source().slice(track.source()).unwrap().ends_with("é\\N日\\nX\\hY"));
+    assert!(
+        event
+            .source()
+            .slice(track.source())
+            .unwrap()
+            .ends_with("é\\N日\\nX\\hY")
+    );
     for operation in ops {
         if let TextOp::Text { text, source } = operation {
             assert_eq!(source.slice(track.source()), Some(text.as_ref()));
