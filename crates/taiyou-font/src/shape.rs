@@ -57,6 +57,7 @@ pub(crate) struct NativeRequest<'a> {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RawGlyph {
+    pub ink: Option<[i32; 4]>,
     pub glyph: u32,
     pub cluster: u32,
     pub advance_x: i32,
@@ -173,6 +174,20 @@ fn itemize(
     let mut items: Vec<Item> = Vec::new();
     let mut breaks = Vec::new();
     for paragraph in &bidi.paragraphs {
+        if paragraph.range.is_empty() {
+            continue;
+        }
+        // Hard lines are paragraphs in the initial WrapStyle-2 stage. Resolve L1
+        // trailing whitespace here; L2 visual run ordering remains in layout.
+        // Keep the L1 working vector paragraph-sized: reordered_levels clones
+        // its analysis vector, so a whole-event call per line would be quadratic.
+        let paragraph_text = &text[paragraph.range.clone()];
+        let local = BidiInfo::new(paragraph_text, Some(paragraph.level));
+        let local_paragraph = local
+            .paragraphs
+            .first()
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "missing paragraph analysis"))?;
+        let line_levels = local.reordered_levels(local_paragraph, 0..paragraph_text.len());
         let mut end = paragraph.range.end;
         while end > paragraph.range.start && bidi.original_classes[end - 1] == BidiClass::B {
             end = text[..end]
@@ -247,7 +262,10 @@ fn itemize(
             let (level, tag) = if let Some(base) = items.last().filter(|_| attached) {
                 (base.level, base.script)
             } else {
-                (bidi.levels[offset].number(), script.as_iso15924_tag())
+                (
+                    line_levels[offset - paragraph.range.start].number(),
+                    script.as_iso15924_tag(),
+                )
             };
             let scalar_end = offset + ch.len_utf8();
             if let Some(last) = items.last_mut().filter(|last| {
@@ -567,12 +585,30 @@ fn shape_item(
                 finite(f64::from(g.offset_x) * scale)?,
                 finite(-f64::from(g.offset_y) * scale)?,
             );
-            glyphs.push(ShapedGlyph::new(
-                face.id(),
-                g.glyph,
-                cluster.clone(),
-                position,
-            ));
+            let ink = if cluster.text().chars().all(char::is_whitespace) {
+                GlyphInk::Empty
+            } else if let Some([x, y, w, h]) = g.ink {
+                if w == 0 || h == 0 {
+                    GlyphInk::Empty
+                } else {
+                    let (x0, x1) = (f64::from(x), (i64::from(x) + i64::from(w)) as f64);
+                    let (y0, y1) = (-f64::from(y), -(i64::from(y) + i64::from(h)) as f64);
+                    GlyphInk::Bounds(
+                        ScriptBounds::new(
+                            x0.min(x1) * scale,
+                            y0.min(y1) * scale,
+                            x0.max(x1) * scale,
+                            y0.max(y1) * scale,
+                        )
+                        .map_err(|e| error(e.code(), e.detail()))?,
+                    )
+                }
+            } else {
+                GlyphInk::Unknown
+            };
+            glyphs.push(
+                ShapedGlyph::new(face.id(), g.glyph, cluster.clone(), position).with_ink(ink),
+            );
             if g.glyph == 0
                 && missing
                     .last()
@@ -644,6 +680,7 @@ pub fn shape_event(
     preflight(map.text(), limits)?;
     let mut styles: Vec<(DecodedSpan, ShapeStyle)> = Vec::new();
     let mut paints = Vec::new();
+    let mut previous_scale = None;
     for run in event.runs() {
         let span = run.decoded().ok_or_else(|| {
             error(
@@ -665,16 +702,17 @@ pub fn shape_event(
         if span.is_empty() {
             continue;
         }
-        if let Some((last, style)) = styles
-            .last_mut()
-            .filter(|(last, style)| last.end() == span.start() && style == run.shaping())
-        {
+        let scale = (run.geometry().scale_x(), run.geometry().scale_y());
+        if let Some((last, style)) = styles.last_mut().filter(|(last, style)| {
+            last.end() == span.start() && style == run.shaping() && previous_scale == Some(scale)
+        }) {
             *last = map.decoded_span(last.start()..span.end())?;
             let _ = style;
         } else {
             reserve(&mut styles, 1, limits)?;
             styles.push((span.clone(), run.shaping().clone()));
         }
+        previous_scale = Some(scale);
     }
     let (resolved, breaks) = resolve_mapped(catalog, map, &styles, options, limits)?;
     let mut runs = Vec::new();
@@ -699,6 +737,7 @@ pub fn shape_event(
         reserve(&mut runs, 1, limits)?;
         runs.push(run);
     }
+    let empty_lines = empty_line_metrics(ctx, catalog, event, map, &breaks, options, limits)?;
     ShapedEvent::new(
         event,
         map.clone(),
@@ -710,5 +749,79 @@ pub fn shape_event(
             .finish()
             .map_err(|e| error(e.code(), e.detail()))?
             .into(),
-    )
+    )?
+    .with_empty_lines(empty_lines.into())
+}
+
+fn empty_line_metrics(
+    ctx: &mut FontContext,
+    catalog: &ValidatedFontCatalog,
+    event: &EvaluatedEvent,
+    map: &Arc<SourceMappedText>,
+    breaks: &[DecodedSpan],
+    options: &ShapeOptions,
+    limits: &Limits,
+) -> Result<Vec<EmptyLineMetrics>, FontError> {
+    let mut result = Vec::new();
+    let mut start = 0;
+    let mut previous: Option<(FontId, RawRun)> = None;
+    for i in 0..=breaks.len() {
+        let end = breaks.get(i).map_or(map.text().len() as u32, |b| b.start());
+        if start == end {
+            let evaluated = event.runs().get(
+                event
+                    .runs()
+                    .partition_point(|r| r.decoded().is_some_and(|s| s.end() <= start)),
+            );
+            let (style, scale_y) = if let Some(run) = evaluated {
+                (run.shaping().clone(), run.geometry().scale_y())
+            } else if let Some(style) = event.terminal_style() {
+                (ShapeStyle::from_style(style), style.scale_y())
+            } else if let Some(run) = event.runs().last() {
+                (run.shaping().clone(), run.geometry().scale_y())
+            } else {
+                return Err(error(
+                    ErrorCode::InvalidArgument,
+                    "empty event lacks explicit style metrics",
+                ));
+            };
+            let order = priorities(catalog, &style, limits)?;
+            let face = catalog.faces()[order[0]].blob();
+            if previous.as_ref().is_none_or(|(id, _)| *id != face.id()) {
+                let request = NativeRequest {
+                    text: "",
+                    context: 0..0,
+                    range: 0..0,
+                    rtl: false,
+                    script: u32::from_be_bytes(*b"Zyyy"),
+                    language: options.language(),
+                    ligatures: true,
+                };
+                previous = Some((face.id(), ctx.shape_raw(face, &request, limits)?));
+            }
+            let raw = &previous
+                .as_ref()
+                .ok_or_else(|| error(ErrorCode::NativeFailure, "missing font metrics"))?
+                .1;
+            let scale = style.font_size().get() / f64::from(raw.upem);
+            let finite = |v| FiniteF64::new(v).map_err(|_| limited());
+            let metrics = RunMetrics::new(
+                finite(f64::from(raw.ascent) * scale)?,
+                finite(-f64::from(raw.descent) * scale)?,
+                finite(f64::from(raw.line_gap) * scale)?,
+                u16::try_from(raw.upem).map_err(|_| limited())?,
+            )?;
+            reserve(&mut result, 1, limits)?;
+            result.push(EmptyLineMetrics {
+                decoded: map.decoded_span(start..start)?,
+                font: face.id(),
+                metrics,
+                scale_y,
+            });
+        }
+        if let Some(b) = breaks.get(i) {
+            start = b.end();
+        }
+    }
+    Ok(result)
 }

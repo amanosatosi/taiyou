@@ -298,6 +298,19 @@ impl FontContext {
                     return Err(failed());
                 }
                 glyphs.push(RawGlyph {
+                    ink: {
+                        let mut extents: hb::hb_glyph_extents_t = std::mem::zeroed();
+                        if hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents) != 0 {
+                            Some([
+                                extents.x_bearing,
+                                extents.y_bearing,
+                                extents.width,
+                                extents.height,
+                            ])
+                        } else {
+                            None
+                        }
+                    },
                     glyph: g.codepoint,
                     cluster,
                     advance_x: p.x_advance,
@@ -669,6 +682,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<hb::hb_glyph_info_t>(), 20);
         assert_eq!(std::mem::size_of::<hb::hb_glyph_position_t>(), 20);
         assert_eq!(std::mem::size_of::<hb::hb_font_extents_t>(), 48);
+        assert_eq!(std::mem::size_of::<hb::hb_glyph_extents_t>(), 16);
         assert_eq!(std::mem::size_of::<hb::hb_feature_t>(), 16);
         let bytes: Arc<[u8]> = std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap())
             .unwrap()

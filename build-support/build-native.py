@@ -90,6 +90,12 @@ native_features = ["--features", "taiyou-cli/native"]
 reference_args = ["--discover"] if os.environ.get("TAIYOU_DISCOVER_SHAPING") == "1" else []
 run(sys.executable, root / "build-support/shaping-reference.py", *reference_args)
 os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-reference.tsv")
+run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "layout_numeric", "--test", "layout_fixed_font")
+run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "layout_pipeline")
+if os.environ.get("TAIYOU_FOCUSED_LAYOUT") == "1":
+    run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+    print("FOCUSED_T010_COMPLETE; full existing matrix remains required", flush=True)
+    sys.exit(0)
 run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "--test", "shaping")
 run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "shaping")
 if os.environ.get("TAIYOU_FOCUSED_SHAPING") == "1":

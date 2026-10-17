@@ -22,6 +22,7 @@
 mod error;
 mod evaluation;
 mod fonts;
+mod layout;
 mod scene;
 mod shaping;
 pub mod source_map;
@@ -31,6 +32,7 @@ mod units;
 pub use error::*;
 pub use evaluation::*;
 pub use fonts::*;
+pub use layout::*;
 pub use scene::*;
 pub use shaping::*;
 pub use source_map::{DecodedSpan, SourceMappedText, TextSourcePiece};

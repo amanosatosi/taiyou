@@ -85,6 +85,7 @@ pub struct FaceMetrics {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedGlyph {
+    ink: GlyphInk,
     font: FontId,
     glyph: u32,
     cluster: DecodedSpan,
@@ -93,6 +94,7 @@ pub struct ShapedGlyph {
 impl ShapedGlyph {
     pub fn new(font: FontId, glyph: u32, cluster: DecodedSpan, position: GlyphPosition) -> Self {
         Self {
+            ink: GlyphInk::Unknown,
             font,
             glyph,
             cluster,
@@ -101,6 +103,13 @@ impl ShapedGlyph {
     }
     pub const fn font(&self) -> FontId {
         self.font
+    }
+    pub fn with_ink(mut self, ink: GlyphInk) -> Self {
+        self.ink = ink;
+        self
+    }
+    pub const fn ink(&self) -> GlyphInk {
+        self.ink
     }
     pub const fn glyph(&self) -> u32 {
         self.glyph
@@ -257,6 +266,7 @@ pub struct PaintSpan {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedEvent {
+    empty_lines: Arc<[EmptyLineMetrics]>,
     evaluated: EvaluatedEvent,
     source_map: Arc<SourceMappedText>,
     runs: Arc<[ShapedRun]>,
@@ -335,6 +345,7 @@ impl ShapedEvent {
             ));
         }
         Ok(Self {
+            empty_lines: Arc::from([]),
             evaluated: evaluated.clone(),
             source_map,
             runs,
@@ -346,6 +357,27 @@ impl ShapedEvent {
     }
     pub const fn id(&self) -> EventId {
         self.evaluated.id()
+    }
+    pub fn with_empty_lines(mut self, lines: Arc<[EmptyLineMetrics]>) -> Result<Self, FontError> {
+        let mut previous = None;
+        for line in lines.iter() {
+            if !line.decoded.belongs_to(&self.source_map)
+                || !line.decoded.is_empty()
+                || line.scale_y.get() < 0.0
+                || previous.is_some_and(|p| p >= line.decoded.start())
+            {
+                return Err(FontError::new(
+                    ErrorCode::InvalidArgument,
+                    "invalid empty-line metrics",
+                ));
+            }
+            previous = Some(line.decoded.start());
+        }
+        self.empty_lines = lines;
+        Ok(self)
+    }
+    pub fn empty_lines(&self) -> &[EmptyLineMetrics] {
+        &self.empty_lines
     }
     pub const fn order(&self) -> EventOrder {
         self.evaluated.order()

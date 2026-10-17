@@ -342,6 +342,7 @@ impl EvaluatedRun {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedEvent {
+    terminal_style: Option<Style>,
     id: EventId,
     order: EventOrder,
     runs: Arc<[EvaluatedRun]>,
@@ -358,6 +359,7 @@ impl EvaluatedEvent {
         animation: ChangeClass,
     ) -> Self {
         Self {
+            terminal_style: None,
             id,
             order,
             runs,
@@ -368,6 +370,13 @@ impl EvaluatedEvent {
     }
     pub const fn id(&self) -> EventId {
         self.id
+    }
+    pub fn with_terminal_style(mut self, style: Style) -> Self {
+        self.terminal_style = Some(style);
+        self
+    }
+    pub fn terminal_style(&self) -> Option<&Style> {
+        self.terminal_style.as_ref()
     }
     pub fn source_map(&self) -> Option<&Arc<SourceMappedText>> {
         self.source_map.as_ref()
