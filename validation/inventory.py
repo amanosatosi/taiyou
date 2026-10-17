@@ -57,6 +57,19 @@ def git(root, *args):
     return subprocess.check_output(["git", "-C", str(root), *args])
 
 
+def checked_bytes(root, relative, mode, blob):
+    path = safe_path(root, relative)
+    if path.is_symlink() != (mode == "120000"):
+        raise InventoryError("symlink mode lost: " + relative)
+    if path.stat().st_size > 64 * 1024 * 1024:
+        raise InventoryError("asset exceeds resource limit")
+    raw = os.readlink(path).encode() if mode == "120000" else path.read_bytes()
+    actual = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
+    if actual != blob:
+        raise InventoryError("working asset differs from Git blob: " + relative)
+    return path, raw
+
+
 def build(root):
     expected = pin()
     if git(root, "rev-parse", "HEAD").decode().strip() != expected["commit"]:
@@ -68,13 +81,7 @@ def build(root):
         relative = name.decode("utf-8")
         if kind != "blob" or mode not in {"100644", "100755", "120000"}:
             raise InventoryError("unsupported Git entry")
-        path = safe_path(root, relative)
-        if path.is_symlink() != (mode == "120000"):
-            raise InventoryError("symlink mode lost: " + relative)
-        raw = os.readlink(path).encode() if mode == "120000" else path.read_bytes()
-        actual_blob = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
-        if actual_blob != blob:
-            raise InventoryError("working asset differs from Git blob: " + relative)
+        path, raw = checked_bytes(root, relative, mode, blob)
         resolved = path.resolve()
         content = resolved.read_bytes()
         suffix = path.suffix.lower()
@@ -91,6 +98,17 @@ def build(root):
             asset["dimensions"] = [width, height]
         assets.append(asset)
     paths = {asset["path"]: asset for asset in assets}
+    present = set()
+    for directory, directories, files in os.walk(root, followlinks=False):
+        if Path(directory) == root:
+            directories[:] = [name for name in directories if name != ".git"]
+        for name in files:
+            present.add((Path(directory) / name).relative_to(root).as_posix())
+        for name in directories:
+            if (Path(directory) / name).is_symlink():
+                present.add((Path(directory) / name).relative_to(root).as_posix())
+    if present != set(paths):
+        raise InventoryError("INFRA_ERROR: missing or untracked corpus files")
     cases = []
     used_images = set()
     for asset in assets:

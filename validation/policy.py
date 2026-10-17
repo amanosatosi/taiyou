@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from inventory import InventoryError, canonical, digest, load, safe_path, validate
+from inventory import InventoryError, canonical, checked_bytes, digest, load, safe_path, validate
 
 
 def snapshots(inventory, policy, inventory_hash, policy_hash, environment):
@@ -135,6 +135,20 @@ class PolicyTests(unittest.TestCase):
             path = Path(directory) / "duplicate.json"
             path.write_text('{"schema":1,"schema":2}')
             with self.assertRaises(InventoryError): load(path)
+
+    def test_asset_mutation_and_missing_file(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "expected.png"
+            original = b"independently authored synthetic expected bytes"
+            path.write_bytes(original)
+            blob = hashlib.sha1(b"blob " + str(len(original)).encode() + b"\0" + original).hexdigest()
+            self.assertEqual(checked_bytes(root, "expected.png", "100644", blob)[1], original)
+            path.write_bytes(original + b"tamper")
+            with self.assertRaises(InventoryError): checked_bytes(root, "expected.png", "100644", blob)
+            path.unlink()
+            with self.assertRaises(InventoryError): checked_bytes(root, "expected.png", "100644", blob)
 
 
 def main():

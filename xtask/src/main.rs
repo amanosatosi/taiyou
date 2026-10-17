@@ -20,7 +20,9 @@ fn main() -> ExitCode {
         Some(value) if value == OsStr::new("policy") => return policy::run(root, &rest),
         Some(value) if value == OsStr::new("check-workspace") && rest.is_empty() => {}
         _ => {
-            eprintln!("usage: cargo run -p xtask -- check-workspace | inventory ... | policy ... (CI runners only)");
+            eprintln!(
+                "usage: cargo run -p xtask -- check-workspace | inventory ... | policy ... (CI runners only)"
+            );
             return ExitCode::from(2);
         }
     }
