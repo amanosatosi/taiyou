@@ -1,5 +1,4 @@
 //! Runner-only native binding audit, not a production font adapter.
-use std::ffi::CString;
 use std::ptr;
 use freetype_sys as ft;
 use harfbuzz_sys as hb;
@@ -49,8 +48,6 @@ fn main() {
         let hb = HarfBuzz { blob, face: hb_face };
         let hb_glyphs = hb::hb_face_get_glyph_count(hb.face);
         assert!(hb_glyphs > 0); assert_eq!(ft_glyphs,hb_glyphs);
-        let shaper = CString::new("ot").unwrap();
-        assert!(!shaper.as_ptr().is_null());
         println!("NATIVE_SMOKE={{\"freetype\":\"{major}.{minor}.{patch}\",\"harfbuzz\":\"{hb_major}.{hb_minor}.{hb_patch}\",\"glyphs\":{hb_glyphs}}}");
     }
     let bidi = unicode_bidi::BidiInfo::new("abc אבג", None);

@@ -24,10 +24,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install exact hashed build tools on runner only
-        run: python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+        run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - name: Install pinned Rust on runner only
         run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - name: Verify pinned native sources and font
         run: python build-support/acquire.py
+      - name: Check formatting before native compilation
+        run: |
+          cargo +1.99.1 fmt --all -- --check
+          cargo +1.99.1 fmt --manifest-path build-support/dependency-smoke/Cargo.toml -- --check
       - name: Cold native build, locked workspace and binding glyph-count smoke
         run: python build-support/build-native.py
