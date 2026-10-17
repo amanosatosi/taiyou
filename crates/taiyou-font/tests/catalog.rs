@@ -14,6 +14,7 @@ fn catalog_identity_dedup_order_and_owned_lifetime() {
     shared::<FontCatalog>();
     let regular = fixture("TAIYOU_TEST_FONT");
     let bold = fixture("TAIYOU_TEST_BOLD");
+    let mut ingestion = CatalogIngestor::new();
     let mut ctx = FontContext::new().unwrap();
     assert_eq!(ctx.version(), (2, 14, 3));
     let mut builder = FontCatalogBuilder::new(Limits::default());
@@ -32,8 +33,8 @@ fn catalog_identity_dedup_order_and_owned_lifetime() {
         builder.registered_bytes(),
         u64::try_from(regular.len() + bold.len()).unwrap()
     );
-    let old = builder.snapshot().unwrap();
-    let newer = builder.snapshot().unwrap();
+    let old = builder.snapshot(&mut ingestion).unwrap();
+    let newer = builder.snapshot(&mut ingestion).unwrap();
     assert_eq!(old.revision().get() + 1, newer.revision().get());
     assert_eq!(old.faces().len(), 2);
     assert_eq!(old.faces()[0].blob().id(), a);
@@ -65,6 +66,7 @@ fn catalog_identity_dedup_order_and_owned_lifetime() {
 #[test]
 fn catalog_collection_face_indices_and_shared_byte_budget() {
     let collection = fixture("TAIYOU_TEST_COLLECTION");
+    let mut ingestion = CatalogIngestor::new();
     let mut ctx = FontContext::new().unwrap();
     let limits = Limits::default()
         .with_font_bytes(u64::try_from(collection.len()).unwrap())
@@ -87,7 +89,7 @@ fn catalog_collection_face_indices_and_shared_byte_budget() {
             ErrorCode::InvalidArgument
         );
     }
-    let catalog = builder.snapshot().unwrap();
+    let catalog = builder.snapshot(&mut ingestion).unwrap();
     assert_eq!(catalog.faces().len(), 2);
     assert!(Arc::ptr_eq(
         &catalog.faces()[0].blob().shared_bytes(),
@@ -98,13 +100,14 @@ fn catalog_collection_face_indices_and_shared_byte_budget() {
 fn catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot() {
     let font = fixture("TAIYOU_TEST_FONT");
     let bold = fixture("TAIYOU_TEST_BOLD");
+    let mut ingestion = CatalogIngestor::new();
     let mut ctx = FontContext::new().unwrap();
     let limits = Limits::default()
         .with_font_bytes(u64::try_from(font.len()).unwrap())
         .unwrap();
     let mut builder = FontCatalogBuilder::new(limits);
     let id = builder.register(&mut ctx, &font, 0).unwrap();
-    let old = builder.snapshot().unwrap();
+    let old = builder.snapshot(&mut ingestion).unwrap();
     assert_eq!(
         builder.register(&mut ctx, &bold, 0).unwrap_err().code(),
         ErrorCode::LimitExceeded
@@ -114,6 +117,7 @@ fn catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot() {
         u64::try_from(font.len()).unwrap()
     );
     let mut malformed = FontCatalogBuilder::new(Limits::default());
+    assert_eq!(malformed.register(&mut ctx, &[], 0).unwrap_err().code(), ErrorCode::InvalidArgument);
     for length in [1, 2, 16, 64, 128, 1024] {
         let e = malformed
             .register(&mut ctx, &vec![0xA5; length], 0)
@@ -122,7 +126,7 @@ fn catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot() {
         assert!(e.native_code().is_some());
     }
     assert_eq!(malformed.registered_bytes(), 0);
-    assert!(malformed.snapshot().unwrap().faces().is_empty());
+    assert!(malformed.snapshot(&mut ingestion).unwrap().faces().is_empty());
     assert_eq!(ctx.glyph_count(old.faces()[0].blob()).unwrap(), 2478);
     assert_eq!(old.faces()[0].blob().id(), id);
     assert_eq!(
@@ -198,6 +202,7 @@ fn catalog_ties_follow_weight_then_italic_then_registration_order() {
 #[test]
 fn catalog_transient_reservations_fail_before_publication_and_native_work() {
     let font = fixture("TAIYOU_TEST_FONT");
+    let mut ingestion = CatalogIngestor::new();
     let mut context = FontContext::new().unwrap();
     let limits = Limits::default().with_transient_bytes(1).unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
@@ -206,11 +211,30 @@ fn catalog_transient_reservations_fail_before_publication_and_native_work() {
         ErrorCode::LimitExceeded
     );
     assert_eq!(builder.registered_bytes(), 0);
-    assert!(builder.snapshot().unwrap().faces().is_empty());
+    assert!(builder.snapshot(&mut ingestion).unwrap().faces().is_empty());
     let blob = FontBlob::new(FontId::new([0; 32], 0), font.into());
     let mut restricted = FontContext::with_limits(limits).unwrap();
     assert_eq!(
         restricted.glyph_count(&blob).unwrap_err().code(),
         ErrorCode::LimitExceeded
     );
+}
+
+#[test]
+fn catalog_replacement_builders_share_one_session_identity_owner() {
+    let mut ingestion = CatalogIngestor::new();
+    let regular = fixture("TAIYOU_TEST_FONT");
+    let bold = fixture("TAIYOU_TEST_BOLD");
+    let mut context = FontContext::new().unwrap();
+    let mut first = FontCatalogBuilder::new(Limits::default());
+    first.register(&mut context, &regular, 0).unwrap();
+    let old = first.snapshot(&mut ingestion).unwrap();
+    drop(first);
+    let mut replacement = FontCatalogBuilder::new(Limits::default());
+    replacement.register(&mut context, &bold, 0).unwrap();
+    let newer = replacement.snapshot(&mut ingestion).unwrap();
+    assert_eq!(old.revision().get(), 0);
+    assert_eq!(newer.revision().get(), 1);
+    assert_ne!(old.faces()[0].blob().id(), newer.faces()[0].blob().id());
+    assert_eq!(context.glyph_count(old.faces()[0].blob()).unwrap(), 2478);
 }

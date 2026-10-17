@@ -9,7 +9,8 @@ fn error(code: ErrorCode, detail: &str) -> FontError {
 pub fn fold_family(name: &str, limits: &Limits) -> Result<String, FontError> {
     let cost = u64::try_from(name.len())
         .ok()
-        .and_then(|n| n.checked_mul(3))
+        .and_then(|n| n.checked_mul(6))
+        .and_then(|n| n.checked_add(128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "family fold length overflow"))?;
     if cost > limits.transient_bytes() {
         return Err(error(
@@ -25,7 +26,6 @@ pub struct FontCatalogBuilder {
     blobs: Vec<([u8; 32], Arc<[u8]>)>,
     bytes: u64,
     names: u64,
-    publisher: CatalogIngestor,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -35,7 +35,6 @@ impl FontCatalogBuilder {
             blobs: Vec::new(),
             bytes: 0,
             names: 0,
-            publisher: CatalogIngestor::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -49,7 +48,10 @@ impl FontCatalogBuilder {
     ) -> Result<FontId, FontError> {
         let length = u64::try_from(bytes.len())
             .map_err(|_| error(ErrorCode::LimitExceeded, "font length overflow"))?;
-        if length == 0 || length > self.limits.font_bytes() {
+        if length == 0 {
+            return Err(error(ErrorCode::InvalidArgument, "font bytes are empty"));
+        }
+        if length > self.limits.font_bytes() {
             return Err(error(ErrorCode::LimitExceeded, "font byte budget exceeded"));
         }
         let hash: [u8; 32] = Sha256::digest(bytes).into();
@@ -134,7 +136,9 @@ impl FontCatalogBuilder {
         self.names = names;
         Ok(id)
     }
-    pub fn snapshot(&mut self) -> Result<Arc<FontCatalog>, FontError> {
+    /// A renderer/session owns one ingestion owner across all catalog builders,
+    /// so replacing a catalog cannot accidentally recycle a resolution identity.
+    pub fn snapshot(&self, ingestion: &mut CatalogIngestor) -> Result<Arc<FontCatalog>, FontError> {
         let mut records = Vec::new();
         records.try_reserve_exact(self.records.len()).map_err(|_| {
             error(
@@ -143,7 +147,7 @@ impl FontCatalogBuilder {
             )
         })?;
         records.extend(self.records.iter().cloned());
-        self.publisher.publish(records.into())
+        ingestion.publish(records.into())
     }
 }
 pub fn resolve_family(
