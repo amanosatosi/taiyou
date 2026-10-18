@@ -2,7 +2,6 @@
 use std::{path::PathBuf, sync::Arc};
 use taiyou_render::renderer::*;
 
-#[path = "renderer_slice/output_safety.rs"]
 mod output_safety;
 
 fn limits() -> Limits {

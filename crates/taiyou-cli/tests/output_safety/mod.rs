@@ -21,39 +21,75 @@ struct Fixture {
 impl Fixture {
     fn new() -> Self {
         let directory = std::env::temp_dir().join(format!(
-            "taiyou-output-safety-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)
+            "taiyou-output-safety-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir(&directory).unwrap();
         let ass = directory.join("input.ass");
         let font = directory.join("font.otf");
         let ass_bytes = super::source(&super::dialogue("H")).into_bytes();
-        let font_bytes = fs::read(PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
-            .join("taiyou-shaping-fonts/latin.otf")).unwrap();
+        let font_bytes = fs::read(
+            PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
+                .join("taiyou-shaping-fonts/latin.otf"),
+        )
+        .unwrap();
         fs::write(&ass, &ass_bytes).unwrap();
         fs::write(&font, &font_bytes).unwrap();
-        Self { directory, ass, font, ass_bytes, font_bytes }
+        Self {
+            directory,
+            ass,
+            font,
+            ass_bytes,
+            font_bytes,
+        }
     }
     fn run(&self, png: &Path, raw: Option<&Path>) -> Output {
         let mut args: Vec<OsString> = vec![
-            "render".into(), "--input".into(), self.ass.clone().into_os_string(),
-            "--font".into(), self.font.clone().into_os_string(),
-            "--time-us".into(), "500000".into(), "--width".into(), "160".into(),
-            "--height".into(), "100".into(), "--profile".into(), "core-v1".into(),
-            "--output".into(), png.as_os_str().into(),
+            "render".into(),
+            "--input".into(),
+            self.ass.clone().into_os_string(),
+            "--font".into(),
+            self.font.clone().into_os_string(),
+            "--time-us".into(),
+            "500000".into(),
+            "--width".into(),
+            "160".into(),
+            "--height".into(),
+            "100".into(),
+            "--profile".into(),
+            "core-v1".into(),
+            "--output".into(),
+            png.as_os_str().into(),
         ];
         if let Some(raw) = raw {
             args.extend(["--raw".into(), raw.as_os_str().into()]);
         }
-        Command::new(env!("CARGO_BIN_EXE_taiyou")).args(args).output().unwrap()
+        Command::new(env!("CARGO_BIN_EXE_taiyou"))
+            .args(args)
+            .output()
+            .unwrap()
     }
     fn failed(&self, png: &Path, raw: Option<&Path>) {
         let result = self.run(png, raw);
-        assert_eq!(result.status.code(), Some(2), "{}", String::from_utf8_lossy(&result.stderr));
+        assert_eq!(
+            result.status.code(),
+            Some(2),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
         assert!(String::from_utf8_lossy(&result.stderr).contains("InvalidArgument"));
         self.inputs_intact();
-        assert!(!fs::read_dir(&self.directory).unwrap().any(|entry| {
-            entry.unwrap().file_name().to_string_lossy().starts_with(".taiyou-")
-        }), "staging file leaked");
+        assert!(
+            !fs::read_dir(&self.directory).unwrap().any(|entry| {
+                entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".taiyou-")
+            }),
+            "staging file leaked"
+        );
     }
     fn inputs_intact(&self) {
         assert_eq!(fs::read(&self.ass).unwrap(), self.ass_bytes);
@@ -131,7 +167,11 @@ fn successful_publication_replaces_both_outputs_and_repeats_identically() {
     fs::write(&png, OLD_PNG).unwrap();
     fs::write(&raw, OLD_RAW).unwrap();
     let first = f.run(&png, Some(&raw));
-    assert!(first.status.success(), "{}", String::from_utf8_lossy(&first.stderr));
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
     let expected_png = fs::read(&png).unwrap();
     let expected_raw = fs::read(&raw).unwrap();
     assert!(expected_png.starts_with(b"\x89PNG\r\n\x1a\n"));
@@ -182,7 +222,15 @@ fn windows_case_stream_device_trimming_and_existing_aliases_are_rejected() {
     let f = Fixture::new();
     f.failed(&f.directory.join("INPUT.ASS"), None);
     f.failed(&f.directory.join("FONT.OTF"), None);
-    for name in ["input.ass:stream", "font.otf:stream", "input.ass.", "font.otf ", "NUL", "COM1.png", "LPT².raw"] {
+    for name in [
+        "input.ass:stream",
+        "font.otf:stream",
+        "input.ass.",
+        "font.otf ",
+        "NUL",
+        "COM1.png",
+        "LPT².raw",
+    ] {
         f.failed(&f.directory.join(name), None);
     }
     let png = f.directory.join("frame.png");
@@ -210,7 +258,11 @@ fn windows_locked_output_fails_without_replacing_either_existing_output() {
     let raw = f.directory.join("frame.rgba");
     fs::write(&png, OLD_PNG).unwrap();
     fs::write(&raw, OLD_RAW).unwrap();
-    let lock = fs::OpenOptions::new().read(true).share_mode(1).open(&raw).unwrap();
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(1)
+        .open(&raw)
+        .unwrap();
     f.failed(&png, Some(&raw));
     assert_eq!(fs::read(&png).unwrap(), OLD_PNG);
     assert_eq!(fs::read(&raw).unwrap(), OLD_RAW);

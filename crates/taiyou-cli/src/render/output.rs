@@ -28,32 +28,50 @@ pub(super) fn open_input(path: &Path) -> io::Result<File> {
 }
 
 fn destination(path: &Path) -> Result<PathBuf, RenderError> {
-    let name = path.file_name().ok_or_else(|| invalid("output needs a file name"))?;
+    let name = path
+        .file_name()
+        .ok_or_else(|| invalid("output needs a file name"))?;
     #[cfg(windows)]
     {
         // Do not allow alternate streams, device names or Win32 trimming
         // aliases, even when a caller supplies an extended-length path.
-        let name = name.to_str().ok_or_else(|| invalid("invalid Windows output name"))?;
+        let name = name
+            .to_str()
+            .ok_or_else(|| invalid("invalid Windows output name"))?;
         let stem = name.split('.').next().unwrap_or_default().to_uppercase();
-        let device = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$")
-            || ["COM", "LPT"].iter().any(|prefix| {
-                stem.strip_prefix(prefix).is_some_and(|n| {
-                    matches!(n, "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³")
-                })
-            });
-        if device || name.ends_with(['.', ' '])
-            || name.chars().any(|c| c.is_control() || ":<>\"|?*".contains(c)) {
+        let device = matches!(
+            stem.as_str(),
+            "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+        ) || ["COM", "LPT"].iter().any(|prefix| {
+            stem.strip_prefix(prefix).is_some_and(|n| {
+                matches!(
+                    n,
+                    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+                )
+            })
+        });
+        if device
+            || name.ends_with(['.', ' '])
+            || name
+                .chars()
+                .any(|c| c.is_control() || ":<>\"|?*".contains(c))
+        {
             return Err(invalid("unsafe Windows output name"));
         }
     }
-    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
     Ok(parent.canonicalize().map_err(io_error)?.join(name))
 }
 
 fn probe(path: &Path, protected: &[File]) -> Result<Option<File>, RenderError> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if !metadata.file_type().is_file() => {
-            return Err(invalid("output must be a regular file, not a symlink or directory"));
+            return Err(invalid(
+                "output must be a regular file, not a symlink or directory",
+            ));
         }
         Ok(_) => {}
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
@@ -92,7 +110,9 @@ struct Staged {
 }
 impl Staged {
     fn new(destination: PathBuf, destinations: &[PathBuf]) -> Result<Self, RenderError> {
-        let parent = destination.parent().ok_or_else(|| invalid("missing output parent"))?;
+        let parent = destination
+            .parent()
+            .ok_or_else(|| invalid("missing output parent"))?;
         for _ in 0..128 {
             let n = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
             let temporary = parent.join(format!(".taiyou-{}-{n}.tmp", std::process::id()));
@@ -100,10 +120,19 @@ impl Staged {
             if destinations.contains(&temporary) {
                 continue;
             }
-            match OpenOptions::new().write(true).create_new(true).open(&temporary) {
-                Ok(file) => return Ok(Self {
-                    destination, temporary: Some(temporary), file: Some(file), remove_published: false,
-                }),
+            match OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&temporary)
+            {
+                Ok(file) => {
+                    return Ok(Self {
+                        destination,
+                        temporary: Some(temporary),
+                        file: Some(file),
+                        remove_published: false,
+                    });
+                }
                 Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
                 Err(e) => return Err(io_error(e)),
             }
@@ -133,14 +162,22 @@ impl Drop for Staged {
 fn publish(outputs: &mut [Staged], inputs: &[File]) -> Result<(), RenderError> {
     // Keep all probes alive together: Windows detects aliases by sharing;
     // Unix compares dev/inode, including hard-linked output destinations.
-    let mut guards: Vec<File> = inputs.iter().map(File::try_clone).collect::<io::Result<_>>().map_err(io_error)?;
+    let mut guards: Vec<File> = inputs
+        .iter()
+        .map(File::try_clone)
+        .collect::<io::Result<_>>()
+        .map_err(io_error)?;
     for output in outputs.iter() {
         if let Some(file) = probe(&output.destination, &guards)? {
             guards.push(file);
         }
     }
     drop(guards);
-    let mut published: Vec<File> = inputs.iter().map(File::try_clone).collect::<io::Result<_>>().map_err(io_error)?;
+    let mut published: Vec<File> = inputs
+        .iter()
+        .map(File::try_clone)
+        .collect::<io::Result<_>>()
+        .map_err(io_error)?;
     for output in outputs.iter_mut() {
         // Recheck at publication, also against already published output guards.
         // This catches platform aliases of previously nonexistent names (case
@@ -148,7 +185,10 @@ fn publish(outputs: &mut [Staged], inputs: &[File]) -> Result<(), RenderError> {
         let previous = probe(&output.destination, &published)?;
         let new = previous.is_none();
         drop(previous);
-        let temporary = output.temporary.as_ref().ok_or_else(|| invalid("missing staged output"))?;
+        let temporary = output
+            .temporary
+            .as_ref()
+            .ok_or_else(|| invalid("missing staged output"))?;
         fs::rename(temporary, &output.destination).map_err(io_error)?;
         output.temporary = None;
         output.remove_published = new;
@@ -179,7 +219,10 @@ pub(super) fn write(
         outputs.push(Staged::new(path.clone(), &destinations)?);
     }
     let (png, raw) = outputs.split_at_mut(1);
-    let png = png[0].file.as_mut().ok_or_else(|| invalid("missing PNG staging file"))?;
+    let png = png[0]
+        .file
+        .as_mut()
+        .ok_or_else(|| invalid("missing PNG staging file"))?;
     let raw = raw.first_mut().and_then(|r| r.file.as_mut());
     generate(png, raw)?;
     for output in &mut outputs {
@@ -202,7 +245,9 @@ mod tests {
     #[test]
     fn partial_encoder_and_raw_writer_failures_preserve_old_files() {
         let directory = Directory(std::env::temp_dir().join(format!(
-            "taiyou-output-unit-{}-{}", std::process::id(), NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+            "taiyou-output-unit-{}-{}",
+            std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
         )));
         fs::create_dir(&directory.0).unwrap();
         let png = directory.0.join("frame.png");
@@ -215,7 +260,10 @@ mod tests {
                 if fail_raw {
                     raw.unwrap().write_all(b"partial raw").map_err(io_error)?;
                 }
-                Err(io_error(io::Error::new(io::ErrorKind::WriteZero, "injected writer failure")))
+                Err(io_error(io::Error::new(
+                    io::ErrorKind::WriteZero,
+                    "injected writer failure",
+                )))
             });
             assert!(result.is_err());
             assert_eq!(fs::read(&png).unwrap(), b"old PNG");
@@ -227,15 +275,20 @@ mod tests {
     #[test]
     fn failed_generation_does_not_publish_new_destinations() {
         let directory = Directory(std::env::temp_dir().join(format!(
-            "taiyou-output-new-unit-{}-{}", std::process::id(), NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+            "taiyou-output-new-unit-{}-{}",
+            std::process::id(),
+            NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
         )));
         fs::create_dir(&directory.0).unwrap();
         let png = directory.0.join("frame.png");
         let raw = directory.0.join("frame.rgba");
-        assert!(write(&png, Some(&raw), &[], |png, _| {
-            png.write_all(b"partial PNG").map_err(io_error)?;
-            Err(invalid("injected encoding failure"))
-        }).is_err());
+        assert!(
+            write(&png, Some(&raw), &[], |png, _| {
+                png.write_all(b"partial PNG").map_err(io_error)?;
+                Err(invalid("injected encoding failure"))
+            })
+            .is_err()
+        );
         assert_eq!(fs::read_dir(&directory.0).unwrap().count(), 0);
     }
 }

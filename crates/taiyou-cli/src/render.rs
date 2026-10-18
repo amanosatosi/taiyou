@@ -163,7 +163,10 @@ fn read_limited(path: &Path, cap: u64, inputs: &mut Vec<File>) -> Result<Vec<u8>
         bytes.extend_from_slice(&buffer[..n]);
     }
     inputs.try_reserve(1).map_err(|_| {
-        RenderError::new(ErrorCode::AllocationFailed, "input handle allocation failed")
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "input handle allocation failed",
+        )
     })?;
     inputs.push(file);
     Ok(bytes)
@@ -249,7 +252,11 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {
         builder
-            .register(&mut context, &read_limited(path, limits.font_bytes(), &mut inputs)?, 0)
+            .register(
+                &mut context,
+                &read_limited(path, limits.font_bytes(), &mut inputs)?,
+                0,
+            )
             .map_err(font_error)?;
     }
     let catalog = builder
