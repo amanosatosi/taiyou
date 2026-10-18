@@ -1,5 +1,6 @@
 [package]
 name = "taiyou-cli"
+default-run = "taiyou-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
