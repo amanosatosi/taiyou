@@ -45,6 +45,7 @@ fn render(
         workers: std::num::NonZeroUsize::new(1).unwrap(),
         profile: Profile::CoreV1,
         limits,
+        cache: CacheConfig::default(),
     })
     .unwrap()
     .render(
