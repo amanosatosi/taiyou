@@ -87,6 +87,13 @@ cannot be demoted. Known unpromoted cases with differences stay unsupported;
 their nonzero metrics remain visible. Unapproved tolerance/expected-difference
 statuses are rejected. No thresholds or support registry changes are included.
 
+The private `taiyou-compare` subprocess adapter calls T014's unchanged
+`render::run` and maps typed C7 errors to exit codes: 10 invalid argument, 11
+encoding, 12 script, 20 unsupported, 30 font unavailable, 31 native failure, 32
+limit, 33 allocation, 34 internal, 80 adapter setup. Classification never matches
+human error strings or accepts renderer-supplied PASS records. The normal `taiyou`
+and `taiyou-cli` commands and their output hashes are unchanged.
+
 The two crash inputs use a bounded subprocess invoking the existing parser:
 parse success or safe rejection is a **safety-only** pass, never a visual pass.
 No implicit fonts, synthetic viewport or arbitrary timestamp are assigned to

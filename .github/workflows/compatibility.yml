@@ -3,7 +3,7 @@ on:
   push:
     branches: [task/T015-reference-comparison]
   pull_request:
-    paths: ['xtask/**', 'validation/**', '.github/workflows/compatibility.yml', 'crates/taiyou-cli/src/comparison_probe.rs']
+    paths: ['xtask/**', 'validation/**', '.github/workflows/compatibility.yml', 'crates/**', 'Cargo.*', 'build-support/**']
   workflow_dispatch:
     inputs:
       suite:
@@ -75,6 +75,7 @@ jobs:
           export PKG_CONFIG_PATH="$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
           export PKG_CONFIG_ALL_STATIC=1 LIBZ_SYS_STATIC=1
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo test --locked -p taiyou-cli --features native --test comparison_adapter
           cargo run --locked -p xtask -- compare-crash-probe "$TAIYOU_CORPUS/crash/generic.ass"
       - name: Focused cases on ordinary PRs; full inventory at deliberate T015 milestone
         env:

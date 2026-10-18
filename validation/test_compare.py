@@ -141,19 +141,20 @@ class AccountingTests(unittest.TestCase):
 
     def test_no_false_pass_for_unsupported_or_missing_fonts(self):
         case = next(c for c in self.inventory["cases"] if c["kind"] == "regression")
-        self.assertEqual(compare.classify(case, 2, None, "taiyou: FontUnavailable: font absent"), "INFRA_ERROR")
+        self.assertEqual(compare.classify(case, 30, None, "font absent"), "INFRA_ERROR")
         self.assertEqual(compare.classify(case, -9, None, "killed"), "CRASH")
         self.assertEqual(compare.classify(case, -999, None, "timeout"), "CRASH")
         self.assertEqual(compare.classify(case, 0, {"exact": False}, ""), "UNSUPPORTED")
         supported = copy.deepcopy(case)
         supported["profile_records"]["CoreV1"]["support"] = "SUPPORTED"
         self.assertEqual(compare.classify(supported, 0, {"exact": False}, ""), "REGRESSION")
-        self.assertEqual(compare.classify(supported, 2, None, "taiyou: UnsupportedFeature: tag"), "REGRESSION")
+        self.assertEqual(compare.classify(supported, 20, None, "tag"), "REGRESSION")
 
     def test_renderer_errors_cannot_be_hidden_by_message_substrings(self):
         case = next(c for c in self.inventory["cases"] if c["kind"] == "regression")
-        self.assertEqual(compare.classify(case, 2, None, "fake UnsupportedFeature"), "REGRESSION")
-        self.assertEqual(compare.classify(case, 2, None, "taiyou: InternalError: UnsupportedFeature"), "INFRA_ERROR")
+        self.assertEqual(compare.classify(case, 80, None, "fake UnsupportedFeature"), "INFRA_ERROR")
+        self.assertEqual(compare.classify(case, 34, None, "taiyou: UnsupportedFeature: fake"), "INFRA_ERROR")
+        self.assertEqual(compare.classify(case, 20, None, "any diagnostic wording"), "UNSUPPORTED")
 
     def test_missing_explicit_fonts_are_infrastructure_error(self):
         with tempfile.TemporaryDirectory() as directory:

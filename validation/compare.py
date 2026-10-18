@@ -73,15 +73,13 @@ def classify(case, outcome, metrics, diagnostic):
     if outcome < 0:
         return "CRASH"
     if outcome != 0:
-        match = re.search(r"(?m)^taiyou: ([A-Za-z]+):", diagnostic)
-        code = match.group(1) if match else None
-        if code == "UnsupportedFeature":
+        if outcome == 20:
             return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
-        if code in ("FontUnavailable", "NativeFailure", "AllocationFailed", "LimitExceeded", "InternalError") or "file I/O" in diagnostic:
-            return "INFRA_ERROR"
         # A malformed source that the renderer safely rejects is still reported;
         # it is never a compatibility pass. Accepted supported sources must work.
-        return "UNSUPPORTED" if support == "UNSUPPORTED" and code in ("InvalidScript", "InvalidEncoding") else "REGRESSION"
+        if outcome in (11, 12):
+            return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+        return "INFRA_ERROR"
     if metrics and metrics["exact"]:
         return "PASS_EXACT"
     return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
@@ -90,6 +88,8 @@ def classify(case, outcome, metrics, diagnostic):
 def run_case(case, corpus, binary, probe, out, assets, artifacts):
     record = {"case": case["id"], "frame": case["frames"][0]["expected"] if case["frames"] else None,
               "profile": "CoreV1", "kind": case["kind"], "status": "INFRA_ERROR", "feature": "T015/unpromoted-external-case",
+              "accepted_support": case.get("profile_records", {}).get("CoreV1", {}).get("support"),
+              "accepted_reason": case.get("profile_records", {}).get("CoreV1", {}).get("reason"),
               "source": assets[case["source"]], "fonts": [assets[f] for f in case["fonts"]],
               "scale": case["scale"], "metrics": None, "stage": "asset-verification", "diagnostics": ""}
     try:
@@ -120,7 +120,7 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
             for font in fonts:
                 command.extend(["--font", font])
             code, diagnostic = execute(command, directory)
-            strict_unsupported = code > 0 and re.search(r"(?m)^taiyou: UnsupportedFeature:", diagnostic) is not None
+            strict_unsupported = code == 20
             # Tolerant exploratory output cannot promote the accepted support state.
             if strict_unsupported:
                 record["strict_diagnostics"] = diagnostic
@@ -181,7 +181,7 @@ def main():
     parser.add_argument("--case", action="append", default=[])
     parser.add_argument("--corpus", type=Path, default=os.environ.get("TAIYOU_CORPUS"))
     parser.add_argument("--output", type=Path, default=Path(os.environ.get("RUNNER_TEMP", ".")) / "taiyou-comparison")
-    parser.add_argument("--renderer", type=Path, default=ROOT / "target/debug/taiyou-cli")
+    parser.add_argument("--renderer", type=Path, default=ROOT / "target/debug/taiyou-compare")
     parser.add_argument("--probe", type=Path, default=ROOT / "target/debug/xtask")
     args = parser.parse_args()
     if args.manifest and args.case:
