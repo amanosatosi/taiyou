@@ -150,6 +150,38 @@ class PolicyTests(unittest.TestCase):
             path.unlink()
             with self.assertRaises(InventoryError): checked_bytes(root, "expected.png", "100644", blob)
 
+    def test_false_snapshot_hashes(self):
+        for inventory_hash, policy_hash in [
+            ("0" * 64, self.policy_hash),
+            (self.inv_hash, "f" * 64),
+            ("", ""),
+        ]:
+            with self.subTest(inventory_hash=inventory_hash, policy_hash=policy_hash):
+                with self.assertRaises(InventoryError):
+                    snapshots(self.inventory, self.policy, inventory_hash, policy_hash, {})
+
+    def test_supported_case_cannot_be_demoted_against_fixed_snapshot(self):
+        # Model an independently approved baseline; never change the real manifest.
+        trusted = copy.deepcopy(self.inventory)
+        trusted["cases"][0]["profile_records"] = {"CoreV1": {"support": "SUPPORTED"}}
+        trusted_hash = digest(canonical(trusted))
+        altered = copy.deepcopy(trusted)
+        altered["cases"][0]["profile_records"]["CoreV1"]["support"] = "UNSUPPORTED"
+        with self.assertRaises(InventoryError):
+            snapshots(altered, self.policy, trusted_hash, self.policy_hash, {})
+
+    def test_unselected_result_and_unapproved_classifications(self):
+        records = [{"case": case, "frame": frame, "profile": profile, "status": "UNSUPPORTED", "feature": "T014"}
+                   for case, frame, profile in sorted(expected_results(self.inventory, self.policy))]
+        for field, value in [("case", "unselected.ass"), ("profile", "unselected-profile"),
+                             ("status", "PASS_APPROVED_TOLERANCE"), ("status", "EXPECTED_DIFFERENCE"),
+                             ("status", "INVENTED_PASS"), ("feature", "")]:
+            altered = copy.deepcopy(records)
+            altered[0][field] = value
+            with self.subTest(field=field, value=value):
+                with self.assertRaises(InventoryError):
+                    results(self.inventory, self.policy, altered)
+
 
 def main():
     parser = argparse.ArgumentParser()

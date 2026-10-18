@@ -1,13 +1,57 @@
 {
-  "observed_on": "2026-10-17",
-  "scope": "public unauthenticated GitHub REST responses; no settings mutation",
+  "observed_on": "2026-10-18",
+  "scope": "public REST plus authenticated connector repository metadata/reviews; no settings mutation",
+  "repository": "amanosatosi/taiyou",
+  "visibility": "public",
+  "owner_type": "User",
+  "authenticated_login": "amanosatosi",
+  "authenticated_repository_permissions": {
+    "admin": true,
+    "maintain": true,
+    "push": true
+  },
   "branch_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/branches/main",
   "branch": "main",
-  "commit": "5b23d4df6c19b0f956c3d8225bccf02a89e15ee0",
+  "commit": "8b66296c22bcf58b5e022f1c8aa55bec815f973f",
   "protected": false,
   "rules_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/rules/branches/main",
   "active_branch_rules": [],
+  "rulesets_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/rulesets",
+  "listed_rulesets": [],
+  "checks_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/commits/8b66296c22bcf58b5e022f1c8aa55bec815f973f/check-runs",
+  "observed_check_source": {
+    "app_id": 15368,
+    "app_slug": "github-actions",
+    "contexts": [
+      "Fast gate",
+      "Platform gate",
+      "Documentation structure"
+    ],
+    "trusted_validation_issuer": false
+  },
+  "pull_request": 11,
+  "submitted_reviews": [],
   "trusted_required_check_issuer": null,
   "named_independent_reviewers": [],
-  "acceptance": "blocked: actual V4 protection is not established"
+  "approved_trusted_revision": null,
+  "isolated_candidate_execution_verified": false,
+  "read_only_asset_execution_verified": false,
+  "protected_credentials_isolation_verified": false,
+  "settings_changed": [],
+  "acceptance": "blocked: independent reviewer, protected validation deployment and dedicated required-check issuer are not established",
+  "previous_observations": [
+    {
+      "observed_on": "2026-10-17",
+      "scope": "public unauthenticated GitHub REST responses; no settings mutation",
+      "branch_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/branches/main",
+      "branch": "main",
+      "commit": "5b23d4df6c19b0f956c3d8225bccf02a89e15ee0",
+      "protected": false,
+      "rules_endpoint": "https://api.github.com/repos/amanosatosi/taiyou/rules/branches/main",
+      "active_branch_rules": [],
+      "trusted_required_check_issuer": null,
+      "named_independent_reviewers": [],
+      "acceptance": "blocked: actual V4 protection is not established"
+    }
+  ]
 }

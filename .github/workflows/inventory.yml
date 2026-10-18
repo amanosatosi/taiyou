@@ -25,14 +25,20 @@ jobs:
         run: python validation/acquire.py
       - name: Install bootstrap Rust on runner only
         run: rustup toolchain install 1.85.1 --profile minimal --component rustfmt --component clippy
-      - name: Generate proposal or verify frozen inventory
+      - name: Fetch exact merged workspace dependencies on runner only
+        run: cargo +1.85.1 fetch --locked
+      - name: Verify frozen inventory and run policy tests
         env:
           RUSTUP_TOOLCHAIN: 1.85.1
         run: |
-          if [ ! -e validation/inventory.json ]; then
-            python validation/inventory.py generate --corpus "$TAIYOU_CORPUS" --manifest "$RUNNER_TEMP/inventory.proposed.json"
-            cargo run --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest "$RUNNER_TEMP/inventory.proposed.json"
-          else
-            cargo run --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest validation/inventory.json
-          fi
-          cargo run --offline -p xtask -- policy self-test
+          test -f validation/inventory.json
+          cargo run --locked --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest validation/inventory.json
+          cargo run --locked --offline -p xtask -- policy self-test
+      - name: Reverify corpus and frozen files even after failures
+        if: always()
+        env:
+          RUSTUP_TOOLCHAIN: 1.85.1
+        run: |
+          test -n "$TAIYOU_CORPUS"
+          cargo run --locked --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest validation/inventory.json
+          git diff --exit-code -- Cargo.lock validation/inventory.json validation/policy.json docs/references.lock.json
