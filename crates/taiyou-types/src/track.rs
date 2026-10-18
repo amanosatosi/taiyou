@@ -643,6 +643,14 @@ pub enum OverrideOp {
         spacing: FiniteF64,
         source: SourceSpan,
     },
+    SetBorder {
+        width: FiniteF64,
+        source: SourceSpan,
+    },
+    SetShadow {
+        offset: FiniteF64,
+        source: SourceSpan,
+    },
     SetPaint {
         channel: PaintChannel,
         color: Rgba8,
@@ -675,6 +683,8 @@ impl OverrideOp {
             | Self::SetItalic { source, .. }
             | Self::SetScale { source, .. }
             | Self::SetSpacing { source, .. }
+            | Self::SetBorder { source, .. }
+            | Self::SetShadow { source, .. }
             | Self::SetPaint { source, .. }
             | Self::SetOpacity { source, .. }
             | Self::SetAlignment { source, .. }
@@ -687,6 +697,7 @@ impl OverrideOp {
             Self::SetFont { family, .. } => !family.is_empty(),
             Self::SetSize { size, .. } => size.get() > 0.0,
             Self::SetScale { factor, .. } => factor.get() >= 0.0,
+            Self::SetBorder { width, .. } => width.get() >= 0.0,
             Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
             Self::SetPaint { color, .. } => color.a() == 255,
             _ => true,

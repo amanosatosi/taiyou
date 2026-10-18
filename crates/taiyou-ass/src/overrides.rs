@@ -257,8 +257,8 @@ fn parse(
 ) -> Result<Option<OverrideOp>, ParseError> {
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "fscx", "fscy", "alpha", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a", "3a", "4a",
-        "fn", "fs", "an", "b", "i", "c", "r",
+        "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a",
+        "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
         return Ok(None);
@@ -339,6 +339,17 @@ fn parse(
         }
         "fsp" => OverrideOp::SetSpacing {
             spacing: decode::number(value)?,
+            source,
+        },
+        "bord" => {
+            let width = decode::number(value)?;
+            if width.get() < 0.0 {
+                return Err(invalid("border width must be nonnegative"));
+            }
+            OverrideOp::SetBorder { width, source }
+        }
+        "shad" => OverrideOp::SetShadow {
+            offset: decode::number(value)?,
             source,
         },
         "an" => OverrideOp::SetAlignment {

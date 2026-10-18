@@ -37,6 +37,87 @@ fn available(limits: &Limits, held: u64) -> Result<Limits, RenderError> {
         .ok_or_else(limited)?;
     limits.clone().with_transient_bytes(n).map_err(convert)
 }
+#[cfg(feature = "native")]
+struct GroupMasks {
+    fill: Arc<Mask>,
+    border: Option<Arc<Mask>>,
+    shadow: Option<Arc<Mask>>,
+    fill_paint: Rgba8,
+    border_paint: Rgba8,
+    shadow_paint: Rgba8,
+}
+#[cfg(feature = "native")]
+fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
+    Q6::from_pixels(FiniteF64::new(value).map_err(convert)?).map_err(convert)
+}
+#[cfg(feature = "native")]
+fn equal_device_scale(device: DeviceMapping) -> bool {
+    let content = device.content();
+    let play = device.play_res();
+    u64::try_from(content.width()).ok().and_then(|w| {
+        u64::try_from(play.height())
+            .ok()
+            .and_then(|h| w.checked_mul(h))
+    }) == u64::try_from(content.height()).ok().and_then(|h| {
+        u64::try_from(play.width())
+            .ok()
+            .and_then(|w| h.checked_mul(w))
+    })
+}
+#[cfg(feature = "native")]
+fn script_offset_q6(value: FiniteF64, device: DeviceMapping, x_axis: bool) -> Result<Q6, RenderError> {
+    let content = device.content();
+    let play = device.play_res();
+    let ratio = if x_axis {
+        f64::from(content.width()) / f64::from(play.width())
+    } else {
+        f64::from(content.height()) / f64::from(play.height())
+    };
+    q6_pixels(value.get() * ratio)
+}
+#[cfg(feature = "native")]
+fn charge_mask(
+    mask: &Mask,
+    held: &mut u64,
+    event_charge: u64,
+    limits: &Limits,
+) -> Result<(), RenderError> {
+    let charge = u64::try_from(mask.data().len())
+        .ok()
+        .and_then(|n| n.checked_mul(3))
+        .ok_or_else(limited)?;
+    let future = add(*held, charge)?;
+    available(limits, add(future, event_charge)?)?;
+    *held = future;
+    Ok(())
+}
+#[cfg(feature = "native")]
+fn push_operation(
+    operations: &mut Vec<DrawOp>,
+    held: &mut u64,
+    event_charge: u64,
+    limits: &Limits,
+    order: DrawOrder,
+    mask: Arc<Mask>,
+    paint: Rgba8,
+) -> Result<(), RenderError> {
+    let future = add(*held, bytes::<DrawOp>(1)?)?;
+    available(limits, add(future, event_charge)?)?;
+    operations.try_reserve_exact(1).map_err(|_| {
+        RenderError::new(ErrorCode::AllocationFailed, "draw list allocation failed")
+    })?;
+    operations.push(DrawOp::new(
+        order,
+        mask,
+        PixelOffset::default(),
+        Paint::Solid(paint),
+        PaintSpace::Device,
+        PaintMap::Identity,
+        Arc::new(ResolvedClip::None),
+    ));
+    *held = future;
+    Ok(())
+}
 /// Natural script-space alignment anchor. Margins define the horizontal usable
 /// rectangle; middle vertical alignment is the script midpoint. Explicit pos
 /// bypasses margins. Device mapping is applied only by T011.
@@ -213,15 +294,13 @@ impl Renderer {
                 )?;
                 diagnostics.extend_finished(&report).map_err(convert)?;
                 let stage_held = add(held, eval_charge)?;
-                // Existing evaluator records unsupported tags; style effects
-                // and decorations need an explicit renderer capability check.
+                // Static Core borders/shadows are rendered below. Decorations
+                // remain explicitly unsupported and are omitted in tolerant mode.
                 for state in evaluated.runs() {
-                    if state.effects().border_x().get() != 0.0
-                        || state.effects().shadow_x().get() != 0.0
-                        || state.geometry().underline()
+                    if state.geometry().underline()
                         || state.geometry().strikeout()
                     {
-                        let detail = "T014 fill-only: borders, shadows and decorations are unsupported; tolerant mode omits these effects";
+                        let detail = "underline and strikeout decorations require a later Core stage";
                         if request.unsupported == UnsupportedPolicy::Strict {
                             return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
                                 .with_context(Some(event.id()), Some(state.source())));
@@ -278,6 +357,10 @@ impl Renderer {
                 let geom_limits = available(limits, stage_held)?
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
+                let device = DeviceMapping::new(
+                    track.script().play_res(),
+                    request.viewport.content(),
+                )?;
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
@@ -285,10 +368,7 @@ impl Renderer {
                     GeometryPlacement {
                         anchor: alignment_anchor(evaluated.placement(), track.script().play_res())?,
                         origin: evaluated.placement().origin(),
-                        device: DeviceMapping::new(
-                            track.script().play_res(),
-                            request.viewport.content(),
-                        )?,
+                        device,
                     },
                     &geom_limits,
                 )?);
@@ -311,47 +391,193 @@ impl Renderer {
                     return Err(limited());
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.glyphs().len())?)?;
-                let event_charge = add(stage_held, geom_charge)?
+                let mut event_charge = add(stage_held, geom_charge)?
                     .checked_sub(held)
                     .ok_or_else(limited)?;
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
                 )?;
-                for (ordinal, group) in groups.iter().enumerate() {
+                event_charge = add(event_charge, bytes::<GroupMasks>(groups.len())?)?;
+                available(limits, add(held, event_charge)?)?;
+                let mut group_masks = Vec::new();
+                group_masks.try_reserve_exact(groups.len()).map_err(|_| {
+                    RenderError::new(
+                        ErrorCode::AllocationFailed,
+                        "coverage pass group allocation failed",
+                    )
+                })?;
+                for group in &groups {
                     let first = group.policy().members().start;
                     let state = &placed.layout().shaped().evaluated().runs()
                         [placed.glyphs()[first].association];
-                    let mut raster =
-                        RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let mask = rasterize(&mut raster, group)?;
-                    let charge = add(
-                        (mask.data().len() as u64)
-                            .checked_mul(3)
-                            .ok_or_else(limited)?,
-                        bytes::<DrawOp>(1)?,
-                    )?;
-                    // Current-event scratch remains live, and previous event
-                    // masks/DrawOps stay charged until final composition.
-                    available(limits, add(add(held, event_charge)?, charge)?)?;
-                    held = add(held, charge)?;
-                    operations.try_reserve_exact(1).map_err(|_| {
-                        RenderError::new(ErrorCode::AllocationFailed, "draw list allocation failed")
-                    })?;
-                    operations.push(DrawOp::new(
-                        DrawOrder::new(
-                            event.layer(),
-                            event.id(),
-                            2,
-                            u32::try_from(ordinal).map_err(|_| limited())?,
-                        ),
-                        mask,
-                        PixelOffset::default(),
-                        Paint::Solid(state.paint().primary()),
-                        PaintSpace::Device,
-                        PaintMap::Identity,
-                        Arc::new(ResolvedClip::None),
-                    ));
+                    let mut fill_context = RasterContext::with_limits(available(
+                        limits,
+                        add(held, event_charge)?,
+                    )?)?;
+                    let fill = rasterize(&mut fill_context, group)?;
+                    drop(fill_context);
+                    charge_mask(&fill, &mut held, event_charge, limits)?;
+
+                    let mut border_enabled =
+                        state.effects().border_style() == BorderStyle::Outline;
+                    let border_value = state.effects().border_x().get();
+                    if border_enabled
+                        && border_value > 0.0
+                        && track.script().scaled_border_shadow()
+                        && !equal_device_scale(device)
+                    {
+                        let detail = "Core isotropic border scaling requires equal device/script x and y ratios";
+                        if request.unsupported == UnsupportedPolicy::Strict {
+                            return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
+                                .with_context(Some(event.id()), Some(state.source())));
+                        }
+                        diagnostics
+                            .push(Diagnostic::new(
+                                DiagnosticCode::UnsupportedFeature,
+                                Some(event.id()),
+                                Some(state.source()),
+                                detail,
+                            ))
+                            .map_err(convert)?;
+                        border_enabled = false;
+                    }
+                    let border_radius = if border_enabled {
+                        let ratio = if track.script().scaled_border_shadow() {
+                            f64::from(device.content().width())
+                                / f64::from(device.play_res().width())
+                        } else {
+                            1.0
+                        };
+                        q6_pixels(border_value * ratio)?
+                    } else {
+                        Q6::from_ticks(0)
+                    };
+                    let border_exists = border_enabled && border_value > 0.0;
+                    let mut expanded: Option<Arc<Mask>> = None;
+                    let border = if border_exists {
+                        let remaining = limits
+                            .path_segments_per_frame()
+                            .checked_sub(total_segments)
+                            .ok_or_else(limited)?;
+                        let mut stroke_context = RasterContext::with_limits(available(
+                            limits,
+                            add(held, event_charge)?,
+                        )?)?;
+                        let (mask, segments) = crate::stroke::rasterize_expanded(
+                            &mut stroke_context,
+                            group,
+                            border_radius,
+                            Q6::from_ticks(0),
+                            Q6::from_ticks(0),
+                            remaining,
+                        )?;
+                        drop(stroke_context);
+                        total_segments = add(total_segments, segments)?;
+                        charge_mask(&mask, &mut held, event_charge, limits)?;
+                        let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                        let border_mask = crate::stroke::subtract_coverage(
+                            &mask,
+                            &fill,
+                            &subtraction_limits,
+                        )?;
+                        charge_mask(&border_mask, &mut held, event_charge, limits)?;
+                        expanded = Some(mask);
+                        Some(border_mask)
+                    } else {
+                        None
+                    };
+
+                    let dx = script_offset_q6(state.effects().shadow_x(), device, true)?;
+                    let dy = script_offset_q6(state.effects().shadow_y(), device, false)?;
+                    let shadow = if dx.ticks() == 0 && dy.ticks() == 0 {
+                        Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
+                    } else if border_exists {
+                        let remaining = limits
+                            .path_segments_per_frame()
+                            .checked_sub(total_segments)
+                            .ok_or_else(limited)?;
+                        let mut stroke_context = RasterContext::with_limits(available(
+                            limits,
+                            add(held, event_charge)?,
+                        )?)?;
+                        let (mask, segments) = crate::stroke::rasterize_expanded(
+                            &mut stroke_context,
+                            group,
+                            border_radius,
+                            dx,
+                            dy,
+                            remaining,
+                        )?;
+                        drop(stroke_context);
+                        total_segments = add(total_segments, segments)?;
+                        charge_mask(&mask, &mut held, event_charge, limits)?;
+                        Some(mask)
+                    } else {
+                        let mut shadow_context = RasterContext::with_limits(available(
+                            limits,
+                            add(held, event_charge)?,
+                        )?)?;
+                        let mask = crate::stroke::rasterize_translated(
+                            &mut shadow_context,
+                            group,
+                            dx,
+                            dy,
+                        )?;
+                        drop(shadow_context);
+                        charge_mask(&mask, &mut held, event_charge, limits)?;
+                        Some(mask)
+                    };
+                    if border_exists
+                        && shadow
+                            .as_ref()
+                            .zip(expanded.as_ref())
+                            .is_none_or(|(shadow, expanded)| !Arc::ptr_eq(shadow, expanded))
+                    {
+                        if let Some(expanded) = expanded.take() {
+                            let charge = u64::try_from(expanded.data().len())
+                                .ok()
+                                .and_then(|n| n.checked_mul(3))
+                                .ok_or_else(limited)?;
+                            held = held.checked_sub(charge).ok_or_else(limited)?;
+                        }
+                    }
+                    group_masks.push(GroupMasks {
+                        fill,
+                        border,
+                        shadow,
+                        fill_paint: state.paint().primary(),
+                        border_paint: state.paint().outline(),
+                        shadow_paint: state.paint().shadow(),
+                    });
+                }
+                // C5 keeps pass order across every compatible group in this
+                // event; per-group shadow/border/fill triplets are forbidden.
+                for selector in [0_u16, 1, 2] {
+                    for (ordinal, masks) in group_masks.iter().enumerate() {
+                        let selected = match selector {
+                            0 => masks.shadow.as_ref().map(|m| (m.clone(), masks.shadow_paint)),
+                            1 => masks.border.as_ref().map(|m| (m.clone(), masks.border_paint)),
+                            _ => Some((masks.fill.clone(), masks.fill_paint)),
+                        };
+                        let Some((mask, paint)) = selected else {
+                            continue;
+                        };
+                        push_operation(
+                            &mut operations,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            DrawOrder::new(
+                                event.layer(),
+                                event.id(),
+                                selector,
+                                u32::try_from(ordinal).map_err(|_| limited())?,
+                            ),
+                            mask,
+                            paint,
+                        )?;
+                    }
                 }
                 Ok(())
             })();

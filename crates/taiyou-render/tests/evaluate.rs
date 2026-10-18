@@ -96,6 +96,38 @@ fn evaluate_named_reset_uses_last_definition_then_unnamed_uses_event_style() {
     assert_eq!(at(&t, 99), e);
     assert_eq!(at(&t, -100), e);
 }
+
+#[test]
+fn evaluate_border_shadow_inheritance_and_style_reset_restore_effects() {
+    let base = Style::core_default()
+        .with_border(FiniteF64::new(1.25).unwrap())
+        .unwrap()
+        .with_shadow(FiniteF64::new(-0.5).unwrap());
+    let t = track(
+        vec![base],
+        vec![
+            TextOp::Override(OverrideOp::SetBorder {
+                width: FiniteF64::new(0.25).unwrap(),
+                source: span(0, 0),
+            }),
+            TextOp::Override(OverrideOp::SetShadow {
+                offset: FiniteF64::new(2.5).unwrap(),
+                source: span(0, 0),
+            }),
+            text(0),
+            reset(None, 1),
+            text(1),
+        ],
+    );
+    let evaluated = at(&t, 0);
+    assert_eq!(evaluated.runs()[0].effects().border_x().get(), 0.25);
+    assert_eq!(evaluated.runs()[0].effects().shadow_x().get(), 2.5);
+    assert_eq!(evaluated.runs()[1].effects().border_x().get(), 1.25);
+    assert_eq!(evaluated.runs()[1].effects().border_y().get(), 1.25);
+    assert_eq!(evaluated.runs()[1].effects().shadow_x().get(), -0.5);
+    assert_eq!(evaluated.runs()[1].effects().shadow_y().get(), -0.5);
+    assert!(evaluated.animation().effects());
+}
 #[test]
 fn evaluate_repeated_tags_opacity_and_dependency_flags_are_exact() {
     let t = track(

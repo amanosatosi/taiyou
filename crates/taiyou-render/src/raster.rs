@@ -190,6 +190,51 @@ pub fn coverage_bounds(group: &CoverageGroup) -> Result<PixelRect, RenderError> 
 fn empty_bounds() -> Result<PixelRect, RenderError> {
     PixelRect::new(0, 0, 0, 0).map_err(|_| limited())
 }
+pub(crate) fn coverage_path(
+    group: &CoverageGroup,
+    translate_x: Q6,
+    translate_y: Q6,
+    limits: &Limits,
+) -> Result<Vec<PathOp<DevicePoint>>, RenderError> {
+    let count = group.instances().iter().try_fold(0usize, |n, i| {
+        n.checked_add(i.ops().len()).ok_or_else(limited)
+    })?;
+    check_path_budget(count, limits)?;
+    let bytes = u64::try_from(count)
+        .ok()
+        .and_then(|n| n.checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64))
+        .ok_or_else(limited)?;
+    if bytes > limits.transient_bytes() {
+        return Err(limited());
+    }
+    let mut ops = Vec::new();
+    ops.try_reserve_exact(count).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "combined contour allocation failed",
+        )
+    })?;
+    for instance in group.instances() {
+        for &op in instance.ops() {
+            ops.push(op.try_map(|p| {
+                let add = |q: Q6, offset: i32, translate: Q6| {
+                    i32::try_from(
+                        i64::from(q.ticks())
+                            + i64::from(offset) * 64
+                            + i64::from(translate.ticks()),
+                    )
+                    .map(Q6::from_ticks)
+                    .map_err(|_| limited())
+                };
+                Ok(DevicePoint::new(
+                    add(p.x(), instance.offset().x(), translate_x)?,
+                    add(p.y(), instance.offset().y(), translate_y)?,
+                ))
+            })?);
+        }
+    }
+    Ok(ops)
+}
 #[cfg(feature = "native")]
 pub fn rasterize(ctx: &mut RasterContext, group: &CoverageGroup) -> Result<Arc<Mask>, RenderError> {
     if group.pass != CoveragePass::Fill || group.policy.profile != Profile::CoreV1 {
@@ -202,33 +247,7 @@ pub fn rasterize(ctx: &mut RasterContext, group: &CoverageGroup) -> Result<Arc<M
     if bounds.is_empty() {
         return Ok(Arc::new(Mask::new(bounds, 0, Arc::from([]))?));
     }
-    let count = group.instances().iter().try_fold(0usize, |n, i| {
-        n.checked_add(i.ops().len()).ok_or_else(limited)
-    })?;
-    check_path_budget(count, ctx.limits())?;
-    let mut ops = Vec::new();
-    ops.try_reserve_exact(count).map_err(|_| {
-        RenderError::new(
-            ErrorCode::AllocationFailed,
-            "combined contour allocation failed",
-        )
-    })?;
-    for instance in group.instances() {
-        for &op in instance.ops() {
-            ops.push(op.try_map(|p| {
-                let add = |q: Q6, offset: i32| {
-                    i32::try_from(i64::from(q.ticks()) + i64::from(offset) * 64)
-                        .map(Q6::from_ticks)
-                        .map_err(|_| limited())
-                };
-                // T011 residual commands ALREADY contain fractional phase.
-                Ok(DevicePoint::new(
-                    add(p.x(), instance.offset().x())?,
-                    add(p.y(), instance.offset().y())?,
-                ))
-            })?);
-        }
-    }
+    let ops = coverage_path(group, Q6::from_ticks(0), Q6::from_ticks(0), ctx.limits())?;
     ctx.rasterize_path(
         &ops,
         bounds,

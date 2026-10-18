@@ -191,6 +191,12 @@ fn one(
                         state = state.with_scale(x, y).map_err(convert)?;
                     }
                     OverrideOp::SetSpacing { spacing, .. } => state = state.with_spacing(*spacing),
+                    OverrideOp::SetBorder { width, .. } => {
+                        state = state.with_border(*width).map_err(convert)?;
+                    }
+                    OverrideOp::SetShadow { offset, .. } => {
+                        state = state.with_shadow(*offset);
+                    }
                     OverrideOp::SetAlignment { alignment, .. } => {
                         state = state.with_alignment(*alignment)
                     }

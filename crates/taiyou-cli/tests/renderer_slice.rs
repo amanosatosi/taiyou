@@ -33,7 +33,7 @@ fn catalog(all: bool) -> Arc<ValidatedFontCatalog> {
 }
 fn source(events: &str) -> String {
     format!(
-        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,0,0,7,10,10,10\n[Events]\nFormat: Layer,Start,End,Style,Text\n{events}"
+        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,10,10,10\n[Events]\nFormat: Layer,Start,End,Style,Text\n{events}"
     )
 }
 fn dialogue(text: &str) -> String {
@@ -126,7 +126,7 @@ fn renderer_slice_nine_alignments_independent_pixels_and_color() {
     let fonts = catalog(false);
     let mut renderer = renderer(limits());
     for a in 1..=9 {
-        let track = track(&dialogue(&format!("{{\\an{a}\\1c&H2850C8&\\alpha&H7F&}}H")));
+        let track = track(&dialogue(&format!("{{\\an{a}\\1c&H2850C8&\\alpha&H7F&\\4a&HFF&}}H")));
         let frame = renderer
             .render(track, fonts.clone(), &request(500_000))
             .unwrap();
@@ -158,7 +158,7 @@ fn renderer_slice_layer_source_order_and_paint_boundaries() {
     let fonts = catalog(false);
     let mut renderer = renderer(limits());
     let a = "Dialogue: 1,0:00:00.10,0:00:01.00,Default,{\\pos(10,10)\\1c&HFF0000&}H";
-    let b = "Dialogue: -1,0:00:00.10,0:00:01.00,Default,{\\pos(10,10)\\1c&H0000FF&\\alpha&H7F&}H";
+    let b = "Dialogue: -1,0:00:00.10,0:00:01.00,Default,{\\pos(10,10)\\1c&H0000FF&\\alpha&H7F&\\4a&HFF&}H";
     let two = renderer
         .render(
             track(&format!("{a}\n{b}")),
@@ -267,7 +267,7 @@ fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
                 .any(|d| d.code() == DiagnosticCode::UnsupportedFeature)
         );
     }
-    let effect = source(&dialogue("H")).replace("&H00FFFFFF,0,0,7", "&H00FFFFFF,2,2,7");
+    let effect = source(&dialogue("H")).replace("&H00FFFFFF,&HFF000000,0,0,7", "&H00FFFFFF,&HFF000000,2,2,7");
     let t = taiyou_ass::parse_ass(
         effect.as_bytes(),
         &Default::default(),
@@ -276,12 +276,11 @@ fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
     .unwrap()
     .track()
     .clone();
-    assert_eq!(
-        r.render(t, fonts.clone(), &request(500_000))
-            .unwrap_err()
-            .code(),
-        ErrorCode::UnsupportedFeature
-    );
+    let outlined = r.render(t, fonts.clone(), &request(500_000)).unwrap();
+    let fill_only = r
+        .render(track(&dialogue("H")), fonts.clone(), &request(500_000))
+        .unwrap();
+    assert_ne!(outlined.pixels(), fill_only.pixels());
     assert!(
         Renderer::new(RendererConfig {
             workers: std::num::NonZeroUsize::new(2).unwrap(),

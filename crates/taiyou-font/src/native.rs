@@ -915,6 +915,441 @@ impl RasterContext {
         }
         Ok(Arc::new(Mask::new(bounds, stride, state.data.into())?))
     }
+
+    /// Rasterize the outside contour of a round isotropic FreeType stroke.
+    /// Input contours are transformed device-space Q6 geometry; the returned
+    /// A8 mask is the expanded silhouette E, including full support outside the
+    /// original path and negative device origins.
+    pub fn stroke_rasterize_path(
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius: Q6,
+        remaining_segments: u64,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        let invalid = || {
+            RenderError::new(
+                ErrorCode::InvalidArgument,
+                "invalid stroke path or radius",
+            )
+        };
+        let limit = || {
+            RenderError::new(
+                ErrorCode::LimitExceeded,
+                "native stroke extent/count/reservation limit",
+            )
+        };
+        let alloc = || {
+            RenderError::new(
+                ErrorCode::AllocationFailed,
+                "stroke buffer allocation failed",
+            )
+        };
+        let limits = &self.owner.limits;
+        check_path_budget(ops.len(), limits)?;
+        if radius.ticks() < 0 {
+            return Err(invalid());
+        }
+        if ops.is_empty() {
+            return Ok((
+                Arc::new(Mask::new(
+                    PixelRect::new(0, 0, 0, 0).map_err(|_| invalid())?,
+                    0,
+                    Arc::from([]),
+                )?),
+                0,
+            ));
+        }
+
+        let mut point_count = 0usize;
+        let mut contour_count = 0usize;
+        let mut open = false;
+        let mut hull: Option<(i64, i64, i64, i64)> = None;
+        let mut observe = |p: DevicePoint| {
+            let x = i64::from(p.x().ticks());
+            let y = i64::from(p.y().ticks());
+            hull = Some(hull.map_or((x, y, x, y), |(x0, y0, x1, y1)| {
+                (x0.min(x), y0.min(y), x1.max(x), y1.max(y))
+            }));
+        };
+        for &op in ops {
+            match op {
+                PathOp::MoveTo(p) if !open => {
+                    open = true;
+                    point_count = point_count.checked_add(1).ok_or_else(limit)?;
+                    observe(p);
+                }
+                PathOp::LineTo(p) if open => {
+                    point_count = point_count.checked_add(1).ok_or_else(limit)?;
+                    observe(p);
+                }
+                PathOp::QuadTo(a, b) if open => {
+                    point_count = point_count.checked_add(2).ok_or_else(limit)?;
+                    observe(a);
+                    observe(b);
+                }
+                PathOp::CubicTo(a, b, c) if open => {
+                    point_count = point_count.checked_add(3).ok_or_else(limit)?;
+                    observe(a);
+                    observe(b);
+                    observe(c);
+                }
+                PathOp::Close if open => {
+                    open = false;
+                    contour_count = contour_count.checked_add(1).ok_or_else(limit)?;
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        if open || point_count == 0 || contour_count == 0 {
+            return Err(invalid());
+        }
+        let native_points = i16::try_from(point_count).map_err(|_| limit())?;
+        let native_contours = i16::try_from(contour_count).map_err(|_| limit())?;
+        let (min_x, min_y, max_x, max_y) = hull.ok_or_else(invalid)?;
+        let radius = i64::from(radius.ticks());
+        let floor_pixel = |ticks: i64| i32::try_from(ticks.div_euclid(64)).map_err(|_| limit());
+        let ceil_pixel = |ticks: i64| {
+            i32::try_from(-(-ticks).div_euclid(64)).map_err(|_| limit())
+        };
+        let input_x0 = floor_pixel(min_x)?;
+        let input_y0 = floor_pixel(min_y)?;
+        let mut input_x1 = ceil_pixel(max_x)?;
+        let mut input_y1 = ceil_pixel(max_y)?;
+        if input_x0 == input_x1 {
+            input_x1 = input_x0.checked_add(1).ok_or_else(limit)?;
+        }
+        if input_y0 == input_y1 {
+            input_y1 = input_y0.checked_add(1).ok_or_else(limit)?;
+        }
+        let input_bounds = PixelRect::new(input_x0, input_y0, input_x1, input_y1)
+            .map_err(|_| invalid())?;
+        if radius == 0 {
+            let stride = usize::try_from(input_bounds.width()).map_err(|_| limit())?;
+            return self
+                .rasterize_path(ops, input_bounds, stride)
+                .map(|mask| (mask, 0));
+        }
+        let bounds = PixelRect::new(
+            floor_pixel(min_x.checked_sub(radius).ok_or_else(limit)?)?,
+            floor_pixel(min_y.checked_sub(radius).ok_or_else(limit)?)?,
+            ceil_pixel(max_x.checked_add(radius).ok_or_else(limit)?)?,
+            ceil_pixel(max_y.checked_add(radius).ok_or_else(limit)?)?,
+        )
+        .map_err(|_| limit())?;
+        let (width, height) = (
+            usize::try_from(bounds.width()).map_err(|_| limit())?,
+            usize::try_from(bounds.height()).map_err(|_| limit())?,
+        );
+        let input_width = i64::from(input_bounds.width());
+        let input_height = i64::from(input_bounds.height());
+        let output_width = i64::try_from(width).map_err(|_| limit())?;
+        let output_height = i64::try_from(height).map_err(|_| limit())?;
+        if width > u16::MAX as usize
+            || height > u16::MAX as usize
+            || bounds.width() > limits.max_dimension()
+            || bounds.height() > limits.max_dimension()
+            || input_bounds.width() > limits.max_dimension()
+            || input_bounds.height() > limits.max_dimension()
+            || radius > i64::from(limits.max_dimension()) * 64
+        {
+            return Err(limit());
+        }
+        let length = width.checked_mul(height).ok_or_else(limit)?;
+        let pixels = u64::try_from(length).map_err(|_| limit())?;
+        if pixels > limits.output_pixels() || pixels > limits.output_bytes() {
+            return Err(limit());
+        }
+        let mut contours = Vec::new();
+        let mut points = Vec::new();
+        let mut tags = Vec::new();
+        contours
+            .try_reserve_exact(contour_count)
+            .map_err(|_| alloc())?;
+        points.try_reserve_exact(point_count).map_err(|_| alloc())?;
+        tags.try_reserve_exact(point_count).map_err(|_| alloc())?;
+        let input_length = usize::try_from(input_width)
+            .ok()
+            .and_then(|w| {
+                usize::try_from(input_height)
+                    .ok()
+                    .and_then(|h| w.checked_mul(h))
+            })
+            .ok_or_else(limit)?;
+        let base_charge = (length as u64)
+            .checked_mul(3)
+            .and_then(|n| {
+                n.checked_add(
+                    (ops.len() as u64)
+                        .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)?,
+                )
+            })
+            .and_then(|n| n.checked_add((point_count as u64).checked_mul(256)?))
+            .and_then(|n| n.checked_add(((width + height) as u64).checked_mul(64)?))
+            .and_then(|n| n.checked_add((input_length as u64).checked_mul(3)?))
+            .and_then(|n| n.checked_add(2 * 1024 * 1024))
+            .ok_or_else(limit)?;
+        if base_charge > limits.transient_bytes() {
+            return Err(limit());
+        }
+        let convert = |p: DevicePoint| -> Result<ft::FT_Vector, RenderError> {
+            let x = i64::from(p.x().ticks()) - i64::from(input_bounds.x0()) * 64;
+            let y = i64::from(input_bounds.y1()) * 64 - i64::from(p.y().ticks());
+            if x < 0 || y < 0 || x > input_width * 64 || y > input_height * 64 {
+                return Err(invalid());
+            }
+            Ok(ft::FT_Vector {
+                x: ft::FT_Pos::try_from(i128::from(x)).map_err(|_| limit())?,
+                y: ft::FT_Pos::try_from(i128::from(y)).map_err(|_| limit())?,
+            })
+        };
+        for &op in ops {
+            let mut push = |p, tag| -> Result<(), RenderError> {
+                points.push(convert(p)?);
+                tags.push(tag);
+                Ok(())
+            };
+            match op {
+                PathOp::MoveTo(p) | PathOp::LineTo(p) => push(p, 1)?,
+                PathOp::QuadTo(a, b) => {
+                    push(a, 0)?;
+                    push(b, 1)?;
+                }
+                PathOp::CubicTo(a, b, c) => {
+                    push(a, 2)?;
+                    push(b, 2)?;
+                    push(c, 1)?;
+                }
+                PathOp::Close => {
+                    contours.push(i16::try_from(points.len() - 1).map_err(|_| limit())?)
+                }
+            }
+        }
+        let mut outline = ft::FT_Outline {
+            n_contours: native_contours,
+            n_points: native_points,
+            points: points.as_mut_ptr(),
+            tags: tags.as_mut_ptr(),
+            contours: contours.as_mut_ptr(),
+            flags: 0,
+        };
+        // SAFETY: the outline arrays are fully initialized, sized by checked
+        // signed-short counts, and remain exclusively borrowed through each call.
+        let code = unsafe { FT_Outline_Check(&outline) };
+        if code != 0 {
+            return Err(
+                RenderError::new(ErrorCode::NativeFailure, "FT_Outline_Check failed")
+                    .with_native_code(i64::from(code)),
+            );
+        }
+        let mut raw_stroker: *mut std::ffi::c_void = ptr::null_mut();
+        // SAFETY: the worker-local initialized library is live and the output
+        // pointer is a valid exclusive slot for one opaque stroker handle.
+        let code = unsafe { FT_Stroker_New(self.owner.library.0, &mut raw_stroker) };
+        if code != 0 {
+            if !raw_stroker.is_null() {
+                // SAFETY: a non-null handle returned alongside the error is still
+                // owned here and must be released before returning.
+                unsafe { FT_Stroker_Done(raw_stroker) };
+            }
+            return Err(
+                RenderError::new(ErrorCode::NativeFailure, "FT_Stroker_New failed")
+                    .with_native_code(i64::from(code)),
+            );
+        }
+        if raw_stroker.is_null() {
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "FT_Stroker_New returned a null handle",
+            ));
+        }
+        let stroker = Stroker(raw_stroker);
+        // FreeType documents radius in outline units. Round line caps and joins
+        // are explicit; closed glyph contours do not expose the cap setting.
+        let native_radius = ft::FT_Fixed::try_from(radius).map_err(|_| limit())?;
+        // SAFETY: the checked radius fits FT_Fixed; enum values are the stable
+        // public FreeType round-cap (1) and round-join (0) constants.
+        unsafe { FT_Stroker_Set(stroker.0, native_radius, 1, 0, 65_536) };
+        // SAFETY: stroker and checked outline stay live for the synchronous call;
+        // opened=0 preserves each source contour as a closed filled boundary.
+        let code = unsafe { FT_Stroker_ParseOutline(stroker.0, &mut outline, 0) };
+        if code != 0 {
+            return Err(
+                RenderError::new(ErrorCode::NativeFailure, "FT_Stroker_ParseOutline failed")
+                    .with_native_code(i64::from(code)),
+            );
+        }
+        // SAFETY: FreeType inspects the still-live validated outline and returns
+        // the side that bounds its nonzero-winding filled region.
+        let outside = unsafe { FT_Outline_GetOutsideBorder(&mut outline) };
+        let mut output_points = 0_u32;
+        let mut output_contours = 0_u32;
+        // SAFETY: output count slots are valid and stroker owns its parsed paths.
+        let code = unsafe {
+            FT_Stroker_GetBorderCounts(
+                stroker.0,
+                outside,
+                &mut output_points,
+                &mut output_contours,
+            )
+        };
+        if code != 0 {
+            return Err(
+                RenderError::new(
+                    ErrorCode::NativeFailure,
+                    "FT_Stroker_GetBorderCounts failed",
+                )
+                .with_native_code(i64::from(code)),
+            );
+        }
+        let output_point_count = usize::try_from(output_points).map_err(|_| limit())?;
+        let output_contour_count = usize::try_from(output_contours).map_err(|_| limit())?;
+        let output_native_points = i16::try_from(output_points).map_err(|_| limit())?;
+        let output_native_contours = i16::try_from(output_contours).map_err(|_| limit())?;
+        if u64::try_from(output_point_count).map_err(|_| limit())?
+            > remaining_segments
+        {
+            return Err(limit());
+        }
+        let export_charge = (output_point_count as u64)
+            .checked_mul(
+                3 * (std::mem::size_of::<ft::FT_Vector>()
+                    + std::mem::size_of::<u8>()
+                    + std::mem::size_of::<PathOp<DevicePoint>>()) as u64,
+            )
+            .and_then(|n| {
+                n.checked_add(
+                    (output_contour_count as u64)
+                        .checked_mul(3 * std::mem::size_of::<i16>() as u64)?,
+                )
+            })
+            .and_then(|n| n.checked_add(base_charge))
+            .ok_or_else(limit)?;
+        if export_charge > limits.transient_bytes() {
+            return Err(limit());
+        }
+        let mut expanded_points = Vec::new();
+        let mut expanded_tags = Vec::new();
+        let mut expanded_contours = Vec::new();
+        expanded_points
+            .try_reserve_exact(output_point_count)
+            .map_err(|_| alloc())?;
+        expanded_tags
+            .try_reserve_exact(output_point_count)
+            .map_err(|_| alloc())?;
+        expanded_contours
+            .try_reserve_exact(output_contour_count)
+            .map_err(|_| alloc())?;
+        expanded_points.resize(
+            output_point_count,
+            ft::FT_Vector {
+                x: 0 as ft::FT_Pos,
+                y: 0 as ft::FT_Pos,
+            },
+        );
+        expanded_tags.resize(output_point_count, 0);
+        expanded_contours.resize(output_contour_count, 0_i16);
+        let mut expanded = ft::FT_Outline {
+            n_contours: 0,
+            n_points: 0,
+            points: expanded_points.as_mut_ptr(),
+            tags: expanded_tags.as_mut_ptr(),
+            contours: expanded_contours.as_mut_ptr(),
+            flags: 0,
+        };
+        // SAFETY: capacities exactly satisfy the previously queried counts;
+        // FreeType appends only to these private initialized arrays.
+        unsafe { FT_Stroker_ExportBorder(stroker.0, outside, &mut expanded) };
+        if expanded.n_points != output_native_points
+            || expanded.n_contours != output_native_contours
+        {
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "FT_Stroker_ExportBorder count mismatch",
+            ));
+        }
+        let x_shift = (i64::from(input_bounds.x0()) - i64::from(bounds.x0())) * 64;
+        let y_shift = (i64::from(bounds.y1()) - i64::from(input_bounds.y1())) * 64;
+        for point in &mut expanded_points {
+            let x = i128::from(point.x) + i128::from(x_shift);
+            let y = i128::from(point.y) + i128::from(y_shift);
+            point.x = ft::FT_Pos::try_from(x).map_err(|_| limit())?;
+            point.y = ft::FT_Pos::try_from(y).map_err(|_| limit())?;
+            if i128::from(point.x) < 0
+                || i128::from(point.y) < 0
+                || i128::from(point.x) > i128::from(output_width) * 64
+                || i128::from(point.y) > i128::from(output_height) * 64
+            {
+                return Err(limit());
+            }
+        }
+        // SAFETY: the exported arrays remain exclusively owned, with count
+        // fields checked against the allocated lengths and legal contour indices.
+        let code = unsafe { FT_Outline_Check(&expanded) };
+        if code != 0 {
+            return Err(
+                RenderError::new(
+                    ErrorCode::NativeFailure,
+                    "expanded FT_Outline_Check failed",
+                )
+                .with_native_code(i64::from(code)),
+            );
+        }
+        let mut state = SpanCopy {
+            data: Vec::new(),
+            width,
+            height,
+            stride: width,
+            failed: false,
+            delivered: 0,
+        };
+        state.data.try_reserve_exact(length).map_err(|_| alloc())?;
+        state.data.resize(length, 0);
+        let mut params = RasterParams {
+            target: ptr::null(),
+            source: ptr::null(),
+            flags: 7,
+            gray_spans: Some(copy_spans),
+            black_spans: None,
+            bit_test: None,
+            bit_set: None,
+            user: (&mut state as *mut SpanCopy).cast(),
+            clip_box: ft::FT_BBox {
+                xMin: 0,
+                yMin: 0,
+                xMax: ft::FT_Pos::try_from(width).map_err(|_| limit())?,
+                yMax: ft::FT_Pos::try_from(height).map_err(|_| limit())?,
+            },
+        };
+        // SAFETY: library, stroker, exported outline arrays, coverage buffer,
+        // callback state and raster parameters all outlive the synchronous call.
+        let code = unsafe { FT_Outline_Render(self.owner.library.0, &expanded, &mut params) };
+        if code != 0 {
+            return Err(
+                RenderError::new(ErrorCode::NativeFailure, "stroked FT_Outline_Render failed")
+                    .with_native_code(i64::from(code)),
+            );
+        }
+        if state.failed {
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "invalid stroked native coverage spans",
+            ));
+        }
+        if state.data.iter().all(|&v| v == 0) {
+            return Ok((
+                Arc::new(Mask::new(
+                    PixelRect::new(0, 0, 0, 0).map_err(|_| invalid())?,
+                    0,
+                    Arc::from([]),
+                )?),
+                u64::try_from(output_point_count).map_err(|_| limit())?,
+            ));
+        }
+        Ok((
+            Arc::new(Mask::new(bounds, width, state.data.into())?),
+            u64::try_from(output_point_count).map_err(|_| limit())?,
+        ))
+    }
 }
 #[repr(C)]
 struct RasterSpan {
@@ -941,6 +1376,43 @@ unsafe extern "C" {
         outline: *const ft::FT_Outline,
         params: *mut RasterParams,
     ) -> ft::FT_Error;
+    fn FT_Stroker_New(library: ft::FT_Library, stroker: *mut *mut std::ffi::c_void)
+    -> ft::FT_Error;
+    fn FT_Stroker_Done(stroker: *mut std::ffi::c_void);
+    fn FT_Stroker_Set(
+        stroker: *mut std::ffi::c_void,
+        radius: ft::FT_Fixed,
+        line_cap: ft::FT_Int,
+        line_join: ft::FT_Int,
+        miter_limit: ft::FT_Fixed,
+    );
+    fn FT_Stroker_ParseOutline(
+        stroker: *mut std::ffi::c_void,
+        outline: *mut ft::FT_Outline,
+        opened: ft::FT_Bool,
+    ) -> ft::FT_Error;
+    fn FT_Outline_GetOutsideBorder(outline: *mut ft::FT_Outline) -> ft::FT_Int;
+    fn FT_Stroker_GetBorderCounts(
+        stroker: *mut std::ffi::c_void,
+        border: ft::FT_Int,
+        points: *mut ft::FT_UInt,
+        contours: *mut ft::FT_UInt,
+    ) -> ft::FT_Error;
+    fn FT_Stroker_ExportBorder(
+        stroker: *mut std::ffi::c_void,
+        border: ft::FT_Int,
+        outline: *mut ft::FT_Outline,
+    );
+}
+struct Stroker(*mut std::ffi::c_void);
+impl Drop for Stroker {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: this wrapper uniquely owns the opaque handle returned by
+            // FT_Stroker_New; every exit path releases it exactly once.
+            unsafe { FT_Stroker_Done(self.0) };
+        }
+    }
 }
 struct SpanCopy {
     data: Vec<u8>,
