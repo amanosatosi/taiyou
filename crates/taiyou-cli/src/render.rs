@@ -236,8 +236,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         &mut TrackIngestor::new(),
     )
     .map_err(parse_error)?;
-    let mut context = FontContext::with_limits(limits.clone())
-        .map_err(font_error)?;
+    let mut context = FontContext::with_limits(limits.clone()).map_err(font_error)?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {
         builder
