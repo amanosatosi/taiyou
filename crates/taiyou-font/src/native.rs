@@ -1365,11 +1365,29 @@ mod tests {
             assert!(s.failed);
             assert_eq!(s.data, [0; 4]);
         }
-        let mut tail = SpanCopy { data: vec![0], width: 1, height: 1, stride: 1, failed: false, delivered: 0 };
-        let spans = [RasterSpan { x: 0, len: 1, coverage: 255 }, RasterSpan { x: 1, len: 0, coverage: 255 }];
-        copy_spans(0,2,spans.as_ptr(),(&mut tail as *mut SpanCopy).cast());
+        let mut tail = SpanCopy {
+            data: vec![0],
+            width: 1,
+            height: 1,
+            stride: 1,
+            failed: false,
+            delivered: 0,
+        };
+        let spans = [
+            RasterSpan {
+                x: 0,
+                len: 1,
+                coverage: 255,
+            },
+            RasterSpan {
+                x: 1,
+                len: 0,
+                coverage: 255,
+            },
+        ];
+        copy_spans(0, 2, spans.as_ptr(), (&mut tail as *mut SpanCopy).cast());
         assert!(!tail.failed);
-        assert_eq!(tail.data,[255]);
+        assert_eq!(tail.data, [255]);
         assert_eq!(std::mem::size_of::<RasterSpan>(), 6);
         assert_eq!(std::mem::offset_of!(RasterSpan, coverage), 4);
         assert_eq!(

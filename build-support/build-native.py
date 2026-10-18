@@ -93,6 +93,10 @@ os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / 
 os.environ["TAIYOU_RASTER_SAMPLE_DIR"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-raster-sample")
 if platform.system() == "Linux":
     run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), "-I" + str(prefix / "include/harfbuzz"), root / "build-support/font-abi.c")
+    reference = Path(os.environ["RUNNER_TEMP"]) / "taiyou-raster-reference"
+    run("cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + str(prefix / "include/freetype2"), root / "build-support/raster-reference.c", "-L" + str(prefix / "lib"), "-lfreetype", "-lm", "-o", reference)
+    os.environ["TAIYOU_RASTER_REFERENCE"] = str(reference)
+    run(reference, "--rects")
 run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "raster")
 run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "raster_native")
 run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "raster")

@@ -7,6 +7,8 @@ import subprocess
 
 root = Path(__file__).resolve().parent.parent
 folder = Path(os.environ["TAIYOU_RASTER_SAMPLE_DIR"])
+if os.environ.get("TAIYOU_RASTER_REFERENCE"):
+    subprocess.run([os.environ["TAIYOU_RASTER_REFERENCE"], str(folder / "commands.q6"), str(folder / "expected.a8"), str(folder / "expected-info.txt")], check=True)
 info = dict(line.split("=", 1) for line in (folder / "sample-info.txt").read_text().splitlines())
 width, height, stride = (int(info[k]) for k in ["width", "height", "stride"])
 data = (folder / "sample.a8").read_bytes()
@@ -42,4 +44,20 @@ report = {
 # PGM is a lossless diagnostic coverage preview, not a Taiyou PNG/frame pipeline.
 pixels = b"".join(data[y * stride:y * stride + width] for y in range(height))
 (folder / "coverage.pgm").write_bytes(f"P5\n{width} {height}\n255\n".encode("ascii") + pixels)
+if (folder / "expected.a8").exists():
+    expected_info = [int(n) for n in (folder / "expected-info.txt").read_text().split()]
+    if expected_info != [width, height, int(info["x0"]), int(info["y0"])]:
+        raise RuntimeError("independent bitmap API bounds mismatch")
+    expected = (folder / "expected.a8").read_bytes()
+    if len(expected) != len(pixels):
+        raise RuntimeError("independent bitmap API length mismatch")
+    difference = bytes(abs(a - b) for a, b in zip(expected, pixels))
+    changed = [i for i, v in enumerate(difference) if v]
+    metrics = {"reference": "independent C FT_Outline_Get_Bitmap over the same checked Q6 stage geometry", "reference_source_sha256": hashlib.sha256((root / "build-support/raster-reference.c").read_bytes()).hexdigest(), "max_delta": max(difference), "mae": sum(difference) / len(difference), "mismatch_count": len(changed), "changed_pixel_bounds": None if not changed else [min(i % width for i in changed), min(i // width for i in changed), max(i % width for i in changed) + 1, max(i // width for i in changed) + 1]}
+    (folder / "comparison.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    (folder / "expected.pgm").write_bytes(f"P5\n{width} {height}\n255\n".encode("ascii") + expected)
+    (folder / "difference.pgm").write_bytes(f"P5\n{width} {height}\n255\n".encode("ascii") + difference)
+    print("T012_INDEPENDENT_API_COMPARISON=" + json.dumps(metrics), flush=True)
+    if changed:
+        raise RuntimeError("independent bitmap API pixels differ: zero tolerance")
 print("T012_A8_SAMPLE=" + json.dumps(report), flush=True)
