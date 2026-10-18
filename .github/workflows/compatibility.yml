@@ -1,7 +1,5 @@
 name: T015 external comparison
 on:
-  push:
-    branches: [task/T015-reference-comparison]
   pull_request:
     paths: ['xtask/**', 'validation/**', '.github/workflows/compatibility.yml', 'crates/**', 'Cargo.*', 'build-support/**']
   workflow_dispatch:
@@ -13,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: compatibility-${{ github.event.pull_request.number || github.ref }}
+  group: compatibility-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   self-tests:
