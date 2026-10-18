@@ -21,7 +21,7 @@ driver = Path(os.environ["RUNNER_TEMP"]) / "r002-driver"
 driver.mkdir(exist_ok=True)
 (driver / "src").mkdir(exist_ok=True)
 shutil.copyfile(ROOT / "experiments/coverage/baseline.rs", driver / "src/main.rs")
-manifest = '[package]\nname="r002-coverage-experiment"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[dependencies]\n'
+manifest = '[package]\nname="r002-coverage-experiment"\nversion="0.0.0"\nedition="2024"\n[workspace]\n[lints.rust]\nunsafe_code="forbid"\n[dependencies]\n'
 for name in ["types", "font", "render"]:
     path = (ROOT / f"crates/taiyou-{name}").as_posix()
     features = ', features=["native"]' if name != "types" else ""

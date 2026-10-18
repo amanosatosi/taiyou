@@ -1,5 +1,4 @@
 // Independent R002 experiment driver; production crates are unchanged.
-#![forbid(unsafe_code)]
 use std::{fs, path::Path, sync::Arc, time::Instant};
 use taiyou_render::{geometry::*, raster::*};
 use taiyou_types::*;
