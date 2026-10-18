@@ -7,6 +7,8 @@ use std::{
 };
 use taiyou_render::renderer::*;
 
+mod output;
+
 fn invalid(detail: &str) -> RenderError {
     RenderError::new(ErrorCode::InvalidArgument, detail)
 }
@@ -131,8 +133,8 @@ impl Arguments {
         })
     }
 }
-fn read_limited(path: &Path, cap: u64) -> Result<Vec<u8>, RenderError> {
-    let mut file = File::open(path).map_err(io_error)?;
+fn read_limited(path: &Path, cap: u64, inputs: &mut Vec<File>) -> Result<Vec<u8>, RenderError> {
+    let mut file = output::open_input(path).map_err(io_error)?;
     if file.metadata().map_err(io_error)?.len() > cap {
         return Err(RenderError::new(
             ErrorCode::LimitExceeded,
@@ -160,6 +162,10 @@ fn read_limited(path: &Path, cap: u64) -> Result<Vec<u8>, RenderError> {
         })?;
         bytes.extend_from_slice(&buffer[..n]);
     }
+    inputs.try_reserve(1).map_err(|_| {
+        RenderError::new(ErrorCode::AllocationFailed, "input handle allocation failed")
+    })?;
+    inputs.push(file);
     Ok(bytes)
 }
 /// Does not mutate or borrow pixels beyond this call. No color-space transform.
@@ -230,8 +236,11 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         limits.clone(),
         SyntaxPolicy::Strict,
     );
+    // Retain the actual input handles until publication, including Windows
+    // sharing protection against hard links, short names and other aliases.
+    let mut inputs = Vec::new();
     let parsed = taiyou_ass::parse_ass(
-        &read_limited(&args.input, limits.input_bytes())?,
+        &read_limited(&args.input, limits.input_bytes(), &mut inputs)?,
         &options,
         &mut TrackIngestor::new(),
     )
@@ -240,7 +249,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {
         builder
-            .register(&mut context, &read_limited(path, limits.font_bytes())?, 0)
+            .register(&mut context, &read_limited(path, limits.font_bytes(), &mut inputs)?, 0)
             .map_err(font_error)?;
     }
     let catalog = builder
@@ -258,17 +267,13 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
             d.detail()
         );
     }
-    write_png(
-        &frame,
-        File::create(&args.output).map_err(io_error)?,
-        limits,
-    )?;
-    if let Some(raw) = args.raw {
-        File::create(raw)
-            .map_err(io_error)?
-            .write_all(frame.pixels())
-            .map_err(io_error)?;
-    }
+    output::write(&args.output, args.raw.as_deref(), &inputs, |png, raw| {
+        write_png(&frame, png, limits)?;
+        if let Some(raw) = raw {
+            raw.write_all(frame.pixels()).map_err(io_error)?;
+        }
+        Ok(())
+    })?;
     eprintln!(
         "taiyou {} profile=core-v1 workers=1 RGBA8 premultiplied {}x{} time-us={} diagnostics={}",
         crate::VERSION,

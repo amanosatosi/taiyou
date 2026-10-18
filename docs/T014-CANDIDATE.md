@@ -74,6 +74,25 @@ default pure-Rust builds fail rendering explicitly with UnsupportedFeature.
 each --font currently registers collection face zero. Library catalogs retain
 their existing TTC/OTC face-index selection. No implicit system discovery.
 
+CLI output publication uses exclusively created sibling temporary files. Both
+PNG encoding and optional raw writing, flushing and file synchronization finish
+before any destination is replaced. Destination files are never truncated in
+place. Leaf symlinks/nonregular files and input/output aliases are rejected;
+Unix checks retained dev/inode identities, while Windows uses retained input
+handles denying writes/deletion and nontruncating output probes with restrictive
+sharing. This covers hard links and platform aliases without new dependencies,
+unsafe code or unstable/MSRV-incompatible Windows file-ID APIs. Windows output
+names also reject streams, reserved devices and trailing-dot/space aliases.
+Canonical parents resolve directory aliases, and publication rechecks against
+already published output handles, including case aliases of initially absent
+names. Temporary files are removed on ordinary errors; newly created outputs
+are cleaned up if later publication fails. Each rename publishes a complete
+file, but replacing two existing destinations is not an atomic pair: a later
+rename failure can leave the first destination containing its completed new
+output. Prepublication generation errors preserve both original files. This is
+not a promise of crash durability or protection against hostile concurrent
+directory replacement by another process.
+
 ## Evidence
 
 tests/taiyou/core-slice/first.ass is authored for this task and uses the existing
