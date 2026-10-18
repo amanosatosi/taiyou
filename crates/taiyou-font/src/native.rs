@@ -682,6 +682,351 @@ std::thread_local! {
     static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 struct Library(ft::FT_Library);
+/// Per-call-worker raster owner, neither Send nor Sync. No native handle escapes.
+/// ```compile_fail
+/// fn require_send<T: Send>() {}
+/// require_send::<taiyou_font::RasterContext>();
+/// ```
+/// ```compile_fail
+/// fn require_sync<T: Sync>() {}
+/// require_sync::<taiyou_font::RasterContext>();
+/// ```
+pub struct RasterContext {
+    owner: FontContext,
+}
+impl RasterContext {
+    pub fn new() -> Result<Self, RenderError> {
+        Self::with_limits(Limits::default())
+    }
+    pub fn with_limits(limits: Limits) -> Result<Self, RenderError> {
+        FontContext::with_limits(limits)
+            .map(|owner| Self { owner })
+            .map_err(|e| {
+                let mut r = RenderError::new(e.code(), e.detail());
+                if let Some(code) = e.native_code() {
+                    r = r.with_native_code(code);
+                }
+                r
+            })
+    }
+    pub fn limits(&self) -> &Limits {
+        &self.owner.limits
+    }
+    pub const fn backend(&self) -> &'static str {
+        "FreeType 2.14.3 smooth/ftgrays; AA|DIRECT|CLIP=7; nonzero; CoreV1 raster policy 1"
+    }
+    /// Low-level checked absolute y-down Q6 contours. Bounds must contain their
+    /// full control hull; stride permits initialized zero row padding.
+    pub fn rasterize_path(
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        bounds: PixelRect,
+        stride: usize,
+    ) -> Result<Arc<Mask>, RenderError> {
+        let invalid = || {
+            RenderError::new(
+                ErrorCode::InvalidArgument,
+                "invalid raster path/bounds/stride",
+            )
+        };
+        let limit = || {
+            RenderError::new(
+                ErrorCode::LimitExceeded,
+                "native raster extent/count/reservation limit",
+            )
+        };
+        let alloc = || {
+            RenderError::new(
+                ErrorCode::AllocationFailed,
+                "raster buffer allocation failed",
+            )
+        };
+        let limits = &self.owner.limits;
+        check_path_budget(ops.len(), limits)?;
+        let (width, height) = (
+            usize::try_from(bounds.width()).map_err(|_| limit())?,
+            usize::try_from(bounds.height()).map_err(|_| limit())?,
+        );
+        if bounds.is_empty() {
+            if width != 0 || height != 0 || stride != 0 || !ops.is_empty() {
+                return Err(invalid());
+            }
+            return Ok(Arc::new(Mask::new(bounds, 0, Arc::from([]))?));
+        }
+        if width > u16::MAX as usize
+            || height > u16::MAX as usize
+            || bounds.width() > limits.max_dimension()
+            || bounds.height() > limits.max_dimension()
+        {
+            return Err(limit());
+        }
+        if stride < width {
+            return Err(invalid());
+        }
+        let length = stride.checked_mul(height).ok_or_else(limit)?;
+        let pixels = (width as u64)
+            .checked_mul(height as u64)
+            .ok_or_else(limit)?;
+        let mut points_count = 0usize;
+        let mut contours_count = 0usize;
+        let mut open = false;
+        for &op in ops {
+            let n = match op {
+                PathOp::MoveTo(_) if !open => {
+                    open = true;
+                    1
+                }
+                PathOp::LineTo(_) if open => 1,
+                PathOp::QuadTo(..) if open => 2,
+                PathOp::CubicTo(..) if open => 3,
+                PathOp::Close if open => {
+                    open = false;
+                    contours_count = contours_count.checked_add(1).ok_or_else(limit)?;
+                    0
+                }
+                _ => return Err(invalid()),
+            };
+            points_count = points_count.checked_add(n).ok_or_else(limit)?;
+        }
+        if open || points_count == 0 {
+            return Err(invalid());
+        }
+        // Current reviewed binding exposes signed-short outline counts. Never
+        // split a winding group to bypass its count limit.
+        let native_points = i16::try_from(points_count).map_err(|_| limit())?;
+        let native_contours = i16::try_from(contours_count).map_err(|_| limit())?;
+        let charge = (length as u64)
+            .checked_mul(3)
+            .and_then(|n| {
+                n.checked_add(
+                    (ops.len() as u64)
+                        .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)?,
+                )
+            })
+            .and_then(|n| n.checked_add((points_count as u64).checked_mul(256)?))
+            .and_then(|n| n.checked_add(((width + height) as u64).checked_mul(64)?))
+            .and_then(|n| n.checked_add(2 * 1024 * 1024))
+            .ok_or_else(limit)?;
+        if pixels > limits.output_pixels()
+            || length as u64 > limits.output_bytes()
+            || charge > limits.transient_bytes()
+        {
+            return Err(limit());
+        }
+        let mut points = Vec::new();
+        let mut tags = Vec::new();
+        let mut contours = Vec::new();
+        points
+            .try_reserve_exact(points_count)
+            .map_err(|_| alloc())?;
+        tags.try_reserve_exact(points_count).map_err(|_| alloc())?;
+        contours
+            .try_reserve_exact(contours_count)
+            .map_err(|_| alloc())?;
+        let convert = |p: DevicePoint| -> Result<ft::FT_Vector, RenderError> {
+            let x = i64::from(p.x().ticks()) - i64::from(bounds.x0()) * 64;
+            let y = i64::from(bounds.y1()) * 64 - i64::from(p.y().ticks());
+            if x < 0 || y < 0 || x > width as i64 * 64 || y > height as i64 * 64 {
+                return Err(invalid());
+            }
+            Ok(ft::FT_Vector {
+                x: ft::FT_Pos::try_from(i128::from(x)).map_err(|_| limit())?,
+                y: ft::FT_Pos::try_from(i128::from(y)).map_err(|_| limit())?,
+            })
+        };
+        for &op in ops {
+            let mut push = |p, tag| -> Result<(), RenderError> {
+                points.push(convert(p)?);
+                tags.push(tag);
+                Ok(())
+            };
+            match op {
+                PathOp::MoveTo(p) | PathOp::LineTo(p) => push(p, 1)?,
+                PathOp::QuadTo(a, b) => {
+                    push(a, 0)?;
+                    push(b, 1)?;
+                }
+                PathOp::CubicTo(a, b, c) => {
+                    push(a, 2)?;
+                    push(b, 2)?;
+                    push(c, 1)?;
+                }
+                PathOp::Close => {
+                    contours.push(i16::try_from(points.len() - 1).map_err(|_| limit())?)
+                }
+            }
+        }
+        let mut state = SpanCopy {
+            data: Vec::new(),
+            width,
+            height,
+            stride,
+            failed: false,
+            delivered: 0,
+        };
+        state.data.try_reserve_exact(length).map_err(|_| alloc())?;
+        state.data.resize(length, 0);
+        let outline = ft::FT_Outline {
+            n_contours: native_contours,
+            n_points: native_points,
+            points: points.as_mut_ptr(),
+            tags: tags.as_mut_ptr(),
+            contours: contours.as_mut_ptr(),
+            flags: 0,
+        };
+        let mut params = RasterParams {
+            target: ptr::null(),
+            source: ptr::null(),
+            flags: 7,
+            gray_spans: Some(copy_spans),
+            black_spans: None,
+            bit_test: None,
+            bit_set: None,
+            user: (&mut state as *mut SpanCopy).cast(),
+            clip_box: ft::FT_BBox {
+                xMin: 0,
+                yMin: 0,
+                xMax: ft::FT_Pos::from(width as u16),
+                yMax: ft::FT_Pos::from(height as u16),
+            },
+        };
+        // SAFETY: initialized library, fully owned checked arrays and synchronous
+        // callback state stay live until return. No pointers are published. Flags
+        // select only smooth grayscale nonzero coverage, clipped to its full hull.
+        let code = unsafe { FT_Outline_Render(self.owner.library.0, &outline, &mut params) };
+        if code != 0 {
+            return Err(
+                RenderError::new(ErrorCode::NativeFailure, "FT_Outline_Render failed")
+                    .with_native_code(i64::from(code)),
+            );
+        }
+        if state.failed {
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "invalid native coverage spans",
+            ));
+        }
+        if state.data.iter().all(|&v| v == 0) {
+            return Ok(Arc::new(Mask::new(
+                PixelRect::new(0, 0, 0, 0).map_err(|_| invalid())?,
+                0,
+                Arc::from([]),
+            )?));
+        }
+        Ok(Arc::new(Mask::new(bounds, stride, state.data.into())?))
+    }
+}
+#[repr(C)]
+struct RasterSpan {
+    x: u16,
+    len: u16,
+    coverage: u8,
+}
+type SpanFunc = extern "C" fn(i32, i32, *const RasterSpan, *mut std::ffi::c_void);
+#[repr(C)]
+struct RasterParams {
+    target: *const std::ffi::c_void,
+    source: *const std::ffi::c_void,
+    flags: i32,
+    gray_spans: Option<SpanFunc>,
+    black_spans: Option<SpanFunc>,
+    bit_test: Option<extern "C" fn(i32, i32, *mut std::ffi::c_void) -> i32>,
+    bit_set: Option<extern "C" fn(i32, i32, *mut std::ffi::c_void)>,
+    user: *mut std::ffi::c_void,
+    clip_box: ft::FT_BBox,
+}
+unsafe extern "C" {
+    fn FT_Outline_Render(
+        library: ft::FT_Library,
+        outline: *const ft::FT_Outline,
+        params: *mut RasterParams,
+    ) -> ft::FT_Error;
+}
+struct SpanCopy {
+    data: Vec<u8>,
+    width: usize,
+    height: usize,
+    stride: usize,
+    failed: bool,
+    delivered: usize,
+}
+extern "C" fn copy_spans(
+    y: i32,
+    count: i32,
+    spans: *const RasterSpan,
+    user: *mut std::ffi::c_void,
+) {
+    // SAFETY: only the synchronous FreeType render call supplies a live exclusive
+    // SpanCopy. Native output extents are checked before slicing or writing.
+    unsafe {
+        let Some(s) = user.cast::<SpanCopy>().as_mut() else {
+            return;
+        };
+        if s.failed {
+            return;
+        }
+        let (Ok(y), Ok(count)) = (usize::try_from(y), usize::try_from(count)) else {
+            s.failed = true;
+            return;
+        };
+        // The pinned ftgrays.c emits batches of at most 16 spans, including a
+        // legitimate zero-length tail at a clipped band's right edge. Width is
+        // therefore not a valid upper bound on the native batch count.
+        if y >= s.height || count > 16 || count > 0 && spans.is_null() {
+            s.failed = true;
+            return;
+        }
+        if count == 0 {
+            return;
+        }
+        let Some(delivered) = s.delivered.checked_add(count) else {
+            s.failed = true;
+            return;
+        };
+        if delivered > s.width.saturating_mul(s.height).saturating_mul(2) {
+            s.failed = true;
+            return;
+        }
+        s.delivered = delivered;
+        let mut previous = 0usize;
+        for span in std::slice::from_raw_parts(spans, count) {
+            let x = usize::from(span.x);
+            let n = usize::from(span.len);
+            let Some(end) = x.checked_add(n) else {
+                s.failed = true;
+                return;
+            };
+            if x < previous || end > s.width {
+                s.failed = true;
+                return;
+            }
+            previous = end;
+            if n == 0 {
+                continue;
+            }
+            let Some(start) = (s.height - 1 - y)
+                .checked_mul(s.stride)
+                .and_then(|v| v.checked_add(x))
+            else {
+                s.failed = true;
+                return;
+            };
+            let Some(end) = start.checked_add(n) else {
+                s.failed = true;
+                return;
+            };
+            let Some(dst) = s.data.get_mut(start..end) else {
+                s.failed = true;
+                return;
+            };
+            if dst.iter().any(|&v| v != 0) {
+                s.failed = true;
+                return;
+            }
+            dst.fill(span.coverage);
+        }
+    }
+}
 impl Drop for Library {
     fn drop(&mut self) {
         // SAFETY: this unique initialized library outlives every borrowed Face.
@@ -982,6 +1327,169 @@ impl FontContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn raster_native_compound_outline_survives_font_and_raster_owners() {
+        use sha2::{Digest, Sha256};
+        let limits = Limits::default()
+            .with_transient_bytes(512 * 1024 * 1024)
+            .unwrap();
+        let path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+            .join("taiyou-shaping-fonts/indic.ttf");
+        let bytes: Arc<[u8]> = std::fs::read(path).unwrap().into();
+        let blob = FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(), 0), bytes);
+        let mut font = FontContext::with_limits(limits.clone()).unwrap();
+        let glyph = font
+            .with_face(blob.shared_bytes(), 0, |face| {
+                // SAFETY: scoped initialized face. FreeType identifies the compound;
+                // no custom TrueType parser or shared native face is involved.
+                unsafe {
+                    let count = u32::try_from((*face.raw).num_glyphs).unwrap();
+                    for glyph in 0..count.min(16_384) {
+                        let code = ft::FT_Load_Glyph(
+                            face.raw,
+                            glyph,
+                            ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP,
+                        );
+                        if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE
+                        {
+                            return Ok(glyph);
+                        }
+                    }
+                }
+                Err(FontError::new(
+                    ErrorCode::FontUnavailable,
+                    "pinned compound fixture missing",
+                ))
+            })
+            .unwrap();
+        let outline = font.outline(&blob, glyph, &limits).unwrap();
+        drop(font);
+        drop(blob);
+        let mut minimum = (i32::MAX, i32::MAX);
+        let mut maximum = (i32::MIN, i32::MIN);
+        let mut ops = Vec::new();
+        for &op in outline.outline().ops() {
+            ops.push(
+                op.try_map(|p| {
+                    let scale = 20.0 / f64::from(outline.units_per_em());
+                    let x = Q6::from_pixels(FiniteF64::new(p.x().get() * scale).unwrap()).unwrap();
+                    let y = Q6::from_pixels(FiniteF64::new(-p.y().get() * scale).unwrap()).unwrap();
+                    minimum = (minimum.0.min(x.ticks()), minimum.1.min(y.ticks()));
+                    maximum = (maximum.0.max(x.ticks()), maximum.1.max(y.ticks()));
+                    Ok(DevicePoint::new(x, y))
+                })
+                .unwrap(),
+            );
+        }
+        let ceil = |v: i32| i32::try_from(-(-i64::from(v)).div_euclid(64)).unwrap();
+        let bounds = PixelRect::new(
+            minimum.0.div_euclid(64),
+            minimum.1.div_euclid(64),
+            ceil(maximum.0),
+            ceil(maximum.1),
+        )
+        .unwrap();
+        let mask = {
+            let mut raster = RasterContext::with_limits(limits).unwrap();
+            raster
+                .rasterize_path(&ops, bounds, bounds.width() as usize)
+                .unwrap()
+        };
+        let again = RasterContext::new()
+            .unwrap()
+            .rasterize_path(&ops, bounds, bounds.width() as usize)
+            .unwrap();
+        assert_eq!(mask.data(), again.data());
+        drop(ops);
+        drop(outline);
+        assert!(mask.data().iter().any(|&v| v != 0));
+    }
+    #[test]
+    fn raster_native_span_validation_and_lifetime() {
+        let mut state = SpanCopy {
+            data: vec![0; 8],
+            width: 2,
+            height: 2,
+            stride: 4,
+            failed: false,
+            delivered: 0,
+        };
+        let good = RasterSpan {
+            x: 0,
+            len: 2,
+            coverage: 255,
+        };
+        copy_spans(0, 1, &good, (&mut state as *mut SpanCopy).cast());
+        assert_eq!(state.data, [0, 0, 0, 0, 255, 255, 0, 0]);
+        let bad = RasterSpan {
+            x: 2,
+            len: 1,
+            coverage: 255,
+        };
+        copy_spans(1, 1, &bad, (&mut state as *mut SpanCopy).cast());
+        assert!(state.failed);
+        assert_eq!(state.data, [0, 0, 0, 0, 255, 255, 0, 0]);
+        for (y, count) in [(-1, 1), (2, 1), (0, -1), (0, 17)] {
+            let mut s = SpanCopy {
+                data: vec![0; 4],
+                width: 2,
+                height: 2,
+                stride: 2,
+                failed: false,
+                delivered: 0,
+            };
+            copy_spans(y, count, &good, (&mut s as *mut SpanCopy).cast());
+            assert!(s.failed);
+            assert_eq!(s.data, [0; 4]);
+        }
+        let mut tail = SpanCopy {
+            data: vec![0],
+            width: 1,
+            height: 1,
+            stride: 1,
+            failed: false,
+            delivered: 0,
+        };
+        let spans = [
+            RasterSpan {
+                x: 0,
+                len: 1,
+                coverage: 255,
+            },
+            RasterSpan {
+                x: 1,
+                len: 0,
+                coverage: 255,
+            },
+        ];
+        copy_spans(0, 2, spans.as_ptr(), (&mut tail as *mut SpanCopy).cast());
+        assert!(!tail.failed);
+        assert_eq!(tail.data, [255]);
+        assert_eq!(std::mem::size_of::<RasterSpan>(), 6);
+        assert_eq!(std::mem::offset_of!(RasterSpan, coverage), 4);
+        assert_eq!(
+            std::mem::size_of::<RasterParams>(),
+            8 * std::mem::size_of::<usize>() + 4 * std::mem::size_of::<ft::FT_Pos>()
+        );
+        assert_eq!(
+            std::mem::offset_of!(RasterParams, clip_box),
+            8 * std::mem::size_of::<usize>()
+        );
+        let path = [
+            PathOp::MoveTo(DevicePoint::new(Q6::from_ticks(0), Q6::from_ticks(0))),
+            PathOp::LineTo(DevicePoint::new(Q6::from_ticks(64), Q6::from_ticks(0))),
+            PathOp::LineTo(DevicePoint::new(Q6::from_ticks(64), Q6::from_ticks(64))),
+            PathOp::LineTo(DevicePoint::new(Q6::from_ticks(0), Q6::from_ticks(64))),
+            PathOp::Close,
+        ];
+        let mask = {
+            let mut ctx = RasterContext::new().unwrap();
+            ctx.rasterize_path(&path, PixelRect::new(0, 0, 1, 1).unwrap(), 4)
+                .unwrap()
+        };
+        assert_eq!(mask.data(), [255, 0, 0, 0]);
+        assert_eq!(mask.stride(), 4);
+    }
     #[test]
     fn geometry_native_outlines_are_owned_curves_and_checked() {
         use sha2::{Digest, Sha256};
