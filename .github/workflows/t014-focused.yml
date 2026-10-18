@@ -18,13 +18,10 @@ jobs:
           persist-credentials: false
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - run: cargo +1.99.1 fmt --all -- --check
-      - name: Resolve candidate lock on runner; final locked checks remain required
+      - name: Verify locked source checks
         if: always()
         run: |
-          cargo +1.99.1 fetch
-          echo LOCK_BEGIN
-          cat Cargo.lock
-          echo LOCK_END
+          cargo +1.99.1 fetch --locked
           cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
           cargo +1.99.1 test --locked --workspace
           git diff --exit-code -- Cargo.lock

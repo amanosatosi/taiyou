@@ -378,7 +378,7 @@ fn renderer_slice_cumulative_event_reservations() {
             .is_ok()
     );
     let many = (0..40)
-        .map(|_| dialogue("HHHH"))
+        .map(|_| dialogue("H"))
         .collect::<Vec<_>>()
         .join("\n");
     assert_eq!(

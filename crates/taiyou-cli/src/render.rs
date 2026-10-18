@@ -174,11 +174,12 @@ pub fn straight_rgba(frame: &Frame, limits: &Limits) -> Result<Vec<u8>, RenderEr
     for p in frame.pixels().chunks_exact(4) {
         let a = u32::from(p[3]);
         for c in &p[..3] {
-            bytes.push(if a == 0 {
-                0
-            } else {
-                ((u32::from(*c) * 255 + a / 2) / a).min(255) as u8
-            });
+            bytes.push(
+                (u32::from(*c) * 255 + a / 2)
+                    .checked_div(a)
+                    .unwrap_or(0)
+                    .min(255) as u8,
+            );
         }
         bytes.push(p[3]);
     }
