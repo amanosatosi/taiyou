@@ -32,8 +32,12 @@ fn main() -> ExitCode {
         Some(value) if value == OsStr::new("inventory") => return inventory::run(root, &rest),
         Some(value) if value == OsStr::new("policy") => return policy::run(root, &rest),
         Some(value) if value == OsStr::new("compare") => return compare::run(root, &rest),
-        Some(value) if value == OsStr::new("libass-oracle") => return libass_adapter::run(root, &rest),
-        Some(value) if value == OsStr::new("capture-import") => return capture_import::run(root, &rest),
+        Some(value) if value == OsStr::new("libass-oracle") => {
+            return libass_adapter::run(root, &rest);
+        }
+        Some(value) if value == OsStr::new("capture-import") => {
+            return capture_import::run(root, &rest);
+        }
         Some(value) if value == OsStr::new("check-workspace") && rest.is_empty() => {}
         _ => {
             eprintln!(
