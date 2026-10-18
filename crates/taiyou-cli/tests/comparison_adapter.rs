@@ -30,8 +30,8 @@ fn command(binary: &str, source: &Path, font: &Path, folder: &Path, name: &str) 
 fn typed_adapter_preserves_t014_pixels_and_error_identity() {
     let folder = std::env::temp_dir().join(format!("taiyou-t015-adapter-{}", std::process::id()));
     std::fs::create_dir(&folder).unwrap();
-    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/taiyou/core-slice/first.ass");
+    let source =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/taiyou/core-slice/first.ass");
     let font = std::path::PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
         .join("taiyou-shaping-fonts/latin.otf");
     for (binary, name) in [
