@@ -14,3 +14,59 @@
 11. **CI-first; no local compilation.** The user's PC has insufficient storage for builds. Run Cargo/compiler commands, native dependency builds, renderer tests, fuzzing, sanitizers and benchmark executables in GitHub Actions, not on this PC. Do not install build toolchains, download build dependencies/large corpora or create local build caches. Local work is editing, reading existing references, Git and lightweight documentation/hash checks. Include the tested commit and Actions run/job links in completion reports. Missing CI is a verification gap to fix or report, never permission to compile locally. See [execution policy](docs/DEVELOPMENT.md#d0-execution-location-and-local-storage).
 
 See [development](docs/DEVELOPMENT.md) for model assignment and [guidelines](docs/GUIDELINES.md) for implementation standards. No renderer exists at blueprint delivery; do not claim otherwise.
+
+### Protected comparison tests — NEVER MODIFY TO MAKE CI PASS
+
+**NEVER modify, delete, replace, weaken, skip, reduce or disable existing comparison tests to make an implementation pass.**
+
+**NEVER change comparison thresholds, expected images, frozen corpus references, case selection, support classifications or failure interpretation to hide rendering differences.**
+
+**NEVER replace a full regression run with a focused subset. Focused tests are supplemental only.**
+
+**NEVER remove a previously tested regression case, silently narrow workflow triggers or exclude a failing platform.**
+
+**NEVER regenerate or overwrite reference images simply because Taiyou renders different pixels.**
+
+**NEVER classify infrastructure failures, missing fonts, crashes or unsupported behavior as successful visual matches.**
+
+**NEVER change the existing comparison test harness or regression policy without an explicit, separately reviewed maintainer instruction. If a legitimate task requires such a change, STOP and request authorization before editing.**
+
+For ordinary renderer tasks, the existing comparison suite is read-only.
+
+Taiyou will maintain two independent protected regression suites: the existing
+pinned libass-tests references and future authenticated pinterf xy-VSFilter
+output captures. The xy suite is **PLANNED, not operational**; it requires
+authenticated build/environment/output provenance and explicit maintainer
+acceptance before use. Once properly established and accepted, it must never
+replace or weaken the libass suite, and the libass suite must never replace or
+weaken it. Neither suite's tests, references, coverage, thresholds, classifications
+or failure interpretation may be altered to hide failures. Keep their evidence
+and results separate. This policy does not implement the xy suite or authorize
+inventing captures.
+
+Fix the renderer, parser, layout, rasterizer or font implementation instead of changing the tests.
+
+New supplemental regression tests may be proposed, but existing coverage must remain intact. Any new tests or validation mechanisms must preserve the immutable reference policy and receive appropriate review.
+
+The maintainer's current CI coverage restoration instruction explicitly authorizes
+restoring CI coverage, NOT modifying existing comparison algorithms, oracle
+fixtures or accepted outcomes. It is a separate protected CI proposal under
+[ADR-011](docs/decisions/011-solo-maintainer-validation.md), not standing permission
+for future tasks. After final technical review, the human owner must post the
+new exact-head/base/change-digest acknowledgment; agents must not post it.
+
+Every agent, including Sol, Luna and any future coding agent, must:
+
+1. Read this policy before editing any rendering feature.
+2. Run the existing applicable unit and stage tests in GitHub Actions.
+3. Execute the full external comparison through GitHub Actions for applicable PRs; focused tests are additional smoke tests only.
+4. Report exact visual matches, unsupported visual frames, infrastructure errors, regressions and crashes separately; report parser-only safety probes and upstream-disabled sources separately from visual matches.
+5. Explain every newly failing case using its exact ID, failure evidence and responsible implementation or infrastructure gap.
+6. Never alter tests to avoid addressing an implementation defect.
+
+Preserve all inventory entries and frozen corpus assets. Genuine rendering or
+infrastructure improvements may change observed result counts; never hardcode
+today's outcome counts as permanent acceptance requirements. A red full comparison
+must remain red, with its original report and difference artifacts uploaded even
+after failure. Required Corpus policy gate, Fast gate, Platform gate and
+Documentation structure checks and branch protection remain intact.

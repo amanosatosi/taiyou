@@ -6,6 +6,40 @@ The ordinary Corpus policy gate continues using the PR base's verifier and
 requires the human's exact-head/base/digest acknowledgment for these proposed
 infrastructure changes. This is candidate CI under ADR-011, not independent trust.
 
+## Mandatory full PR coverage
+
+Every relevant PR runs the full pinned external CoreV1 comparison, regardless of
+branch name. Triggers cover all crates (renderer/parser/layout/shaping/native
+adapters), xtask, comparison/validation files, native build support, tests, scripts,
+CI/configuration and normative compatibility/validation policy. All prior trigger
+paths remain covered. Manual dispatch always runs full comparison; there is no
+focused-only dispatch option.
+
+Focused smoke runs first into its own output directory and artifact. Full
+comparison is a separate step, attempted after a successful renderer build even
+when smoke fails, using the same native dependencies/build and verified corpus.
+It includes all 101 original regression frames, both parser-safety probes and the
+upstream-disabled case (104 inventory entries), and verifies all 187 frozen
+assets before/after. Native libass reference reproduction remains a separate job.
+
+The full command below retains its real nonzero exit status for infrastructure
+errors, regressions and crashes. In particular, the accepted T015 run's eight
+font infrastructure failures are not waived or reclassified. Observed counts
+belong in exact-candidate evidence, not permanent hardcoded outcome assertions;
+genuine implementation/infrastructure fixes may improve results. Successful
+parser-only probes and unsupported frames are never exact visual matches.
+
+Full report accounting/evidence verification and corpus reverification run after
+failure, as do the original full-report/difference artifact upload and the separate
+supplemental smoke upload. A green accounting step verifies completeness, not
+rendering success; the failing comparator step/job stays red. No comparator,
+normalization, threshold, fixture, reference or support-policy change is authorized
+by this coverage correction. The four existing required checks and branch
+protection are unchanged. Follow the
+[agent rule](../AGENTS.md#protected-comparison-tests--never-modify-to-make-ci-pass)
+and [human acknowledgment process](MAINTAINER-SETUP.md) before accepting protected
+CI changes after final technical review.
+
 ```text
 cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
 cargo run --locked -p xtask -- compare --suite full --profile core-v1
@@ -22,7 +56,15 @@ and crash probes in results, disabled upstream sources in the explicit disabled
 list. The auxiliary image remains in the verified asset inventory, not a frame.
 
 `TAIYOU_CORPUS` points to the acquired corpus. `TAIYOU_ACCEPTED` points to the
-PR-base snapshot materialized by Actions. `ACCEPTED_BASELINE` records its SHA.
+accepted snapshot materialized by Actions. A dedicated job resolves one baseline
+for both comparison and native oracle: the exact PR base for PR runs, or current
+`refs/heads/main` checked out from the canonical `amanosatosi/taiyou` repository
+for manual dispatch. That job executes no candidate code, validates the selected
+commit and publishes its full SHA. Both consumers fetch that exact commit before
+archiving it. Manual resolution has no stale commit pin and never uses the
+dispatched candidate branch or its `github.sha` as acceptance authority; failures
+stop the dependent jobs rather than falling back to the candidate.
+`ACCEPTED_BASELINE` records the resolved SHA.
 Without that environment the command uses the working snapshot and labels it
 unaccepted, never independently trusted. Reference snapshots and every source,
 font, symlink and reference are verified by the accepted tool before and after
