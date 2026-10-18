@@ -3,6 +3,8 @@
 /// Package version reported by `taiyou-cli --version`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod comparison_probe;
+
 #[cfg(feature = "native")]
 pub mod render;
 pub fn main_entry() -> std::process::ExitCode {
