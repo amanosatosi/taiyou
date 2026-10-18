@@ -81,6 +81,8 @@ if not archive.exists():
             assert total <= 64*1024*1024, "archive acquisition budget exceeded"
             f.write(block)
 archive_hash = sha(archive)
+discovery = json.loads((ROOT/"validation/proposals/R002/binary-discovery.json").read_text())
+assert archive_hash == discovery["archive_sha256"], "official archive changed since the recorded discovery"
 # Discovery only; never accept an arbitrary newly downloaded binary as a golden.
 seven = Path(os.environ["ProgramFiles"]) / "7-Zip/7z.exe"
 listing = subprocess.check_output([str(seven),"l","-slt",str(archive)],text=True)
@@ -127,17 +129,44 @@ environment=dict(os=platform.platform(),version=sys.getwindowsversion()[:],archi
 write("environment.json",environment)
 dlls=[extracted/r["path"] for r in inventory if Path(r["path"]).name.lower()=="vsfilter.dll" and r.get("pe_machine")=="0x8664"]
 assert len(dlls)==1, f"expected one x64 VSFilter (not XySubFilter): {dlls}"
+expected_dll = next(r for r in discovery["files"] if r["path"] == "x64/VSFilter.dll")
+assert sha(dlls[0]) == expected_dll["sha256"], "DLL changed since discovery; no new reference admitted"
+quoted = str(dlls[0]).replace("'", "''")
+version_command = "Get-Item -LiteralPath '"+quoted+"' | ForEach-Object { $_.VersionInfo } | Select-Object FileVersion,ProductVersion,OriginalFilename | ConvertTo-Json -Compress"
+environment["dll_version"] = json.loads(subprocess.check_output(
+    ["powershell.exe","-NoProfile","-Command",version_command],text=True))
+write("environment.json",environment)
 results=[]
-for fixture in sorted((ROOT/"validation/proposals/R002").glob("*.ass")):
+fixture_hashes=json.loads((ROOT/"validation/proposals/R002/fixtures.json").read_text())
+for source in sorted((ROOT/"validation/proposals/R002").glob("*.ass")):
+    fixture=OUT/source.name
+    # Preserve canonical Git bytes, not Windows checkout newline conversion.
+    fixture.write_bytes(subprocess.check_output(["git","show","HEAD:validation/proposals/R002/"+source.name]))
+    assert sha(fixture) == fixture_hashes[source.name], "input bytes differ from the proposal"
     result=subprocess.run([sys.executable,__file__,"--child",str(dlls[0]),str(fixture)],timeout=90,capture_output=True,text=True)
     results.append(dict(script=fixture.name,input_sha256=sha(fixture),exit=result.returncode,stdout=result.stdout,stderr=result.stderr))
     if result.returncode:
         break  # bounded feasibility probe, no repeated infrastructure hunting
-outputs=[dict(file=p.name,sha256=sha(p),size=p.stat().st_size) for p in sorted(OUT.glob("*.rgb32"))]
+outputs=[]
+for p in sorted(OUT.glob("*.rgb32")):
+    raw=p.read_bytes()
+    suffix=p.name.rsplit("-b",1)[1]
+    background=int(suffix.split("-")[0])
+    fourth=int(suffix.split("-x",1)[1].split("-")[0])
+    initial=bytes([background,background,background,fourth])
+    changed=[i for i in range(64*64) if raw[4*i:4*i+4] != initial]
+    bounds=None if not changed else [min(i%64 for i in changed),min(i//64 for i in changed),
+                                     max(i%64 for i in changed)+1,max(i//64 for i in changed)+1]
+    outputs.append(dict(file=p.name,sha256=sha(p),size=len(raw),changed_pixels=len(changed),
+                        changed_bounds=bounds,channel_ranges=[[min(raw[c::4]),max(raw[c::4])] for c in range(4)],
+                        samples={str(i):list(raw[4*i:4*i+4]) for i in [0,8*64+8,10*64+10,15*64+15,63*64+63]}))
 for p in OUT.glob("*-r1.rgb32"):
     assert p.read_bytes() == p.with_name(p.name.replace("-r1.","-r2.")).read_bytes(), "CSRI repeat differs"
 write("probe.json",dict(binary_sha256=sha(dlls[0]),binary_path=str(dlls[0].relative_to(extracted)),
+                       candidate=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),
+                       host_sha256=sha(Path(__file__)),environment=environment,
                        results=results,outputs=outputs,capture_verified=False,approved=False))
+print("R002_XY_ENVIRONMENT="+json.dumps(environment),flush=True)
 print("R002_XY_PROBE="+json.dumps(dict(results=results,outputs=outputs,capture_verified=False)),flush=True)
 if any(r["exit"] for r in results):
     sys.exit(1)

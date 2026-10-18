@@ -106,6 +106,10 @@ for a in (stroke/"1").glob("*.a8"):
 report["stroke"] = dict(backend="FreeType public stroker API probe; no Taiyou stroke implementation exists",
                        deterministic=True, cases=8, xy_comparison=None,
                        timing_scope="raster only, not widening; raw clock samples; no peak allocation measurement")
+report["stroke"]["outputs"] = [
+    dict(file=p.name,sha256=hashlib.sha256(p.read_bytes()).hexdigest(),mask_bytes=p.stat().st_size)
+    for p in sorted((stroke/"1").glob("*.a8"))]
+print("R002_STROKE_SUMMARY="+json.dumps(report["stroke"]),flush=True)
 (OUT / "report.json").write_text(json.dumps(report,indent=2)+"\n")
 for row in results:
     print("R002_A8="+json.dumps(row), flush=True)

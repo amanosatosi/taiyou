@@ -5,6 +5,13 @@
   "status": "research-checkpoint",
   "maintainer_accepted": false,
   "enabled_capabilities": [],
+  "families": [
+    {"family": "fill", "core": "contract-established-T012", "legacy_gate": "provisional", "approved": false, "enabled": false},
+    {"family": "stroke", "core": "contract-established-isotropic-only", "legacy_gate": "provisional", "approved": false, "enabled": false},
+    {"family": "grouping", "core": "contract-established", "legacy_gate": "provisional", "approved": false, "enabled": false},
+    {"family": "blur", "core": "contract-established-not-implemented", "legacy_gate": "blocked", "approved": false, "enabled": false},
+    {"family": "shadow", "core": "contract-established-not-implemented", "legacy_gate": "blocked", "approved": false, "enabled": false}
+  ],
   "counts": {
     "rules": 19,
     "approved": 0,
@@ -382,7 +389,7 @@
       "expected_observable": "combined contours versus separately painted effects",
       "source": {
         "file": "src/subtitles/RTS.cpp",
-        "function": "CWord::Append / CLine::Compact",
+        "function": "CWord::Append",
         "lines": [
           181,
           195

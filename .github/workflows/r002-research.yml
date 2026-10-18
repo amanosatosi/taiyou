@@ -63,5 +63,6 @@ jobs:
             ${{ runner.temp }}/r002-xy/*.json
             ${{ runner.temp }}/r002-xy/*.txt
             ${{ runner.temp }}/r002-xy/*.rgb32
+            ${{ runner.temp }}/r002-xy/*.ass
           if-no-files-found: warn
           retention-days: 30

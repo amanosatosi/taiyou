@@ -181,6 +181,8 @@ effects are not an admissible substitute for explicit grouping.
 The A8 experiment computes a **Core algebra witness** from actual T012 overlapping
 rectangle masks: opaque alpha255 and translucent alpha128, combined versus two
 separate source-over operations. Its difference is not a failure against xy.
+The ASS proposal uses transparency0x80 (opacity127); it is not a byte-identical
+input to the Core alpha128 algebra witness.
 These masks share output bounds; stored origin/size differences are reported
 separately from per-pixel deltas. Text boundary, style change, karaoke and multiple
 event fixtures remain follow-up work, not approved by a polygon-only capture.
@@ -267,7 +269,7 @@ provisional/evidence-pending; exact pixel expectation is null.
 | R002-stroke-zero-x | x0/y4 degenerate vertical arc | gen_left_arc, xy_widen_region 452–473 | pending |
 | R002-stroke-rotated | z30, scale200/50, border2; transform before widen | PaintFromPathData, RTS 250–325 | pending |
 | R002-group-opaque | two overlapping contours at alpha255 | Append, RTS 181–195; Compact 1171–1206 | pending text boundaries |
-| R002-group-translucent | same at alpha128; grouped versus separate alpha | CompositeDrawItem::Draw, draw_item 191–274 | pending |
+| R002-group-translucent | ASS transparency0x80 (opacity127); grouped versus separate alpha | CompositeDrawItem::Draw, draw_item 191–274 | pending |
 | R002-outline-hole | invisible fill / translucent border; E-F versus E | FillAlphaMashBorder_c, Rasterizer 2413–2428 | pending |
 | R002-be-one | borderless BE1; truncation versus per-axis rounding | be_blur, Rasterizer 568–671 | pending |
 | R002-be-repeated | border2 BE3; selected plane and padding | BeBlur, Rasterizer 1167–1249 | pending |
@@ -330,9 +332,76 @@ or change its failure status.
 
 ## Execution record
 
-Actions results and limitations are appended after the bounded sessions.
-No unrun test or measurement is claimed as passed. The original full external
-comparison remains independent, including its nonzero exit for missing fonts.
+First successful experiment candidate:
+`76a5e4572de38101c44b1f30ce70d1b6d8bc4cc5`. The initial
+`64cb51c53a3cf7a8e05f925fd1314667cf3c7fd1` attempt did not execute experiments:
+new workflow YAML needed a block scalar for pip's colon-containing argument, and
+the existing source guard rejected a source-level forbid attribute. Both were
+corrected in the experiment setup; the existing guard/tests were unchanged.
+
+| Actions evidence at 76a5e45 | Actual observation |
+|---|---|
+| [Core experiment](https://github.com/amanosatosi/taiyou/actions/runs/39165063415/job/117786164350) | 15 actual T012 A8 cases + 8 public FT stroke probes; two fresh processes produced identical masks; source/proposal check and six rejected invalid-evidence mutations passed |
+| [Original Core artifact](https://github.com/amanosatosi/taiyou/actions/runs/39165063415/artifacts/12149964474) | raw A8, geometry, PGM/difference views, bounds, driver lock and timing samples; no xy reference |
+| [Windows official probe](https://github.com/amanosatosi/taiyou/actions/runs/39165063415/job/117786164114) | 19 scripts invoked the official x64 VSFilter DLL successfully; 152 original RGB32 buffers, paired repeats equal; 0 admitted/capture-verified rules |
+| [Original xy probe artifact](https://github.com/amanosatosi/taiyou/actions/runs/39165063415/artifacts/12150560411) | archive/DLL inventory, exact Windows/locale/codepage/font/input/output records and original unconverted buffers; pipeline/selected font remain uncalibrated |
+| [Native libass oracle](https://github.com/amanosatosi/taiyou/actions/runs/39165063408/job/117786201164) | 101/101 pinned original frames reproduced at both p0 and p2; normalization checks exact; independent of xy |
+| [Full Core comparison](https://github.com/amanosatosi/taiyou/actions/runs/39165063408/job/117786201162) | 101 visual: 1 exact, 92 unsupported, 8 INFRA_ERROR, 0 regression, 0 crash; two parser safety passes and one disabled source; exit1 retained, full accounting passed, all187 assets reverified |
+| [Full original report/artifacts](https://github.com/amanosatosi/taiyou/actions/runs/39165063408/artifacts/12150396708) | all104 entries retained, full difference evidence uploaded after failure; focused smoke remained supplemental |
+
+[Measurements](../../validation/proposals/R002/measurements.json) preserve all
+30 raw samples per fill case, native stroke raster-only clock samples and exact
+mask hashes/bounds. Environment: Ubuntu24.04 x86_64, image20261012.334.1,
+kernel6.17.0-1022-azure, Rust1.99.1 (58cf8f9c3), release optimization,
+verified FT2.14.3 recipe. Fill medians ranged 540–1070.5ns for these tiny
+40–204-byte masks; these are warmed hosted-runner smoke timings, not a controlled
+performance result. Full/native allocations, widening time and peak RSS were
+not measured. Raw samples include outliers and are not filtered.
+
+Core grouping witness over a 12×8 bound: opacity255 delta0/MAE0/changed0;
+opacity128 max alpha delta64, MAE21.333333333333332, 32 changed pixels and
+no bounds difference. This measures separate versus combined **Core** alpha
+composition, not FT-versus-xy agreement. Across repeat fill masks,
+max delta=0, MAE=0, changed pixels=0, origin/bounds differences=0.
+The eight FT stroke masks repeated byte-exactly; no accepted xy deltas exist.
+
+[Binary discovery](../../validation/proposals/R002/binary-discovery.json) records
+the official archive SHA-256
+`742202308b27e94b016877fe4f4637ab810d5319b2e633bce950b2ed53113ebd`.
+Its x64 VSFilter.dll is
+`b304c9849db63e6632487506a133698bc41465dee51a439e80d53b2b28507dd4`
+(PE0x8664, 2,270,720 bytes); x86 VSFilter is
+`6c5a8c55ab394488360e059f1d54232596bc24c48544c8464aaf84ce9149194e`.
+XySubFilter hashes are recorded separately and that DLL was not executed.
+Packaged README/License hashes match the corresponding local files; this
+establishes those two files only, not source-tree/commit equivalence.
+[Raw probe manifest](../../validation/proposals/R002/raw-probe-manifest.json)
+preserves all input/output hashes and the exact job/artifact identity.
+The first probe hashed the actual Windows checkout inputs (CRLF). The bounded
+recheck materializes exact Git LF bytes, verifies fixtures.json and preserves
+those original ASS files beside the frames; these input identities must not be
+conflated when comparing the two probes.
+
+The eight retained infrastructure errors are embedded-font/efont-1000.png,
+faux-italics/cff-0000.png, font_nonunicode/shiftjis-1000.png and
+ssa/alpha at 0000/1000/2000/3000/4000ms: existing font ingestion/catalog gaps.
+None is a visual pass or a newly introduced renderer failure.
+
+**Capture blocker:** a functioning official-binary host now exists, but its
+0x102/MSP_RGBA fourth-byte, orientation and composition semantics have not been
+independently calibrated; selected GDI face/font fallback and renderer subpixel
+settings are not authenticated. Successful calls and repeated bytes alone do
+not establish correct capture pixels. No A8 is extracted, no source rule is
+capture-verified, and the T015 importer remains blocked. A bounded recheck logs
+per-channel/background calibration observations without promoting them.
+Do not spend another R002 session building AviSynth infrastructure. The next
+task should review/pin this discovery and calibrate that pipeline first.
+
+The final PR records its exact candidate SHA and fresh workflow/job links.
+All accepted tests, 104 inventory entries, 187 frozen assets, references, metrics
+and classifications remain unchanged. The separate full external comparison
+must retain its nonzero exit for the eight existing font infrastructure errors.
+Any remaining CI/evidence gap is reported explicitly on the PR.
 
 ## Dependent implementation and remaining work
 

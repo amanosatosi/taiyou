@@ -12,6 +12,10 @@ def validate(inventory, sources, fixtures):
     assert not inventory["maintainer_accepted"] and inventory["enabled_capabilities"] == []
     assert inventory["counts"] == dict(rules=19,approved=0,enabled=0,capture_verified=0)
     assert len(inventory["rules"]) == inventory["counts"]["rules"]
+    assert len(inventory["families"]) == 5
+    assert sum(f["legacy_gate"] == "provisional" for f in inventory["families"]) == 3
+    assert sum(f["legacy_gate"] == "blocked" for f in inventory["families"]) == 2
+    assert not any(f["approved"] or f["enabled"] for f in inventory["families"])
     source_files = {f["file"]:f for f in sources["files"]}
     assert sources["upstream_commit"] is None
     assert sources["locked_commit_equivalence"] == "unverified"
@@ -44,7 +48,7 @@ sources=json.loads((HERE/"sources.json").read_text())
 fixtures=json.loads((HERE/"fixtures.json").read_text())
 validate(inventory,sources,fixtures)
 # Reject invalid evidence rather than silently accepting a new capability.
-for mutation in ["approved","enabled","capture_verified","source","fixture","commit"]:
+for mutation in ["approved","enabled","capture_verified","source","fixture","commit","family"]:
     bad=copy.deepcopy(inventory); bad_sources=copy.deepcopy(sources); bad_fixtures=copy.deepcopy(fixtures)
     if mutation in ["approved","enabled","capture_verified"]:
         bad["rules"][0][mutation]=True
@@ -52,12 +56,14 @@ for mutation in ["approved","enabled","capture_verified","source","fixture","com
         bad["rules"][0]["source"]["lines"]=[0,99999]
     elif mutation == "fixture":
         bad_fixtures[next(iter(bad_fixtures))]="0"*64
-    else:
+    elif mutation == "commit":
         bad_sources["upstream_commit"]="25cf3e8433b3a83a5489e47a2c335516492bb815"
+    else:
+        bad["families"][0]["approved"]=True
     try:
         validate(bad,bad_sources,bad_fixtures)
     except AssertionError:
         pass
     else:
         raise AssertionError("invalid evidence accepted: "+mutation)
-print("R002_CHECKPOINT: 19 proposals, 0 approved/enabled/capture-verified; 6 invalid evidence mutations rejected")
+print("R002_CHECKPOINT: 19 proposals, 0 approved/enabled/capture-verified; 7 invalid evidence mutations rejected")
