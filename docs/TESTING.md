@@ -19,6 +19,20 @@ Execution location: all compiler/Cargo/native build commands and renderer, safet
 
 ## V2. Immutable assets and manifest
 
+Taiyou will maintain **two independent protected regression suites**: the existing
+pinned libass-tests references and future authenticated pinterf xy-VSFilter output
+captures. The xy suite is **PLANNED, not operational**. Establishing it requires
+identified real builds, controlled environment/font provenance, original captured
+outputs/hashes, reviewed validation and explicit maintainer acceptance. No xy
+suite implementation or capture is supplied by the current CI policy correction.
+Once properly established and accepted, the xy suite must never replace or weaken
+the libass suite, and neither suite may replace or weaken the other. Neither
+suite's tests, references, coverage, thresholds, classifications or failure
+interpretation may be altered to hide failures. Report each suite's evidence,
+coverage and results independently; source interpretations or libass output are
+not authenticated xy captures. This separation does not claim independent CI
+trust authority beyond ADR-011's solo-maintainer model.
+
 T005 creates a complete manifest by enumerating the pinned libass-tests tree. Each record includes stable case ID, repository commit, source/font/expected-image SHA-256, timestamp and viewport semantics, scale options, profile, expected support, feature tags, oracle build/config, comparison policy and license/provenance. A case with multiple frames has one record per frame and a stable parent ID. Symlinked fonts resolve only inside the corpus root; record resolved file hashes and preserve mapping on Windows. External assets live in a read-only job directory outside the candidate checkout; no implementation job writes it.
 
 Do not invent SHA-256 values. T005's frozen inventory records 187 external assets and 101 frames at the locked libass-tests revision; it remains separate from Taiyou. Use [local reference sources](LOCAL_REFERENCES.md) first and verify archive identity. CI acquires/caches the exact missing external corpus and verifies all identities before and after execution. Historical support reason strings remain frozen until explicit maintainer promotion; T014's existence does not certify external cases. Keep upstream assets separate from Taiyou fixtures. Unknown redistribution rights do not justify bundling fonts or pretending substitutes are identical.

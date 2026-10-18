@@ -56,7 +56,15 @@ and crash probes in results, disabled upstream sources in the explicit disabled
 list. The auxiliary image remains in the verified asset inventory, not a frame.
 
 `TAIYOU_CORPUS` points to the acquired corpus. `TAIYOU_ACCEPTED` points to the
-PR-base snapshot materialized by Actions. `ACCEPTED_BASELINE` records its SHA.
+accepted snapshot materialized by Actions. A dedicated job resolves one baseline
+for both comparison and native oracle: the exact PR base for PR runs, or current
+`refs/heads/main` checked out from the canonical `amanosatosi/taiyou` repository
+for manual dispatch. That job executes no candidate code, validates the selected
+commit and publishes its full SHA. Both consumers fetch that exact commit before
+archiving it. Manual resolution has no stale commit pin and never uses the
+dispatched candidate branch or its `github.sha` as acceptance authority; failures
+stop the dependent jobs rather than falling back to the candidate.
+`ACCEPTED_BASELINE` records the resolved SHA.
 Without that environment the command uses the working snapshot and labels it
 unaccepted, never independently trusted. Reference snapshots and every source,
 font, symlink and reference are verified by the accepted tool before and after

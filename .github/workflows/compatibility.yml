@@ -27,6 +27,36 @@ concurrency:
   group: compatibility-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
+  accepted_baseline:
+    name: Resolve accepted baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      # Resolve once from the canonical repository, before executing candidate
+      # code. A manual candidate branch is never its own acceptance authority.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: amanosatosi/taiyou
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'refs/heads/main' }}
+          persist-credentials: false
+      - name: Record and validate the accepted baseline
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          baseline=$(git rev-parse HEAD)
+          [[ "$baseline" =~ ^[0-9a-f]{40}$ ]]
+          case "$EVENT_NAME" in
+            pull_request) test "$baseline" = "$PR_BASE" ;;
+            workflow_dispatch) test "$baseline" = "$(git rev-parse refs/remotes/origin/main)" ;;
+            *) echo 'Unsupported baseline authority' >&2; exit 1 ;;
+          esac
+          echo "ACCEPTED_BASELINE=$baseline"
+          echo "sha=$baseline" >> "$GITHUB_OUTPUT"
   self-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -39,7 +69,7 @@ jobs:
       - run: python validation/policy.py self-test
       - run: python scripts/check-unsafe.py
   compare:
-    needs: self-tests
+    needs: [self-tests, accepted_baseline]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -51,11 +81,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Materialize accepted PR-base snapshots without candidate replacements
+      - name: Materialize accepted baseline without candidate replacements
         env:
-          BASE: ${{ github.event.pull_request.base.sha || '4204f3d2a8e9734a6bad81b4716e9b7f74b388fe' }}
+          BASE: ${{ needs.accepted_baseline.outputs.sha }}
         run: |
-          set -eu
+          set -euo pipefail
+          git fetch --no-tags https://github.com/amanosatosi/taiyou.git "$BASE"
+          test "$(git rev-parse "$BASE^{commit}")" = "$BASE"
           accepted="$RUNNER_TEMP/accepted"
           mkdir "$accepted"
           git archive "$BASE" validation docs/references.lock.json | tar -x -C "$accepted"
@@ -129,7 +161,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   native-oracle:
-    needs: self-tests
+    needs: [self-tests, accepted_baseline]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -140,12 +172,15 @@ jobs:
           persist-credentials: false
       - name: Materialize accepted oracle pins and corpus inventory
         env:
-          BASE: ${{ github.event.pull_request.base.sha || '4204f3d2a8e9734a6bad81b4716e9b7f74b388fe' }}
+          BASE: ${{ needs.accepted_baseline.outputs.sha }}
         run: |
-          set -eu
+          set -euo pipefail
+          git fetch --no-tags https://github.com/amanosatosi/taiyou.git "$BASE"
+          test "$(git rev-parse "$BASE^{commit}")" = "$BASE"
           mkdir "$RUNNER_TEMP/accepted"
           git archive "$BASE" validation docs/references.lock.json | tar -x -C "$RUNNER_TEMP/accepted"
           echo "TAIYOU_ACCEPTED=$RUNNER_TEMP/accepted" >> "$GITHUB_ENV"
+          echo "ACCEPTED_BASELINE=$BASE" >> "$GITHUB_ENV"
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests

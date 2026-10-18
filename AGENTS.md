@@ -33,6 +33,17 @@ See [development](docs/DEVELOPMENT.md) for model assignment and [guidelines](doc
 
 For ordinary renderer tasks, the existing comparison suite is read-only.
 
+Taiyou will maintain two independent protected regression suites: the existing
+pinned libass-tests references and future authenticated pinterf xy-VSFilter
+output captures. The xy suite is **PLANNED, not operational**; it requires
+authenticated build/environment/output provenance and explicit maintainer
+acceptance before use. Once properly established and accepted, it must never
+replace or weaken the libass suite, and the libass suite must never replace or
+weaken it. Neither suite's tests, references, coverage, thresholds, classifications
+or failure interpretation may be altered to hide failures. Keep their evidence
+and results separate. This policy does not implement the xy suite or authorize
+inventing captures.
+
 Fix the renderer, parser, layout, rasterizer or font implementation instead of changing the tests.
 
 New supplemental regression tests may be proposed, but existing coverage must remain intact. Any new tests or validation mechanisms must preserve the immutable reference policy and receive appropriate review.
