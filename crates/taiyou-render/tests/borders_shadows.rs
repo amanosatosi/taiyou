@@ -582,8 +582,7 @@ fn round_join_exported_control_hull_is_not_a_configured_limit() {
     assert!(a.bounds().x0() < -3 || a.bounds().y0() < -1);
     assert!(a.data().iter().any(|&v| v != 0));
     let error =
-        stroke::rasterize_expanded(&mut ctx, &group, q6(64), q6(0), q6(0), points - 1)
-            .unwrap_err();
+        stroke::rasterize_expanded(&mut ctx, &group, q6(64), q6(0), q6(0), points - 1).unwrap_err();
     assert_eq!(error.code(), ErrorCode::LimitExceeded);
     assert!(error.detail().contains("check=frame-segments"));
 }

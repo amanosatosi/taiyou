@@ -7,8 +7,8 @@ fn catalog() -> Arc<ValidatedFontCatalog> {
     let limits = Limits::default();
     let mut context = FontContext::with_limits(limits.clone()).unwrap();
     let mut builder = FontCatalogBuilder::new(limits);
-    let path = PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
-        .join("taiyou-shaping-fonts/latin.otf");
+    let path =
+        PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts/latin.otf");
     builder
         .register(&mut context, &std::fs::read(path).unwrap(), 0)
         .unwrap();
@@ -90,23 +90,45 @@ fn prior_fill_reference_and_opaque_default_shadow_are_independently_preserved() 
             assert_eq!(mask, independent);
         }
         let fill_only = ordinary(
-            &source(false, &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&\\4a&HFF&}}H")),
+            &source(
+                false,
+                &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&\\4a&HFF&}}H"),
+            ),
             fonts.clone(),
             size,
         );
         let visible_default = ordinary(
-            &source(false, &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&}}H")),
+            &source(
+                false,
+                &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&}}H"),
+            ),
             fonts.clone(),
             size,
         );
         let mut expected_fill = vec![0; mask.len() * 4];
         let mut expected_effect = expected_fill.clone();
         for (i, &coverage) in mask.iter().enumerate() {
-            over(&mut expected_fill[i * 4..i * 4 + 4], coverage, [200, 80, 40, 128]);
-            over(&mut expected_effect[i * 4..i * 4 + 4], coverage, [0, 0, 0, 128]);
-            over(&mut expected_effect[i * 4..i * 4 + 4], coverage, [200, 80, 40, 128]);
+            over(
+                &mut expected_fill[i * 4..i * 4 + 4],
+                coverage,
+                [200, 80, 40, 128],
+            );
+            over(
+                &mut expected_effect[i * 4..i * 4 + 4],
+                coverage,
+                [0, 0, 0, 128],
+            );
+            over(
+                &mut expected_effect[i * 4..i * 4 + 4],
+                coverage,
+                [200, 80, 40, 128],
+            );
         }
-        assert_eq!(fill_only.pixels(), expected_fill, "fill alignment {alignment}");
+        assert_eq!(
+            fill_only.pixels(),
+            expected_fill,
+            "fill alignment {alignment}"
+        );
         assert_eq!(
             visible_default.pixels(),
             expected_effect,
@@ -135,7 +157,9 @@ fn transparent_shadow_needs_no_offset_raster_or_additional_segment_budget() {
             }
         }
     }
-    let limits = Limits::default().with_path_segments_per_frame(high).unwrap();
+    let limits = Limits::default()
+        .with_path_segments_per_frame(high)
+        .unwrap();
     let baseline = render(&zero, fonts.clone(), limits.clone(), size).unwrap();
     for offset in ["0.5", "-1.25", "1000000000"] {
         let invisible = source(false, &format!("{{\\bord1\\shad{offset}\\4a&HFF&}}H"));
@@ -212,19 +236,36 @@ fn prior_layer_order_keeps_visible_default_shadows_and_fill_coverage() {
     let size = Size::new(160, 100);
     let pure = ordinary(&source(false, r"{\4a&HFF&}H"), fonts.clone(), size);
     let mask: Vec<_> = pure.pixels().chunks_exact(4).map(|p| p[3]).collect();
-    let header = source(false, "").split("[Events]").next().unwrap().to_owned();
+    let header = source(false, "")
+        .split("[Events]")
+        .next()
+        .unwrap()
+        .to_owned();
     let input = format!(
         "{header}[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 1,0:00:00.10,0:00:01.00,Default,{{\\1c&HFF0000&}}H\nDialogue: -1,0:00:00.10,0:00:01.00,Default,{{\\1c&H0000FF&\\alpha&H7F&}}H"
     );
-    for (input, front_blue) in [(&input, true), (&input.replace("Dialogue: 1,", "Dialogue: -1,"), false)] {
+    for (input, front_blue) in [
+        (&input, true),
+        (&input.replace("Dialogue: 1,", "Dialogue: -1,"), false),
+    ] {
         let actual = ordinary(input, fonts.clone(), size);
         let mut expected = vec![0; mask.len() * 4];
         for (i, &coverage) in mask.iter().enumerate() {
             let pixel = &mut expected[i * 4..i * 4 + 4];
             let passes = if front_blue {
-                [[0, 0, 0, 128], [255, 0, 0, 128], [0, 0, 0, 255], [0, 0, 255, 255]]
+                [
+                    [0, 0, 0, 128],
+                    [255, 0, 0, 128],
+                    [0, 0, 0, 255],
+                    [0, 0, 255, 255],
+                ]
             } else {
-                [[0, 0, 0, 255], [0, 0, 255, 255], [0, 0, 0, 128], [255, 0, 0, 128]]
+                [
+                    [0, 0, 0, 255],
+                    [0, 0, 255, 255],
+                    [0, 0, 0, 128],
+                    [255, 0, 0, 128],
+                ]
             };
             for paint in passes {
                 over(pixel, coverage, paint);
