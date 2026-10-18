@@ -969,7 +969,10 @@ extern "C" fn copy_spans(
             s.failed = true;
             return;
         };
-        if y >= s.height || count > s.width || count > 0 && spans.is_null() {
+        // The pinned ftgrays.c emits batches of at most 16 spans, including a
+        // legitimate zero-length tail at a clipped band's right edge. Width is
+        // therefore not a valid upper bound on the native batch count.
+        if y >= s.height || count > 16 || count > 0 && spans.is_null() {
             s.failed = true;
             return;
         }
@@ -980,7 +983,7 @@ extern "C" fn copy_spans(
             s.failed = true;
             return;
         };
-        if delivered > s.width.saturating_mul(s.height) {
+        if delivered > s.width.saturating_mul(s.height).saturating_mul(2) {
             s.failed = true;
             return;
         }
@@ -993,11 +996,14 @@ extern "C" fn copy_spans(
                 s.failed = true;
                 return;
             };
-            if n == 0 || x < previous || end > s.width {
+            if x < previous || end > s.width {
                 s.failed = true;
                 return;
             }
             previous = end;
+            if n == 0 {
+                continue;
+            }
             let Some(start) = (s.height - 1 - y)
                 .checked_mul(s.stride)
                 .and_then(|v| v.checked_add(x))
@@ -1346,7 +1352,7 @@ mod tests {
         copy_spans(1, 1, &bad, (&mut state as *mut SpanCopy).cast());
         assert!(state.failed);
         assert_eq!(state.data, [0, 0, 0, 0, 255, 255, 0, 0]);
-        for (y, count) in [(-1, 1), (2, 1), (0, -1), (0, 3)] {
+        for (y, count) in [(-1, 1), (2, 1), (0, -1), (0, 17)] {
             let mut s = SpanCopy {
                 data: vec![0; 4],
                 width: 2,
@@ -1359,6 +1365,11 @@ mod tests {
             assert!(s.failed);
             assert_eq!(s.data, [0; 4]);
         }
+        let mut tail = SpanCopy { data: vec![0], width: 1, height: 1, stride: 1, failed: false, delivered: 0 };
+        let spans = [RasterSpan { x: 0, len: 1, coverage: 255 }, RasterSpan { x: 1, len: 0, coverage: 255 }];
+        copy_spans(0,2,spans.as_ptr(),(&mut tail as *mut SpanCopy).cast());
+        assert!(!tail.failed);
+        assert_eq!(tail.data,[255]);
         assert_eq!(std::mem::size_of::<RasterSpan>(), 6);
         assert_eq!(std::mem::offset_of!(RasterSpan, coverage), 4);
         assert_eq!(

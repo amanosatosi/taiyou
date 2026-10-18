@@ -91,6 +91,8 @@ reference_args = ["--discover"] if os.environ.get("TAIYOU_DISCOVER_SHAPING") == 
 run(sys.executable, root / "build-support/shaping-reference.py", *reference_args)
 os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-reference.tsv")
 os.environ["TAIYOU_RASTER_SAMPLE_DIR"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-raster-sample")
+if platform.system() == "Linux":
+    run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), "-I" + str(prefix / "include/harfbuzz"), root / "build-support/font-abi.c")
 run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "raster")
 run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "raster_native")
 run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "raster")
