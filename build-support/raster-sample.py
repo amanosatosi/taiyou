@@ -21,7 +21,7 @@ if not 0 < width <= stride or height <= 0 or len(data) != stride * height:
     raise RuntimeError("invalid sample extent")
 if any(data[y * stride + width:(y + 1) * stride].strip(b"\0") for y in range(height)):
     raise RuntimeError("uninitialized sample row padding")
-fonts = json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"]
+fonts = json.loads((root / "build-support/shaping-fonts.proposed.json").read_text(encoding="utf-8"))["fonts"]
 font = next(f for f in fonts if f["id"] == "latin")
 if info["font_sha256"] != font["sha256"] or int(info["face_index"]) != 0:
     raise RuntimeError("sample did not use the pinned Latin face")
