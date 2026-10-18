@@ -90,6 +90,15 @@ native_features = ["--features", "taiyou-cli/native"]
 reference_args = ["--discover"] if os.environ.get("TAIYOU_DISCOVER_SHAPING") == "1" else []
 run(sys.executable, root / "build-support/shaping-reference.py", *reference_args)
 os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-reference.tsv")
+os.environ["TAIYOU_RASTER_SAMPLE_DIR"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-raster-sample")
+run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "raster")
+run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "raster_native")
+run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "raster")
+run(sys.executable, root / "build-support/raster-sample.py")
+if os.environ.get("TAIYOU_FOCUSED_RASTER") == "1":
+    run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
+    print("FOCUSED_T012_COMPLETE; full existing matrix remains required", flush=True)
+    sys.exit(0)
 run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "geometry_numeric")
 run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "geometry_native")
 run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "geometry")
@@ -141,4 +150,5 @@ if platform.system() == "Linux":
     run("cargo", "test", "--locked", "--workspace", *native_features, env=minimum)
     run("cargo", "run", "--locked", "--manifest-path", manifest, "--", sources / "font.otf", env=minimum)
     run("python", root / "build-support/font-sanitizer.py")
+run(sys.executable, root / "build-support/raster-sample.py")
 print("NATIVE_RECIPE_COMPLETE", flush=True)

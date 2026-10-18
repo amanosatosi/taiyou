@@ -69,6 +69,14 @@ jobs:
           cargo +1.99.1 fmt --manifest-path build-support/dependency-smoke/Cargo.toml -- --check
       - name: Cold native build, locked workspace and binding glyph-count smoke
         run: python build-support/build-native.py
+      - name: Archive genuine T012 A8 stage sample
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: T012-A8-${{ matrix.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-raster-sample/
+          if-no-files-found: ignore
+          retention-days: 7
   gate:
     name: Platform gate
     needs: [select, native]

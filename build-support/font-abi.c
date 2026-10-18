@@ -44,3 +44,21 @@ _Static_assert(sizeof(struct RustOutlineFuncs) == sizeof(FT_Outline_Funcs), "out
 _Static_assert(offsetof(struct RustOutlineFuncs, shift) == offsetof(FT_Outline_Funcs, shift), "outline shift offset");
 _Static_assert(offsetof(struct RustOutlineFuncs, delta) == offsetof(FT_Outline_Funcs, delta), "outline delta offset");
 _Static_assert((FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP | FT_LOAD_IGNORE_TRANSFORM) == 2059, "outline load policy");
+struct RustRasterSpan { uint16_t x, len; uint8_t coverage; };
+struct RustRasterParams {
+    const void *target, *source;
+    int flags;
+    FT_SpanFunc gray_spans, black_spans;
+    FT_Raster_BitTest_Func bit_test;
+    FT_Raster_BitSet_Func bit_set;
+    void *user;
+    FT_BBox clip_box;
+};
+_Static_assert(sizeof(struct RustRasterSpan) == sizeof(FT_Span), "span ABI");
+_Static_assert(offsetof(struct RustRasterSpan, coverage) == offsetof(FT_Span, coverage), "span coverage offset");
+_Static_assert(_Generic(((FT_Span*)0)->x, unsigned short: 1, default: 0), "pinned span x is unsigned");
+_Static_assert(sizeof(struct RustRasterParams) == sizeof(FT_Raster_Params), "raster params ABI");
+_Static_assert(offsetof(struct RustRasterParams, gray_spans) == offsetof(FT_Raster_Params, gray_spans), "gray callback offset");
+_Static_assert(offsetof(struct RustRasterParams, user) == offsetof(FT_Raster_Params, user), "raster user offset");
+_Static_assert(offsetof(struct RustRasterParams, clip_box) == offsetof(FT_Raster_Params, clip_box), "raster clip offset");
+_Static_assert((FT_RASTER_FLAG_AA | FT_RASTER_FLAG_DIRECT | FT_RASTER_FLAG_CLIP) == 7, "raster policy flags");

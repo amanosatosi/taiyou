@@ -16,4 +16,4 @@ pub use catalog::{
     FontCatalogBuilder, ValidatedFontCatalog, fold_family, resolve_family, validate_catalog,
 };
 #[cfg(feature = "native")]
-pub use native::FontContext;
+pub use native::{FontContext, RasterContext};
