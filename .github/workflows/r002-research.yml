@@ -1,0 +1,68 @@
+name: R002 coverage research
+on:
+  pull_request:
+    paths: ['experiments/coverage/**', 'validation/proposals/R002/**', 'docs/research/R002-coverage.md', '.github/workflows/r002-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: r002-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  baseline:
+    name: R002 Core A8 experiment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RASTER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: target
+          key: r002-core-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-${{ github.event.pull_request.head.sha || github.sha }}
+          restore-keys: r002-core-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
+      - run: python build-support/acquire.py
+      - name: Existing native recipe and T012 stage tests
+        run: python build-support/build-native.py
+      - name: Independent process repeats and raw coverage measurements
+        run: python experiments/coverage/run.py
+      - name: Check proposal consistency and reject invalid evidence
+        run: python validation/proposals/R002/check.py
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: R002-Core-A8-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/r002-coverage/
+          if-no-files-found: warn
+          retention-days: 30
+  official-probe:
+    name: R002 official xy feasibility
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Inventory official release and probe CSRI without accepting captures
+        run: python experiments/coverage/xy-probe.py
+      - name: Preserve original raw evidence including failed probes
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: R002-xy-discovery-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/r002-xy/*.json
+            ${{ runner.temp }}/r002-xy/*.txt
+            ${{ runner.temp }}/r002-xy/*.rgb32
+            ${{ runner.temp }}/r002-xy/*.ass
+          if-no-files-found: warn
+          retention-days: 30
