@@ -19,6 +19,9 @@ is neither Send nor Sync. Callbacks, pointers and native arrays stay exclusively
 in `taiyou-font/src/native.rs`. A synchronous span callback validates counts,
 scanlines, ordering, extents and duplicate writes before copying into a reserved,
 zeroed Rust buffer. Callback failure marks the call invalid and publishes no mask.
+The pinned backend emits batches of up to 16 spans and may include a valid
+zero-length clip-edge tail; such empty spans perform no writes. Malformed counts,
+nonempty out-of-bounds spans, null buffers and duplicate nonzero writes still fail.
 No callback allocates or unwinds. Published Mask data is immutable and outlives
 all native contexts and temporary outline buffers. Existing C5 Mask validation
 checks exact extent/stride/length and zero padding; no color enters an A8 value.
@@ -69,6 +72,14 @@ four existing pinned/hashed licensed fixtures, not new or regenerated goldens.
 Actions archive sample.a8, input.ass, report.json and a lossless coverage.pgm
 diagnostic preview. The report records candidate SHA, font/source revisions and
 hashes, backend/flags, signed bounds, dimensions, stride and actual A8 SHA-256.
+On Linux an independently authored C test program uses FT_Outline_Get_Bitmap over
+the same checked Q6 stage commands, independently computes bounds and top-down
+bitmap storage, and compares exact bytes against the direct-callback Rust adapter.
+Both Latin CFF and the four-font CFF/TrueType fallback scene receive this check.
+Expected/actual/difference PGM previews and zero-tolerance V3 metrics are archived.
+The C test is a candidate-side API cross-check, not independently trusted T005
+validation or a promoted font golden. Its rectangle probe independently reproduces
+the synthetic coverage expectations before Taiyou's raster tests run.
 This is a genuine stage sample, not an approved compatibility baseline. The native
 matrix checks sample identity again after full/MSRV runs; differences fail.
 No local compilation or artifact download is required. No performance or

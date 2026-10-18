@@ -60,4 +60,36 @@ if (folder / "expected.a8").exists():
     print("T012_INDEPENDENT_API_COMPARISON=" + json.dumps(metrics), flush=True)
     if changed:
         raise RuntimeError("independent bitmap API pixels differ: zero tolerance")
+if (folder / "multiscript.a8").exists():
+    w, h, row_stride, x0, y0 = [int(v) for v in (folder / "multiscript-info.txt").read_text().split()]
+    actual = (folder / "multiscript.a8").read_bytes()
+    if not 0 < w <= row_stride or h <= 0 or len(actual) != row_stride * h:
+        raise RuntimeError("invalid multiscript sample extent")
+    actual_ids = set((folder / "multiscript-fonts.txt").read_text().splitlines())
+    if actual_ids != {f["sha256"] for f in fonts}:
+        raise RuntimeError("multiscript sample font identity mismatch")
+    result = {"candidate_sha": candidate, "backend": info["backend"], "width": w, "height": h, "stride": row_stride, "bounds": [x0, y0, x0 + w, y0 + h], "mask_sha256": hashlib.sha256(actual).hexdigest(), "source_sha256": hashlib.sha256((folder / "multiscript.ass").read_bytes()).hexdigest(), "fonts": fonts, "comparison": "not run on this platform"}
+    destination = folder / "multiscript-report.json"
+    if destination.exists() and json.loads(destination.read_text())["mask_sha256"] != result["mask_sha256"]:
+        raise RuntimeError("multiscript sample changed between validation passes")
+    compact = b"".join(actual[y * row_stride:y * row_stride + w] for y in range(h))
+    header = f"P5\n{w} {h}\n255\n".encode("ascii")
+    (folder / "multiscript.pgm").write_bytes(header + compact)
+    if os.environ.get("TAIYOU_RASTER_REFERENCE"):
+        subprocess.run([os.environ["TAIYOU_RASTER_REFERENCE"], str(folder / "multiscript.q6"), str(folder / "multiscript-expected.a8"), str(folder / "multiscript-expected-info.txt")], check=True)
+        if [int(n) for n in (folder / "multiscript-expected-info.txt").read_text().split()] != [w, h, x0, y0]:
+            raise RuntimeError("independent multiscript bounds mismatch")
+        expected = (folder / "multiscript-expected.a8").read_bytes()
+        if len(expected) != len(compact):
+            raise RuntimeError("independent multiscript length mismatch")
+        delta = bytes(abs(a - b) for a, b in zip(compact, expected))
+        changed = [i for i, v in enumerate(delta) if v]
+        result.update(comparison="independent C FT_Outline_Get_Bitmap", max_delta=max(delta), mae=sum(delta) / len(delta), mismatch_count=len(changed), changed_pixel_bounds=None if not changed else [min(i % w for i in changed), min(i // w for i in changed), max(i % w for i in changed) + 1, max(i // w for i in changed) + 1])
+        (folder / "multiscript-expected.pgm").write_bytes(header + expected)
+        (folder / "multiscript-difference.pgm").write_bytes(header + delta)
+        destination.write_text(json.dumps(result, indent=2) + "\n")
+        if changed:
+            raise RuntimeError("independent multiscript pixels differ: zero tolerance")
+    destination.write_text(json.dumps(result, indent=2) + "\n")
+    print("T012_MULTISCRIPT_SAMPLE=" + json.dumps(result), flush=True)
 print("T012_A8_SAMPLE=" + json.dumps(report), flush=True)

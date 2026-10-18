@@ -16,7 +16,7 @@ fn limits() -> Limits {
 }
 fn input(text: &str) -> String {
     format!(
-        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
+        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Outline\nStyle: Default,Source Sans 3,20,7,2\nStyle: Border,Source Sans 3,20,7,3\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
     )
 }
 fn geometry_for(text: &str) -> Arc<GeometryEvent> {
@@ -112,6 +112,14 @@ fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
     assert_eq!(mask.bounds(), fresh.bounds());
     assert_eq!(mask.stride(), fresh.stride());
     assert_eq!(mask.data(), fresh.data());
+    let dir=PathBuf::from(std::env::var_os("TAIYOU_RASTER_SAMPLE_DIR").unwrap());
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("multiscript.a8"),mask.data()).unwrap();
+    std::fs::write(dir.join("multiscript.q6"),command_dump(&groups[0])).unwrap();
+    std::fs::write(dir.join("multiscript.ass"),input("Oé ب क 語")).unwrap();
+    std::fs::write(dir.join("multiscript-info.txt"),format!("{} {} {} {} {}",mask.bounds().width(),mask.bounds().height(),mask.stride(),mask.bounds().x0(),mask.bounds().y0())).unwrap();
+    let identities:Vec<String>=ids.iter().map(|font|font.sha256().iter().map(|b|format!("{b:02x}")).collect()).collect();
+    std::fs::write(dir.join("multiscript-fonts.txt"),identities.join("\n")).unwrap();
     drop(groups);
     assert!(mask.data().iter().any(|&v| v > 0));
 }
@@ -120,7 +128,7 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
     for (text, count) in [
         ("AV", 1),
         ("A{\\c&HFF0000&}V", 2),
-        ("A{\\bord3}V", 2),
+        ("A{\\rBorder}V", 2),
         ("A{\\fscx200}V", 2),
         ("A{\\fs30}V", 2),
         ("f{\\c&HFF0000&}f", 1),
@@ -157,8 +165,16 @@ fn raster_first_genuine_a8_sample() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("sample.a8"), mask.data()).unwrap();
     std::fs::write(dir.join("input.ass"), input("Taiyou")).unwrap();
+    std::fs::write(dir.join("commands.q6"), command_dump(&groups[0])).unwrap();
+    let event = groups[0].event().unwrap();
+    let font = event.glyphs()[0].outline.font();
+    assert!(event.glyphs().iter().all(|g| g.outline.font() == font));
+    let digest: String = font.sha256().iter().map(|b| format!("{b:02x}")).collect();
+    std::fs::write(dir.join("sample-info.txt"),format!("width={}\nheight={}\nstride={}\nx0={}\ny0={}\nbackend={}\nfont_sha256={}\nface_index={}\n",mask.bounds().width(),mask.bounds().height(),mask.stride(),mask.bounds().x0(),mask.bounds().y0(),ctx.backend(),digest,font.face_index())).unwrap();
+}
+fn command_dump(group:&CoverageGroup)->String {
     let mut commands = String::new();
-    for instance in groups[0].instances() {
+    for instance in group.instances() {
         for &op in instance.ops() {
             let (name, points) = match op {
                 PathOp::MoveTo(p) => ("M", vec![p]),
@@ -178,10 +194,5 @@ fn raster_first_genuine_a8_sample() {
             commands.push('\n');
         }
     }
-    std::fs::write(dir.join("commands.q6"), commands).unwrap();
-    let event = groups[0].event().unwrap();
-    let font = event.glyphs()[0].outline.font();
-    assert!(event.glyphs().iter().all(|g| g.outline.font() == font));
-    let digest: String = font.sha256().iter().map(|b| format!("{b:02x}")).collect();
-    std::fs::write(dir.join("sample-info.txt"),format!("width={}\nheight={}\nstride={}\nx0={}\ny0={}\nbackend={}\nfont_sha256={}\nface_index={}\n",mask.bounds().width(),mask.bounds().height(),mask.stride(),mask.bounds().x0(),mask.bounds().y0(),ctx.backend(),digest,font.face_index())).unwrap();
+    commands
 }
