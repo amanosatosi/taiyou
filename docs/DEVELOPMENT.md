@@ -46,7 +46,7 @@ Planned workflows (T001 creates documentation checks and the minimal source lane
 | `blueprint.yml` | Every PR, cheap; no Rust setup for docs-only changes | link/schema/task-DAG checks |
 | `fast.yml` | Source/manifest changes; one Linux toolchain | fmt, clippy, unit tests, safe API checks; fail fast |
 | `focused.yml` | After fast succeeds; trusted changed-module map | relevant stage/golden/determinism results |
-| `compatibility.yml` | Dedicated dispatch/schedule/milestones | full corpus and all status counts |
+| `compatibility.yml` | Every relevant PR and every manual dispatch, no task-branch restriction | full pinned corpus/all status counts, supplemental focused smoke, separate native libass oracle; raw failures and artifacts retained |
 | `platforms.yml` | Native/FFI/build changes, milestones and release | Windows MSVC, Linux, macOS ARM64; additional x86/ARM coverage per release support |
 | `safety.yml` | Nightly/dispatch, changed native surface | fuzz smoke, sanitizer and pure-Rust Miri lanes |
 | `bench.yml` | Maintainer dispatch on controlled runner | raw before/after results; never ordinary hosted timing gate |
@@ -54,6 +54,16 @@ Planned workflows (T001 creates documentation checks and the minimal source lane
 Use job-level conditions and an always-running gate aggregator so documentation-only PRs do not leave required checks pending. Path changes to selectors/workflows trigger policy review; they cannot disable their own gate. Rust source changes in types/font/evaluate/raster/compose or native versions select all dependent cases; unknown classification selects the broader suite. Schedule/full validation catches missing coverage mappings.
 
 Cache dependency downloads and native build artifacts by OS/arch/compiler version/flags, Cargo.lock and native source hashes. Cache Rust build artifacts only with compatible keys; untrusted candidate jobs cannot publish cache entries consumed by privileged validation. Cancel superseded PR jobs, cap matrices, use concurrency groups and upload only bounded failure artifacts plus compact summaries. Source compilation happens once per target where possible; focused comparison reuses that binary. Expensive cross-platform full corpora wait for milestone gates.
+
+The CoreV1 full external comparison on relevant PRs is mandatory; it cannot be
+deferred to a milestone or replaced with focused smoke to reduce CI cost. The
+cross-platform milestone sentence above concerns additional platform-wide corpus
+runs, not the ordinary full comparison lane. A failed smoke does not skip the
+full run after a successful build. A failing full comparator remains a failed
+step/job even when report-integrity checks pass; artifact upload runs after
+failure. Manual dispatch has no focused-only mode. See
+[full coverage policy](TESTING.md#v5-full-visibility-and-focused-runs) and the
+[mandatory agent rule](../AGENTS.md#protected-comparison-tests--never-modify-to-make-ci-pass).
 
 GitHub permissions default read-only, actions pinned by full commit SHA, no secrets for candidate code, no untrusted forks on persistent benchmark runners. Protected runner/harness design is [V4](TESTING.md#v4-protected-validation-trust-model). Git and the GitHub remote are now established; workflow execution and repository/organization protections must still be verified separately before claiming they are active.
 

@@ -1,13 +1,26 @@
 name: T015 external comparison
 on:
   pull_request:
-    paths: ['xtask/**', 'validation/**', '.github/workflows/compatibility.yml', 'crates/**', 'Cargo.*', 'build-support/**']
+    paths:
+      - 'xtask/**'
+      - 'validation/**'
+      - '.github/**'
+      - 'crates/**'
+      - 'Cargo.*'
+      - 'build-support/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.cargo/**'
+      - 'rust-toolchain.toml'
+      - 'AGENTS.md'
+      - 'docs/CONTRACTS.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'docs/CACHING.md'
+      - 'docs/TESTING.md'
+      - 'docs/DEVELOPMENT.md'
+      - 'docs/references.lock.json'
+      - 'docs/decisions/**'
   workflow_dispatch:
-    inputs:
-      suite:
-        type: choice
-        options: [focused, full]
-        default: focused
 permissions:
   contents: read
 concurrency:
@@ -40,7 +53,7 @@ jobs:
           persist-credentials: false
       - name: Materialize accepted PR-base snapshots without candidate replacements
         env:
-          BASE: ${{ github.event.pull_request.base.sha || '2f1801f7923e44ef575c96890dfefa93c8678d3c' }}
+          BASE: ${{ github.event.pull_request.base.sha || '4204f3d2a8e9734a6bad81b4716e9b7f74b388fe' }}
         run: |
           set -eu
           accepted="$RUNNER_TEMP/accepted"
@@ -69,33 +82,27 @@ jobs:
       - name: Existing pinned native recipe and T014 regressions
         run: python build-support/build-native.py
       - name: Build comparator launcher and real renderer
+        id: comparison_build
         run: |
           export PKG_CONFIG_PATH="$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
           export PKG_CONFIG_ALL_STATIC=1 LIBZ_SYS_STATIC=1
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
           cargo test --locked -p taiyou-cli --features native --test comparison_adapter
           cargo run --locked -p xtask -- compare-crash-probe "$TAIYOU_CORPUS/crash/generic.ass"
-      - name: Focused cases on ordinary PRs; full inventory at deliberate T015 milestone
-        env:
-          SUITE: ${{ inputs.suite || ((github.head_ref == 'task/T015-reference-comparison' || github.ref_name == 'task/T015-reference-comparison') && 'full' || 'focused') }}
+      - name: Supplemental focused smoke (never replaces full coverage)
         run: |
           set -eu
-          if [[ "$SUITE" == full ]]; then
-            case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
-            cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass --output "$RUNNER_TEMP/taiyou-focused-comparison"
-            cargo run --locked -p xtask -- compare --suite full --profile core-v1
-          else
-            case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
-            cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass
-          fi
+          case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass --output "$RUNNER_TEMP/taiyou-focused-comparison"
+      - name: Full pinned external comparison (all relevant PRs and dispatches)
+        id: full_comparison
+        # A smoke failure cannot suppress the full run. Build failure/cancellation
+        # remains a real failure; neither permits a false comparison pass.
+        if: ${{ !cancelled() && steps.comparison_build.outcome == 'success' }}
+        run: cargo run --locked -p xtask -- compare --suite full --profile core-v1
       - name: Verify full-corpus accounting and evidence invariants
         if: always()
-        env:
-          SUITE: ${{ inputs.suite || ((github.head_ref == 'task/T015-reference-comparison' || github.ref_name == 'task/T015-reference-comparison') && 'full' || 'focused') }}
-        run: |
-          if [[ "$SUITE" == full ]]; then
-            python validation/test_compare.py --report "$RUNNER_TEMP/taiyou-comparison/report.json"
-          fi
+        run: python validation/test_compare.py --report "$RUNNER_TEMP/taiyou-comparison/report.json"
       - name: Reverify immutable corpus even after failure
         if: always()
         run: |
@@ -107,6 +114,14 @@ jobs:
         with:
           name: T015-comparison-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/taiyou-comparison/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Archive supplemental focused smoke separately
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T015-focused-smoke-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-focused-comparison/
           if-no-files-found: warn
           retention-days: 7
   native-oracle:
@@ -121,7 +136,7 @@ jobs:
           persist-credentials: false
       - name: Materialize accepted oracle pins and corpus inventory
         env:
-          BASE: ${{ github.event.pull_request.base.sha || '2f1801f7923e44ef575c96890dfefa93c8678d3c' }}
+          BASE: ${{ github.event.pull_request.base.sha || '4204f3d2a8e9734a6bad81b4716e9b7f74b388fe' }}
         run: |
           set -eu
           mkdir "$RUNNER_TEMP/accepted"
