@@ -1,0 +1,75 @@
+name: Corpus inventory candidate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: read
+concurrency:
+  group: inventory-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  inventory:
+    name: Corpus policy gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check baseline changes and materialize accepted policy
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          snapshot="$RUNNER_TEMP/taiyou-accepted-validation"
+          mkdir -p "$snapshot"
+          if git cat-file -e "$BASE_SHA:validation/baseline.py" 2>/dev/null; then
+            accepted="$BASE_SHA"
+            git show "$accepted:validation/baseline.py" > "$RUNNER_TEMP/taiyou-baseline.py"
+            python "$RUNNER_TEMP/taiyou-baseline.py" check --base "$accepted" --head "$HEAD_SHA"
+          else
+            accepted=39f6ce2fa64b231fd705862d853c8df239b54a22
+            python validation/baseline.py check --base "$accepted" --head "$HEAD_SHA" --bootstrap
+          fi
+          git archive "$accepted" validation docs/references.lock.json | tar -x -C "$snapshot"
+          echo "TAIYOU_ACCEPTED=$snapshot" >> "$GITHUB_ENV"
+          echo "ACCEPTED_BASELINE=$accepted" >> "$GITHUB_ENV"
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - name: Acquire exact corpus on runner only
+        run: python "$TAIYOU_ACCEPTED/validation/acquire.py"
+      - name: Verify accepted inventory and mark assets read-only
+        run: |
+          python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          chmod -R a-w "$TAIYOU_CORPUS"
+      - name: Install bootstrap Rust on runner only
+        run: rustup toolchain install 1.85.1 --profile minimal --component rustfmt --component clippy
+      - name: Fetch exact merged workspace dependencies on runner only
+        run: cargo +1.85.1 fetch --locked
+      - name: Verify frozen inventory and run candidate policy tests
+        env:
+          RUSTUP_TOOLCHAIN: 1.85.1
+        run: |
+          test -f validation/inventory.json
+          cargo run --locked --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          cargo run --locked --offline -p xtask -- policy self-test
+          python validation/baseline.py self-test
+      - name: Reverify corpus and frozen files even after failures
+        if: always()
+        env:
+          RUSTUP_TOOLCHAIN: 1.85.1
+        run: |
+          test -n "$TAIYOU_CORPUS"
+          test -n "$TAIYOU_ACCEPTED"
+          python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          git diff --exit-code -- Cargo.lock validation/inventory.json validation/policy.json docs/references.lock.json

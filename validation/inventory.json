@@ -1,0 +1,6244 @@
+{
+  "assets": [
+    {
+      "bytes": 68,
+      "git_blob": "29018767a014ad031fe6201e207471890ca1ff84",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": ".gitattributes",
+      "role": "metadata",
+      "sha256": "92e04af8c582758322ca2b25f7683f4dfd99244f62773f44754fbe20a6491c4f"
+    },
+    {
+      "bytes": 7945,
+      "git_blob": "3ab28bacea35b307d63b0d73e1da6c0ad34d107c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": ".github/workflows/art-vm-qemu.yml",
+      "role": "metadata",
+      "sha256": "1b6210d219e96fb6662e4c7f21a0bb879a372ba99531cbc99fbe00c3b61ff062"
+    },
+    {
+      "bytes": 12768,
+      "git_blob": "06981b38bfdb582c6fd3449c8b6ed10035e2e4ca",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": ".github/workflows/art.yml",
+      "role": "metadata",
+      "sha256": "6a37d1ff0a4f8b41ff0bfd82843aef4055036c260ade72c4095420ddb17fd55f"
+    },
+    {
+      "bytes": 2297,
+      "git_blob": "a79ff35772819eb07edf9ce46917ac1d79c26853",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "README.md",
+      "role": "metadata",
+      "sha256": "572e74c0785dc8a8c39d99e4adfcb5ea1078ce1999df1f647877fc09e038f847"
+    },
+    {
+      "bytes": 8890,
+      "git_blob": "c39ed6b3f1feb1cdd517b84f024e8bfc81343861",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "crash/aegisub-format-tests.ass",
+      "role": "source",
+      "sha256": "3e3241d4cc4cfc31696a3471dfba16cd107605eefe0b5e349c59e9a700c2f2e6"
+    },
+    {
+      "bytes": 39678,
+      "git_blob": "128d2c81998591b5f05f0673b0f3e278da41ef0f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "crash/generic.ass",
+      "role": "source",
+      "sha256": "11a3827caca9646aee20ecd6d6f1f4d3f6048f78e1f7ef9fda8f9292e3ea2fba"
+    },
+    {
+      "bytes": 653,
+      "git_blob": "0dc512faee177d97fb4f86ca5bee5858cdfa9092",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100755",
+      "path": "crash/run-all.sh",
+      "role": "metadata",
+      "sha256": "1d113c408d79cfdc14f33b30200de01c4a9d7f33d76adff83a3b80e2497b63f4"
+    },
+    {
+      "bytes": 1278,
+      "git_blob": "80087e719b620baddc463adbb2253161c6a4b05a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "lib.sh",
+      "role": "metadata",
+      "sha256": "74450a76924a648a1cab596308c152cb4b2a34c1b192e510680614a62d5fc67c"
+    },
+    {
+      "bytes": 27644,
+      "git_blob": "4248f6ff3efb5ec0be0e5ef9055c6d16134604aa",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/Aileron-Regular.otf",
+      "role": "font",
+      "sha256": "2762f4fc2ebad8323264aea52ffa2260b86c9677493d3ce2dc4f34e5851d2aa2"
+    },
+    {
+      "bytes": 585824,
+      "git_blob": "627f8676b8e0435f6ecf51366a3704a9e2c367cf",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/Arimo-Bold.ttf",
+      "role": "font",
+      "sha256": "0b5422b854f9a76ff56f894dc76d440eaca6489c119168f00cd176a5a8617013"
+    },
+    {
+      "bytes": 583808,
+      "git_blob": "522cad58c767f3034ee6c00f5821389a4e34a87e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/Arimo-Regular.ttf",
+      "role": "font",
+      "sha256": "e9aae1ebba96d3a4137e5b355040506d025ee690db24213fcad650200dbbbf42"
+    },
+    {
+      "bytes": 757076,
+      "git_blob": "3295ea2853ff068e4a55842f5d3d5166cedcba2f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/DejaVuSans.ttf",
+      "role": "font",
+      "sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45"
+    },
+    {
+      "bytes": 1348,
+      "git_blob": "7154def59fdb96f27c36fb832d88d43390ed6d7e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/FansubBlock-CFF.otf",
+      "role": "font",
+      "sha256": "ad6a80cad983636039b54db21c4fc484a5285268c1e8e39a216c782115e2e53e"
+    },
+    {
+      "bytes": 6099900,
+      "git_blob": "811b9c08e3e37bd13819b26b831444ab1840ae01",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/IPAexGothic.ttf",
+      "role": "font",
+      "sha256": "3b9955a5e437ffb24c41548e79296fa724822da21ee75dc1b94f6ccdb8f400dd"
+    },
+    {
+      "bytes": 5377583,
+      "git_blob": "b8358d1333083864de88af617a079e6610f5a9a5",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/big5-hkscs_SingYi-Ultra.ttf",
+      "role": "font",
+      "sha256": "78a7ee4ea28ba9f95cefde85dc8f9400177805a42d19b69f315592b86520185d"
+    },
+    {
+      "bytes": 3364,
+      "git_blob": "72f07ad7e9fa7d79a9f6b9ecd7f480f1171d17ca",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/fansubBlock.ttf",
+      "role": "font",
+      "sha256": "5922f6b85f727117391ae4a360d85704f4cba2da1a8f892c2f769a603fdd51a1"
+    },
+    {
+      "bytes": 37172,
+      "git_blob": "ac53c008b9e23374781cf8e44efc577c73c59876",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/legacy-arabic-simplified-SimplifiedArabic.ttf",
+      "role": "font",
+      "sha256": "f7c263e09c909ce3befc1c03cf477efc124ec8b54a378f059aa09dbff76afdaa"
+    },
+    {
+      "bytes": 72976,
+      "git_blob": "4347075a64e1bbf788e74119ae034c2c0f9be441",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/legacy-arabic-traditional-AGACairoRegular.ttf",
+      "role": "font",
+      "sha256": "539e53f6b7e91fb126542fd035921d85fea35ada8b4cdef8face879017c748f4"
+    },
+    {
+      "bytes": 3047968,
+      "git_blob": "b6c649f84753afd2a700323bf6f8a6c8eaed39ae",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/shiftjis_Reishoreiryu.ttf",
+      "role": "font",
+      "sha256": "cb7906711eb6bcda10ffc0888e60af8704a9460cfee6d030f3cc40a939c95fcb"
+    },
+    {
+      "bytes": 78504,
+      "git_blob": "a5577ba6a67a108812887d8ee42cb10aa12c7d54",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/symbol-first-char-0x0000-Baoloc.ttf",
+      "role": "font",
+      "sha256": "2e437d5cd0d394141500b6de707b0635b5a7ddd6f37314fa8ad43dfd3d7df647"
+    },
+    {
+      "bytes": 95328,
+      "git_blob": "7c1fa23787eaac085bb6e474dda5e0128307dee6",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/.fonts/symbol-first-char-0xF000-AGMaturaC.ttf",
+      "role": "font",
+      "sha256": "3480da6e32beb4b652b3b27c380030419a5cc98ce4f12743b5b3e88bada5f36a"
+    },
+    {
+      "bytes": 2256,
+      "git_blob": "2848387660dc9b5b8f48a1faa221a0459e89a19b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/README.md",
+      "role": "metadata",
+      "sha256": "13986b8f4900b2dd8edfcc7110ca714b104c7853753001acabcb854732d55958"
+    },
+    {
+      "bytes": 29,
+      "git_blob": "fd5a098b9b57f9386aad742b17c759bcb51bde03",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/blurs-anamorphic/Aileron-Regular.otf",
+      "resolved": "regression/.fonts/Aileron-Regular.otf",
+      "resolved_sha256": "2762f4fc2ebad8323264aea52ffa2260b86c9677493d3ce2dc4f34e5851d2aa2",
+      "role": "font",
+      "sha256": "a8f9469eca46782fabf0787d8ff79a235d455ce3fefbb88d2ccfefe88b4cb18e",
+      "target": "../.fonts/Aileron-Regular.otf"
+    },
+    {
+      "bytes": 88359,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "43ac6d665b8dab7149eef957abaf57a12b4c4c78",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs-anamorphic/blur-0000.png",
+      "role": "image",
+      "sha256": "d53ba71c2d6e778943e6e3a4ce29e6dcc21d1dbdf75788494d23e4014488b628"
+    },
+    {
+      "bytes": 627,
+      "git_blob": "7bcf3afd57c773a72ec77f221260d599ad0d6a86",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs-anamorphic/blur.ass",
+      "role": "source",
+      "sha256": "85da5d62488e4339dc048fda474f1c740a85eb0fec8090ac85deed80ef7c7d99"
+    },
+    {
+      "bytes": 4,
+      "git_blob": "3cbc9903c08ec001fd45d2319ccef22f0416213a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs-anamorphic/scale",
+      "role": "metadata",
+      "sha256": "bc56a44296225097555d66fbe3986b7b6628ebbd141c2afe1abeef19d9fa5ffb"
+    },
+    {
+      "bytes": 29,
+      "git_blob": "fd5a098b9b57f9386aad742b17c759bcb51bde03",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/blurs/Aileron-Regular.otf",
+      "resolved": "regression/.fonts/Aileron-Regular.otf",
+      "resolved_sha256": "2762f4fc2ebad8323264aea52ffa2260b86c9677493d3ce2dc4f34e5851d2aa2",
+      "role": "font",
+      "sha256": "a8f9469eca46782fabf0787d8ff79a235d455ce3fefbb88d2ccfefe88b4cb18e",
+      "target": "../.fonts/Aileron-Regular.otf"
+    },
+    {
+      "bytes": 10208,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "07103c7cfdef53b1f6923202d7a01faf1565953c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/be-0500.png",
+      "role": "image",
+      "sha256": "40654777aed095dae3ba5ed3595e7ac75df829c56e77f2114f639262eb27842e"
+    },
+    {
+      "bytes": 12748,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "f2aecc397d286a926725f9f32d7a8ebaa903fa55",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/be-1500.png",
+      "role": "image",
+      "sha256": "757a449a8de15df75dd219bb26c0cb935fa3485eb4699c5b75694e75eab307a0"
+    },
+    {
+      "bytes": 13403,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "d0770b0aa023fdfd9eda428dcd0ce8c49ef9a7d6",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/be-2500.png",
+      "role": "image",
+      "sha256": "2157a6da223f6c1b584a2e5ae536fe79c04ba0068dc49af1a24caba491aee51d"
+    },
+    {
+      "bytes": 13446,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "eb03f66bb25d296a5a71b7186375d756d4f35a90",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/be-3500.png",
+      "role": "image",
+      "sha256": "37fd5845bf14517ebc4b50b223e675215b446547a9fc358b0d2577cb1fbe899e"
+    },
+    {
+      "bytes": 1349,
+      "git_blob": "85022347811840493eb9284a755ad73f61a07c08",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/be.ass",
+      "role": "source",
+      "sha256": "f3033c3d95abe212f52cfaa3a5b96b1c557adf6f826f13405094a4877076c5dc"
+    },
+    {
+      "bytes": 35892,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "dd98b8f84d3581aa7be09892bac73bb766dc1966",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1000.png",
+      "role": "image",
+      "sha256": "6a9b95a3806361c90a0f046f15dd3b0a85a36dbec7c93375bbd102c078eecc39"
+    },
+    {
+      "bytes": 36089,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "1eb09545b893726873e34f987bfb419f2394cece",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1100.png",
+      "role": "image",
+      "sha256": "6436e2dfd34c876e2c710052e9ad83b875db24db49884f7bd22dcdc63aae0161"
+    },
+    {
+      "bytes": 37200,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "fca00866b4b6dcb6b66a7190e563329126d9b37e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1200.png",
+      "role": "image",
+      "sha256": "2a1b35ca1d7942539210991fd195ec1e0e756da423b0d318b978138493712e2a"
+    },
+    {
+      "bytes": 37850,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "dfbbad1c7c531a2944f63fce12c2c5609bf49c04",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1300.png",
+      "role": "image",
+      "sha256": "b3ffa8b1399bfdb3f1c4460c64b493e4786aaf137b5a051bf2a2da87719af844"
+    },
+    {
+      "bytes": 38361,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "e0aba09d285b9f0b69cee7ff092dcff7d58cd7b5",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1400.png",
+      "role": "image",
+      "sha256": "8d7e5d83b777b21de785e94a71c3f3a8d60b9b0e8e0e137c5d49c7b219084401"
+    },
+    {
+      "bytes": 38412,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "ed427f6a40edff304e06b6f34197f11aa5dccb51",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1500.png",
+      "role": "image",
+      "sha256": "76041ba11928ed1715c867610c8fc2b4a561180c7671f7cddd6795667ead33e4"
+    },
+    {
+      "bytes": 39352,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "d4af1ff683bcd41d2043e0bd14150d6d8317b819",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1600.png",
+      "role": "image",
+      "sha256": "0fe295f8dac8dbae2cda223122454fa68699f0592a740eae6448f253c33f1a9c"
+    },
+    {
+      "bytes": 39572,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "73716d39b7b72643ca841d9315194afee77a34ae",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1700.png",
+      "role": "image",
+      "sha256": "f38f613e94fc714407b113a2d3ca36398b99e15fe2c073e4f7972a4911c059b1"
+    },
+    {
+      "bytes": 40138,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "4a889587c935221c132e739d1a85e2b2e0b5e844",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1800.png",
+      "role": "image",
+      "sha256": "0485ea2519f3dbd12013fde45a6d3268ab1e5b83dc049c3a04d39363a5ea6f63"
+    },
+    {
+      "bytes": 40349,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "48bbee14aab4f8731a19e487c0d7d9ba05e8302e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t-1900.png",
+      "role": "image",
+      "sha256": "49622343cf17fe56bd1ede65e446b8aaddabcb285c5e3b39745afd2a12a46998"
+    },
+    {
+      "bytes": 798,
+      "git_blob": "6c3d5ada55411e129689c7145255e8bb306cbd64",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/blur+t.ass",
+      "role": "source",
+      "sha256": "85e2085db7d8ec26ac264214a02211b62025fcafb42f96b125d8bf13cc5dc18f"
+    },
+    {
+      "bytes": 137,
+      "git_blob": "515a33f76ec7fc40ac430e34f2edca2e69b9ea7c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/blurs/desc",
+      "role": "metadata",
+      "sha256": "aa6d9067f9bc78c450cebb1318b5c666b78fa9d7cbfa7720b4319a988929f370"
+    },
+    {
+      "bytes": 27,
+      "git_blob": "26ddb10ce4fb5de8e414d9930becfa5ab5a92f64",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/draw-images/Arimo-Regular.ttf",
+      "resolved": "regression/.fonts/Arimo-Regular.ttf",
+      "resolved_sha256": "e9aae1ebba96d3a4137e5b355040506d025ee690db24213fcad650200dbbbf42",
+      "role": "font",
+      "sha256": "4d31d6bf6ce74acf50262abdb6b769275226f2e4f6fda3302981efeb6e55ddfe",
+      "target": "../.fonts/Arimo-Regular.ttf"
+    },
+    {
+      "bytes": 263,
+      "git_blob": "30658243879ce3092177568b9cd18d6516927dd2",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/draw-images/desc",
+      "role": "metadata",
+      "sha256": "3a61a024322a87f7fc1deec7c45ef9d8ff9d6ad71e605e73e113e48dbbe59129"
+    },
+    {
+      "bytes": 11286,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "git_blob": "4f8591ab12b3330fb685d972222ead8d65b4f854",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/draw-images/drawImg-104396.png",
+      "role": "image",
+      "sha256": "b4957f705bc11ad6057e44ddbe34f70ab4d552122db59b11feecc6b40957198c"
+    },
+    {
+      "bytes": 29890,
+      "git_blob": "6779a8c035a47057b330777666382b62a17ed04b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/draw-images/drawImg.ass",
+      "role": "source",
+      "sha256": "afc4165dbfd9d7be43776598c0360bc6b34524c42c08a39c0caa7114acbb21ed"
+    },
+    {
+      "bytes": 46,
+      "git_blob": "10df116550cd77491041bbc8c521e367ef7b4a80",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/embedded-font/desc",
+      "role": "metadata",
+      "sha256": "2731b383cf651383c8b971f6a46b93fc3fea4db5b427ad4a16dc01b41ac55342"
+    },
+    {
+      "bytes": 1469,
+      "dimensions": [
+        640,
+        480
+      ],
+      "git_blob": "a104655efb2a378ec134ab9039856d985f81413f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/embedded-font/efont-1000.png",
+      "role": "image",
+      "sha256": "300c911280232e594238cf92293883b2bfc77e9c7a459d2354d8ee9dc80dcf71"
+    },
+    {
+      "bytes": 2656,
+      "git_blob": "5c49593d2ad4fccd3bdfe8c7fb085f0e2aa60d1b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/embedded-font/efont.ass",
+      "role": "source",
+      "sha256": "c476511a1880cac52aafc890f67f32a58fbe36c8b44b5d0bd622ff8c73d0a391"
+    },
+    {
+      "bytes": 29,
+      "git_blob": "72fbc244fe7c6f931b11f78dc64300a37c9c3367",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/faux-italics/FansubBlock-CFF.otf",
+      "resolved": "regression/.fonts/FansubBlock-CFF.otf",
+      "resolved_sha256": "ad6a80cad983636039b54db21c4fc484a5285268c1e8e39a216c782115e2e53e",
+      "role": "font",
+      "sha256": "c63ec8308ca93f5997cbaf3ada95c6449f83b44bab55c25cda0a298afd0acf49",
+      "target": "../.fonts/FansubBlock-CFF.otf"
+    },
+    {
+      "bytes": 2655,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "4c75df3a231b71cf21c12e7596507f04f12e7826",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/faux-italics/cff-0000.png",
+      "role": "image",
+      "sha256": "48f0ed20cf6fe5da7efdd31c33fc273dc6a94644d4a9a50be7e3e49610ec074e"
+    },
+    {
+      "bytes": 585,
+      "git_blob": "d4cf30c73bc6f413247325846eb96815e3183bde",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/faux-italics/cff.ass",
+      "role": "source",
+      "sha256": "53c1f9b0cd7d63439b893d9cbecb2225e5b48d9d8e754d52eb50927e35cf3245"
+    },
+    {
+      "bytes": 25,
+      "git_blob": "38a11f5f69d82cfecd47831c6c711b1977bd723e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/faux-italics/fansubBlock.ttf",
+      "resolved": "regression/.fonts/fansubBlock.ttf",
+      "resolved_sha256": "5922f6b85f727117391ae4a360d85704f4cba2da1a8f892c2f769a603fdd51a1",
+      "role": "font",
+      "sha256": "6b57fa2ec512d1aed75cf17413ef677399a44ed854f3c70c15e194adb022b5aa",
+      "target": "../.fonts/fansubBlock.ttf"
+    },
+    {
+      "bytes": 2930,
+      "dimensions": [
+        800,
+        600
+      ],
+      "git_blob": "17b79bdeecdf69e9ffbc7c0035247eb3468d3322",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/faux-italics/truetype-0000.png",
+      "role": "image",
+      "sha256": "4da136db6508113821b7e7703392a52ecae9f71dff0e57cdd5d74ba7287c3d28"
+    },
+    {
+      "bytes": 582,
+      "git_blob": "7e7b57abb1b8cd17f83d96c8fdb999f2797fe16b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/faux-italics/truetype.ass",
+      "role": "source",
+      "sha256": "30053fde3c544ead7b0798beb37ed29595fd45898064f4e7bc95d1d8b92c0109"
+    },
+    {
+      "bytes": 15646,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "926e4b25765d6e972270fd0e875e88c494d369d1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/big5-hkscs-1000.png",
+      "role": "image",
+      "sha256": "060d8e346f7b815982769aeecd9c5653e3d062df76c3b006adb96ac43e6206f4"
+    },
+    {
+      "bytes": 741,
+      "git_blob": "4c1321521e62694598d5a25823e65c2d45b6386f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/big5-hkscs.ass",
+      "role": "source",
+      "sha256": "f38554edf255edc627074434a4a60cd0cf9170b4672c09d6598b2a11c52fb625"
+    },
+    {
+      "bytes": 37,
+      "git_blob": "2384e97f8047425c7bee3cabb8875acd90c507c2",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+      "resolved": "regression/.fonts/big5-hkscs_SingYi-Ultra.ttf",
+      "resolved_sha256": "78a7ee4ea28ba9f95cefde85dc8f9400177805a42d19b69f315592b86520185d",
+      "role": "font",
+      "sha256": "3beb87d9c11b2085cfefa179dd293a252011da96580e89d76b93d3f7b0a096cf",
+      "target": "../.fonts/big5-hkscs_SingYi-Ultra.ttf"
+    },
+    {
+      "bytes": 2745,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "5c215707a5833b575951b7de5c458303c2de09c4",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/legacy-arabic-simplified-1000.png",
+      "role": "image",
+      "sha256": "e18947cf99b1419938fd75b420f2ac17cfd77a1a459837d36731edcbaefb2395"
+    },
+    {
+      "bytes": 55,
+      "git_blob": "3958807681dbce739661e75a77476fdc4ec15684",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+      "resolved": "regression/.fonts/legacy-arabic-simplified-SimplifiedArabic.ttf",
+      "resolved_sha256": "f7c263e09c909ce3befc1c03cf477efc124ec8b54a378f059aa09dbff76afdaa",
+      "role": "font",
+      "sha256": "4a091c51c2c40c7594f6047582ccaeef74861f2103174c433d653649cb9da364",
+      "target": "../.fonts/legacy-arabic-simplified-SimplifiedArabic.ttf"
+    },
+    {
+      "bytes": 730,
+      "git_blob": "1e4c9735943df252400afaac94f120d7bb24ce11",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/legacy-arabic-simplified.ass",
+      "role": "source",
+      "sha256": "044618bd9f5ac88453602069825baf03b4249ae25b0ce5c97b47869994ab5c62"
+    },
+    {
+      "bytes": 2816,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "cb1ff20d65c5bbcc425dee4f61b5d608a79ec96a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/legacy-arabic-traditional-1000.png",
+      "role": "image",
+      "sha256": "e88c96a6ba5e94361a4eb3b470d26da9a1223cd9240ab3cdc9697a60f50434f1"
+    },
+    {
+      "bytes": 55,
+      "git_blob": "ed251326fcfb0b231858589f1d1690ed92095571",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+      "resolved": "regression/.fonts/legacy-arabic-traditional-AGACairoRegular.ttf",
+      "resolved_sha256": "539e53f6b7e91fb126542fd035921d85fea35ada8b4cdef8face879017c748f4",
+      "role": "font",
+      "sha256": "7ce5decfbaa50d285925bbac8b4c5d56467b6efd3ee7a08c33fa5bf896237bf4",
+      "target": "../.fonts/legacy-arabic-traditional-AGACairoRegular.ttf"
+    },
+    {
+      "bytes": 731,
+      "git_blob": "57ad001611ba3013e16f9ca970634079914e70da",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/legacy-arabic-traditional.ass",
+      "role": "source",
+      "sha256": "8ceafafd5c0902d0e5caf9a511e06f6b6baa0778cb9bf2295cbedae0426477b6"
+    },
+    {
+      "bytes": 7350,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "4740563df25fec0e78748f8e431918496dd56cc9",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/shiftjis-1000.png",
+      "role": "image",
+      "sha256": "6d23e5e895f4ea1b0be93f0686b5e3d0e28428cf2b8adfedb01077d503947ae6"
+    },
+    {
+      "bytes": 811,
+      "git_blob": "b59d63870737eed2b839c491130a0be8867e8578",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/shiftjis.ass",
+      "role": "source",
+      "sha256": "cd0ee8e81e4704318cfa5da81d0a778fe4806cad1e36dc56518c5142b888d4b1"
+    },
+    {
+      "bytes": 35,
+      "git_blob": "a8a282de7defcda3baad9a0e3b52e3eea513cfae",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+      "resolved": "regression/.fonts/shiftjis_Reishoreiryu.ttf",
+      "resolved_sha256": "cb7906711eb6bcda10ffc0888e60af8704a9460cfee6d030f3cc40a939c95fcb",
+      "role": "font",
+      "sha256": "797522584ad0342c54500b7c8a33f93d5fd7ba023ab5112792f0941020be368d",
+      "target": "../.fonts/shiftjis_Reishoreiryu.ttf"
+    },
+    {
+      "bytes": 5012,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "330c69306ca688f3612b6787105a928d0d587005",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/symbol-first-char-0x0000-1000.png",
+      "role": "image",
+      "sha256": "099251b732898fed6e4525c293c4c56dad88b2253df3a3917859f6cc3182c12c"
+    },
+    {
+      "bytes": 45,
+      "git_blob": "c8f346241010c1b70a232e79f66453df77fb09fe",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+      "resolved": "regression/.fonts/symbol-first-char-0x0000-Baoloc.ttf",
+      "resolved_sha256": "2e437d5cd0d394141500b6de707b0635b5a7ddd6f37314fa8ad43dfd3d7df647",
+      "role": "font",
+      "sha256": "21e5393f5997e3953067113668be0f999d1c914c13641a10e671f82db8dc5fcb",
+      "target": "../.fonts/symbol-first-char-0x0000-Baoloc.ttf"
+    },
+    {
+      "bytes": 958,
+      "git_blob": "ac7d6e3ef02a8f3f7c8113086d7c3ec5e677e2a7",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/symbol-first-char-0x0000.ass",
+      "role": "source",
+      "sha256": "efdaed900c4d4f7456e4f67a6887e19d4a23c8d02b9c0d3993daa9917326524a"
+    },
+    {
+      "bytes": 4736,
+      "dimensions": [
+        854,
+        480
+      ],
+      "git_blob": "62db010dc53781a937582c8571d8e7bfa18ed57b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/symbol-first-char-0xF000-1000.png",
+      "role": "image",
+      "sha256": "d69a6e0a3392cd45990ca66c1edefa58782314c08f4accd06a6da915e2b92e62"
+    },
+    {
+      "bytes": 48,
+      "git_blob": "4e5f8a66156f3b67860ea0e5b5a038500479e895",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf",
+      "resolved": "regression/.fonts/symbol-first-char-0xF000-AGMaturaC.ttf",
+      "resolved_sha256": "3480da6e32beb4b652b3b27c380030419a5cc98ce4f12743b5b3e88bada5f36a",
+      "role": "font",
+      "sha256": "7467a5f828d8c2b515b4ea7ac70a249836d54625e6aff5ce9ac6e9dc0ed21195",
+      "target": "../.fonts/symbol-first-char-0xF000-AGMaturaC.ttf"
+    },
+    {
+      "bytes": 811,
+      "git_blob": "8b3b2ea2989e2f2574af4109802acfe72eb05cf4",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/font_nonunicode/symbol-first-char-0xF000.ass",
+      "role": "source",
+      "sha256": "d95b8b580e1843f69dd44e277784b7f412bf79e09c51d2b6c8cbebc1281fcbb0"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/implicit-pos/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 1893,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "17c2717eb8c881b78d8ebbc64ef23927ae9d9f7a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/bordercollision-2000.png",
+      "role": "image",
+      "sha256": "4e8c8e147f26b44c9c27db903a565416c7c1d0c8bff2a73bc2c289cbab037606"
+    },
+    {
+      "bytes": 874,
+      "git_blob": "fc44cd6882fea85aaf2d85b288f43f64f6b17a54",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/bordercollision.ass",
+      "role": "source",
+      "sha256": "0f5525cacf19a70037a41fe5274d790207e603aa2d66f925284118c869050a21"
+    },
+    {
+      "bytes": 832,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "9533168bb720aee8af77b8c6d8bb045016acc005",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-0500.png",
+      "role": "image",
+      "sha256": "e1df5474f2b3af5ade4486cc6c9b263effbf6476fa4b4f80939f6f9b64fc6e1f"
+    },
+    {
+      "bytes": 833,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "1c5d1479008ed943eb900123c56b4c418323ecad",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-1500.png",
+      "role": "image",
+      "sha256": "7ed83e44055d7bfe8e6b422c95f97a90ad258e9526ae37ebff3e6483fe9cf2b1"
+    },
+    {
+      "bytes": 847,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "c77304514cce9611e214ed83d91d1eb8138a31e3",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-2500.png",
+      "role": "image",
+      "sha256": "415cf85937ef79c42e31f71cae8a028e4f14cba06f43926b75129693d03430f2"
+    },
+    {
+      "bytes": 832,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "8daf02b254476a2bfa9e21d4690737076899bd83",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-3500.png",
+      "role": "image",
+      "sha256": "8784605d0d273c8e95534d9383241b88ee44c0867adf760fa3ef345d41ed38ce"
+    },
+    {
+      "bytes": 833,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "b068ce6cb858fd85784e202ed729a87c4640ecf4",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-4500.png",
+      "role": "image",
+      "sha256": "c3921f712c3edc83f68a67f2051d597d9257f60b612ec9b528111fe5f3e97538"
+    },
+    {
+      "bytes": 848,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "72673411e85613edfdbe083b80ba2e906ab8b942",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-5500.png",
+      "role": "image",
+      "sha256": "9769b0def2679ec0fa3f7def7f01d6d8459afd8e021d78131410e0653ad229a1"
+    },
+    {
+      "bytes": 832,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "b52a91492e0900c2a95c59dbebbf0a1b4f71d08d",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-6500.png",
+      "role": "image",
+      "sha256": "a808a1376fb78ba6af96f197a9edbb62525d1153f8270549cad303fa37ad5a72"
+    },
+    {
+      "bytes": 833,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "ace42902b34e651d41d014d10940f31dce9df121",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-7500.png",
+      "role": "image",
+      "sha256": "e8b484e31013326340a464b9f5cc40c2bec93e5e673f86aeb7a54765b347f511"
+    },
+    {
+      "bytes": 847,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "0960bd8896a8561e597d854c50a7049767ab83ab",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-8500.png",
+      "role": "image",
+      "sha256": "25838f102f4869c9118c00dba5e28a37ae9542052169e9fa6a1326628945eff4"
+    },
+    {
+      "bytes": 509,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "549964d1a35aa4c9fbaccf22759a2ce57d338cf1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir-9500.png",
+      "role": "image",
+      "sha256": "e0fff6eddb9c8bbc95ef233339474682008b121cc3b5c8ecdf3536284e662166"
+    },
+    {
+      "bytes": 2387,
+      "git_blob": "736d6002c46920a0865d7bbb3592337e525058e5",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/implicit-pos/shift-dir.ass",
+      "role": "source",
+      "sha256": "59872dcd351a97ddd28fdda8b61a541c523d9707a6f39da07b48015f58bb95db"
+    },
+    {
+      "bytes": 52380,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "29da2f8c78542901411ff8eb50e7e3519af66b80",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/216-vertical-2252.png",
+      "role": "image",
+      "sha256": "ce0831214c99beebc1d31afcb74fff04375e09f299a56005905d7fa8591b40a3"
+    },
+    {
+      "bytes": 801,
+      "git_blob": "4ba2254ff5d8e5d740353bc745b293b37075ca04",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/216-vertical.ass",
+      "role": "source",
+      "sha256": "3b2f625e34583da009577a51ddd9ba395df1d0efc088997ee01f3c2499aec1fb"
+    },
+    {
+      "bytes": 37016,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "git_blob": "032de0fe206853595ce30aad84fb4696bf74af3c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/357-k-and-kf-desynced-6798.png",
+      "role": "image",
+      "sha256": "2aa7b22593900f717e500c840e0f5627d78f3f1680f9fcdc73873415c88041bf"
+    },
+    {
+      "bytes": 36379,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "git_blob": "5aca798fbf6df129447b7034c066430df1dbfa13",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/357-k-and-kf-desynced-7170.png",
+      "role": "image",
+      "sha256": "9328d2259972374025b603723f6dcfc06f7fb1ceb4e8ac818196354779a864c1"
+    },
+    {
+      "bytes": 35971,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "git_blob": "cef0d9cd1e545a88e30c81f416f0338701f2bb16",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/357-k-and-kf-desynced-8170.png",
+      "role": "image",
+      "sha256": "57e38c4dbdcc9853496d0514724add7610a9cd22e0cabe5279131ffc44b36dbb"
+    },
+    {
+      "bytes": 809,
+      "git_blob": "12e573c33475c8fd1bbb0f958566a66f15f51e4f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/357-k-and-kf-desynced.ass",
+      "role": "source",
+      "sha256": "534d2d14ebcab56046569007387488f1aae7b3649e2213247a1e8511c2c2ac89"
+    },
+    {
+      "bytes": 3680,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "git_blob": "cbbc0d07649bc0055d9fdd6a21789c794786d3ac",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/357_diff.png",
+      "role": "image",
+      "sha256": "b17a8b5bfbf0c3807c907128365b1be8a8eb3d226d6f7fb551f80baa4b954d61"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "e92ec2b54b1b071233b6b23261fdc8e51e2e6826",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/karaoke/Arimo-Bold.ttf",
+      "resolved": "regression/.fonts/Arimo-Bold.ttf",
+      "resolved_sha256": "0b5422b854f9a76ff56f894dc76d440eaca6489c119168f00cd176a5a8617013",
+      "role": "font",
+      "sha256": "6932a2d142488d0fb99f8f561476d214e55b427eacb48a4ccfe8c9ab28c6bfdf",
+      "target": "../.fonts/Arimo-Bold.ttf"
+    },
+    {
+      "bytes": 27,
+      "git_blob": "26ddb10ce4fb5de8e414d9930becfa5ab5a92f64",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/karaoke/Arimo-Regular.ttf",
+      "resolved": "regression/.fonts/Arimo-Regular.ttf",
+      "resolved_sha256": "e9aae1ebba96d3a4137e5b355040506d025ee690db24213fcad650200dbbbf42",
+      "role": "font",
+      "sha256": "4d31d6bf6ce74acf50262abdb6b769275226f2e4f6fda3302981efeb6e55ddfe",
+      "target": "../.fonts/Arimo-Regular.ttf"
+    },
+    {
+      "bytes": 25,
+      "git_blob": "e4fb894cdaeb93bfcb706f40b16f2a2dba874c38",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/karaoke/IPAexGothic.ttf",
+      "resolved": "regression/.fonts/IPAexGothic.ttf",
+      "resolved_sha256": "3b9955a5e437ffb24c41548e79296fa724822da21ee75dc1b94f6ccdb8f400dd",
+      "role": "font",
+      "sha256": "ec21e27ea5539cea0623a2993136461f6558f9a2035d54d25f1191b5e6ad320c",
+      "target": "../.fonts/IPAexGothic.ttf"
+    },
+    {
+      "bytes": 256,
+      "git_blob": "18a9819755298385e0ead6ecf60356125a6d9944",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/desc",
+      "role": "metadata",
+      "sha256": "17348d5ea82bab478c0cccfbd0a4eaaaa336ad5d423a0af78379777e98683ba6"
+    },
+    {
+      "bytes": 12043,
+      "dimensions": [
+        640,
+        120
+      ],
+      "git_blob": "d36729effc99faa69e143e9317f77ae35c1cf78b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits-0000.png",
+      "role": "image",
+      "sha256": "4c1021881b5d0148793df515b28cd3ef35cf9fd06a6c3e59e6ed39d51235e3d8"
+    },
+    {
+      "bytes": 13562,
+      "dimensions": [
+        640,
+        120
+      ],
+      "git_blob": "0a9b31cd7e01057f1738d45dd664e9ccde72522e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits-2040.png",
+      "role": "image",
+      "sha256": "88550f14d0548f969da537468b5750b254aa7a999517699bfbceb035e0ca34ca"
+    },
+    {
+      "bytes": 14587,
+      "dimensions": [
+        640,
+        120
+      ],
+      "git_blob": "0342e03ed266593c5a400d31dff0fca7e5b978ac",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits-2800.png",
+      "role": "image",
+      "sha256": "81e867d1517b3cd9e3b28ef2cedd639617d294afa74247ec1fa1d35f1ac5cd66"
+    },
+    {
+      "bytes": 15694,
+      "dimensions": [
+        640,
+        120
+      ],
+      "git_blob": "d17c61741041c95cca698802391b321875b2b980",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits-3120.png",
+      "role": "image",
+      "sha256": "c29b5107eae4278fff58bea81aa7ff4c9748758af23676ff1a559437973740b7"
+    },
+    {
+      "bytes": 15972,
+      "dimensions": [
+        640,
+        120
+      ],
+      "git_blob": "badd6304a86bf340706dee4f7a2c20c03d7ccce1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits-4600.png",
+      "role": "image",
+      "sha256": "d54d5a169c9e1dd00a8d003137b29ce1f308028563133ed93643b7e035d0b24d"
+    },
+    {
+      "bytes": 879,
+      "git_blob": "e368e8c5ec28410eb5fab7a8a6bbea9d18b99ee7",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/karaoke/karaoke-and-runsplits.ass",
+      "role": "source",
+      "sha256": "31eaa0e1b861de5845deeb658dec6f34e9a52a79ef596ac72f5d2a17e772e11c"
+    },
+    {
+      "bytes": 817,
+      "git_blob": "a8037fa88aed2bc0ba3364797a0dd15f222bed19",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100755",
+      "path": "regression/run-all.sh",
+      "role": "metadata",
+      "sha256": "7929c33267d0393dff30e29c0507e7db00a4f8217d372150098b3b2d49072faf"
+    },
+    {
+      "bytes": 681,
+      "git_blob": "c0694bff034a108fbf83d9ad49bf91eb91851e9b",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100755",
+      "path": "regression/run-single.sh",
+      "role": "metadata",
+      "sha256": "d9122de492f2151fe9b89fa7ffb993338494d0741b83b1d7bc74f33a776818ea"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/scaled-border-default/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 36212,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "1056c6d3b94227aaadec7d4b636caa059654ebc1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg-8000.png",
+      "role": "image",
+      "sha256": "239a36b7150e569ba82b2ed5716189d084a257852a47e6b4d95c0ccfc5ae56ce"
+    },
+    {
+      "bytes": 679,
+      "git_blob": "077400208cb161d61f469539141bf7f41079f986",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg.ass",
+      "role": "source",
+      "sha256": "573658cdf5c2bd2faf5acbd520ba7f7054d7aaaf00c06985a30b84cf41bde3e2"
+    },
+    {
+      "bytes": 531,
+      "git_blob": "7d8ca9742eeb8c245d7f2666dcf875032814fa21",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy1.ass.disabled",
+      "role": "source",
+      "sha256": "7eb6adabe5ac8e49e32e477bd794d7edf6dd8300c45b83a0ce8c37afb8f88bcf"
+    },
+    {
+      "bytes": 33430,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "20e7c097189a5125b7842f66ca1a4483c6cb5d3c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy2+sbas-8000.png",
+      "role": "image",
+      "sha256": "e14a750c5ecdcee128d2b219f2fd196ab5f3ee3596a701fd3af5fcb687a3ee93"
+    },
+    {
+      "bytes": 515,
+      "git_blob": "2e41bea28a87db7cad6a344b61ff0592ff24656f",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy2+sbas.ass",
+      "role": "source",
+      "sha256": "a16c0fb8e1c8432ea0ff2c33f7acffe49642706a285525fd6e900fd8a26c9799"
+    },
+    {
+      "bytes": 36212,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "1056c6d3b94227aaadec7d4b636caa059654ebc1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy2-8000.png",
+      "role": "image",
+      "sha256": "239a36b7150e569ba82b2ed5716189d084a257852a47e6b4d95c0ccfc5ae56ce"
+    },
+    {
+      "bytes": 489,
+      "git_blob": "e3886b90b64a2fe3760e661c44a63cec771a0db4",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy2.ass",
+      "role": "source",
+      "sha256": "d3ba226582d23d83e4d22c086fcc349a35ff7de51966865674c987288479b8e8"
+    },
+    {
+      "bytes": 36212,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "1056c6d3b94227aaadec7d4b636caa059654ebc1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy3-8000.png",
+      "role": "image",
+      "sha256": "239a36b7150e569ba82b2ed5716189d084a257852a47e6b4d95c0ccfc5ae56ce"
+    },
+    {
+      "bytes": 517,
+      "git_blob": "657b7bdd20afb8f849cff731e38ca355dc65ce65",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy3.ass",
+      "role": "source",
+      "sha256": "e5932d1a5a0135c91ccc7dabc8972a9affa8ce7f7c018f47d7a37fb6a6f3273d"
+    },
+    {
+      "bytes": 36212,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "1056c6d3b94227aaadec7d4b636caa059654ebc1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
+      "role": "image",
+      "sha256": "239a36b7150e569ba82b2ed5716189d084a257852a47e6b4d95c0ccfc5ae56ce"
+    },
+    {
+      "bytes": 652,
+      "git_blob": "3b384c5a455f839a736bdea7896b9c23c7e914e0",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/ffmpeg_legacy4.ass",
+      "role": "source",
+      "sha256": "8ceb794076da1894c5d3cf6a9716c7575357e7661aa79275bf853f646e0afd1d"
+    },
+    {
+      "bytes": 33430,
+      "dimensions": [
+        1152,
+        864
+      ],
+      "git_blob": "20e7c097189a5125b7842f66ca1a4483c6cb5d3c",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/not-ffmpeg-8000.png",
+      "role": "image",
+      "sha256": "e14a750c5ecdcee128d2b219f2fd196ab5f3ee3596a701fd3af5fcb687a3ee93"
+    },
+    {
+      "bytes": 627,
+      "git_blob": "3823863e21c4f3240e98a72bb9a611c7fc7d9e60",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaled-border-default/not-ffmpeg.ass",
+      "role": "source",
+      "sha256": "9f245e963fd22b4b824457bc4b754f82f3515346b44499569ead51ede785f5e7"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/scaling_playres/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 8531,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "8e494a35541c7d0aa26c37acaeb17bc2850117a8",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-no-0000.png",
+      "role": "image",
+      "sha256": "bfb59e88de045187e6546513c1053f7b428eadbc7e66ce51476914ef38e1611e"
+    },
+    {
+      "bytes": 6696,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "d356f5d0557d24d461a1cef81271243730c5b672",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-no-1000.png",
+      "role": "image",
+      "sha256": "3334fb6a0668de7493829190398574cb2667e0b2050d7c008a24961189944063"
+    },
+    {
+      "bytes": 8113,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "8322d5497f7ff02a41a359e57485822a4d570d04",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-no-2000.png",
+      "role": "image",
+      "sha256": "d48725587b42321d40010e4ded8201dec36655b5d4edbf2085cb3eef8c554354"
+    },
+    {
+      "bytes": 1806,
+      "git_blob": "468099ce112ebbcc391f4ec3eb44c9bc27f865e7",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-no.ass",
+      "role": "source",
+      "sha256": "99905a521c2b71755b4ad44993e321f51881a1d0b51703e03a9931bdb279f153"
+    },
+    {
+      "bytes": 8693,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "f34e0572e19bf7a4bfd8f39c86858e4218e58fa5",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes-0000.png",
+      "role": "image",
+      "sha256": "a2a427a11868066ff9ac5fb0b508e6becd1515d5b1cf87d2e012ded3d58d6063"
+    },
+    {
+      "bytes": 6722,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "657ae4206ed6895e2c6b227f53418983ea0d7a0d",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes-1000.png",
+      "role": "image",
+      "sha256": "c92b3963882df2e1a7cc6c8088c983a150cc2ab0eceefa5bff35c14e40f1c9e9"
+    },
+    {
+      "bytes": 8379,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "05d0db38303d03c18af06345a00ead7f3fcd2f93",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes-2000.png",
+      "role": "image",
+      "sha256": "eddb2d4de1fd5c0864657df722e461e3d2beeef9497391569bd63ea1b7bca39d"
+    },
+    {
+      "bytes": 6741,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "5c55f03f7a67f938ea649195f046f59abd3db651",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes-3000.png",
+      "role": "image",
+      "sha256": "b86f0b597f2787ea5393b5a6940e4cd502bfa3ff694d38e628538dff51454a0f"
+    },
+    {
+      "bytes": 3986,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "b7bc34dfa4a0a648f6dfcb9ef79ee36499259867",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes-4000.png",
+      "role": "image",
+      "sha256": "14481413a27b80ee2b5956a07420e1019864759995ab1490d6aef30155e11ca8"
+    },
+    {
+      "bytes": 1808,
+      "git_blob": "428d2441212c784a0c45e0101c3e4f6ed39b2c99",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "role": "source",
+      "sha256": "e1c386682ba2106154c980faf04338f5b89efc0763bd1d57de8a7d74615dd4e2"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/ssa/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 1815,
+      "dimensions": [
+        108,
+        56
+      ],
+      "git_blob": "cf1f5e4fdea09fdd8dad2e3ad6dee5a4eddfa998",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha-0000.png",
+      "role": "image",
+      "sha256": "508dd4f720765f7a3b11eb7f9b66395a095292651df6c6dfb7c58e25ca43a21b"
+    },
+    {
+      "bytes": 3024,
+      "dimensions": [
+        108,
+        56
+      ],
+      "git_blob": "5065838ef67b3a4d60435e93819a59bdf39e97d6",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha-1000.png",
+      "role": "image",
+      "sha256": "d0a04f234d024dfb35fb4b3ee85ffc57e03819f6041b01eb35490b516f2faccc"
+    },
+    {
+      "bytes": 2705,
+      "dimensions": [
+        108,
+        56
+      ],
+      "git_blob": "25ccd9f2b70ea3ac5b058be393532a76c25595ec",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha-2000.png",
+      "role": "image",
+      "sha256": "2f8709e821b12e7c33ac4e0becbd42fb0eac90fe935587d9167e9e8176350872"
+    },
+    {
+      "bytes": 2705,
+      "dimensions": [
+        108,
+        56
+      ],
+      "git_blob": "25ccd9f2b70ea3ac5b058be393532a76c25595ec",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha-3000.png",
+      "role": "image",
+      "sha256": "2f8709e821b12e7c33ac4e0becbd42fb0eac90fe935587d9167e9e8176350872"
+    },
+    {
+      "bytes": 1815,
+      "dimensions": [
+        108,
+        56
+      ],
+      "git_blob": "cf1f5e4fdea09fdd8dad2e3ad6dee5a4eddfa998",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha-4000.png",
+      "role": "image",
+      "sha256": "508dd4f720765f7a3b11eb7f9b66395a095292651df6c6dfb7c58e25ca43a21b"
+    },
+    {
+      "bytes": 1252,
+      "git_blob": "6519a193c3f435828dfeedd1bcc5d0f8fbc01906",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/alpha.ass",
+      "role": "source",
+      "sha256": "c78dbf67553a11af4c0edc495198ebf9468f6898c0f7e2078266dcaa71b4f66c"
+    },
+    {
+      "bytes": 15713,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "38f2a34dff35e67d153a0ed22e54166fa90f8400",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-0600.png",
+      "role": "image",
+      "sha256": "e1a0bfe915a7e26e0a62da2e607e0a4259a22d86c8b7ba2d05a88a7fdd0d5192"
+    },
+    {
+      "bytes": 57701,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "644e368dd0c96d25e0d3879dd482bdffb4a661cb",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-1600.png",
+      "role": "image",
+      "sha256": "eed32b483cecce49e1d1fb6dc44f4c6322391d4428564e64958fbd3ee1609bd7"
+    },
+    {
+      "bytes": 57641,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "ff235c17c46a76bda7be75d47296183f86e1a2b1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-2600.png",
+      "role": "image",
+      "sha256": "e20c3e5d708917a9f47400b3c48d363f169cab529dc10becc6470fe4b1287234"
+    },
+    {
+      "bytes": 12101,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "6bd6a889aba2de9497baf5f014b9d4c0c493e458",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-3960.png",
+      "role": "image",
+      "sha256": "3f155503aa4c20be7a4ce7166b269f120258be02cf39e30bcb200976b345a381"
+    },
+    {
+      "bytes": 56283,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "fdc50afab717270eddd86e95677f6c534606e497",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-4960.png",
+      "role": "image",
+      "sha256": "b4f9df5d0eee5f5720359bb26612c4f925f754b1ee24ba6733f30d9d7483605e"
+    },
+    {
+      "bytes": 57610,
+      "dimensions": [
+        1280,
+        720
+      ],
+      "git_blob": "2d66515600ed9038cef448a36a884e8b4812c620",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay-5960.png",
+      "role": "image",
+      "sha256": "7c217ef10e966ec5f7de540240bbc4328326548cce6018150e4060b7c83e781c"
+    },
+    {
+      "bytes": 2904,
+      "git_blob": "9de5cb6084d580ae2bc19496bf91abbb2b332594",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/ssa/effect-delay.ass",
+      "role": "source",
+      "sha256": "f6be4501c08fb1f4c96432597ebe0dcdec56394befbc892acbde5d4006d77c46"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/token-parsing/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 3912,
+      "dimensions": [
+        144,
+        180
+      ],
+      "git_blob": "ef654c45f70e2b016a0c1f4b1013f4bd92027ea5",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/token-parsing/trimming-0000.png",
+      "role": "image",
+      "sha256": "656817a7e454aeeda39133d80dd041fb16933a6a5b76484469ece48edc0209a8"
+    },
+    {
+      "bytes": 738,
+      "git_blob": "2e0337eda37de9655ac411e7d98c2eb215d42ef1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/token-parsing/trimming.ass",
+      "role": "source",
+      "sha256": "dabe6572780e538c27c2954f4d9ed662fb482eb1ace6593aada53188abb7804a"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/v4++/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 3194,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "191f1c2dbcacd4ea996f51d363671959642dcaf7",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-01000.png",
+      "role": "image",
+      "sha256": "34b98c2034ebac2937c93f5af09857c70176cfb775f0f98c3f1aed7bc678796c"
+    },
+    {
+      "bytes": 2825,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "48da11abeeadc242cbe0e4645115837860bbb7e2",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-01500.png",
+      "role": "image",
+      "sha256": "36099bf8492063609a71dfaa686f8c9753a026d2eb1a67fbc39527a24a55eed0"
+    },
+    {
+      "bytes": 3128,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "c87920ebe75df0cb433d9b5fa713458d373be03a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-02000.png",
+      "role": "image",
+      "sha256": "a8f2b2db530077d88b31d5d6b4f38fead4ab24e0fc13b7441bcec38aaa61bf6a"
+    },
+    {
+      "bytes": 3416,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "0a9692a7f30b5e1279a476caff19ec5a18816284",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-02480.png",
+      "role": "image",
+      "sha256": "7021ee929473bfd6bc0a649804cb67f8476145972407b7dbc735f20c385d46f4"
+    },
+    {
+      "bytes": 3700,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "cd1ac6dfa3ccb8c4543f0e2bfd2db77d96064b37",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-03000.png",
+      "role": "image",
+      "sha256": "9712a36be6007f06a3e9ed90e0365b124c32d7e73d9f982e51f8faf11f55fea6"
+    },
+    {
+      "bytes": 3432,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "e24773a329198cab892638ba4c219f6375fd9c57",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-03600.png",
+      "role": "image",
+      "sha256": "8982ffe7853f0ccf6a8a241d6e7a8eb4a0485348e2c43eda566b0fefd01969ac"
+    },
+    {
+      "bytes": 5511,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "62200da942c9ca71b3b21cc27188635a510badef",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-04000.png",
+      "role": "image",
+      "sha256": "f704bcbe7672d8f6a53f9cd6a9bee1c504792c17b7953cef9e672552c79cd46d"
+    },
+    {
+      "bytes": 4997,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "8082deea3c271c45fe7a0077631d500ec7276cfe",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-04500.png",
+      "role": "image",
+      "sha256": "2c9cbea24537d3c3e4260e8f4a6c8e1287a4f0531a1c7d77aafeaf569573c88f"
+    },
+    {
+      "bytes": 5096,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "56aa1af1b7f3dfdb570b54cd278ccb854c5ec985",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-04800.png",
+      "role": "image",
+      "sha256": "d882c52fd56d3fc417774fd1d1789a74665fc2b427cee61a180f76f4fc8c0b72"
+    },
+    {
+      "bytes": 5029,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "09ca39424dcc852f7fe03c5ada306a25f6035c9e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-05100.png",
+      "role": "image",
+      "sha256": "59040a25e608dacd7b95f73c5087efaf37480da708a7ea3105023895208707b7"
+    },
+    {
+      "bytes": 4931,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "4744bfc740a22f9ec02fc3e1b2d2ac77e161b566",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-05199.png",
+      "role": "image",
+      "sha256": "0ba885f216a0e86a92c2916dffc2fc0ba86c9a726ff912952306f9cbe6b7e832"
+    },
+    {
+      "bytes": 5405,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "c0a31dafbcfed93bfd42bf135edaf760ea97e5c2",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-05200.png",
+      "role": "image",
+      "sha256": "0e865d5f7f803c8dde0fecd9754d0624bc80264c2c678ceac081351e97ef45a4"
+    },
+    {
+      "bytes": 5289,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "5c53adb5d97207516eac16bb51a8a5a2f6b5bbb3",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-05280.png",
+      "role": "image",
+      "sha256": "a2d294788f0537bb85f8bb5b32dc45e421275d77712802a0ad8241cec5b4ea08"
+    },
+    {
+      "bytes": 3128,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "c87920ebe75df0cb433d9b5fa713458d373be03a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-06000.png",
+      "role": "image",
+      "sha256": "a8f2b2db530077d88b31d5d6b4f38fead4ab24e0fc13b7441bcec38aaa61bf6a"
+    },
+    {
+      "bytes": 4222,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "b551b7e672373e52b0b2e1fe34f6c7a9112fbfcf",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-06700.png",
+      "role": "image",
+      "sha256": "d3726a2afd422baa8c07693459a9af946100abb70d7eec43876e1af1e0869dd2"
+    },
+    {
+      "bytes": 4310,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "9025d34a2029d8e3d7bca25af48913aab4442771",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-07120.png",
+      "role": "image",
+      "sha256": "84a819ef2322aa2c0d05823576a8a014a389b902fa7106f1e7dd1bdbdbbb0c77"
+    },
+    {
+      "bytes": 3106,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "651da2c4d46a0de2e69d89edb7f64e814354b8a6",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-08000.png",
+      "role": "image",
+      "sha256": "8ae9415cd1a6c9f6a2a980eec9c32ba7201d1d7cd0da5456f6a9326b62b1e7d2"
+    },
+    {
+      "bytes": 3377,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "a7035594d84b63fe4a515b177576ef2c0f61c70a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-08640.png",
+      "role": "image",
+      "sha256": "685dc30a6d7bbba6b93684161b6b0383e9684176c94eedbd993984795bc68eba"
+    },
+    {
+      "bytes": 3404,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "0a854f6603ee7e4d1915920c56d235aeb6a8b5bc",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-08920.png",
+      "role": "image",
+      "sha256": "3b1866ac8ee5555ee25986be2471468c496fd4091207adb0347d8419698718db"
+    },
+    {
+      "bytes": 3493,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "6ba04a9a9d7d77f87833b660b31f9d34080fe0bd",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-08960.png",
+      "role": "image",
+      "sha256": "c02ab744e36c62dc5f6abd2666de500cac5b5c272448844308eabf7d6ad3c652"
+    },
+    {
+      "bytes": 3183,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "b923b913aa32565eb361749f3b6372407f3f8e2e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-09000.png",
+      "role": "image",
+      "sha256": "68ae6c123b7cb2cfea46c4e306ce1f2ddbd014af5a61a0303efd1c7c84fd9f68"
+    },
+    {
+      "bytes": 3128,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "c87920ebe75df0cb433d9b5fa713458d373be03a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-10000.png",
+      "role": "image",
+      "sha256": "a8f2b2db530077d88b31d5d6b4f38fead4ab24e0fc13b7441bcec38aaa61bf6a"
+    },
+    {
+      "bytes": 3849,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "bd18fa4fbe0e5307fd17f84583e8d0e39deebc32",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-10480.png",
+      "role": "image",
+      "sha256": "5c853cf98dacfd2045dcd8ae53d46bf6cb13e97b31d37238089689b42fe85433"
+    },
+    {
+      "bytes": 5096,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "c78eee08943d4ed58c09fe155f992919eb1593bf",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-11000.png",
+      "role": "image",
+      "sha256": "036fa5963f84ef82575e9faf2b306e8880fc0f2373ae1e276a601d2fb0772f9d"
+    },
+    {
+      "bytes": 3410,
+      "dimensions": [
+        206,
+        206
+      ],
+      "git_blob": "6497def4357e06f1c04a86e3dbc2c940f1f0138a",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt-11870.png",
+      "role": "image",
+      "sha256": "4c860cc73453bf479d6f7eca597393cdf12a1b237cd70bddf643632ad2f57036"
+    },
+    {
+      "bytes": 2976,
+      "git_blob": "e3d929905660ad06168404892c6babd9e8fd4498",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/v4++/kt.ass",
+      "role": "source",
+      "sha256": "858795355d51331d122d2330200b49e322408e4483e7d710a11a288673a77718"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/vsf-quirks-var/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 2543,
+      "dimensions": [
+        120,
+        120
+      ],
+      "git_blob": "5f571a43b2d9ac3392bf08b97019779ee4e944ae",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/vsf-quirks-var/alpha-clipping-2040.png",
+      "role": "image",
+      "sha256": "ba2a6230a2d9914e04c9b6dbc79b132429371b1e819623e2750fbc65659a96a4"
+    },
+    {
+      "bytes": 2670,
+      "dimensions": [
+        120,
+        120
+      ],
+      "git_blob": "24d280d852927b6a4f1d028a1b09472e6f4ec27e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/vsf-quirks-var/alpha-clipping-2560.png",
+      "role": "image",
+      "sha256": "670a631e1f41a4a6cbc49cdbe2ca98bd9af56d8599bcf22368f51416bee9fa32"
+    },
+    {
+      "bytes": 2000,
+      "dimensions": [
+        120,
+        120
+      ],
+      "git_blob": "2d47106a4c4154917b557d085f449194f0fe942d",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/vsf-quirks-var/alpha-clipping-4960.png",
+      "role": "image",
+      "sha256": "25a220f6ffe247b02e936dc2f1f50ff7a6c58111074f6194c60aeee44b183c1e"
+    },
+    {
+      "bytes": 734,
+      "git_blob": "404c7a57fa44af4d18fe4ca3c3d1f127c83141ed",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/vsf-quirks-var/alpha-clipping.ass",
+      "role": "source",
+      "sha256": "7578ee1d61950c37eda9f4a5ad8dc07610461c0b57493a0be383d083f5f2f2d9"
+    },
+    {
+      "bytes": 24,
+      "git_blob": "5a13a91480d887a0f40bef139a7cf342e81ac20e",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "120000",
+      "path": "regression/zero-area/DejaVuSans.ttf",
+      "resolved": "regression/.fonts/DejaVuSans.ttf",
+      "resolved_sha256": "f1e032ae0a26e2607dfae0b72def0eb247f8f744188c612a11f54d707e958e45",
+      "role": "font",
+      "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
+      "target": "../.fonts/DejaVuSans.ttf"
+    },
+    {
+      "bytes": 1119,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "6c0d49977030d4d6e8ef5ed0626f17240411acd1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/zero-area/zero-area-2000.png",
+      "role": "image",
+      "sha256": "15e95a7a7ede7784155da031087991d23b1eaaa276ef8f7ad06dcfac43efea07"
+    },
+    {
+      "bytes": 1119,
+      "dimensions": [
+        384,
+        288
+      ],
+      "git_blob": "6c0d49977030d4d6e8ef5ed0626f17240411acd1",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/zero-area/zero-area-8000.png",
+      "role": "image",
+      "sha256": "15e95a7a7ede7784155da031087991d23b1eaaa276ef8f7ad06dcfac43efea07"
+    },
+    {
+      "bytes": 818,
+      "git_blob": "1097620b87b0a0e634570b3ae0167cb32ec0a8ea",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100644",
+      "path": "regression/zero-area/zero-area.ass",
+      "role": "source",
+      "sha256": "2df79c520927f9da49853fb344f4b783534c7018939d5caec009826758644a27"
+    },
+    {
+      "bytes": 829,
+      "git_blob": "73ec0912f9400a919f88afdaf40cf803cf71b811",
+      "license": "unknown-upstream-no-license-file",
+      "mode": "100755",
+      "path": "run.sh",
+      "role": "metadata",
+      "sha256": "3f6949e124b8c76fa5185b13a49804a33bd18d6ef737d27b88a4793d1b859fd5"
+    }
+  ],
+  "auxiliary_images": [
+    "regression/karaoke/357_diff.png"
+  ],
+  "cases": [
+    {
+      "features": [
+        "crash"
+      ],
+      "fonts": [],
+      "frames": [],
+      "id": "crash/aegisub-format-tests.ass",
+      "kind": "crash",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "crash/aegisub-format-tests.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "crash/aegisub-format-tests.ass"
+    },
+    {
+      "features": [
+        "crash"
+      ],
+      "fonts": [],
+      "frames": [],
+      "id": "crash/generic.ass",
+      "kind": "crash",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "crash/generic.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "crash/generic.ass"
+    },
+    {
+      "features": [
+        "blurs-anamorphic"
+      ],
+      "fonts": [
+        "regression/blurs-anamorphic/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs-anamorphic/blur-0000.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/blurs-anamorphic/blur-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs-anamorphic/blur.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "8x1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs-anamorphic/blur.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/be-0500.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 500
+        }
+      ],
+      "id": "regression/blurs/be-0500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/be.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/be.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/be-1500.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1500
+        }
+      ],
+      "id": "regression/blurs/be-1500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/be.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/be.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/be-2500.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 2500
+        }
+      ],
+      "id": "regression/blurs/be-2500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/be.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/be.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/be-3500.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 3500
+        }
+      ],
+      "id": "regression/blurs/be-3500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/be.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/be.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1000.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/blurs/blur+t-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1100.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1100
+        }
+      ],
+      "id": "regression/blurs/blur+t-1100.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1200.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1200
+        }
+      ],
+      "id": "regression/blurs/blur+t-1200.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1300.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1300
+        }
+      ],
+      "id": "regression/blurs/blur+t-1300.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1400.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1400
+        }
+      ],
+      "id": "regression/blurs/blur+t-1400.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1500.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1500
+        }
+      ],
+      "id": "regression/blurs/blur+t-1500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1600.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1600
+        }
+      ],
+      "id": "regression/blurs/blur+t-1600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1700.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1700
+        }
+      ],
+      "id": "regression/blurs/blur+t-1700.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1800.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1800
+        }
+      ],
+      "id": "regression/blurs/blur+t-1800.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "blurs"
+      ],
+      "fonts": [
+        "regression/blurs/Aileron-Regular.otf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/blurs/blur+t-1900.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 1900
+        }
+      ],
+      "id": "regression/blurs/blur+t-1900.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/blurs/blur+t.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/blurs/blur+t.ass"
+    },
+    {
+      "features": [
+        "draw-images"
+      ],
+      "fonts": [
+        "regression/draw-images/Arimo-Regular.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/draw-images/drawImg-104396.png",
+          "reference_size": [
+            1920,
+            1080
+          ],
+          "timestamp_ms": 104396
+        }
+      ],
+      "id": "regression/draw-images/drawImg-104396.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/draw-images/drawImg.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/draw-images/drawImg.ass"
+    },
+    {
+      "features": [
+        "embedded-font"
+      ],
+      "fonts": [],
+      "frames": [
+        {
+          "expected": "regression/embedded-font/efont-1000.png",
+          "reference_size": [
+            640,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/embedded-font/efont-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/embedded-font/efont.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/embedded-font/efont.ass"
+    },
+    {
+      "features": [
+        "faux-italics"
+      ],
+      "fonts": [
+        "regression/faux-italics/FansubBlock-CFF.otf",
+        "regression/faux-italics/fansubBlock.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/faux-italics/cff-0000.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/faux-italics/cff-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/faux-italics/cff.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/faux-italics/cff.ass"
+    },
+    {
+      "features": [
+        "faux-italics"
+      ],
+      "fonts": [
+        "regression/faux-italics/FansubBlock-CFF.otf",
+        "regression/faux-italics/fansubBlock.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/faux-italics/truetype-0000.png",
+          "reference_size": [
+            800,
+            600
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/faux-italics/truetype-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/faux-italics/truetype.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/faux-italics/truetype.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/big5-hkscs-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/big5-hkscs-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/big5-hkscs.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/big5-hkscs.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/legacy-arabic-simplified-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/legacy-arabic-simplified-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/legacy-arabic-simplified.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/legacy-arabic-simplified.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/legacy-arabic-traditional-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/legacy-arabic-traditional-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/legacy-arabic-traditional.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/legacy-arabic-traditional.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/shiftjis-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/shiftjis-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/shiftjis.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/shiftjis.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/symbol-first-char-0x0000-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/symbol-first-char-0x0000-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/symbol-first-char-0x0000.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/symbol-first-char-0x0000.ass"
+    },
+    {
+      "features": [
+        "font_nonunicode"
+      ],
+      "fonts": [
+        "regression/font_nonunicode/big5-hkscs_SingYi-Ultra.ttf",
+        "regression/font_nonunicode/legacy-arabic-simplified-SimplifiedArabic.ttf",
+        "regression/font_nonunicode/legacy-arabic-traditional-AGACairoRegular.ttf",
+        "regression/font_nonunicode/shiftjis_Reishoreiryu.ttf",
+        "regression/font_nonunicode/symbol-first-char-0x0000-Baoloc.ttf",
+        "regression/font_nonunicode/symbol-first-char-0xF000-AGMaturaC.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/font_nonunicode/symbol-first-char-0xF000-1000.png",
+          "reference_size": [
+            854,
+            480
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/font_nonunicode/symbol-first-char-0xF000-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/font_nonunicode/symbol-first-char-0xF000.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/font_nonunicode/symbol-first-char-0xF000.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/bordercollision-2000.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/implicit-pos/bordercollision-2000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/bordercollision.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/bordercollision.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-0500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-0500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-1500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 1500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-1500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-2500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 2500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-2500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-3500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 3500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-3500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-4500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 4500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-4500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-5500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 5500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-5500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-6500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 6500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-6500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-7500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 7500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-7500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-8500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 8500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-8500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "implicit-pos"
+      ],
+      "fonts": [
+        "regression/implicit-pos/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/implicit-pos/shift-dir-9500.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 9500
+        }
+      ],
+      "id": "regression/implicit-pos/shift-dir-9500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/implicit-pos/shift-dir.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/implicit-pos/shift-dir.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/216-vertical-2252.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 2252
+        }
+      ],
+      "id": "regression/karaoke/216-vertical-2252.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/216-vertical.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/216-vertical.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/357-k-and-kf-desynced-6798.png",
+          "reference_size": [
+            1920,
+            1080
+          ],
+          "timestamp_ms": 6798
+        }
+      ],
+      "id": "regression/karaoke/357-k-and-kf-desynced-6798.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/357-k-and-kf-desynced.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/357-k-and-kf-desynced.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/357-k-and-kf-desynced-7170.png",
+          "reference_size": [
+            1920,
+            1080
+          ],
+          "timestamp_ms": 7170
+        }
+      ],
+      "id": "regression/karaoke/357-k-and-kf-desynced-7170.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/357-k-and-kf-desynced.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/357-k-and-kf-desynced.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/357-k-and-kf-desynced-8170.png",
+          "reference_size": [
+            1920,
+            1080
+          ],
+          "timestamp_ms": 8170
+        }
+      ],
+      "id": "regression/karaoke/357-k-and-kf-desynced-8170.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/357-k-and-kf-desynced.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/357-k-and-kf-desynced.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/karaoke-and-runsplits-0000.png",
+          "reference_size": [
+            640,
+            120
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/karaoke/karaoke-and-runsplits-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/karaoke-and-runsplits.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/karaoke-and-runsplits.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/karaoke-and-runsplits-2040.png",
+          "reference_size": [
+            640,
+            120
+          ],
+          "timestamp_ms": 2040
+        }
+      ],
+      "id": "regression/karaoke/karaoke-and-runsplits-2040.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/karaoke-and-runsplits.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/karaoke-and-runsplits.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/karaoke-and-runsplits-2800.png",
+          "reference_size": [
+            640,
+            120
+          ],
+          "timestamp_ms": 2800
+        }
+      ],
+      "id": "regression/karaoke/karaoke-and-runsplits-2800.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/karaoke-and-runsplits.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/karaoke-and-runsplits.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/karaoke-and-runsplits-3120.png",
+          "reference_size": [
+            640,
+            120
+          ],
+          "timestamp_ms": 3120
+        }
+      ],
+      "id": "regression/karaoke/karaoke-and-runsplits-3120.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/karaoke-and-runsplits.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/karaoke-and-runsplits.ass"
+    },
+    {
+      "features": [
+        "karaoke"
+      ],
+      "fonts": [
+        "regression/karaoke/Arimo-Bold.ttf",
+        "regression/karaoke/Arimo-Regular.ttf",
+        "regression/karaoke/IPAexGothic.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/karaoke/karaoke-and-runsplits-4600.png",
+          "reference_size": [
+            640,
+            120
+          ],
+          "timestamp_ms": 4600
+        }
+      ],
+      "id": "regression/karaoke/karaoke-and-runsplits-4600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/karaoke/karaoke-and-runsplits.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/karaoke/karaoke-and-runsplits.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/ffmpeg-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/ffmpeg-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [],
+      "id": "regression/scaled-border-default/ffmpeg_legacy1.ass.disabled",
+      "kind": "disabled-upstream",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg_legacy1.ass.disabled",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg_legacy1.ass.disabled"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/ffmpeg_legacy2+sbas-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/ffmpeg_legacy2+sbas-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg_legacy2+sbas.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg_legacy2+sbas.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/ffmpeg_legacy2-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/ffmpeg_legacy2-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg_legacy2.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg_legacy2.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/ffmpeg_legacy3-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/ffmpeg_legacy3-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg_legacy3.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg_legacy3.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/ffmpeg_legacy4.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/ffmpeg_legacy4.ass"
+    },
+    {
+      "features": [
+        "scaled-border-default"
+      ],
+      "fonts": [
+        "regression/scaled-border-default/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaled-border-default/not-ffmpeg-8000.png",
+          "reference_size": [
+            1152,
+            864
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/scaled-border-default/not-ffmpeg-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaled-border-default/not-ffmpeg.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaled-border-default/not-ffmpeg.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-no-0000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-no-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-no.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-no.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-no-1000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-no-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-no.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-no.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-no-2000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-no-2000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-no.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-no.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-yes-0000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-yes-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-yes.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-yes-1000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-yes-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-yes.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-yes-2000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-yes-2000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-yes.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-yes-3000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 3000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-yes-3000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-yes.ass"
+    },
+    {
+      "features": [
+        "scaling_playres"
+      ],
+      "fonts": [
+        "regression/scaling_playres/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/scaling_playres/playresx_sbas-yes-4000.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 4000
+        }
+      ],
+      "id": "regression/scaling_playres/playresx_sbas-yes-4000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/scaling_playres/playresx_sbas-yes.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/scaling_playres/playresx_sbas-yes.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/alpha-0000.png",
+          "reference_size": [
+            108,
+            56
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/ssa/alpha-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/alpha.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/alpha.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/alpha-1000.png",
+          "reference_size": [
+            108,
+            56
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/ssa/alpha-1000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/alpha.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/alpha.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/alpha-2000.png",
+          "reference_size": [
+            108,
+            56
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/ssa/alpha-2000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/alpha.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/alpha.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/alpha-3000.png",
+          "reference_size": [
+            108,
+            56
+          ],
+          "timestamp_ms": 3000
+        }
+      ],
+      "id": "regression/ssa/alpha-3000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/alpha.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/alpha.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/alpha-4000.png",
+          "reference_size": [
+            108,
+            56
+          ],
+          "timestamp_ms": 4000
+        }
+      ],
+      "id": "regression/ssa/alpha-4000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/alpha.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/alpha.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-0600.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 600
+        }
+      ],
+      "id": "regression/ssa/effect-delay-0600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-1600.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 1600
+        }
+      ],
+      "id": "regression/ssa/effect-delay-1600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-2600.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 2600
+        }
+      ],
+      "id": "regression/ssa/effect-delay-2600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-3960.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 3960
+        }
+      ],
+      "id": "regression/ssa/effect-delay-3960.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-4960.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 4960
+        }
+      ],
+      "id": "regression/ssa/effect-delay-4960.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "ssa"
+      ],
+      "fonts": [
+        "regression/ssa/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/ssa/effect-delay-5960.png",
+          "reference_size": [
+            1280,
+            720
+          ],
+          "timestamp_ms": 5960
+        }
+      ],
+      "id": "regression/ssa/effect-delay-5960.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/ssa/effect-delay.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/ssa/effect-delay.ass"
+    },
+    {
+      "features": [
+        "token-parsing"
+      ],
+      "fonts": [
+        "regression/token-parsing/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/token-parsing/trimming-0000.png",
+          "reference_size": [
+            144,
+            180
+          ],
+          "timestamp_ms": 0
+        }
+      ],
+      "id": "regression/token-parsing/trimming-0000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/token-parsing/trimming.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/token-parsing/trimming.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-01000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 1000
+        }
+      ],
+      "id": "regression/v4++/kt-01000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-01500.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 1500
+        }
+      ],
+      "id": "regression/v4++/kt-01500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-02000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/v4++/kt-02000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-02480.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 2480
+        }
+      ],
+      "id": "regression/v4++/kt-02480.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-03000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 3000
+        }
+      ],
+      "id": "regression/v4++/kt-03000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-03600.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 3600
+        }
+      ],
+      "id": "regression/v4++/kt-03600.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-04000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 4000
+        }
+      ],
+      "id": "regression/v4++/kt-04000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-04500.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 4500
+        }
+      ],
+      "id": "regression/v4++/kt-04500.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-04800.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 4800
+        }
+      ],
+      "id": "regression/v4++/kt-04800.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-05100.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 5100
+        }
+      ],
+      "id": "regression/v4++/kt-05100.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-05199.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 5199
+        }
+      ],
+      "id": "regression/v4++/kt-05199.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-05200.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 5200
+        }
+      ],
+      "id": "regression/v4++/kt-05200.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-05280.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 5280
+        }
+      ],
+      "id": "regression/v4++/kt-05280.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-06000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 6000
+        }
+      ],
+      "id": "regression/v4++/kt-06000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-06700.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 6700
+        }
+      ],
+      "id": "regression/v4++/kt-06700.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-07120.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 7120
+        }
+      ],
+      "id": "regression/v4++/kt-07120.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-08000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/v4++/kt-08000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-08640.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 8640
+        }
+      ],
+      "id": "regression/v4++/kt-08640.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-08920.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 8920
+        }
+      ],
+      "id": "regression/v4++/kt-08920.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-08960.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 8960
+        }
+      ],
+      "id": "regression/v4++/kt-08960.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-09000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 9000
+        }
+      ],
+      "id": "regression/v4++/kt-09000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-10000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 10000
+        }
+      ],
+      "id": "regression/v4++/kt-10000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-10480.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 10480
+        }
+      ],
+      "id": "regression/v4++/kt-10480.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-11000.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 11000
+        }
+      ],
+      "id": "regression/v4++/kt-11000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "v4++"
+      ],
+      "fonts": [
+        "regression/v4++/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/v4++/kt-11870.png",
+          "reference_size": [
+            206,
+            206
+          ],
+          "timestamp_ms": 11870
+        }
+      ],
+      "id": "regression/v4++/kt-11870.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/v4++/kt.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/v4++/kt.ass"
+    },
+    {
+      "features": [
+        "vsf-quirks-var"
+      ],
+      "fonts": [
+        "regression/vsf-quirks-var/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/vsf-quirks-var/alpha-clipping-2040.png",
+          "reference_size": [
+            120,
+            120
+          ],
+          "timestamp_ms": 2040
+        }
+      ],
+      "id": "regression/vsf-quirks-var/alpha-clipping-2040.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/vsf-quirks-var/alpha-clipping.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/vsf-quirks-var/alpha-clipping.ass"
+    },
+    {
+      "features": [
+        "vsf-quirks-var"
+      ],
+      "fonts": [
+        "regression/vsf-quirks-var/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/vsf-quirks-var/alpha-clipping-2560.png",
+          "reference_size": [
+            120,
+            120
+          ],
+          "timestamp_ms": 2560
+        }
+      ],
+      "id": "regression/vsf-quirks-var/alpha-clipping-2560.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/vsf-quirks-var/alpha-clipping.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/vsf-quirks-var/alpha-clipping.ass"
+    },
+    {
+      "features": [
+        "vsf-quirks-var"
+      ],
+      "fonts": [
+        "regression/vsf-quirks-var/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/vsf-quirks-var/alpha-clipping-4960.png",
+          "reference_size": [
+            120,
+            120
+          ],
+          "timestamp_ms": 4960
+        }
+      ],
+      "id": "regression/vsf-quirks-var/alpha-clipping-4960.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/vsf-quirks-var/alpha-clipping.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/vsf-quirks-var/alpha-clipping.ass"
+    },
+    {
+      "features": [
+        "zero-area"
+      ],
+      "fonts": [
+        "regression/zero-area/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/zero-area/zero-area-2000.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 2000
+        }
+      ],
+      "id": "regression/zero-area/zero-area-2000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/zero-area/zero-area.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/zero-area/zero-area.ass"
+    },
+    {
+      "features": [
+        "zero-area"
+      ],
+      "fonts": [
+        "regression/zero-area/DejaVuSans.ttf"
+      ],
+      "frames": [
+        {
+          "expected": "regression/zero-area/zero-area-8000.png",
+          "reference_size": [
+            384,
+            288
+          ],
+          "timestamp_ms": 8000
+        }
+      ],
+      "id": "regression/zero-area/zero-area-8000.png",
+      "kind": "regression",
+      "oracle": {
+        "build": null,
+        "commit": "f61db567e6593df3470e91594bcd4ad2d0473aff",
+        "config": "pending-T015"
+      },
+      "parent_id": "regression/zero-area/zero-area.ass",
+      "profile_records": {
+        "CoreV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        },
+        "LegacyXyV1": {
+          "reason": "T014-renderer-not-implemented",
+          "support": "UNSUPPORTED"
+        }
+      },
+      "scale": "1",
+      "semantics_review": "timestamp filename and scale metadata recorded; pinned oracle adapter pending T015",
+      "source": "regression/zero-area/zero-area.ass"
+    }
+  ],
+  "commit": "a5073319af8117271d8ac13ef5c088197ff2d59b",
+  "license_status": "unknown: pin has no LICENSE/COPYING; no corpus redistribution authorized",
+  "protection_status": "candidate-only; maintainer configuration and independent review pending",
+  "repository": "https://github.com/libass/libass-tests",
+  "schema": 1
+}

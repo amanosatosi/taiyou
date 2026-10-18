@@ -4,17 +4,28 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::{Command, ExitCode};
 
-fn main() -> ExitCode {
-    let mut args = std::env::args_os().skip(1);
-    if args.next().as_deref() != Some(OsStr::new("check-workspace")) || args.next().is_some() {
-        eprintln!("usage: cargo run -p xtask -- check-workspace (CI runners only)");
-        return ExitCode::from(2);
-    }
+mod inventory;
+mod policy;
 
+fn main() -> ExitCode {
     let Some(root) = Path::new(env!("CARGO_MANIFEST_DIR")).parent() else {
         eprintln!("xtask: workspace root is unavailable");
         return ExitCode::FAILURE;
     };
+    let mut args = std::env::args_os().skip(1);
+    let action = args.next();
+    let rest: Vec<_> = args.collect();
+    match action.as_deref() {
+        Some(value) if value == OsStr::new("inventory") => return inventory::run(root, &rest),
+        Some(value) if value == OsStr::new("policy") => return policy::run(root, &rest),
+        Some(value) if value == OsStr::new("check-workspace") && rest.is_empty() => {}
+        _ => {
+            eprintln!(
+                "usage: cargo run -p xtask -- check-workspace | inventory ... | policy ... (CI runners only)"
+            );
+            return ExitCode::from(2);
+        }
+    }
     match Command::new("pwsh")
         .args(["-NoProfile", "-File"])
         .arg(root.join("scripts/check-workspace.ps1"))

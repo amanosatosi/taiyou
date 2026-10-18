@@ -2,6 +2,11 @@
 
 Status: Accepted. Date: 2026-10-17.
 
+Deployment/governance amendment: [ADR-011](011-solo-maintainer-validation.md)
+authorizes solo-maintainer acceptance and ordinary CI. Independent multi-maintainer
+validation remains an optional upgrade; immutable references and explicit baseline
+promotion are still required.
+
 ## Problem
 
 libass, original VSFilter and xy variants disagree. A test suite can be made green by silently changing baselines or support labels.
