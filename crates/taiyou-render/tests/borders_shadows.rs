@@ -450,12 +450,8 @@ fn grouped_strokes_do_not_seam_translucent_overlapping_glyphs() {
 
 #[test]
 fn overlap_pass_order_keeps_all_shadows_before_borders_and_fills() {
-    let mask = Arc::new(Mask::new(
-        PixelRect::new(0, 0, 1, 1).unwrap(),
-        1,
-        Arc::from([255]),
-    )
-    .unwrap());
+    let mask =
+        Arc::new(Mask::new(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([255])).unwrap());
     let colors = [
         [
             Rgba8::new(255, 0, 0, 128),
