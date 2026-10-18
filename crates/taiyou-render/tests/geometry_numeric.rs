@@ -165,7 +165,14 @@ fn geometry_preserves_quadratic_cubic_contours_and_nonzero_winding() {
             DevicePoint::new(Q6::from_ticks(128), Q6::from_ticks(0))
         )
     );
-    assert!(matches!(mapped.ops()[4], PathOp::CubicTo(..)));
+    assert_eq!(
+        mapped.ops()[4],
+        PathOp::CubicTo(
+            DevicePoint::new(Q6::from_ticks(256), Q6::from_ticks(-64)),
+            DevicePoint::new(Q6::from_ticks(320), Q6::from_ticks(64)),
+            DevicePoint::new(Q6::from_ticks(384), Q6::from_ticks(0))
+        )
+    );
     assert_eq!(
         mapped
             .ops()

@@ -566,8 +566,14 @@ fn check_outline_point(p: &ft::FT_Vector) -> Result<(), FontError> {
     // This common bound keeps FT_Pos arithmetic valid on Windows' 32-bit long
     // as well as LP64 platforms, independent of the host's native word width.
     let cap = i128::from(i32::MAX) / 4;
-    if [i128::from(p.x), i128::from(p.y)].iter().any(|v| v.abs() > cap) {
-        return Err(FontError::new(ErrorCode::LimitExceeded,"native outline midpoint arithmetic overflow"));
+    if [i128::from(p.x), i128::from(p.y)]
+        .iter()
+        .any(|v| v.abs() > cap)
+    {
+        return Err(FontError::new(
+            ErrorCode::LimitExceeded,
+            "native outline midpoint arithmetic overflow",
+        ));
     }
     Ok(())
 }
@@ -1151,19 +1157,57 @@ mod tests {
     }
     #[test]
     fn geometry_native_implied_quadratic_endpoints_retain_half_units() {
-        let mut points = [ft::FT_Vector {x:0,y:0}, ft::FT_Vector {x:1,y:1}, ft::FT_Vector {x:2,y:0}];
-        let mut tags = [1,0,0];
+        let mut points = [
+            ft::FT_Vector { x: 0, y: 0 },
+            ft::FT_Vector { x: 1, y: 1 },
+            ft::FT_Vector { x: 2, y: 0 },
+        ];
+        let mut tags = [1, 0, 0];
         let mut contours = [2];
-        let outline = ft::FT_Outline {n_contours:1,n_points:3,points:points.as_mut_ptr(),tags:tags.as_mut_ptr(),contours:contours.as_mut_ptr(),flags:0};
-        let mut state = OutlineCopy {ops:Vec::with_capacity(8),failed:false,open:false};
-        for p in &points { check_outline_point(p).unwrap(); }
+        let outline = ft::FT_Outline {
+            n_contours: 1,
+            n_points: 3,
+            points: points.as_mut_ptr(),
+            tags: tags.as_mut_ptr(),
+            contours: contours.as_mut_ptr(),
+            flags: 0,
+        };
+        let mut state = OutlineCopy {
+            ops: Vec::with_capacity(8),
+            failed: false,
+            open: false,
+        };
+        for p in &points {
+            check_outline_point(p).unwrap();
+        }
         // SAFETY: all native arrays above have validated extents and remain live;
         // the callback state is exclusive for this synchronous decomposition.
-        assert_eq!(unsafe { FT_Outline_Decompose(&outline,&outline_funcs(),(&mut state as *mut OutlineCopy).cast()) },0);
+        assert_eq!(
+            unsafe {
+                FT_Outline_Decompose(
+                    &outline,
+                    &outline_funcs(),
+                    (&mut state as *mut OutlineCopy).cast(),
+                )
+            },
+            0
+        );
         state.close();
         assert!(!state.failed);
-        assert_eq!(state.ops[1],PathOp::QuadTo(FontPoint::new(1.0,1.0).unwrap(),FontPoint::new(1.5,0.5).unwrap()));
-        assert!(check_outline_point(&ft::FT_Vector {x:2_000_000_000,y:0}).is_err());
+        assert_eq!(
+            state.ops[1],
+            PathOp::QuadTo(
+                FontPoint::new(1.0, 1.0).unwrap(),
+                FontPoint::new(1.5, 0.5).unwrap()
+            )
+        );
+        assert!(
+            check_outline_point(&ft::FT_Vector {
+                x: 2_000_000_000,
+                y: 0
+            })
+            .is_err()
+        );
     }
     #[test]
     fn harfbuzz_abi_owned_results_and_rejected_requests_cleanup() {
