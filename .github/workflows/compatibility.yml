@@ -87,6 +87,8 @@ jobs:
           export PKG_CONFIG_PATH="$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
           export PKG_CONFIG_ALL_STATIC=1 LIBZ_SYS_STATIC=1
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+      - name: Existing comparison adapter and parser smoke checks
+        run: |
           cargo test --locked -p taiyou-cli --features native --test comparison_adapter
           cargo run --locked -p xtask -- compare-crash-probe "$TAIYOU_CORPUS/crash/generic.ass"
       - name: Supplemental focused smoke (never replaces full coverage)
