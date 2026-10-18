@@ -157,21 +157,28 @@ fn raster_first_genuine_a8_sample() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("sample.a8"), mask.data()).unwrap();
     std::fs::write(dir.join("input.ass"), input("Taiyou")).unwrap();
-    let mut commands=String::new();
+    let mut commands = String::new();
     for instance in groups[0].instances() {
         for &op in instance.ops() {
-            let (name,points)=match op {
-                PathOp::MoveTo(p)=>("M",vec![p]),PathOp::LineTo(p)=>("L",vec![p]),
-                PathOp::QuadTo(a,b)=>("Q",vec![a,b]),PathOp::CubicTo(a,b,c)=>("C",vec![a,b,c]),PathOp::Close=>("Z",vec![]),
+            let (name, points) = match op {
+                PathOp::MoveTo(p) => ("M", vec![p]),
+                PathOp::LineTo(p) => ("L", vec![p]),
+                PathOp::QuadTo(a, b) => ("Q", vec![a, b]),
+                PathOp::CubicTo(a, b, c) => ("C", vec![a, b, c]),
+                PathOp::Close => ("Z", vec![]),
             };
             commands.push_str(name);
             for p in points {
-                commands.push_str(&format!(" {} {}",i64::from(p.x().ticks())+i64::from(instance.offset().x())*64,i64::from(p.y().ticks())+i64::from(instance.offset().y())*64));
+                commands.push_str(&format!(
+                    " {} {}",
+                    i64::from(p.x().ticks()) + i64::from(instance.offset().x()) * 64,
+                    i64::from(p.y().ticks()) + i64::from(instance.offset().y()) * 64
+                ));
             }
             commands.push('\n');
         }
     }
-    std::fs::write(dir.join("commands.q6"),commands).unwrap();
+    std::fs::write(dir.join("commands.q6"), commands).unwrap();
     let event = groups[0].event().unwrap();
     let font = event.glyphs()[0].outline.font();
     assert!(event.glyphs().iter().all(|g| g.outline.font() == font));
