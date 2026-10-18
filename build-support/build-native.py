@@ -93,6 +93,7 @@ os.environ["TAIYOU_SHAPING_REFERENCES"] = str(Path(os.environ["RUNNER_TEMP"]) / 
 os.environ["TAIYOU_RENDER_SAMPLE_DIR"] = str(Path(os.environ["RUNNER_TEMP"]) / "taiyou-render-sample")
 if platform.system() == "Linux":
     render_reference = Path(os.environ["RUNNER_TEMP"]) / "taiyou-renderer-reference"
+    run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/freetype2"), "-I" + str(prefix / "include/harfbuzz"), root / "build-support/font-abi.c")
     render_expectations = Path(os.environ["RUNNER_TEMP"]) / "taiyou-renderer-expectations"
     render_expectations.mkdir(exist_ok=True)
     run("cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + str(prefix / "include/freetype2"), root / "build-support/renderer-reference.c", "-L" + str(prefix / "lib"), "-lfreetype", "-lm", "-o", render_reference)
@@ -102,6 +103,7 @@ run(sys.executable, root / "build-support/first-render.py")
 renderer_tests = subprocess.run(["cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "renderer_slice"], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
 (Path(os.environ["TAIYOU_RENDER_SAMPLE_DIR"]) / "renderer-tests.txt").write_text(renderer_tests.stdout, encoding="utf-8")
 print(renderer_tests.stdout, flush=True)
+run(sys.executable, root / "build-support/first-render.py")
 renderer_tests.check_returncode()
 if os.environ.get("TAIYOU_FOCUSED_RENDERER") == "1":
     run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")

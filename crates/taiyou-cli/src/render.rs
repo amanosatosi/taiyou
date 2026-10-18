@@ -228,26 +228,6 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         &mut TrackIngestor::new(),
     )
     .map_err(parse_error)?;
-    for d in parsed.diagnostics() {
-        eprintln!(
-            "{} event={:?} span={:?}: {}",
-            d.code().as_str(),
-            d.event(),
-            d.span(),
-            d.detail()
-        );
-    }
-    if args.policy == UnsupportedPolicy::Strict {
-        if let Some(d) = parsed.diagnostics().iter().find(|d| {
-            matches!(
-                d.code(),
-                DiagnosticCode::UnsupportedFeature | DiagnosticCode::UnknownSection
-            )
-        }) {
-            return Err(RenderError::new(ErrorCode::UnsupportedFeature, d.detail())
-                .with_context(d.event(), d.span()));
-        }
-    }
     let mut context = FontContext::with_limits(limits.clone())
         .map_err(|e| RenderError::new(e.code(), e.detail()))?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
@@ -261,7 +241,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         .map_err(|e| RenderError::new(e.code(), e.detail()))?;
     drop(builder);
     drop(context);
-    let frame = Renderer::new(config.clone())?.render(parsed.track().clone(), catalog, &request)?;
+    let frame = Renderer::new(config.clone())?.render_parsed(&parsed, catalog, &request)?;
     for d in frame.diagnostics() {
         eprintln!(
             "{} event={:?} span={:?}: {}",

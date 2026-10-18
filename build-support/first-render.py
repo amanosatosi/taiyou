@@ -94,3 +94,21 @@ if path.exists():
     if old["raw_sha256"]!=report["raw_sha256"] or old["png_sha256"]!=report["png_sha256"]: raise RuntimeError("CLI output changed between same-candidate passes")
 path.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
 print("T014_FIRST_PNG="+json.dumps(report),flush=True)
+comparisons=[]
+for actual_path in sorted(folder.glob("align*.actual.rgba")):
+    stem=actual_path.name.split(".")[0]
+    actual=actual_path.read_bytes()
+    expected=(folder/(stem+".expected.rgba")).read_bytes()
+    if len(actual)!=160*100*4 or len(expected)!=len(actual): raise RuntimeError("invalid fixed-font evidence extent")
+    diff=bytes(abs(a-b) for a,b in zip(actual,expected))
+    changed=[i//4 for i in range(0,len(diff),4) if any(diff[i:i+4])]
+    item={"case":stem,"max_delta":max(diff),"per_channel_mae":[sum(diff[c::4])/(160*100) for c in range(4)],"mismatch_count":len(changed),
+          "alpha_mismatch_count":sum(v!=0 for v in diff[3::4]),"changed_pixel_bounds":None if not changed else [min(i%160 for i in changed),min(i//160 for i in changed),max(i%160 for i in changed)+1,max(i//160 for i in changed)+1]}
+    comparisons.append(item)
+    header=b"P5\n160 100\n255\n"
+    (folder/(stem+".actual-alpha.pgm")).write_bytes(header+actual[3::4])
+    (folder/(stem+".expected-alpha.pgm")).write_bytes(header+expected[3::4])
+    (folder/(stem+".difference.pgm")).write_bytes(header+bytes(max(diff[i:i+4]) for i in range(0,len(diff),4)))
+(folder/"alignment-comparison.json").write_text(json.dumps({"candidate":candidate,"reference":"independent C FreeType metrics/outline/bitmap; C6 integer paint expectations", "reference_source_sha256":digest((root/"build-support/renderer-reference.c").read_bytes()),"cases":comparisons,"status":"not run on this platform" if not comparisons else "exact candidate-side checks, pending numeric review"},indent=2)+"\n",encoding="utf-8")
+if any(item["mismatch_count"] for item in comparisons): raise RuntimeError("fixed-font reference pixels differ: zero tolerance")
+print("T014_ALIGNMENT_COMPARISONS="+json.dumps(comparisons),flush=True)

@@ -7,6 +7,9 @@ trusted validation gate, owner acceptance, external parity or performance claim.
 ## Pipeline and capabilities
 
 C7 Renderer accepts Arc<Track>, Arc<ValidatedFontCatalog> and RenderRequest.
+render_parsed additionally preserves bounded ingestion diagnostics in Frame and
+honors strict policy for recover-mode malformed or unsupported parser records.
+The typed-Track entry point leaves ingestion diagnostics to its host owner.
 Only CoreV1, one worker and disabled cache are admitted. Contexts are created
 inside a render call and destroyed there, so Renderer can move while idle without
 migrating native handles. Completed Frame pixels retain the existing origin
@@ -35,6 +38,8 @@ policy is strict; --unsupported tolerant explicitly opts into diagnostic fallbac
 Default ASS border/shadow values therefore need explicit zero values for strict
 fill-only inputs. No new tag families, effects, transforms or support registry
 promotions are introduced.
+LayoutRes and legacy YCbCr-emulation headers on active input are reported as
+unsupported; Core uses its contracted PlayRes mapping and encoded RGB.
 
 ## Reservations
 
