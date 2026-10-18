@@ -19,6 +19,20 @@ Execution location: all compiler/Cargo/native build commands and renderer, safet
 
 ## V2. Immutable assets and manifest
 
+Taiyou will maintain **two independent protected regression suites**: the existing
+pinned libass-tests references and future authenticated pinterf xy-VSFilter output
+captures. The xy suite is **PLANNED, not operational**. Establishing it requires
+identified real builds, controlled environment/font provenance, original captured
+outputs/hashes, reviewed validation and explicit maintainer acceptance. No xy
+suite implementation or capture is supplied by the current CI policy correction.
+Once properly established and accepted, the xy suite must never replace or weaken
+the libass suite, and neither suite may replace or weaken the other. Neither
+suite's tests, references, coverage, thresholds, classifications or failure
+interpretation may be altered to hide failures. Report each suite's evidence,
+coverage and results independently; source interpretations or libass output are
+not authenticated xy captures. This separation does not claim independent CI
+trust authority beyond ADR-011's solo-maintainer model.
+
 T005 creates a complete manifest by enumerating the pinned libass-tests tree. Each record includes stable case ID, repository commit, source/font/expected-image SHA-256, timestamp and viewport semantics, scale options, profile, expected support, feature tags, oracle build/config, comparison policy and license/provenance. A case with multiple frames has one record per frame and a stable parent ID. Symlinked fonts resolve only inside the corpus root; record resolved file hashes and preserve mapping on Windows. External assets live in a read-only job directory outside the candidate checkout; no implementation job writes it.
 
 Do not invent SHA-256 values. T005's frozen inventory records 187 external assets and 101 frames at the locked libass-tests revision; it remains separate from Taiyou. Use [local reference sources](LOCAL_REFERENCES.md) first and verify archive identity. CI acquires/caches the exact missing external corpus and verifies all identities before and after execution. Historical support reason strings remain frozen until explicit maintainer promotion; T014's existence does not certify external cases. Keep upstream assets separate from Taiyou fixtures. Unknown redistribution rights do not justify bundling fonts or pretending substitutes are identical.
@@ -101,7 +115,38 @@ prerequisite for T005 solo acceptance or T015.
 
 Every full run reports the entire inventory for each profile with counts for exact/tolerant pass, expected difference, unsupported, regression, crash and infrastructure error. Summary denominators include all cases; supported-subset percentages are separately labeled. Unsupported is a known feature limitation; crashes/timeouts remain failures even on unsupported scripts. Missing fonts cannot masquerade as a feature limitation.
 
-Focused PR reports explicitly say which cases ran, which results are carried from which base commit, and which remain untested; they never label stale results as current passes. Full compatibility runs are dedicated workflows at milestones, manually, and on a cost-controlled schedule once a usable renderer exists. A supported case cannot disappear or become unsupported without protected review. New upstream revisions are separate corpus-upgrade PRs, never floating nightly pulls.
+Every relevant PR must run the complete pinned CoreV1 external comparison in
+GitHub Actions: `cargo run --locked -p xtask -- compare --suite full --profile core-v1`.
+This includes renderer, ASS parsing, layout, shaping, native adapters, comparison
+tooling and related validation/CI/policy changes, with no task-branch restriction.
+Manual dispatch always runs full comparison too. The current inventory contains
+101 regression frames, two parser-safety probes and one upstream-disabled source
+(104 entries), backed by 187 verified frozen assets. Preserve all accepted entries;
+these inventory sizes are not permanent assertions about rendering outcomes.
+
+Focused runs are supplemental smoke tests only. They explicitly identify selected
+and unselected cases and any carried results; they never label stale results as
+current passes or replace a full PR regression run. The workflow reuses the same
+verified corpus, native dependencies and renderer build for smoke and full runs,
+and attempts full comparison after a successful build even if smoke fails.
+
+The full comparator's exit status and classifications remain authoritative. Known
+infrastructure errors still make it fail. Missing fonts, unsupported cases and
+parser-only successes cannot become successful visual matches. Full report
+accounting/evidence verification, immutable corpus reverification and full/focused
+artifact uploads run after failure; passing accounting only establishes report
+integrity, not a passing comparison. Keep the native libass oracle separate.
+Report exact/unsupported/infrastructure-error/regression/crash counts separately,
+with parser safety and disabled sources separate, and explain every new failure.
+Never hardcode observed outcome counts: genuine fixes may improve results.
+
+The [mandatory agent policy](../AGENTS.md#protected-comparison-tests--never-modify-to-make-ci-pass)
+makes existing comparison tests read-only for ordinary renderer tasks. A supported
+case cannot disappear or become unsupported without explicit protected review.
+Harness/regression-policy changes require a separate maintainer instruction and
+ADR-011 exact-candidate human acknowledgment after final technical review; agents
+must stop and request authorization when it has not already been given. New
+upstream revisions are separate corpus-upgrade PRs, never floating nightly pulls.
 
 ## V6. Determinism and cache tests
 
