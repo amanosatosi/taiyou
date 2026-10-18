@@ -130,25 +130,25 @@ fn renderer_slice_nine_alignments_independent_pixels_and_color() {
             .unwrap();
         assert!(frame.diagnostics().is_empty());
         if let Some(mask) = reference(a) {
-            let expected=rgba(&mask,[200,80,40,128]);
-            if let Some(folder)=std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") {
-                let folder=PathBuf::from(folder);
-                std::fs::write(folder.join(format!("align{a}.actual.rgba")),frame.pixels()).unwrap();
-                std::fs::write(folder.join(format!("align{a}.expected.rgba")),&expected).unwrap();
+            let expected = rgba(&mask, [200, 80, 40, 128]);
+            if let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") {
+                let folder = PathBuf::from(folder);
+                std::fs::write(folder.join(format!("align{a}.actual.rgba")), frame.pixels())
+                    .unwrap();
+                std::fs::write(folder.join(format!("align{a}.expected.rgba")), &expected).unwrap();
             }
+            assert_eq!(frame.pixels(), expected, "alignment {a}");
+            let expected_peak = (u32::from(*mask.iter().max().unwrap()) * 128 + 127) / 255;
             assert_eq!(
-                frame.pixels(),
-                expected,
-                "alignment {a}"
+                frame.pixels().chunks_exact(4).map(|p| p[3]).max(),
+                Some(expected_peak as u8)
             );
-            let expected_peak=(u32::from(*mask.iter().max().unwrap())*128+127)/255;
-            assert_eq!(frame.pixels().chunks_exact(4).map(|p|p[3]).max(),Some(expected_peak as u8));
         }
         // Fractional alignment can leave a thin H with no fully covered pixel.
         // Exact reference pixels above, rather than an assumed opaque interior,
         // determine the independently justified peak opacity for each phase.
-        let peak=frame.pixels().chunks_exact(4).map(|p|p[3]).max().unwrap();
-        assert!(peak>0 && peak<=128);
+        let peak = frame.pixels().chunks_exact(4).map(|p| p[3]).max().unwrap();
+        assert!(peak > 0 && peak <= 128);
     }
 }
 #[test]
@@ -481,20 +481,67 @@ fn renderer_slice_cli_rejects_invalid_input_and_flags_without_output() {
 
 #[test]
 fn renderer_slice_parsed_diagnostics_and_header_capabilities() {
-    let fonts=catalog(false); let mut renderer=renderer(limits());
-    let malformed=source("Dialogue: broken");
-    let parsed=taiyou_ass::parse_ass(malformed.as_bytes(),&Default::default(),&mut Default::default()).unwrap();
-    assert_eq!(renderer.render_parsed(&parsed,fonts.clone(),&request(500_000)).unwrap_err().code(),ErrorCode::InvalidScript);
-    let mut tolerant=request(500_000); tolerant.unsupported=UnsupportedPolicy::Tolerant;
-    let frame=renderer.render_parsed(&parsed,fonts.clone(),&tolerant).unwrap();
-    assert!(frame.diagnostics().iter().any(|d|d.code()==DiagnosticCode::MalformedRecord));
+    let fonts = catalog(false);
+    let mut renderer = renderer(limits());
+    let malformed = source("Dialogue: broken");
+    let parsed = taiyou_ass::parse_ass(
+        malformed.as_bytes(),
+        &Default::default(),
+        &mut Default::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        renderer
+            .render_parsed(&parsed, fonts.clone(), &request(500_000))
+            .unwrap_err()
+            .code(),
+        ErrorCode::InvalidScript
+    );
+    let mut tolerant = request(500_000);
+    tolerant.unsupported = UnsupportedPolicy::Tolerant;
+    let frame = renderer
+        .render_parsed(&parsed, fonts.clone(), &tolerant)
+        .unwrap();
+    assert!(
+        frame
+            .diagnostics()
+            .iter()
+            .any(|d| d.code() == DiagnosticCode::MalformedRecord)
+    );
     for header in ["LayoutResX: 160\nLayoutResY: 100", "YCbCr Matrix: TV.601"] {
-        let text=source(&dialogue("H")).replace("WrapStyle: 2",&format!("WrapStyle: 2\n{header}"));
-        let parsed=taiyou_ass::parse_ass(text.as_bytes(),&Default::default(),&mut Default::default()).unwrap();
-        assert_eq!(renderer.render_parsed(&parsed,fonts.clone(),&request(500_000)).unwrap_err().code(),ErrorCode::UnsupportedFeature);
-        assert!(renderer.render_parsed(&parsed,fonts.clone(),&tolerant).unwrap().diagnostics().iter().any(|d|d.code()==DiagnosticCode::UnsupportedFeature));
+        let text =
+            source(&dialogue("H")).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
+        let parsed = taiyou_ass::parse_ass(
+            text.as_bytes(),
+            &Default::default(),
+            &mut Default::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            renderer
+                .render_parsed(&parsed, fonts.clone(), &request(500_000))
+                .unwrap_err()
+                .code(),
+            ErrorCode::UnsupportedFeature
+        );
+        assert!(
+            renderer
+                .render_parsed(&parsed, fonts.clone(), &tolerant)
+                .unwrap()
+                .diagnostics()
+                .iter()
+                .any(|d| d.code() == DiagnosticCode::UnsupportedFeature)
+        );
     }
-    let empty=FontCatalogBuilder::new(limits()).snapshot(&mut Default::default()).unwrap();
+    let empty = FontCatalogBuilder::new(limits())
+        .snapshot(&mut Default::default())
+        .unwrap();
     // Validated empty catalogs are valid data; active glyph work needs a font.
-    assert_eq!(renderer.render(track(&dialogue("H")),empty,&request(500_000)).unwrap_err().code(),ErrorCode::FontUnavailable);
+    assert_eq!(
+        renderer
+            .render(track(&dialogue("H")), empty, &request(500_000))
+            .unwrap_err()
+            .code(),
+        ErrorCode::FontUnavailable
+    );
 }

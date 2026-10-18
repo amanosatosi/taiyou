@@ -13,7 +13,7 @@ fn assert_unimplemented(output: Output) {
     #[cfg(not(feature = "native"))]
     assert_eq!(
         String::from_utf8(output.stderr).unwrap(),
-        "taiyou: rendering is not implemented (T001 foundation; no output produced)\n"
+        "taiyou: UnsupportedFeature: rendering requires the native feature (no output produced)\n"
     );
     #[cfg(feature = "native")]
     assert!(

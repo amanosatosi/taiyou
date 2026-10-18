@@ -96,21 +96,36 @@ impl Renderer {
     /// Parsed-input convenience boundary: retain ingestion diagnostics in the
     /// completed frame, and enforce strict failures even for recover-mode input.
     #[cfg(feature = "native")]
-    pub fn render_parsed(&mut self, parsed: &ParsedTrack, fonts: Arc<ValidatedFontCatalog>, request: &RenderRequest) -> Result<Frame, RenderError> {
+    pub fn render_parsed(
+        &mut self,
+        parsed: &ParsedTrack,
+        fonts: Arc<ValidatedFontCatalog>,
+        request: &RenderRequest,
+    ) -> Result<Frame, RenderError> {
         if request.unsupported == UnsupportedPolicy::Strict {
             for d in parsed.diagnostics() {
                 let code = match d.code() {
-                    DiagnosticCode::UnsupportedFeature | DiagnosticCode::UnknownSection => Some(ErrorCode::UnsupportedFeature),
+                    DiagnosticCode::UnsupportedFeature | DiagnosticCode::UnknownSection => {
+                        Some(ErrorCode::UnsupportedFeature)
+                    }
                     DiagnosticCode::MalformedRecord => Some(ErrorCode::InvalidScript),
                     _ => None,
                 };
-                if let Some(code) = code { return Err(RenderError::new(code,d.detail()).with_context(d.event(),d.span())); }
+                if let Some(code) = code {
+                    return Err(
+                        RenderError::new(code, d.detail()).with_context(d.event(), d.span())
+                    );
+                }
             }
         }
-        let frame = self.render(parsed.track().clone(),fonts,request)?;
+        let frame = self.render(parsed.track().clone(), fonts, request)?;
         let mut report = DiagnosticBuffer::new();
-        report.extend_finished(parsed.diagnostics()).map_err(convert)?;
-        report.extend_finished(frame.diagnostics()).map_err(convert)?;
+        report
+            .extend_finished(parsed.diagnostics())
+            .map_err(convert)?;
+        report
+            .extend_finished(frame.diagnostics())
+            .map_err(convert)?;
         frame.with_diagnostics(report)
     }
 
@@ -157,10 +172,23 @@ impl Renderer {
         events.extend(track.events().iter().filter(|e| e.is_active(request.now)));
         events.sort_unstable_by_key(|e| (e.layer(), e.id()));
         let mut diagnostics = DiagnosticBuffer::new();
-        if count > 0 && (track.script().layout_res().is_some() || (!track.script().ycbcr_matrix().is_empty() && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None"))) {
+        if count > 0
+            && (track.script().layout_res().is_some()
+                || (!track.script().ycbcr_matrix().is_empty()
+                    && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")))
+        {
             let detail = "T014 uses PlayRes mapping and encoded RGB; LayoutRes and legacy YCbCr emulation are unsupported";
-            if request.unsupported == UnsupportedPolicy::Strict { return Err(RenderError::new(ErrorCode::UnsupportedFeature,detail)); }
-            diagnostics.push(Diagnostic::new(DiagnosticCode::UnsupportedFeature,None,None,detail)).map_err(convert)?;
+            if request.unsupported == UnsupportedPolicy::Strict {
+                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail));
+            }
+            diagnostics
+                .push(Diagnostic::new(
+                    DiagnosticCode::UnsupportedFeature,
+                    None,
+                    None,
+                    detail,
+                ))
+                .map_err(convert)?;
         }
         let mut operations = Vec::new();
         let mut total_segments = 0_u64;

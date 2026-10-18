@@ -69,6 +69,8 @@ channel, preserving alpha. No gamma/color-space transform or internal mutation.
 Conversion/codec scratch has a conservative checked reservation. The additional
 taiyou executable shares the existing taiyou-cli entry function; --version and
 the default Cargo executable remain compatible. Explicit font order is preserved;
+The rendering binary is built with --features native against the pinned recipe;
+default pure-Rust builds fail rendering explicitly with UnsupportedFeature.
 each --font currently registers collection face zero. Library catalogs retain
 their existing TTC/OTC face-index selection. No implicit system discovery.
 

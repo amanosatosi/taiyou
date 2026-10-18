@@ -25,6 +25,8 @@ pub fn main_entry() -> std::process::ExitCode {
         }
     }
     #[cfg(not(feature = "native"))]
-    eprintln!("taiyou: rendering is not implemented (T001 foundation; no output produced)");
+    eprintln!(
+        "taiyou: UnsupportedFeature: rendering requires the native feature (no output produced)"
+    );
     ExitCode::from(2)
 }
