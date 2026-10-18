@@ -355,9 +355,14 @@ impl Frame {
     }
     /// Publish bounded canonical diagnostics without copying pixels or changing
     /// their origin-budget lease.
-    pub fn with_diagnostics(mut self, diagnostics: crate::DiagnosticBuffer) -> Result<Self, RenderError> {
-        self.diagnostics = diagnostics.finish()
-            .map_err(|e| RenderError::new(e.code(), e.detail()))?.into();
+    pub fn with_diagnostics(
+        mut self,
+        diagnostics: crate::DiagnosticBuffer,
+    ) -> Result<Self, RenderError> {
+        self.diagnostics = diagnostics
+            .finish()
+            .map_err(|e| RenderError::new(e.code(), e.detail()))?
+            .into();
         Ok(self)
     }
     pub fn charged_bytes(&self) -> u64 {

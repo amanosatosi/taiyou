@@ -16,7 +16,11 @@ fn assert_unimplemented(output: Output) {
         "taiyou: rendering is not implemented (T001 foundation; no output produced)\n"
     );
     #[cfg(feature = "native")]
-    assert!(String::from_utf8(output.stderr).unwrap().contains("InvalidArgument"));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("InvalidArgument")
+    );
 }
 
 #[test]

@@ -1,1 +1,3 @@
-fn main() -> std::process::ExitCode { taiyou_cli::main_entry() }
+fn main() -> std::process::ExitCode {
+    taiyou_cli::main_entry()
+}

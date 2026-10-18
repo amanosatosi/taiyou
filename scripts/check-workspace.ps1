@@ -54,6 +54,19 @@ if ($SelfTest) {
         }
     }
     Write-Output 'PASS: exact T002 shaping dependencies with nine additional tamper scenarios.'
+    $png = $sample.Clone()
+    $png.name = 'png'; $png.req = '=0.18.1'; $png.uses_default_features = $false
+    Assert-ExternalDependency 'taiyou-cli' $png
+    foreach ($mutation in @(@{req='*'}, @{uses_default_features=$true}, @{features=@('unstable')}, @{optional=$false}, @{source='git+https://example.invalid/png'})) {
+        $changed = $png.Clone()
+        foreach ($key in $mutation.Keys) { $changed[$key] = $mutation[$key] }
+        $rejected = $false
+        try { Assert-ExternalDependency 'taiyou-cli' $changed } catch { $rejected = $true }
+        if (-not $rejected) { throw 'T014 PNG dependency tamper test failed' }
+    }
+    $rejected = $false
+    try { Assert-ExternalDependency 'taiyou-font' $png } catch { $rejected = $true }
+    if (-not $rejected) { throw 'T014 PNG owner tamper test failed' }
 }
 Push-Location -LiteralPath $Root
 try {

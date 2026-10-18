@@ -1,0 +1,13 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 320
+PlayResY: 180
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,PrimaryColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV
+Style: Default,Source Sans 3,30,&H00FFFFFF,0,0,5,10,10,10
+
+[Events]
+Format: Layer,Start,End,Style,Text
+Dialogue: 0,0:00:00.10,0:00:02.00,Default,{\1c&H66CCFF&}Taiyou\N{\1c&HFFFFFF&\alpha&H40&}First CoreV1 subtitle

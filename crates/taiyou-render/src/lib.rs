@@ -1,8 +1,8 @@
 //! Immutable subtitle rendering stages.
 //!
-//! T013 provides a scalar compositor for explicit synthetic masks. Subtitle
-//! rendering and rasterization remain unimplemented. T011 provides owned geometry. The explicit
-//! native feature exposes the T009 font/shaping pipeline.
+//! The explicit native feature connects evaluation, shaping, local layout,
+//! owned geometry, grayscale fill rasterization and scalar composition through
+//! the T014 single-worker CoreV1 coordinator. Effects remain unsupported.
 
 mod compose;
 mod evaluate;
