@@ -99,8 +99,11 @@ if platform.system() == "Linux":
     run(reference, "--rects")
 run("cargo", "test", "--locked", "-p", "taiyou-render", "--features", "native", "--test", "raster")
 run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native", "raster_native")
-run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "raster")
-run(sys.executable, root / "build-support/raster-sample.py")
+try:
+    run("cargo", "test", "--locked", "-p", "taiyou-cli", "--features", "native", "--test", "raster")
+finally:
+    if (Path(os.environ["TAIYOU_RASTER_SAMPLE_DIR"]) / "sample-info.txt").exists():
+        run(sys.executable, root / "build-support/raster-sample.py")
 if os.environ.get("TAIYOU_FOCUSED_RASTER") == "1":
     run("cargo", "clippy", "--locked", "--workspace", "--all-targets", *native_features, "--", "-D", "warnings")
     print("FOCUSED_T012_COMPLETE; full existing matrix remains required", flush=True)

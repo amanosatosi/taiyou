@@ -112,14 +112,28 @@ fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
     assert_eq!(mask.bounds(), fresh.bounds());
     assert_eq!(mask.stride(), fresh.stride());
     assert_eq!(mask.data(), fresh.data());
-    let dir=PathBuf::from(std::env::var_os("TAIYOU_RASTER_SAMPLE_DIR").unwrap());
+    let dir = PathBuf::from(std::env::var_os("TAIYOU_RASTER_SAMPLE_DIR").unwrap());
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("multiscript.a8"),mask.data()).unwrap();
-    std::fs::write(dir.join("multiscript.q6"),command_dump(&groups[0])).unwrap();
-    std::fs::write(dir.join("multiscript.ass"),input("Oé ب क 語")).unwrap();
-    std::fs::write(dir.join("multiscript-info.txt"),format!("{} {} {} {} {}",mask.bounds().width(),mask.bounds().height(),mask.stride(),mask.bounds().x0(),mask.bounds().y0())).unwrap();
-    let identities:Vec<String>=ids.iter().map(|font|font.sha256().iter().map(|b|format!("{b:02x}")).collect()).collect();
-    std::fs::write(dir.join("multiscript-fonts.txt"),identities.join("\n")).unwrap();
+    std::fs::write(dir.join("multiscript.a8"), mask.data()).unwrap();
+    std::fs::write(dir.join("multiscript.q6"), command_dump(&groups[0])).unwrap();
+    std::fs::write(dir.join("multiscript.ass"), input("Oé ب क 語")).unwrap();
+    std::fs::write(
+        dir.join("multiscript-info.txt"),
+        format!(
+            "{} {} {} {} {}",
+            mask.bounds().width(),
+            mask.bounds().height(),
+            mask.stride(),
+            mask.bounds().x0(),
+            mask.bounds().y0()
+        ),
+    )
+    .unwrap();
+    let identities: Vec<String> = ids
+        .iter()
+        .map(|font| font.sha256().iter().map(|b| format!("{b:02x}")).collect())
+        .collect();
+    std::fs::write(dir.join("multiscript-fonts.txt"), identities.join("\n")).unwrap();
     drop(groups);
     assert!(mask.data().iter().any(|&v| v > 0));
 }
@@ -172,7 +186,7 @@ fn raster_first_genuine_a8_sample() {
     let digest: String = font.sha256().iter().map(|b| format!("{b:02x}")).collect();
     std::fs::write(dir.join("sample-info.txt"),format!("width={}\nheight={}\nstride={}\nx0={}\ny0={}\nbackend={}\nfont_sha256={}\nface_index={}\n",mask.bounds().width(),mask.bounds().height(),mask.stride(),mask.bounds().x0(),mask.bounds().y0(),ctx.backend(),digest,font.face_index())).unwrap();
 }
-fn command_dump(group:&CoverageGroup)->String {
+fn command_dump(group: &CoverageGroup) -> String {
     let mut commands = String::new();
     for instance in group.instances() {
         for &op in instance.ops() {

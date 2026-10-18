@@ -72,6 +72,10 @@ four existing pinned/hashed licensed fixtures, not new or regenerated goldens.
 Actions archive sample.a8, input.ass, report.json and a lossless coverage.pgm
 diagnostic preview. The report records candidate SHA, font/source revisions and
 hashes, backend/flags, signed bounds, dimensions, stride and actual A8 SHA-256.
+CI uses MIT-licensed actions/upload-artifact v4.6.2 at
+`ea165f8d65b6e75b540449e92b4886f43607fa02` for seven-day stage artifacts.
+External storage requiring additional credentials was unnecessary; no Rust or
+native dependency was added. Workflow additions remain subject to CI review.
 On Linux an independently authored C test program uses FT_Outline_Get_Bitmap over
 the same checked Q6 stage commands, independently computes bounds and top-down
 bitmap storage, and compares exact bytes against the direct-callback Rust adapter.

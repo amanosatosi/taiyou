@@ -139,11 +139,27 @@ fn raster_limits() {
     assert!(Mask::new(bounds, usize::MAX, Arc::from([])).is_err());
     assert!(Mask::new(bounds, 1, Arc::from([0; 2])).is_err());
     assert!(Mask::new(PixelRect::new(0, 0, 1, 1).unwrap(), 2, Arc::from([255, 1])).is_err());
-    assert!(ctx.rasterize_path(&[], PixelRect::new(i32::MIN, i32::MIN, i32::MAX, i32::MAX).unwrap(), usize::MAX).is_err());
-    let excessive = [PathOp::MoveTo(DevicePoint::new(Q6::from_ticks(i32::MAX), Q6::from_ticks(0))), PathOp::LineTo(DevicePoint::new(Q6::from_ticks(0), Q6::from_ticks(64))), PathOp::Close];
+    assert!(
+        ctx.rasterize_path(
+            &[],
+            PixelRect::new(i32::MIN, i32::MIN, i32::MAX, i32::MAX).unwrap(),
+            usize::MAX
+        )
+        .is_err()
+    );
+    let excessive = [
+        PathOp::MoveTo(DevicePoint::new(
+            Q6::from_ticks(i32::MAX),
+            Q6::from_ticks(0),
+        )),
+        PathOp::LineTo(DevicePoint::new(Q6::from_ticks(0), Q6::from_ticks(64))),
+        PathOp::Close,
+    ];
     assert!(ctx.rasterize_path(&excessive, bounds, 2).is_err());
     let point = DevicePoint::new(Q6::from_ticks(0), Q6::from_ticks(0));
-    let oversized: Vec<_> = (0..32768).flat_map(|_| [PathOp::MoveTo(point), PathOp::Close]).collect();
+    let oversized: Vec<_> = (0..32768)
+        .flat_map(|_| [PathOp::MoveTo(point), PathOp::Close])
+        .collect();
     assert!(ctx.rasterize_path(&oversized, bounds, 2).is_err());
     assert!(
         CoverageGroup::new(

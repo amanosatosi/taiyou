@@ -25,6 +25,8 @@ impl CoveragePolicy {
     pub const fn revision(&self) -> u32 {
         self.revision
     }
+    /// Ordinals scoped to this group's retained event or explicit instance list.
+    /// Policy alone is not a cache key; full ordered geometry is also required.
     pub fn members(&self) -> Range<usize> {
         self.members.clone()
     }

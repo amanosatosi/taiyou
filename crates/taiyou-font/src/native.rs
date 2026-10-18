@@ -1330,26 +1330,38 @@ mod tests {
     #[test]
     fn raster_native_compound_outline_survives_font_and_raster_owners() {
         use sha2::{Digest, Sha256};
-        let limits = Limits::default().with_transient_bytes(512 * 1024 * 1024).unwrap();
+        let limits = Limits::default()
+            .with_transient_bytes(512 * 1024 * 1024)
+            .unwrap();
         let path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
             .join("taiyou-shaping-fonts/indic.ttf");
         let bytes: Arc<[u8]> = std::fs::read(path).unwrap().into();
         let blob = FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(), 0), bytes);
         let mut font = FontContext::with_limits(limits.clone()).unwrap();
-        let glyph = font.with_face(blob.shared_bytes(), 0, |face| {
-            // SAFETY: scoped initialized face. FreeType identifies the compound;
-            // no custom TrueType parser or shared native face is involved.
-            unsafe {
-                let count = u32::try_from((*face.raw).num_glyphs).unwrap();
-                for glyph in 0..count.min(16_384) {
-                    let code = ft::FT_Load_Glyph(face.raw, glyph, ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP);
-                    if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE {
-                        return Ok(glyph);
+        let glyph = font
+            .with_face(blob.shared_bytes(), 0, |face| {
+                // SAFETY: scoped initialized face. FreeType identifies the compound;
+                // no custom TrueType parser or shared native face is involved.
+                unsafe {
+                    let count = u32::try_from((*face.raw).num_glyphs).unwrap();
+                    for glyph in 0..count.min(16_384) {
+                        let code = ft::FT_Load_Glyph(
+                            face.raw,
+                            glyph,
+                            ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP,
+                        );
+                        if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE
+                        {
+                            return Ok(glyph);
+                        }
                     }
                 }
-            }
-            Err(FontError::new(ErrorCode::FontUnavailable, "pinned compound fixture missing"))
-        }).unwrap();
+                Err(FontError::new(
+                    ErrorCode::FontUnavailable,
+                    "pinned compound fixture missing",
+                ))
+            })
+            .unwrap();
         let outline = font.outline(&blob, glyph, &limits).unwrap();
         drop(font);
         drop(blob);
@@ -1357,22 +1369,36 @@ mod tests {
         let mut maximum = (i32::MIN, i32::MIN);
         let mut ops = Vec::new();
         for &op in outline.outline().ops() {
-            ops.push(op.try_map(|p| {
-                let scale = 20.0 / f64::from(outline.units_per_em());
-                let x = Q6::from_pixels(FiniteF64::new(p.x().get() * scale).unwrap()).unwrap();
-                let y = Q6::from_pixels(FiniteF64::new(-p.y().get() * scale).unwrap()).unwrap();
-                minimum = (minimum.0.min(x.ticks()), minimum.1.min(y.ticks()));
-                maximum = (maximum.0.max(x.ticks()), maximum.1.max(y.ticks()));
-                Ok(DevicePoint::new(x, y))
-            }).unwrap());
+            ops.push(
+                op.try_map(|p| {
+                    let scale = 20.0 / f64::from(outline.units_per_em());
+                    let x = Q6::from_pixels(FiniteF64::new(p.x().get() * scale).unwrap()).unwrap();
+                    let y = Q6::from_pixels(FiniteF64::new(-p.y().get() * scale).unwrap()).unwrap();
+                    minimum = (minimum.0.min(x.ticks()), minimum.1.min(y.ticks()));
+                    maximum = (maximum.0.max(x.ticks()), maximum.1.max(y.ticks()));
+                    Ok(DevicePoint::new(x, y))
+                })
+                .unwrap(),
+            );
         }
         let ceil = |v: i32| i32::try_from(-(-i64::from(v)).div_euclid(64)).unwrap();
-        let bounds = PixelRect::new(minimum.0.div_euclid(64), minimum.1.div_euclid(64), ceil(maximum.0), ceil(maximum.1)).unwrap();
+        let bounds = PixelRect::new(
+            minimum.0.div_euclid(64),
+            minimum.1.div_euclid(64),
+            ceil(maximum.0),
+            ceil(maximum.1),
+        )
+        .unwrap();
         let mask = {
             let mut raster = RasterContext::with_limits(limits).unwrap();
-            raster.rasterize_path(&ops, bounds, bounds.width() as usize).unwrap()
+            raster
+                .rasterize_path(&ops, bounds, bounds.width() as usize)
+                .unwrap()
         };
-        let again = RasterContext::new().unwrap().rasterize_path(&ops, bounds, bounds.width() as usize).unwrap();
+        let again = RasterContext::new()
+            .unwrap()
+            .rasterize_path(&ops, bounds, bounds.width() as usize)
+            .unwrap();
         assert_eq!(mask.data(), again.data());
         drop(ops);
         drop(outline);
