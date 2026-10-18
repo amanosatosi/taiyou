@@ -102,7 +102,7 @@ fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
         let mut ctx = RasterContext::with_limits(limits()).unwrap();
         rasterize(&mut ctx, &groups[0]).unwrap()
     };
-    assert!(mask.data().iter().any(|&v| v == 255));
+    assert!(mask.data().contains(&255));
     assert!(mask.data().iter().any(|&v| v > 0 && v < 255));
     let fresh = rasterize(
         &mut RasterContext::with_limits(limits()).unwrap(),
