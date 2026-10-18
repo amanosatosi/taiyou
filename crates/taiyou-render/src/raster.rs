@@ -190,6 +190,7 @@ pub fn coverage_bounds(group: &CoverageGroup) -> Result<PixelRect, RenderError> 
 fn empty_bounds() -> Result<PixelRect, RenderError> {
     PixelRect::new(0, 0, 0, 0).map_err(|_| limited())
 }
+#[cfg(feature = "native")]
 pub(crate) fn coverage_path(
     group: &CoverageGroup,
     translate_x: Q6,

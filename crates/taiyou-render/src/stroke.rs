@@ -1,6 +1,7 @@
 //! CoreV1 isotropic device-space stroke masks and shadow geometry placement.
 #[cfg(feature = "native")]
 use crate::raster::RasterContext;
+#[cfg(feature = "native")]
 use crate::raster::{CoverageGroup, CoveragePass, coverage_path};
 use std::sync::Arc;
 use taiyou_types::*;
@@ -12,6 +13,7 @@ fn limited() -> RenderError {
     )
 }
 
+#[cfg(feature = "native")]
 fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError> {
     let mut bounds: Option<(i64, i64, i64, i64)> = None;
     let mut point = |p: DevicePoint| {
@@ -43,6 +45,7 @@ fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError
     PixelRect::new(floor(x0)?, floor(y0)?, ceil(x1)?, ceil(y1)?).map_err(|_| limited())
 }
 
+#[cfg(feature = "native")]
 fn check_group(group: &CoverageGroup) -> Result<(), RenderError> {
     if group.pass() != CoveragePass::Fill || group.policy().profile() != Profile::CoreV1 {
         return Err(RenderError::new(
