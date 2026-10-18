@@ -1,7 +1,7 @@
 //! CoreV1 isotropic device-space stroke masks and shadow geometry placement.
-use crate::raster::{CoverageGroup, CoveragePass, coverage_path};
 #[cfg(feature = "native")]
 use crate::raster::RasterContext;
+use crate::raster::{CoverageGroup, CoveragePass, coverage_path};
 use std::sync::Arc;
 use taiyou_types::*;
 

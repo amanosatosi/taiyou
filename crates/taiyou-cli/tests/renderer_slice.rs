@@ -126,7 +126,9 @@ fn renderer_slice_nine_alignments_independent_pixels_and_color() {
     let fonts = catalog(false);
     let mut renderer = renderer(limits());
     for a in 1..=9 {
-        let track = track(&dialogue(&format!("{{\\an{a}\\1c&H2850C8&\\alpha&H7F&\\4a&HFF&}}H")));
+        let track = track(&dialogue(&format!(
+            "{{\\an{a}\\1c&H2850C8&\\alpha&H7F&\\4a&HFF&}}H"
+        )));
         let frame = renderer
             .render(track, fonts.clone(), &request(500_000))
             .unwrap();
@@ -267,7 +269,8 @@ fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
                 .any(|d| d.code() == DiagnosticCode::UnsupportedFeature)
         );
     }
-    let effect = source(&dialogue("H")).replace("&H00FFFFFF,&HFF000000,0,0,7", "&H00FFFFFF,&HFF000000,2,2,7");
+    let effect = source(&dialogue("H"))
+        .replace("&H00FFFFFF,&HFF000000,0,0,7", "&H00FFFFFF,&HFF000000,2,2,7");
     let t = taiyou_ass::parse_ass(
         effect.as_bytes(),
         &Default::default(),

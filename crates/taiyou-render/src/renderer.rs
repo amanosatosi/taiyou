@@ -65,7 +65,11 @@ fn equal_device_scale(device: DeviceMapping) -> bool {
     })
 }
 #[cfg(feature = "native")]
-fn script_offset_q6(value: FiniteF64, device: DeviceMapping, x_axis: bool) -> Result<Q6, RenderError> {
+fn script_offset_q6(
+    value: FiniteF64,
+    device: DeviceMapping,
+    x_axis: bool,
+) -> Result<Q6, RenderError> {
     let content = device.content();
     let play = device.play_res();
     let ratio = if x_axis {
@@ -297,10 +301,9 @@ impl Renderer {
                 // Static Core borders/shadows are rendered below. Decorations
                 // remain explicitly unsupported and are omitted in tolerant mode.
                 for state in evaluated.runs() {
-                    if state.geometry().underline()
-                        || state.geometry().strikeout()
-                    {
-                        let detail = "underline and strikeout decorations require a later Core stage";
+                    if state.geometry().underline() || state.geometry().strikeout() {
+                        let detail =
+                            "underline and strikeout decorations require a later Core stage";
                         if request.unsupported == UnsupportedPolicy::Strict {
                             return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
                                 .with_context(Some(event.id()), Some(state.source())));
@@ -357,10 +360,8 @@ impl Renderer {
                 let geom_limits = available(limits, stage_held)?
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
-                let device = DeviceMapping::new(
-                    track.script().play_res(),
-                    request.viewport.content(),
-                )?;
+                let device =
+                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
@@ -411,16 +412,13 @@ impl Renderer {
                     let first = group.policy().members().start;
                     let state = &placed.layout().shaped().evaluated().runs()
                         [placed.glyphs()[first].association];
-                    let mut fill_context = RasterContext::with_limits(available(
-                        limits,
-                        add(held, event_charge)?,
-                    )?)?;
+                    let mut fill_context =
+                        RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
                     let fill = rasterize(&mut fill_context, group)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
-                    let mut border_enabled =
-                        state.effects().border_style() == BorderStyle::Outline;
+                    let mut border_enabled = state.effects().border_style() == BorderStyle::Outline;
                     let border_value = state.effects().border_x().get();
                     if border_enabled
                         && border_value > 0.0
@@ -476,11 +474,8 @@ impl Renderer {
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
                         let subtraction_limits = available(limits, add(held, event_charge)?)?;
-                        let border_mask = crate::stroke::subtract_coverage(
-                            &mask,
-                            &fill,
-                            &subtraction_limits,
-                        )?;
+                        let border_mask =
+                            crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
                         charge_mask(&border_mask, &mut held, event_charge, limits)?;
                         expanded = Some(mask);
                         Some(border_mask)
@@ -556,8 +551,14 @@ impl Renderer {
                 for selector in [0_u16, 1, 2] {
                     for (ordinal, masks) in group_masks.iter().enumerate() {
                         let selected = match selector {
-                            0 => masks.shadow.as_ref().map(|m| (m.clone(), masks.shadow_paint)),
-                            1 => masks.border.as_ref().map(|m| (m.clone(), masks.border_paint)),
+                            0 => masks
+                                .shadow
+                                .as_ref()
+                                .map(|m| (m.clone(), masks.shadow_paint)),
+                            1 => masks
+                                .border
+                                .as_ref()
+                                .map(|m| (m.clone(), masks.border_paint)),
                             _ => Some((masks.fill.clone(), masks.fill_paint)),
                         };
                         let Some((mask, paint)) = selected else {

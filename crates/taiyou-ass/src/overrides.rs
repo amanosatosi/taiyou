@@ -257,8 +257,8 @@ fn parse(
 ) -> Result<Option<OverrideOp>, ParseError> {
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a",
-        "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
+        "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a",
+        "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
         return Ok(None);

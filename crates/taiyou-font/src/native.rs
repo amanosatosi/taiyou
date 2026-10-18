@@ -926,12 +926,8 @@ impl RasterContext {
         radius: Q6,
         remaining_segments: u64,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
-        let invalid = || {
-            RenderError::new(
-                ErrorCode::InvalidArgument,
-                "invalid stroke path or radius",
-            )
-        };
+        let invalid =
+            || RenderError::new(ErrorCode::InvalidArgument, "invalid stroke path or radius");
         let limit = || {
             RenderError::new(
                 ErrorCode::LimitExceeded,
@@ -1008,9 +1004,7 @@ impl RasterContext {
         let (min_x, min_y, max_x, max_y) = hull.ok_or_else(invalid)?;
         let radius = i64::from(radius.ticks());
         let floor_pixel = |ticks: i64| i32::try_from(ticks.div_euclid(64)).map_err(|_| limit());
-        let ceil_pixel = |ticks: i64| {
-            i32::try_from(-(-ticks).div_euclid(64)).map_err(|_| limit())
-        };
+        let ceil_pixel = |ticks: i64| i32::try_from(-(-ticks).div_euclid(64)).map_err(|_| limit());
         let input_x0 = floor_pixel(min_x)?;
         let input_y0 = floor_pixel(min_y)?;
         let mut input_x1 = ceil_pixel(max_x)?;
@@ -1021,8 +1015,8 @@ impl RasterContext {
         if input_y0 == input_y1 {
             input_y1 = input_y0.checked_add(1).ok_or_else(limit)?;
         }
-        let input_bounds = PixelRect::new(input_x0, input_y0, input_x1, input_y1)
-            .map_err(|_| invalid())?;
+        let input_bounds =
+            PixelRect::new(input_x0, input_y0, input_x1, input_y1).map_err(|_| invalid())?;
         if radius == 0 {
             let stride = usize::try_from(input_bounds.width()).map_err(|_| limit())?;
             return self
@@ -1173,10 +1167,11 @@ impl RasterContext {
         // opened=0 preserves each source contour as a closed filled boundary.
         let code = unsafe { FT_Stroker_ParseOutline(stroker.0, &mut outline, 0) };
         if code != 0 {
-            return Err(
-                RenderError::new(ErrorCode::NativeFailure, "FT_Stroker_ParseOutline failed")
-                    .with_native_code(i64::from(code)),
-            );
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "FT_Stroker_ParseOutline failed",
+            )
+            .with_native_code(i64::from(code)));
         }
         // SAFETY: FreeType inspects the still-live validated outline and returns
         // the side that bounds its nonzero-winding filled region.
@@ -1185,29 +1180,20 @@ impl RasterContext {
         let mut output_contours = 0_u32;
         // SAFETY: output count slots are valid and stroker owns its parsed paths.
         let code = unsafe {
-            FT_Stroker_GetBorderCounts(
-                stroker.0,
-                outside,
-                &mut output_points,
-                &mut output_contours,
-            )
+            FT_Stroker_GetBorderCounts(stroker.0, outside, &mut output_points, &mut output_contours)
         };
         if code != 0 {
-            return Err(
-                RenderError::new(
-                    ErrorCode::NativeFailure,
-                    "FT_Stroker_GetBorderCounts failed",
-                )
-                .with_native_code(i64::from(code)),
-            );
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "FT_Stroker_GetBorderCounts failed",
+            )
+            .with_native_code(i64::from(code)));
         }
         let output_point_count = usize::try_from(output_points).map_err(|_| limit())?;
         let output_contour_count = usize::try_from(output_contours).map_err(|_| limit())?;
         let output_native_points = i16::try_from(output_points).map_err(|_| limit())?;
         let output_native_contours = i16::try_from(output_contours).map_err(|_| limit())?;
-        if u64::try_from(output_point_count).map_err(|_| limit())?
-            > remaining_segments
-        {
+        if u64::try_from(output_point_count).map_err(|_| limit())? > remaining_segments {
             return Err(limit());
         }
         let export_charge = (output_point_count as u64)
@@ -1286,13 +1272,11 @@ impl RasterContext {
         // fields checked against the allocated lengths and legal contour indices.
         let code = unsafe { FT_Outline_Check(&expanded) };
         if code != 0 {
-            return Err(
-                RenderError::new(
-                    ErrorCode::NativeFailure,
-                    "expanded FT_Outline_Check failed",
-                )
-                .with_native_code(i64::from(code)),
-            );
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "expanded FT_Outline_Check failed",
+            )
+            .with_native_code(i64::from(code)));
         }
         let mut state = SpanCopy {
             data: Vec::new(),
@@ -1324,10 +1308,11 @@ impl RasterContext {
         // callback state and raster parameters all outlive the synchronous call.
         let code = unsafe { FT_Outline_Render(self.owner.library.0, &expanded, &mut params) };
         if code != 0 {
-            return Err(
-                RenderError::new(ErrorCode::NativeFailure, "stroked FT_Outline_Render failed")
-                    .with_native_code(i64::from(code)),
-            );
+            return Err(RenderError::new(
+                ErrorCode::NativeFailure,
+                "stroked FT_Outline_Render failed",
+            )
+            .with_native_code(i64::from(code)));
         }
         if state.failed {
             return Err(RenderError::new(

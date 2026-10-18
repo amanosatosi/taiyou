@@ -31,11 +31,8 @@ fn mapped(
 ) -> GeometryInstance {
     let limits = Limits::default();
     let outline = Arc::new(Outline::new(ops, &limits).unwrap());
-    let device = DeviceMapping::new(
-        Size::new(32, 32),
-        PixelRect::new(0, 0, 32, 32).unwrap(),
-    )
-    .unwrap();
+    let device =
+        DeviceMapping::new(Size::new(32, 32), PixelRect::new(0, 0, 32, 32).unwrap()).unwrap();
     let mapping = GeometryMap::new(
         (f(scale.0), f(scale.1)),
         ScriptPoint::new(f(0.0), f(0.0)),
@@ -57,7 +54,12 @@ fn group(instances: Vec<GeometryInstance>) -> CoverageGroup {
     .unwrap()
 }
 fn rectangle_group(x: f64, y: f64, w: f64, h: f64) -> CoverageGroup {
-    group(vec![mapped(rectangle(x, y, w, h, false), (0.0, 0.0), (1.0, 1.0), 0.0)])
+    group(vec![mapped(
+        rectangle(x, y, w, h, false),
+        (0.0, 0.0),
+        (1.0, 1.0),
+        0.0,
+    )])
 }
 fn q6(ticks: i32) -> Q6 {
     Q6::from_ticks(ticks)
@@ -135,13 +137,9 @@ fn border_coverage_subtraction_saturates_instead_of_wrapping() {
 #[test]
 fn shadow_phase_rasterizes_fractional_geometry_before_coverage() {
     let group = rectangle_group(0.0, 0.0, 1.0, 1.0);
-    let shadow = stroke::rasterize_translated(
-        &mut RasterContext::new().unwrap(),
-        &group,
-        q6(32),
-        q6(-16),
-    )
-    .unwrap();
+    let shadow =
+        stroke::rasterize_translated(&mut RasterContext::new().unwrap(), &group, q6(32), q6(-16))
+            .unwrap();
     assert_eq!(shadow.bounds(), PixelRect::new(0, -1, 2, 1).unwrap());
     assert_eq!(shadow.data(), [32, 32, 96, 96]);
 }
@@ -207,19 +205,20 @@ fn border_and_shadow_masks_stay_separate_for_transparent_fill() {
     .unwrap();
     let index = (2 * 5 + 2) * 4;
     assert_eq!(&frame.pixels()[index..index + 4], [0, 0, 0, 0]);
-    assert!(frame.pixels().chunks_exact(4).any(|p| p[0] == p[3] && p[3] > 0));
+    assert!(
+        frame
+            .pixels()
+            .chunks_exact(4)
+            .any(|p| p[0] == p[3] && p[3] > 0)
+    );
 }
 
 #[test]
 fn shadow_without_border_uses_translated_fill_geometry() {
     let group = rectangle_group(0.0, 0.0, 1.0, 1.0);
-    let shadow = stroke::rasterize_translated(
-        &mut RasterContext::new().unwrap(),
-        &group,
-        q6(64),
-        q6(0),
-    )
-    .unwrap();
+    let shadow =
+        stroke::rasterize_translated(&mut RasterContext::new().unwrap(), &group, q6(64), q6(0))
+            .unwrap();
     assert_eq!(shadow.bounds(), PixelRect::new(1, 0, 2, 1).unwrap());
     assert_eq!(shadow.data(), [255]);
 }
@@ -263,8 +262,18 @@ fn overlapping_glyphs_group_before_translucent_composition() {
     let first = rectangle_group(0.0, 0.0, 2.0, 1.0);
     let second = rectangle_group(1.0, 0.0, 2.0, 1.0);
     let combined = group(vec![
-        mapped(rectangle(0.0, 0.0, 2.0, 1.0, false), (0.0, 0.0), (1.0, 1.0), 0.0),
-        mapped(rectangle(0.0, 0.0, 2.0, 1.0, false), (1.0, 0.0), (1.0, 1.0), 0.0),
+        mapped(
+            rectangle(0.0, 0.0, 2.0, 1.0, false),
+            (0.0, 0.0),
+            (1.0, 1.0),
+            0.0,
+        ),
+        mapped(
+            rectangle(0.0, 0.0, 2.0, 1.0, false),
+            (1.0, 0.0),
+            (1.0, 1.0),
+            0.0,
+        ),
     ]);
     let combined_mask = rasterize(&mut RasterContext::new().unwrap(), &combined).unwrap();
     let first_mask = rasterize(&mut RasterContext::new().unwrap(), &first).unwrap();
@@ -409,9 +418,8 @@ fn grouped_strokes_do_not_seam_translucent_overlapping_glyphs() {
             Limits::default().path_segments_per_frame(),
         )
         .unwrap();
-        separate_masks.push(
-            stroke::subtract_coverage(&one_expanded, &one_fill, &Limits::default()).unwrap(),
-        );
+        separate_masks
+            .push(stroke::subtract_coverage(&one_expanded, &one_fill, &Limits::default()).unwrap());
     }
     let limits = Limits::default();
     let clip = || Arc::new(ResolvedClip::None);

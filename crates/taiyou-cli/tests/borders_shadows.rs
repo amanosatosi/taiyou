@@ -37,11 +37,7 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
         ),
     )
     .unwrap();
-    std::fs::write(
-        &disabled_ass,
-        ass(2, 2, r"{\bord0\shad0\4a&HFF&}H"),
-    )
-    .unwrap();
+    std::fs::write(&disabled_ass, ass(2, 2, r"{\bord0\shad0\4a&HFF&}H")).unwrap();
     std::fs::write(&shadow_ass, ass(0, 2, r"{\bord0\4a&H00&}H")).unwrap();
 
     for (input, png, raw) in [
@@ -77,7 +73,11 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
             "CLI failed: {}",
             String::from_utf8_lossy(&output.stderr)
         );
-        assert!(std::fs::read(png).unwrap().starts_with(b"\x89PNG\r\n\x1a\n"));
+        assert!(
+            std::fs::read(png)
+                .unwrap()
+                .starts_with(b"\x89PNG\r\n\x1a\n")
+        );
     }
 
     let plain = std::fs::read(plain_raw).unwrap();
@@ -86,7 +86,10 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
     let shadow_only = std::fs::read(shadow_raw).unwrap();
     assert_eq!(plain.len(), 160 * 100 * 4);
     assert_eq!(effects.len(), plain.len());
-    assert_eq!(disabled, plain, "bord0 and transparent shad0 preserve fill-only output");
+    assert_eq!(
+        disabled, plain,
+        "bord0 and transparent shad0 preserve fill-only output"
+    );
     assert_ne!(effects, plain);
     assert_ne!(shadow_only, plain, "shadow renders without an outline");
     assert!(effects.chunks_exact(4).any(|p| p[3] > 0));
@@ -145,5 +148,9 @@ fn cli_keeps_anisotropic_overrides_unsupported_in_strict_and_tolerant_modes() {
         String::from_utf8_lossy(&tolerant.stderr)
     );
     assert!(String::from_utf8_lossy(&tolerant.stderr).contains("UnsupportedFeature"));
-    assert!(std::fs::read(tolerant_png).unwrap().starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert!(
+        std::fs::read(tolerant_png)
+            .unwrap()
+            .starts_with(b"\x89PNG\r\n\x1a\n")
+    );
 }
