@@ -54,15 +54,8 @@ fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
 fn equal_device_scale(device: DeviceMapping) -> bool {
     let content = device.content();
     let play = device.play_res();
-    u64::try_from(content.width()).ok().and_then(|w| {
-        u64::try_from(play.height())
-            .ok()
-            .and_then(|h| w.checked_mul(h))
-    }) == u64::try_from(content.height()).ok().and_then(|h| {
-        u64::try_from(play.width())
-            .ok()
-            .and_then(|w| h.checked_mul(w))
-    })
+    u64::from(content.width()).checked_mul(u64::from(play.height()))
+        == u64::from(content.height()).checked_mul(u64::from(play.width()))
 }
 #[cfg(feature = "native")]
 fn script_offset_q6(
