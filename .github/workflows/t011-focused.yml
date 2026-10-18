@@ -1,0 +1,39 @@
+name: T011 focused candidate
+on:
+  push:
+    branches: [task/T011-owned-outlines-geometry]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: t011-focused-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  numeric:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: cargo +1.99.1 fmt --all -- --check
+      - if: always()
+        run: |
+          cargo +1.99.1 test --locked -p taiyou-render --test geometry_numeric
+          cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
+  native:
+    needs: numeric
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_GEOMETRY: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py

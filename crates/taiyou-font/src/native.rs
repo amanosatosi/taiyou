@@ -72,6 +72,159 @@ impl Drop for HbBuffer {
 }
 
 impl FontContext {
+    /// Extract an owned, unhinted y-up vector path. This reauthenticates the blob,
+    /// checks the collection face and glyph, and never publishes a native handle.
+    pub fn outline(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        self.check_bytes(blob.bytes())?;
+        crate::catalog::check_blob_identity(blob)?;
+        let native_charge = (blob.bytes().len() as u64)
+            .checked_mul(12)
+            .and_then(|n| n.checked_add(64 * 1024))
+            .ok_or_else(|| {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "outline native reservation overflow",
+                )
+            })?;
+        if blob.bytes().len() as u64 > limits.font_bytes()
+            || native_charge > limits.transient_bytes()
+        {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "outline native reservation exceeded",
+            ));
+        }
+        let native_limits = self.limits.clone();
+        self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
+            // SAFETY: with_face retains library and authenticated bytes throughout
+            // the call. FreeType validates its font storage; all native array counts,
+            // pointers and contour endpoints are checked before decomposition.
+            unsafe {
+                if !u32::try_from((*face.raw).num_glyphs).is_ok_and(|n| glyph < n)
+                    || (*face.raw).units_per_EM == 0
+                {
+                    return Err(FontError::new(
+                        ErrorCode::InvalidArgument,
+                        "outline glyph/metrics out of range",
+                    ));
+                }
+                check_outline_face((*face.raw).face_flags)?;
+                let flags = ft::FT_LOAD_NO_SCALE
+                    | ft::FT_LOAD_NO_HINTING
+                    | ft::FT_LOAD_NO_BITMAP
+                    | ft::FT_LOAD_IGNORE_TRANSFORM;
+                let code = ft::FT_Load_Glyph(face.raw, glyph, flags);
+                if code != 0 {
+                    return Err(native_error(code, "FT_Load_Glyph outline failed"));
+                }
+                let record = &*face.raw;
+                let slot = record
+                    .glyph
+                    .as_ref()
+                    .ok_or_else(|| native_error(0, "null glyph slot"))?;
+                if slot.format != ft::FT_GLYPH_FORMAT_OUTLINE {
+                    return Err(FontError::new(
+                        ErrorCode::UnsupportedFeature,
+                        "glyph has no vector outline",
+                    ));
+                }
+                let outline = &slot.outline;
+                let points = usize::try_from(outline.n_points)
+                    .map_err(|_| native_error(0, "negative outline point count"))?;
+                let contours = usize::try_from(outline.n_contours)
+                    .map_err(|_| native_error(0, "negative contour count"))?;
+                if (points == 0) != (contours == 0) || contours > points {
+                    return Err(native_error(0, "inconsistent empty outline"));
+                }
+                // Core nonzero winding cannot silently reinterpret an even-odd outline.
+                if outline.flags & 2 != 0 {
+                    return Err(FontError::new(
+                        ErrorCode::UnsupportedFeature,
+                        "even-odd native glyph outline",
+                    ));
+                }
+                let capacity = points
+                    .checked_mul(2)
+                    .and_then(|n| n.checked_add(contours.checked_mul(2)?))
+                    .ok_or_else(|| native_error(0, "outline count overflow"))?;
+                for cap in [limits, &native_limits] {
+                    let copy_limits = cap
+                        .clone()
+                        .with_transient_bytes(
+                            cap.transient_bytes()
+                                .checked_sub(native_charge)
+                                .filter(|n| *n > 0)
+                                .ok_or_else(|| {
+                                    FontError::new(
+                                        ErrorCode::LimitExceeded,
+                                        "outline copy reservation exceeded",
+                                    )
+                                })?,
+                        )
+                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                    check_path_budget(capacity, &copy_limits)
+                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                }
+                let mut state = OutlineCopy {
+                    ops: Vec::new(),
+                    failed: false,
+                    open: false,
+                };
+                state.ops.try_reserve_exact(capacity).map_err(|_| {
+                    FontError::new(
+                        ErrorCode::AllocationFailed,
+                        "outline copy allocation failed",
+                    )
+                })?;
+                if points != 0 {
+                    if outline.points.is_null()
+                        || outline.tags.is_null()
+                        || outline.contours.is_null()
+                    {
+                        return Err(native_error(0, "null outline arrays"));
+                    }
+                    let mut previous = -1;
+                    for &end in std::slice::from_raw_parts(outline.contours, contours) {
+                        if end <= previous || usize::try_from(end).map_or(true, |n| n >= points) {
+                            return Err(native_error(0, "invalid contour endpoint"));
+                        }
+                        previous = end;
+                    }
+                    if usize::try_from(previous).ok() != points.checked_sub(1) {
+                        return Err(native_error(0, "unconsumed outline points"));
+                    }
+                    for point in std::slice::from_raw_parts(outline.points, points) {
+                        check_outline_point(point)?;
+                    }
+                    let code = FT_Outline_Check(outline);
+                    if code != 0 {
+                        return Err(native_error(code, "FT_Outline_Check failed"));
+                    }
+                    let funcs = outline_funcs();
+                    let code = FT_Outline_Decompose(
+                        outline,
+                        &funcs,
+                        (&mut state as *mut OutlineCopy).cast(),
+                    );
+                    if code != 0 || state.failed {
+                        return Err(native_error(code, "FT_Outline_Decompose copy failed"));
+                    }
+                    state.close();
+                    if state.failed {
+                        return Err(native_error(0, "outline copy capacity exceeded"));
+                    }
+                }
+                let owned = Outline::new(state.ops, limits)
+                    .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
+            }
+        })
+    }
     pub(crate) fn shape_raw(
         &mut self,
         blob: &FontBlob,
@@ -330,6 +483,159 @@ impl FontContext {
             })
         }
     }
+}
+
+// Public FreeType outline callback ABI. Kept here so neither native pointers nor
+// callback state cross the one reviewed unsafe boundary. C ABI checks accompany it.
+#[repr(C)]
+struct OutlineFuncs {
+    move_to: extern "C" fn(*const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    line_to: extern "C" fn(*const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    conic_to:
+        extern "C" fn(*const ft::FT_Vector, *const ft::FT_Vector, *mut std::ffi::c_void) -> i32,
+    cubic_to: extern "C" fn(
+        *const ft::FT_Vector,
+        *const ft::FT_Vector,
+        *const ft::FT_Vector,
+        *mut std::ffi::c_void,
+    ) -> i32,
+    shift: ft::FT_Int,
+    delta: ft::FT_Pos,
+}
+fn outline_funcs() -> OutlineFuncs {
+    OutlineFuncs {
+        move_to: copy_move,
+        line_to: copy_line,
+        conic_to: copy_quad,
+        cubic_to: copy_cubic,
+        // Retain exact half-design-unit implied TrueType conic endpoints.
+        // FreeType scales before calculating midpoints; callbacks divide by 2.
+        shift: 1,
+        delta: 0,
+    }
+}
+unsafe extern "C" {
+    fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
+    fn FT_Outline_Decompose(
+        outline: *const ft::FT_Outline,
+        funcs: *const OutlineFuncs,
+        user: *mut std::ffi::c_void,
+    ) -> ft::FT_Error;
+}
+struct OutlineCopy {
+    ops: Vec<PathOp<FontPoint>>,
+    failed: bool,
+    open: bool,
+}
+fn check_outline_face(flags: ft::FT_Long) -> Result<(), FontError> {
+    // FreeType documents that NO_SCALE can produce meaningless contours for
+    // instruction-dependent tricky faces. Do not claim those are unhinted paths.
+    if flags & ft::FT_FACE_FLAG_TRICKY != 0 {
+        return Err(FontError::new(
+            ErrorCode::UnsupportedFeature,
+            "instruction-dependent tricky font requires a reviewed extraction policy",
+        ));
+    }
+    Ok(())
+}
+impl OutlineCopy {
+    fn push(&mut self, op: PathOp<FontPoint>) {
+        // No allocation, indexing panic or unwinding across a C callback.
+        if self.ops.len() == self.ops.capacity() {
+            self.failed = true;
+        } else {
+            self.ops.push(op);
+        }
+    }
+    fn close(&mut self) {
+        if self.open {
+            self.push(PathOp::Close);
+            self.open = false;
+        }
+    }
+}
+fn copy_point(p: &ft::FT_Vector) -> Option<FontPoint> {
+    FontPoint::new(
+        f64::from(i32::try_from(i128::from(p.x)).ok()?) / 2.0,
+        f64::from(i32::try_from(i128::from(p.y)).ok()?) / 2.0,
+    )
+    .ok()
+}
+fn check_outline_point(p: &ft::FT_Vector) -> Result<(), FontError> {
+    // Bound scaled coordinates AND their sums before C computes conic midpoints.
+    // This common bound keeps FT_Pos arithmetic valid on Windows' 32-bit long
+    // as well as LP64 platforms, independent of the host's native word width.
+    let cap = i128::from(i32::MAX) / 4;
+    if [i128::from(p.x), i128::from(p.y)]
+        .iter()
+        .any(|v| v.abs() > cap)
+    {
+        return Err(FontError::new(
+            ErrorCode::LimitExceeded,
+            "native outline midpoint arithmetic overflow",
+        ));
+    }
+    Ok(())
+}
+fn copy_callback(user: *mut std::ffi::c_void, pointers: &[*const ft::FT_Vector], kind: u8) -> i32 {
+    // SAFETY: only FT_Outline_Decompose invokes these private callbacks with the
+    // live exclusive OutlineCopy and checked native vectors. No references escape.
+    unsafe {
+        let Some(state) = user.cast::<OutlineCopy>().as_mut() else {
+            return 1;
+        };
+        if state.failed {
+            return 1;
+        }
+        let mut points = [FontPoint::ZERO; 3];
+        for (index, &pointer) in pointers.iter().enumerate() {
+            let Some(p) = pointer.as_ref().and_then(copy_point) else {
+                state.failed = true;
+                return 1;
+            };
+            let Some(slot) = points.get_mut(index) else {
+                state.failed = true;
+                return 1;
+            };
+            *slot = p;
+        }
+        if kind == 0 {
+            state.close();
+            state.open = true;
+        }
+        if !state.open {
+            state.failed = true;
+            return 1;
+        }
+        state.push(match kind {
+            0 => PathOp::MoveTo(points[0]),
+            1 => PathOp::LineTo(points[0]),
+            2 => PathOp::QuadTo(points[0], points[1]),
+            _ => PathOp::CubicTo(points[0], points[1], points[2]),
+        });
+        i32::from(state.failed)
+    }
+}
+extern "C" fn copy_move(p: *const ft::FT_Vector, u: *mut std::ffi::c_void) -> i32 {
+    copy_callback(u, &[p], 0)
+}
+extern "C" fn copy_line(p: *const ft::FT_Vector, u: *mut std::ffi::c_void) -> i32 {
+    copy_callback(u, &[p], 1)
+}
+extern "C" fn copy_quad(
+    a: *const ft::FT_Vector,
+    b: *const ft::FT_Vector,
+    u: *mut std::ffi::c_void,
+) -> i32 {
+    copy_callback(u, &[a, b], 2)
+}
+extern "C" fn copy_cubic(
+    a: *const ft::FT_Vector,
+    b: *const ft::FT_Vector,
+    c: *const ft::FT_Vector,
+    u: *mut std::ffi::c_void,
+) -> i32 {
+    copy_callback(u, &[a, b, c], 3)
 }
 
 #[cfg(target_os = "linux")]
@@ -676,6 +982,233 @@ impl FontContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn geometry_native_outlines_are_owned_curves_and_checked() {
+        use sha2::{Digest, Sha256};
+        let limits = Limits::default()
+            .with_transient_bytes(512 * 1024 * 1024)
+            .unwrap();
+        let read = |path: String, index| {
+            let bytes: Arc<[u8]> = std::fs::read(path).unwrap().into();
+            FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(), index), bytes)
+        };
+        let blob = read(std::env::var("TAIYOU_TEST_FONT").unwrap(), 0);
+        fn request(text: &str, script: [u8; 4], rtl: bool) -> NativeRequest<'_> {
+            NativeRequest {
+                text,
+                context: 0..text.len(),
+                range: 0..text.len(),
+                rtl,
+                script: u32::from_be_bytes(script),
+                language: "und",
+                ligatures: true,
+            }
+        }
+        let retained = {
+            let mut ctx = FontContext::with_limits(limits.clone()).unwrap();
+            let raw = ctx
+                .shape_raw(&blob, &request("O", *b"Latn", false), &limits)
+                .unwrap();
+            let path = ctx.outline(&blob, raw.glyphs[0].glyph, &limits).unwrap();
+            assert!(
+                path.outline()
+                    .ops()
+                    .iter()
+                    .any(|op| matches!(op, PathOp::CubicTo(..)))
+            );
+            assert!(
+                path.outline()
+                    .ops()
+                    .iter()
+                    .filter(|op| matches!(op, PathOp::Close))
+                    .count()
+                    >= 2
+            );
+            let space = ctx
+                .shape_raw(&blob, &request(" ", *b"Latn", false), &limits)
+                .unwrap();
+            assert!(
+                ctx.outline(&blob, space.glyphs[0].glyph, &limits)
+                    .unwrap()
+                    .outline()
+                    .ops()
+                    .is_empty()
+            );
+            assert!(ctx.outline(&blob, u32::MAX, &limits).is_err());
+            assert!(
+                ctx.outline(
+                    &blob,
+                    raw.glyphs[0].glyph,
+                    &limits.clone().with_path_segments_per_frame(1).unwrap()
+                )
+                .is_err()
+            );
+            assert_eq!(LIVE.with(|n| n.get()), (1, 0));
+            path
+        };
+        assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+        let mut fresh = FontContext::with_limits(limits.clone()).unwrap();
+        assert_eq!(
+            retained,
+            fresh.outline(&blob, retained.glyph(), &limits).unwrap()
+        );
+        let ttf = read(
+            std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+                .join("taiyou-shaping-fonts/indic.ttf")
+                .to_str()
+                .unwrap()
+                .to_owned(),
+            0,
+        );
+        let raw = fresh
+            .shape_raw(&ttf, &request("क", *b"Deva", false), &limits)
+            .unwrap();
+        let path = fresh.outline(&ttf, raw.glyphs[0].glyph, &limits).unwrap();
+        assert!(
+            path.outline()
+                .ops()
+                .iter()
+                .any(|op| matches!(op, PathOp::QuadTo(..)))
+        );
+        let compound = fresh
+            .with_face(ttf.shared_bytes(), 0, |face| {
+                // SAFETY: test-only inspection of this scoped face. NO_RECURSE asks
+                // FreeType to identify a real composite; no custom glyf parser.
+                unsafe {
+                    let count = u32::try_from((*face.raw).num_glyphs).unwrap();
+                    for glyph in 0..count.min(16_384) {
+                        let code = ft::FT_Load_Glyph(
+                            face.raw,
+                            glyph,
+                            ft::FT_LOAD_NO_RECURSE | ft::FT_LOAD_NO_BITMAP,
+                        );
+                        if code == 0 && (*(*face.raw).glyph).format == ft::FT_GLYPH_FORMAT_COMPOSITE
+                        {
+                            return Ok(glyph);
+                        }
+                    }
+                }
+                Err(FontError::new(
+                    ErrorCode::FontUnavailable,
+                    "pinned Indic fixture must contain a compound glyph",
+                ))
+            })
+            .unwrap();
+        let compound = fresh.outline(&ttf, compound, &limits).unwrap();
+        assert!(!compound.outline().ops().is_empty());
+        assert_eq!(compound.outline().ops().last(), Some(&PathOp::Close));
+        let forged = FontBlob::from_unverified(FontId::new([0; 32], 0), blob.shared_bytes());
+        assert!(fresh.outline(&forged, retained.glyph(), &limits).is_err());
+        let wrong_face = FontBlob::from_unverified(
+            FontId::new(*blob.id().sha256(), u32::MAX),
+            blob.shared_bytes(),
+        );
+        assert!(
+            fresh
+                .outline(&wrong_face, retained.glyph(), &limits)
+                .is_err()
+        );
+        let collection = std::env::var("TAIYOU_TEST_COLLECTION").unwrap();
+        let a = read(collection.clone(), 0);
+        let b = read(collection, 1);
+        let a_raw = fresh
+            .shape_raw(&a, &request("O", *b"Latn", false), &limits)
+            .unwrap();
+        let b_raw = fresh
+            .shape_raw(&b, &request("O", *b"Latn", false), &limits)
+            .unwrap();
+        let a = fresh.outline(&a, a_raw.glyphs[0].glyph, &limits).unwrap();
+        let b = fresh.outline(&b, b_raw.glyphs[0].glyph, &limits).unwrap();
+        assert_ne!(a.font().face_index(), b.font().face_index());
+        assert_ne!(a.outline(), b.outline());
+        assert_eq!(
+            std::mem::size_of::<OutlineFuncs>(),
+            4 * std::mem::size_of::<usize>() + std::mem::size_of::<ft::FT_Pos>() * 2
+        );
+        assert_eq!(
+            std::mem::offset_of!(OutlineFuncs, shift),
+            4 * std::mem::size_of::<usize>()
+        );
+        assert_eq!(
+            std::mem::offset_of!(OutlineFuncs, delta),
+            std::mem::size_of::<OutlineFuncs>() - std::mem::size_of::<ft::FT_Pos>()
+        );
+        assert_eq!(
+            std::mem::size_of::<ft::FT_Vector>(),
+            2 * std::mem::size_of::<ft::FT_Pos>()
+        );
+    }
+    #[test]
+    fn geometry_native_copy_failure_stays_inside_callback_boundary() {
+        assert!(check_outline_face(0).is_ok());
+        assert!(check_outline_face(ft::FT_FACE_FLAG_TRICKY).is_err());
+        let mut state = OutlineCopy {
+            ops: Vec::new(),
+            failed: false,
+            open: false,
+        };
+        let point = ft::FT_Vector { x: 0, y: 0 };
+        let user = (&mut state as *mut OutlineCopy).cast();
+        assert_eq!(copy_move(&point, user), 1);
+        assert!(state.failed);
+        assert!(state.ops.is_empty());
+        assert_eq!(copy_line(ptr::null(), user), 1);
+        assert_eq!(copy_move(&point, ptr::null_mut()), 1);
+    }
+    #[test]
+    fn geometry_native_implied_quadratic_endpoints_retain_half_units() {
+        let mut points = [
+            ft::FT_Vector { x: 0, y: 0 },
+            ft::FT_Vector { x: 1, y: 1 },
+            ft::FT_Vector { x: 2, y: 0 },
+        ];
+        let mut tags = [1, 0, 0];
+        let mut contours = [2];
+        let outline = ft::FT_Outline {
+            n_contours: 1,
+            n_points: 3,
+            points: points.as_mut_ptr(),
+            tags: tags.as_mut_ptr(),
+            contours: contours.as_mut_ptr(),
+            flags: 0,
+        };
+        let mut state = OutlineCopy {
+            ops: Vec::with_capacity(8),
+            failed: false,
+            open: false,
+        };
+        for p in &points {
+            check_outline_point(p).unwrap();
+        }
+        // SAFETY: all native arrays above have validated extents and remain live;
+        // the callback state is exclusive for this synchronous decomposition.
+        assert_eq!(
+            unsafe {
+                FT_Outline_Decompose(
+                    &outline,
+                    &outline_funcs(),
+                    (&mut state as *mut OutlineCopy).cast(),
+                )
+            },
+            0
+        );
+        state.close();
+        assert!(!state.failed);
+        assert_eq!(
+            state.ops[1],
+            PathOp::QuadTo(
+                FontPoint::new(1.0, 1.0).unwrap(),
+                FontPoint::new(1.5, 0.5).unwrap()
+            )
+        );
+        assert!(
+            check_outline_point(&ft::FT_Vector {
+                x: 2_000_000_000,
+                y: 0
+            })
+            .is_err()
+        );
+    }
     #[test]
     fn harfbuzz_abi_owned_results_and_rejected_requests_cleanup() {
         use sha2::{Digest, Sha256};
