@@ -1,4 +1,4 @@
-"""Policy primitives; caller must supply independently trusted snapshot hashes."""
+"""Policy primitives; snapshot hashes must identify the maintainer-accepted baseline."""
 import argparse
 import copy
 import json
@@ -25,13 +25,19 @@ def snapshots(inventory, policy, inventory_hash, policy_hash, environment):
 
 def expected_results(inventory, policy):
     keys = set()
+    profiles = policy["profiles"]
+    if not profiles or len(set(profiles)) != len(profiles):
+        raise InventoryError("empty/duplicate profile selection")
     for case in inventory["cases"]:
         if case["kind"] == "disabled-upstream":
             continue
         frames = [frame["expected"] for frame in case["frames"]] or [None]
         for frame in frames:
-            for profile in policy["profiles"]:
-                keys.add((case["id"], frame, profile))
+            for profile in profiles:
+                key = (case["id"], frame, profile)
+                if key in keys:
+                    raise InventoryError("duplicate selected case/frame/profile")
+                keys.add(key)
     return keys
 
 
@@ -39,6 +45,7 @@ def results(inventory, policy, records):
     remaining = expected_results(inventory, policy)
     total = len(remaining)
     counts = {status: 0 for status in policy["allowed_results"]}
+    cases = {case["id"]: case for case in inventory["cases"]}
     for record in records:
         key = (record["case"], record["frame"], record["profile"])
         if key not in remaining:
@@ -52,6 +59,10 @@ def results(inventory, policy, records):
             raise InventoryError("unapproved result exception")
         if status == "UNSUPPORTED" and not record.get("feature"):
             raise InventoryError("unsupported requires feature ID")
+        case = cases[record["case"]]
+        expected_support = case.get("profile_records", {}).get(record["profile"], {}).get("support", case.get("support"))
+        if status == "UNSUPPORTED" and expected_support != "UNSUPPORTED":
+            raise InventoryError("result cannot demote accepted support state")
         counts[status] += 1
     if remaining:
         raise InventoryError("missing cases: " + str(len(remaining)))
@@ -129,6 +140,8 @@ class PolicyTests(unittest.TestCase):
             with self.assertRaises(InventoryError): safe_path(root, "escape")
             (root / "local").symlink_to("font")
             self.assertEqual(safe_path(root, "local").resolve(), root / "font")
+            (root / "loop").symlink_to("loop")
+            with self.assertRaises(InventoryError): safe_path(root, "loop")
 
     def test_duplicate_json_keys(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -183,6 +196,37 @@ class PolicyTests(unittest.TestCase):
                     results(self.inventory, self.policy, altered)
 
 
+    def test_duplicate_selection_and_empty_profiles(self):
+        altered = copy.deepcopy(self.inventory)
+        altered["cases"][0]["frames"] *= 2
+        with self.assertRaises(InventoryError): expected_results(altered, self.policy)
+        for profiles in [[], ["CoreV1", "CoreV1"]]:
+            with self.assertRaises(InventoryError):
+                expected_results(self.inventory, {**self.policy, "profiles": profiles})
+
+    def test_result_cannot_demote_supported_case(self):
+        altered = copy.deepcopy(self.inventory)
+        altered["cases"][0]["support"] = "SUPPORTED"
+        records = [{"case": case, "frame": frame, "profile": profile, "status": "UNSUPPORTED", "feature": "T014"}
+                   for case, frame, profile in sorted(expected_results(altered, self.policy))]
+        with self.assertRaises(InventoryError): results(altered, self.policy, records)
+
+    def test_source_font_and_png_missing_or_modified(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ["test.ass", "font.ttf", "expected.png"]:
+                path = root / name
+                original = ("synthetic bytes for " + name).encode()
+                blob = hashlib.sha1(b"blob " + str(len(original)).encode() + b"\0" + original).hexdigest()
+                path.write_bytes(original)
+                checked_bytes(root, name, "100644", blob)
+                path.write_bytes(original + b"changed")
+                with self.assertRaises(InventoryError): checked_bytes(root, name, "100644", blob)
+                path.unlink()
+                with self.assertRaises(InventoryError): checked_bytes(root, name, "100644", blob)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["self-test", "check"])
@@ -199,7 +243,7 @@ def main():
         if not all([args.inventory, args.policy, args.trusted_inventory_sha256, args.trusted_policy_sha256]):
             parser.error("check requires inventory, policy and externally trusted hashes")
         snapshots(load(args.inventory), load(args.policy), args.trusted_inventory_sha256, args.trusted_policy_sha256, os.environ)
-        print("SNAPSHOTS_MATCH: hash provenance/trusted issuer must be checked separately")
+        print("SNAPSHOTS_MATCH: accepted-baseline provenance required; not independent validation or maintainer acceptance")
 
 
 if __name__ == "__main__":

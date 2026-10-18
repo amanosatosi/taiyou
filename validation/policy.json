@@ -1,6 +1,13 @@
 {
   "schema": 1,
-  "state": "candidate-pending-independent-review-and-maintainer-configuration",
+  "state": "solo-maintainer-baseline-policy",
+  "governance": {
+    "model": "solo-maintainer",
+    "maintainer": "amanosatosi",
+    "decision": "ADR-011",
+    "independently_trusted": false,
+    "acceptance": "explicit human acceptance of the exact candidate commit"
+  },
   "profiles": ["CoreV1", "LegacyXyV1"],
   "selector": "all-active-inventory-cases",
   "comparison": {"max_channel_delta": 0, "max_changed_pixels": 0, "max_alpha_delta": 0},

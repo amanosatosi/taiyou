@@ -1,53 +1,105 @@
-# T005 candidate inventory and policy checks
+# T005: frozen inventory and solo-maintainer policy
 
-The frozen [inventory](inventory.json) contains metadata and hashes only. It was generated from the exact `a5073319af8117271d8ac13ef5c088197ff2d59b` libass-tests checkout in Actions at candidate `6531526eadb340476b1e040775155a163359c40c`, [run 39041240365, job 117421005537](https://github.com/amanosatosi/taiyou/actions/runs/39041240365/job/117421005537). That job verified 187 tracked assets, 104 case records (101 regression frames, two crash inputs, one upstream-disabled source), and eleven synthetic negative-policy/safety tests. The Fast job on that initial candidate failed formatting; subsequent candidate evidence is recorded in [PR 11](https://github.com/amanosatosi/taiyou/pull/11). This is no renderer or native-oracle result.
+The external libass-tests corpus stays outside Taiyou at commit
+a5073319af8117271d8ac13ef5c088197ff2d59b. The unchanged manifest records **187 tracked
+assets**, **101 regression-frame records**, **two crash inputs**, **one upstream-
+disabled source** and **one separately retained auxiliary image**. Each source,
+font and image has its original Git blob identity and SHA-256; font symlinks retain
+their raw target, safe in-corpus resolution and resolved identity. No corpus bytes
+are committed, regenerated or downloaded to the user's PC.
 
-## Manifest schema 1
+The inventory was generated explicitly on Actions at candidate
+6531526eadb340476b1e040775155a163359c40c
+([original job](https://github.com/amanosatosi/taiyou/actions/runs/39041240365/job/117421005537)).
+Its raw SHA-256 remains
+4482337de14f60c7750d98a5f7f43a8878ac824d9304143ac94d15e5a204680c;
+canonical JSON digest is
+251afc7a8ae01cdbb9daf159f925ac91256e07c18391c3608e63839619725e4e.
+Both profiles, historical T014-not-implemented reasons and historical protection
+metadata remain frozen. T014 now exists, but does not certify these external
+cases. Governance now follows [ADR-011](../docs/decisions/011-solo-maintainer-validation.md),
+not those historical metadata strings.
 
-Each asset records its original relative path, Git mode/blob identity, raw SHA-256, byte length, role and license status. Symlinks additionally record the original target, resolved in-corpus path and resolved content SHA-256. PNG assets include IHDR dimensions. All 187 entries remain visible, including scripts, metadata, disabled inputs and the auxiliary `regression/karaoke/357_diff.png`; that diagnostic image does not match an ASS/timestamp frame name and is listed separately. No upstream file is modified or bundled.
+## Accepted baseline and routine checks
 
-Each frame has a stable case ID equal to its expected image path and a stable parent ID equal to its source path. Crash/disabled records use the source path as their ID. Records include source/font paths, filename timestamp in milliseconds, reference image size, original upstream scale text, group feature tag, both profile support records and oracle revision. The asset table supplies the corresponding content hashes. T014 now supplies a renderer on integrated main `8b66296c22bcf58b5e022f1c8aa55bec815f973f`, but does not certify this external corpus. Both CoreV1/LegacyXyV1 inventory classifications and their historical T014-not-implemented reason strings remain frozen exactly as reviewed; changing them requires protected promotion, not this refresh. All active cases remain in result denominators. Upstream-disabled input remains visible with its original status. Missing PNG/font/source is INFRA_ERROR, never unsupported.
+[The corpus workflow](../.github/workflows/inventory.yml) runs on every PR; its
+required context is **Corpus policy gate**, without workflow-level path filtering.
+It loads the guard, acquisition/verifier tools, manifest and policy from the exact
+PR base revision. Bootstrap PR #11 uses owner-reviewed immutable snapshot
+39f6ce2fa64b231fd705862d853c8df239b54a22 and cannot change its inventory, reference
+lock or regression-bearing policy fields. The owner's instruction authorizes only
+the ADR-011 governance/infrastructure amendment; final candidate acceptance is
+still required.
 
-Timestamp/scale provenance: the pinned corpus README and run-single.sh describe these fields; local libass compare.c lines 454 onward use `<subtitle_name>-<time_in_msec>.png`, and its parse_scale function accepts 1–8[x1–8]. The local archive is unverified against the immutable oracle pin. The manifest therefore records raw metadata without claiming a reproduced oracle configuration. Pinned oracle builds, viewport/scale interpretation and capture evidence remain T015 work. No legacy behavior, tolerance or feature is admitted by this inventory.
+The base-revision guard compares protected paths, including validation files,
+reference locks, workflows, selectors, normative contracts and Taiyou expected
+fixtures. Unacknowledged changes fail with an exact head/base/change-digest comment
+for the human owner to review and post. [Setup/promotion instructions](MAINTAINER-SETUP.md)
+explain acknowledgments, reruns and final acceptance. An acknowledged proposal
+does not replace the base snapshot used for that run.
 
-No LICENSE/COPYING file appears in this corpus revision. Per-asset licenses remain unknown pending provenance review, including fonts with possible embedded notices. CI acquisition is not redistribution authorization. No license or reviewer identity is guessed.
+The external source cache is an optimization only. Every job checks the exact
+commit, Git objects, complete file set, every blob/SHA-256 and safe symlink mapping.
+The accepted verifier runs before checks and again even after failures. Corpus
+files are marked read-only before candidate tests. Normal CI never generates a
+replacement manifest. Candidate tests are separately exercised against the frozen
+accepted inventory; tests never mutate upstream references.
 
-## Commands on Actions only
-
-The [candidate workflow](../.github/workflows/inventory.yml) acquires the missing corpus explicitly in RUNNER_TEMP, outside the candidate checkout, and caches that source copy on the candidate branch. The cache is an optimization, not a trusted asset publisher: every run verifies the exact commit, Git objects, working-file Git blob identity, every SHA-256, safe symlink resolution and exact file set. It cannot be a trusted source for a privileged job without separate approved hash verification. No build artifacts or corpus bytes are downloaded onto the user's PC.
-
-Runner commands:
+Runner-only commands (the workflow exports TAIYOU_ACCEPTED and TAIYOU_CORPUS):
 
 ```text
-python validation/acquire.py
+python "$TAIYOU_ACCEPTED/validation/acquire.py"
+python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
 cargo +1.85.1 fetch --locked
-cargo run --locked --offline -p xtask -- inventory verify --corpus <runner-corpus> --manifest validation/inventory.json
+cargo run --locked --offline -p xtask -- inventory verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
 cargo run --locked --offline -p xtask -- policy self-test
-cargo run --locked --offline -p xtask -- inventory verify --corpus <runner-corpus> --manifest validation/inventory.json
+python validation/baseline.py self-test
+python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
 ```
 
-Inventory generation is an explicit proposal operation, never an automatic replacement of an existing manifest. The verifier compares the complete manifest against checked immutable inputs and rejects missing, changed or extra files. The policy self-test uses independently authored synthetic bytes and metadata; it never mutates upstream goldens. It covers golden/threshold/support/selector/missing-case tampering, missing expected assets, forbidden ART_REG_* variables, duplicate JSON keys, path/symlink escape, missing/duplicate results and denominator retention.
+Synthetic tests retain hash/asset-byte/threshold/support/selector tampering,
+missing/duplicate/unselected results, false snapshots, ART_REG_* overrides,
+duplicate JSON keys, missing source/font/PNG files and safe/escaping symlinks.
+Additional regressions cover symlink loops, duplicate selections/profiles and
+result-level demotion of an accepted supported case. Baseline tests exercise
+owner identity, stale head/base/digest acknowledgments and bootstrap restrictions.
+No full comparator or native libass oracle is implemented; those remain T015.
 
-The refreshed candidate workflow requires the existing manifest and never creates
-a replacement when it is absent. Locked dependency fetching runs only on Actions
-to support the merged workspace before the offline xtask invocations. The same
-full inventory verification runs before and after policy tests; protected file
-and lockfile working-copy changes also fail the job. The additional synthetic
-tests reject false snapshot hashes, supported-to-unsupported demotion against a
-fixed synthetic baseline, unselected records and unapproved result classifications.
-None of these candidate-side checks establishes independent policy authority or
-tests actual hostile-binary containment.
+## Manifest semantics and licenses
 
-`policy check` requires independently supplied inventory/policy SHA-256 arguments. Those hashes must come from an approved protected base or validator. Candidate-provided hashes do not establish trust. No tolerance/expected-difference exception is currently admitted, and no upstream run.sh/regeneration path is executed.
+Each frame has a stable ID and parent source, fonts, timestamp, reference size,
+original scale metadata, feature tags, profile support records and pending oracle
+provenance. Crash/disabled records remain enumerated; unsupported active cases stay
+in the result denominator. Missing assets are INFRA_ERROR, never unsupported.
 
-## Protection gate remains open
+The pinned corpus README/run-single.sh and locally inspected libass compare source
+explain filename millisecond timestamps and 1–8[x1–8] scale metadata. The local
+archive is not authenticated as the pinned oracle revision; exact native oracle,
+viewport and comparison semantics remain T015. No legacy compatibility is inferred.
 
-[protection-evidence.json](protection-evidence.json) records fresh 2026-10-18 branch/rules responses: `protected: false`, active rules `[]`, listed rulesets `[]` at main `8b66296c22bcf58b5e022f1c8aa55bec815f973f`. The prior observation is retained in the same report. Authenticated repository metadata exposes admin permission for the connected account, but PR #11 has no submitted reviews and no independent reviewer or dedicated trusted issuer is established. Existing check runs originate from GitHub Actions App 15368, which does not distinguish trusted workflows from candidate workflows. No settings were changed. The candidate workflow has a read-only token and no secrets, but its own code and cache are candidate-controlled. It is not the independently issued required validation status described by V4, and this job does not create a sandbox for executing arbitrary renderer binaries against protected storage.
+No LICENSE/COPYING appears at this corpus pin; per-asset license unknowns remain
+explicit. Acquisition is not redistribution authorization. Do not bundle fonts or
+substitute different files while claiming identical provenance.
 
-An actual maintainer must choose/configure the trusted workflow/app or protected validator, named independent reviewers, required issuer/rules, stale-review dismissal and author self-approval prevention. Read-only asset execution, pre/post execution hashing and trusted result collection must be verified there before renderer regression acceptance. No placeholder CODEOWNERS or self-issued policy approval substitutes for this evidence. T005 is not accepted and this protected PR must not be self-integrated.
+## States, evidence and limitations
 
-The [maintainer setup checkpoint](MAINTAINER-SETUP.md) selects a separate protected
-validator plus a dedicated App as the deployable path for this personal repository,
-lists exact Settings pages/rules and identifies all unrun boundary attacks.
-Inventory implementation/CI verification, operational protection and formal T005
-acceptance are separate states. The latter two remain blocked; T015 is not begun.
+[Protection evidence](protection-evidence.json) preserves earlier observations
+that main was unprotected. New observations and governance states are separate;
+no file or test alone proves that GitHub settings are active.
+
+- **Inventory verified:** the exact external corpus/manifest matched in named CI.
+- **Candidate CI passed:** ordinary Actions passed on the reported candidate SHA.
+- **Solo-maintainer accepted:** the human explicitly accepted that exact candidate.
+- **Independently trusted:** not claimed by this solo-maintainer configuration.
+
+The [setup guide](MAINTAINER-SETUP.md) recommends ordinary main protection with CI
+and zero required second-person approvals. No extra reviewer, dedicated App or
+separate validator is mandatory. Actual configured controls and outstanding manual
+actions must be reported; do not claim deployment before checking settings.
+
+The admin can deliberately change baselines or controls. Agents using the owner's
+account cannot be cryptographically distinguished from the human and must not
+self-acknowledge or merge. Candidate-controlled CI can manipulate its own checks;
+read-only modes, base snapshots and synthetic negatives are accidental-change
+safeguards, not proof of malicious-code containment or independent trust.
+The stronger separately controlled validator/issuer remains an optional upgrade.

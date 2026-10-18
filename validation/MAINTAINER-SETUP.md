@@ -1,95 +1,91 @@
-# T005 maintainer checkpoint
+# Solo-maintainer validation setup
 
-T005 is **blocked**, not operational or accepted. The refreshed inventory and
-primitive tests can pass without providing V4 protection. No repository settings
-were changed by this session. See [observed evidence](protection-evidence.json).
-The connected account has repository admin permission; the blocker is not a
-claimed lack of admin access. PR #11 has no submitted GitHub reviews, named
-independent validator owner, approved trusted revision or established gate issuer.
+[ADR-011](../docs/decisions/011-solo-maintainer-validation.md) is the owner's
+explicit governance decision. A second human, separate validator and dedicated
+App are not required. No agent may fabricate acceptance or merge PR #11.
 
-## Deployment choice for this repository
+## Recommended GitHub protection
 
-Taiyou is a public, personally owned repository. Public-repository branch
-protection/rulesets are available without assuming a paid plan. The account's
-actual subscription was not exposed by the inspected repository metadata.
-Organization-level required-workflow rules are not established for this personal
-repository. Requiring a check name from GitHub Actions (App ID 15368) cannot
-distinguish a trusted workflow from a candidate job using that name.
+At [Settings / Rules / Rulesets](https://github.com/amanosatosi/taiyou/settings/rules)
+create an Active branch ruleset targeting main (or use Settings / Branches and an
+equivalent classic rule):
 
-Use a separately protected, maintainer-owned validator repository and a dedicated
-GitHub App issuing **`Taiyou trusted validation / corpus-gate`** on the exact Taiyou
-candidate SHA. This is a deployment proposal awaiting real repository/App/reviewer
-identities, not a functioning service or an invented issuer. Do not use the
-generic GitHub Actions app as the required source for this trusted context.
+- Require a pull request before merging, with **zero required approvals**.
+- Require branches up to date and these checks: **Corpus policy gate**,
+  **Fast gate**, **Platform gate**, **Documentation structure**.
+- Require conversation resolution; block force pushes and deletions.
+- Apply checks to administrators where supported; do not add agent bypasses.
+- Do not require code-owner/last-pusher/second-person approval for this solo setup.
 
-## Exact setup and verification
+Select GitHub Actions (App ID 15368) as source where the UI offers it. This is
+ordinary CI, not a dedicated independent issuer. Corpus policy gate runs on every
+PR without path filtering. Fast/Platform gates aggregate selected checks and
+handle documented skips; do not require individual conditional native jobs.
 
-1. At [Taiyou Settings / Collaborators](https://github.com/amanosatosi/taiyou/settings/access),
-   appoint an independent reviewer with Write or higher permission. Supply their
-   actual GitHub login and a maintainer-owned validator repository URL. Reviewer
-   identities must differ from the PR author and latest pusher where required.
-2. At [Settings / Rules / Rulesets](https://github.com/amanosatosi/taiyou/settings/rules),
-   create an **Active** branch ruleset targeting `main`: require pull requests,
-   at least one independent approval, stale-review dismissal, approval of the
-   latest push by someone other than its pusher, code-owner reviews, conversation
-   resolution, no force pushes/deletions and no bypass actors, including agents
-   or administrators. Apply equivalent rules to the validator's default/trusted
-   branches before approving its first immutable deployment revision.
-3. The independent maintainer must review and publish actual CODEOWNERS entries
-   for `validation/**`, reference locks/assets, support/tolerance registries,
-   `.github/**`, selectors/check scripts, build/security recipes and normative
-   architecture/validation documents. Protect CODEOWNERS itself. A proposed file
-   on an unprotected branch is not evidence that these rules are enforced.
-4. At [Developer Settings / GitHub Apps](https://github.com/settings/apps), create
-   or identify the dedicated validator App. Record its real App ID, slug and
-   installation ID. Grant Checks: write and Metadata: read on Taiyou; grant only
-   additional read permissions needed for candidate acquisition. Do not grant
-   Contents: write or give its credentials to candidate jobs. Keep credentials
-   only in the separately protected validator deployment/reporting environment.
-5. Independently review/deploy the trusted build/validation recipe. It checks out
-   the candidate SHA in a separate unprivileged build job with read-only token,
-   no secrets and no trusted cache writes. Trusted policy/harness/inventory/assets
-   come from the approved validator revision, never the candidate branch or
-   candidate-supplied snapshot hashes. Verify artifact provenance and binary SHA.
-6. Before enabling success issuance, demonstrate separate bounded candidate
-   execution: non-root, no network/credentials/host socket, dropped capabilities,
-   fixed time/CPU/memory/process/output limits, read-only root/assets and an
-   isolated writable output area. Trusted code hashes all source/font/reference
-   bytes before and after execution and generates its own result records.
-   Candidate JSON is not an attestation. Missing/duplicate/unselected/reclassified
-   cases or any infrastructure failure must prevent success. Use synthetic
-   renderer inputs for this T005 smoke; full comparison remains T015.
-7. After that App has emitted the context, add **`Taiyou trusted validation / corpus-gate`**
-   to Taiyou's required checks with **that exact App as expected source**, strict
-   up-to-date checking and no bypass. Existing `Fast gate`, `Platform gate` and
-   `Documentation structure` checks use GitHub Actions; retain them as additional
-   source/build checks, not substitutes for the dedicated trusted context.
-8. Save authenticated branch protection/ruleset responses from both repositories,
-   approved revision/review URLs, check-run App ID, candidate/binary/policy/corpus
-   hashes and run/job URLs. Verify `branches/main` is protected and
-   `rules/branches/main` includes the effective rules. A maintainer must show a
-   direct/bypass update and stale/self approval cannot satisfy the gate, and a
-   same-name check from GitHub Actions cannot satisfy the App-bound requirement.
+After saving, inspect branches/main, rules/branches/main and the rule's required
+contexts/review count. Confirm the sole maintainer can merge a passing PR without
+another user's review. Record actual evidence; a proposed rule or this guide is
+not proof of enforcement. An administrator can deliberately change the rule.
 
-## Security evidence still required after setup
+## Human acknowledgment of policy changes
 
-The candidate primitive suite covers changed asset bytes/hashes, changed thresholds,
-supported-to-unsupported snapshot demotion, deleted selectors/cases, missing or
-duplicate/unselected records, unapproved statuses, false snapshot hashes,
-ART_REG_* variables and symlink escape. These are **not** trusted-deployment tests.
+Ordinary implementation PRs use the exact PR-base inventory/policy/verifier.
+No baseline acknowledgment is needed when policy-protected files are unchanged.
+The baseline guard prints changed protected paths and a change digest. For an
+intentional reference/policy/infrastructure proposal, the human maintainer reviews
+the diff and posts exactly the printed comment on that PR:
 
-In the actual protected service, run deliberately tampered synthetic candidates
-that edit their own policy and CI to suppress failures, forge snapshot hashes,
-mutate mounted assets, and attempt credential/protected-storage access. Verify
-read-only denials and unchanged pre/post hashes, trusted-computed result rejection,
-bounded termination and denial of an identically named candidate-issued check.
-Archive the rejection checks with their actual App ID. None of these isolation
-or issuer-spoofing demonstrations has been run yet. Do not mutate upstream assets.
+```text
+TAIYOU_BASELINE_ACK <head SHA> <accepted base SHA> <change digest>
+```
 
-Until these steps and independent review are evidenced, inventory implementation
-may be CI-verified, but trusted protection is not operational, T005 is not formally
-accepted, and T015 remains blocked.
+Then rerun the failed Actions job. Only the repository owner's exact comment is
+recognized; any new head/base/digest invalidates it. Agents must not post this
+comment using delegated owner credentials. GitHub cannot distinguish such an
+agent from the human, so this remains a governance rule, not independent security.
 
-Primary GitHub documentation: [branch protection and expected check source](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches),
-[ruleset availability](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets),
-[organization-level rules](https://docs.github.com/en/organizations/managing-organization-settings/creating-rulesets-for-repositories-in-your-organization).
+The acknowledgment allows proposal checking but does not activate new comparison
+data. CI continues using the accepted base snapshot. The human must separately
+accept the exact final candidate and merge it before it becomes a future baseline.
+PR #11 has the narrow owner-authorized ADR-011 bootstrap exception: reviewed
+snapshot 39f6ce2fa64b231fd705862d853c8df239b54a22, identical inventory/reference
+lock and regression policy, governance/infrastructure changes only.
+
+## Reference, tolerance and capability proposals
+
+1. **New external revision:** use a focused upgrade PR with exact upstream commit,
+   original Git blobs, all source/font/image SHA-256 identities, symlink targets,
+   provenance/licenses and complete old/new case accounting. Explicit runner-only
+   proposal generation is separate from ordinary verification. Verify the proposed
+   new corpus in an explicitly reviewed Actions job; acknowledgment alone does
+   not verify it. Never overwrite originals or regenerate PNGs to hide a failure.
+2. **Tolerance change:** present per-case/profile numeric bounds, alpha constraints,
+   reason and before/after visual evidence. Zero tolerance is the current default;
+   the current policy checker rejects all tolerance exceptions. A future exception
+   needs reviewed implementation as well as policy acknowledgment. No blanket
+   widening, skipped failures or candidate-side replacement threshold is allowed.
+3. **Support promotion/demotion:** name every affected case/profile and feature,
+   show exact-commit execution evidence and retain all unsupported/failing cases
+   in the denominator. Changing a label is not successful rendering. Historical
+   T014 reason/protection strings in the frozen inventory remain historical;
+   this session changes no classification.
+
+Suspicious changes include deleted expected files/cases, changed hashes without
+upstream provenance, fewer result records, duplicate IDs, unexplained unsupported
+labels, empty selectors, relaxed tolerances, ART_REG_* variables, removed checks
+or a workflow that never runs on unrelated PRs. Investigate the defect; do not
+update expected results merely to make CI pass.
+
+## Honest boundaries and optional upgrade
+
+Inventory verified, candidate CI passed, solo-maintainer accepted and independently
+trusted are separate states. Human acceptance is not created by a test, comment
+from an agent or this document. Current ordinary Actions are not independently
+trusted. Read-only file modes and pre/post hashes catch accidents, but candidate
+code running as the same OS user can change permissions or its CI. No malicious
+candidate containment/credential-isolation claim is made.
+
+The [previous stronger setup](https://github.com/amanosatosi/taiyou/blob/39f6ce2fa64b231fd705862d853c8df239b54a22/validation/MAINTAINER-SETUP.md)
+and preserved protection observations describe the optional independent upgrade.
+They are historical guidance, not prerequisites for T015. T015 starts only after
+the human accepts and integrates T005; no comparison engine is implemented here.

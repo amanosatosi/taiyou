@@ -1,6 +1,6 @@
 # Testing and protected validation
 
-The integrated T001/T003 foundation has Actions evidence for workspace/CLI checks, checked shared types, immutable records and compile-fail tests (see PRs 2 and 4). No renderer image or compatibility tests have run. The external harnesses and corpus manifests below remain planned tasks. Reference pins exist in [references.lock.json](references.lock.json); actual protected validation remains T005 work.
+The integrated T001–T014 stages have workspace, native and first-render Actions evidence. T005 inventories the separate pinned external corpus; full external comparisons remain T015 work. Reference pins exist in [references.lock.json](references.lock.json). Solo-maintainer governance follows ADR-011; candidate CI and actual GitHub protection are reported separately.
 
 Execution location: all compiler/Cargo/native build commands and renderer, safety and performance test executables run in GitHub Actions under the [CI-first policy](DEVELOPMENT.md#d0-execution-location-and-local-storage). The user's PC is limited to editing and lightweight documentation/hash checks. Preserve every acceptance criterion; moving execution to CI does not waive tests. Reports must identify the candidate SHA and Actions run/jobs. Controlled benchmark hardware is provisioned separately, never assumed to be this PC. CI provisions its own verified reference sources; local Windows archive paths are not runner inputs.
 
@@ -21,7 +21,7 @@ Execution location: all compiler/Cargo/native build commands and renderer, safet
 
 T005 creates a complete manifest by enumerating the pinned libass-tests tree. Each record includes stable case ID, repository commit, source/font/expected-image SHA-256, timestamp and viewport semantics, scale options, profile, expected support, feature tags, oracle build/config, comparison policy and license/provenance. A case with multiple frames has one record per frame and a stable parent ID. Symlinked fonts resolve only inside the corpus root; record resolved file hashes and preserve mapping on Windows. External assets live in a read-only job directory outside the candidate checkout; no implementation job writes it.
 
-Do not invent SHA-256 values. Upstream pin resolution is complete; full corpus asset inventory and hashes are still T005 work. Use [local reference sources](LOCAL_REFERENCES.md) first and verify source identity before treating an archive as a pinned build. Selected entry-point fingerprints do not certify full trees or regression assets. libass-tests is not currently supplied; its explicit acquisition task may fetch the exact commit once and retain a verified local copy. Verify corpus hashes before and after execution and fail if missing/mutated. Keep upstream assets separate from independently authored Taiyou goldens. Unknown redistribution rights do not justify bundling fonts; provision permitted CI assets explicitly without pretending substitutes are the same fixture.
+Do not invent SHA-256 values. T005's frozen inventory records 187 external assets and 101 frames at the locked libass-tests revision; it remains separate from Taiyou. Use [local reference sources](LOCAL_REFERENCES.md) first and verify archive identity. CI acquires/caches the exact missing external corpus and verifies all identities before and after execution. Historical support reason strings remain frozen until explicit maintainer promotion; T014's existence does not certify external cases. Keep upstream assets separate from Taiyou fixtures. Unknown redistribution rights do not justify bundling fonts or pretending substitutes are identical.
 
 T015 adapts upstream compare metadata by inspecting its actual naming/timestamp/scale rules. Do not run upstream `run.sh` against a Taiyou CLI and assume compatible arguments. First reproduce upstream native results at the pinned build. Keep upstream reported comparison classifications as context, and publish Taiyou's own raw numeric metrics. Original VSFilter captures require an identified source/binary, Windows version, locale, fonts, frame/sample aspect, input/output pixel formats, color matrices and capture procedure. Reference alpha may require controlled black/white background captures; R001 must validate reconstruction before adopting it. Never compare screenshots with unknown scaling/color conversion.
 
@@ -33,15 +33,69 @@ Default for Taiyou arithmetic/determinism fixtures: exact byte equality. Externa
 
 ## V4. Protected validation trust model
 
-Repository files alone cannot enforce this. T005 requires a maintainer to configure actual GitHub rules and reviewer identities; it must report configuration evidence or remain incomplete. No placeholder CODEOWNERS pretending to enforce protection.
+[ADR-011](decisions/011-solo-maintainer-validation.md) records the maintainer's
+explicit 2026-10-18 decision to use solo-maintainer governance. This supersedes
+the original mandatory second-reviewer/separate-validator/App deployment model.
+It changes governance, not regression accuracy requirements or C1–C7.
 
-Protected surfaces: external lock/inventory, expected outputs/fonts, support registry, tolerance/exception policies, trusted harness/comparison code, CI workflows/path-selection rules, CODEOWNERS and architect contracts. Require reviews from a named maintainer/architecture owner, dismiss stale reviews and prevent authors approving their own policy changes. No bot bypass for implementation agents. Branch protection and required checks must actually be enabled. See [GitHub's protection behavior](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
+The sole human maintainer reviews and accepts reference revisions, source/font/
+image hashes, tolerances, support promotions/demotions, selectors and validation
+infrastructure. Protected-by-policy surfaces include validation/**, reference
+locks/assets, support/tolerance registries, workflows/selectors, CODEOWNERS and
+normative architecture/validation documents. AI agents may prepare proposals but
+must not acknowledge their own baseline changes, self-accept or self-merge them.
 
-For candidate validation, obtain policy/harness/fixtures from an approved base revision or a separately protected validation repository pinned by the required workflow. Build candidate code in an isolated unprivileged job with no repository-write token or secrets. A separate trusted job executes the candidate binary with read-only fixtures, fixed arguments, bounded time/resources and output directory; it generates its own results, not candidate-provided pass/fail claims. A binary can still misbehave, so isolate execution and do not expose protected storage credentials. Hash and record candidate commit, binary, policy and corpus. Compare the result set against the trusted inventory: missing/duplicate cases fail.
+Ordinary PRs use inventory, policy and verification tools from the exact PR base
+revision, not candidate replacements. The corpus job runs on every PR without a
+path filter. A base-revision guard detects protected-file changes; the human
+owner must post its exact head/base/change-digest acknowledgment and rerun the
+job. This acknowledges a proposal, not a new comparison baseline or final task
+acceptance. A new commit/base requires a fresh acknowledgment. Candidate policy
+changes remain inactive until the maintainer deliberately accepts and merges.
+See [setup and promotion process](../validation/MAINTAINER-SETUP.md).
 
-Required validation status must be issued by the trusted workflow/app, not an identically named candidate job. Where organization-required workflows are unavailable, a maintainer-controlled validation repository/app publishes the gate and branch rules require that app; T005 chooses the concrete available mechanism. Merely placing a script in the same PR is not protection. Avoid privileged `pull_request_target` execution of candidate code; [GitHub documents the elevated trust risk](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target).
+Bootstrap PR #11 uses the immutable owner-reviewed inventory/policy snapshot
+39f6ce2fa64b231fd705862d853c8df239b54a22 because main does not yet contain T005.
+Its inventory/reference lock and all regression-bearing policy fields must stay
+unchanged. The owner-authorized ADR-011 governance/infrastructure changes are the
+only bootstrap exception; final candidate acceptance is still pending.
 
-Strip/forbid `ART_REG_GEN`, `ART_REG_SKIP`, `ART_REG_TOLERANCE` overrides and candidate-controlled selectors in the protected external lane. Approved policy selects exact cases. Tests assert tampering with a golden, threshold, support state, selector or case count fails the trusted gate. Ordinary PRs may add proposed fixtures, but approved baselines are published only by maintainers through a separate audited promotion operation. Never accept “regenerate snapshots” as a bug fix.
+Never regenerate references in ordinary CI. Forbid ART_REG_* overrides and
+candidate selectors. Verify every cached corpus against its pin and complete
+manifest before/after execution; retain unsupported/failing cases and reject
+missing/duplicate/unselected/reclassified results. Normal checks use read-only
+tokens, pinned Actions, no repository secrets and no privileged
+pull_request_target execution of candidate code. Mark corpus files read-only.
+T015 must bound renderer execution and collect actual outputs/metrics rather
+than accept a candidate's claimed PASS JSON. No T015 comparator is implied here.
+
+Report these states separately:
+
+- **Inventory verified:** pinned external bytes and complete manifest match.
+- **Candidate CI passed:** named ordinary Actions checks passed on an exact SHA.
+- **Solo-maintainer accepted:** the human explicitly accepted that exact candidate.
+- **Independently trusted:** requires actually independent policy/check authority;
+  it is not claimed in this project configuration.
+
+Recommend main protection requiring PRs and passing Corpus policy gate, Fast gate,
+Platform gate and Documentation structure, with zero required second-person
+approvals, no force pushes/deletions and checks applying to administrators where
+available. Record effective settings, not just configuration files. If setup is
+pending, identify it; never mark the protection gate operational without evidence.
+
+This is an accidental-change safeguard, not an adversarial trust boundary. A
+repository admin can deliberately change baselines, controls or acknowledgments;
+an agent using the same owner identity cannot be distinguished from the human by
+GitHub. Candidate-controlled CI can be maliciously modified or spoof an Actions
+check name. Human inspection of workflow/policy diffs remains essential. Synthetic
+tamper tests demonstrate tested checks, not immunity to malicious candidate code.
+
+The original stronger model remains an optional future upgrade: independent
+reviewers, a separately protected policy/harness revision, a dedicated required
+check issuer, isolated bounded execution with read-only assets and pre/post
+hashes, independently computed results and tested issuer/credential isolation.
+Only actual deployment evidence justifies that stronger claim. It is not a
+prerequisite for T005 solo acceptance or T015.
 
 ## V5. Full visibility and focused runs
 

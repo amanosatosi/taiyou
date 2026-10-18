@@ -44,7 +44,7 @@ def safe_path(root, relative):
     path = root.joinpath(*name.parts)
     try:
         path.resolve(strict=True).relative_to(root.resolve(strict=True))
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, RuntimeError) as error:
         raise InventoryError("missing or escaping asset: " + relative) from error
     return path
 
