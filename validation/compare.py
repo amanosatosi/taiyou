@@ -13,6 +13,7 @@ from policy import results, snapshots
 import images
 
 ROOT = Path(__file__).resolve().parent.parent
+EXE = ".exe" if os.name == "nt" else ""
 
 
 def timestamp(case, frame):
@@ -181,8 +182,8 @@ def main():
     parser.add_argument("--case", action="append", default=[])
     parser.add_argument("--corpus", type=Path, default=os.environ.get("TAIYOU_CORPUS"))
     parser.add_argument("--output", type=Path, default=Path(os.environ.get("RUNNER_TEMP", ".")) / "taiyou-comparison")
-    parser.add_argument("--renderer", type=Path, default=ROOT / "target/debug/taiyou-compare")
-    parser.add_argument("--probe", type=Path, default=ROOT / "target/debug/xtask")
+    parser.add_argument("--renderer", type=Path, default=ROOT / "target/debug" / ("taiyou-compare" + EXE))
+    parser.add_argument("--probe", type=Path, default=ROOT / "target/debug" / ("xtask" + EXE))
     args = parser.parse_args()
     if args.manifest and args.case:
         parser.error("choose manifest or --case, not both")
