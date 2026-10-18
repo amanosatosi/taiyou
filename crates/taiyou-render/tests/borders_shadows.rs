@@ -550,3 +550,89 @@ fn stroke_limits_reject_tiny_budgets_and_excessive_growth() {
     .unwrap_err();
     assert_eq!(error.code(), ErrorCode::LimitExceeded);
 }
+
+fn acute_round_join_group() -> CoverageGroup {
+    group(vec![mapped(
+        vec![
+            PathOp::MoveTo(p(-2.0, 8.0)),
+            PathOp::LineTo(p(2.0, 0.0)),
+            PathOp::LineTo(p(2.25, 8.0)),
+            PathOp::Close,
+        ],
+        (0.0, 0.0),
+        (1.0, 1.0),
+        0.0,
+    )])
+}
+
+#[test]
+fn round_join_exported_control_hull_is_not_a_configured_limit() {
+    let group = acute_round_join_group();
+    let mut ctx = RasterContext::new().unwrap();
+    let (a, points) =
+        stroke::rasterize_expanded(&mut ctx, &group, q6(64), q6(0), q6(0), 4096).unwrap();
+    let (b, again) =
+        stroke::rasterize_expanded(&mut ctx, &group, q6(64), q6(0), q6(0), 4096).unwrap();
+    assert_eq!(a.bounds(), b.bounds());
+    assert_eq!(a.data(), b.data());
+    assert_eq!(points, again);
+    assert!(points > 0 && !a.bounds().is_empty());
+    // Nominal source hull +/-1 is [-3,-1,4,9]. Round Bezier controls
+    // exceed that box. Preserve them rather than reject or clip the stroke.
+    assert!(a.bounds().x0() < -3 || a.bounds().y0() < -1);
+    assert!(a.data().iter().any(|&v| v != 0));
+    let error =
+        stroke::rasterize_expanded(&mut ctx, &group, q6(64), q6(0), q6(0), points - 1)
+            .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::LimitExceeded);
+    assert!(error.detail().contains("check=frame-segments"));
+}
+
+#[test]
+fn exported_hull_growth_rechecks_real_extent_and_reservation_limits() {
+    let group = acute_round_join_group();
+    let cap = Limits::default().with_max_dimension(10).unwrap();
+    let error = stroke::rasterize_expanded(
+        &mut RasterContext::with_limits(cap).unwrap(),
+        &group,
+        q6(64),
+        q6(0),
+        q6(0),
+        4096,
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::LimitExceeded);
+    assert!(error.detail().contains("check=exported-mask-extent"));
+    let (mut low, mut high) = (1, 4 * 1024 * 1024);
+    while low < high {
+        let mid = (low + high) / 2;
+        let limits = Limits::default().with_transient_bytes(mid).unwrap();
+        let result = stroke::rasterize_expanded(
+            &mut RasterContext::with_limits(limits).unwrap(),
+            &group,
+            q6(64),
+            q6(0),
+            q6(0),
+            4096,
+        );
+        match result {
+            Ok(_) => high = mid,
+            Err(e) => {
+                assert_eq!(e.code(), ErrorCode::LimitExceeded);
+                low = mid + 1;
+            }
+        }
+    }
+    let cap = Limits::default().with_transient_bytes(high - 1).unwrap();
+    let error = stroke::rasterize_expanded(
+        &mut RasterContext::with_limits(cap).unwrap(),
+        &group,
+        q6(64),
+        q6(0),
+        q6(0),
+        4096,
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::LimitExceeded);
+    assert!(error.detail().contains("check=exported-mask-reservation"));
+}

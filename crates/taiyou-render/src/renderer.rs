@@ -62,10 +62,13 @@ fn script_offset_q6(
     value: FiniteF64,
     device: DeviceMapping,
     x_axis: bool,
+    scaled_border_shadow: bool,
 ) -> Result<Q6, RenderError> {
     let content = device.content();
     let play = device.play_res();
-    let ratio = if x_axis {
+    let ratio = if !scaled_border_shadow {
+        1.0
+    } else if x_axis {
         f64::from(content.width()) / f64::from(play.width())
     } else {
         f64::from(content.height()) / f64::from(play.height())
@@ -476,45 +479,62 @@ impl Renderer {
                         None
                     };
 
-                    let dx = script_offset_q6(state.effects().shadow_x(), device, true)?;
-                    let dy = script_offset_q6(state.effects().shadow_y(), device, false)?;
-                    let shadow = if dx.ticks() == 0 && dy.ticks() == 0 {
-                        Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
-                    } else if border_exists {
-                        let remaining = limits
-                            .path_segments_per_frame()
-                            .checked_sub(total_segments)
-                            .ok_or_else(limited)?;
-                        let mut stroke_context = RasterContext::with_limits(available(
-                            limits,
-                            add(held, event_charge)?,
-                        )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded(
-                            &mut stroke_context,
-                            group,
-                            border_radius,
-                            dx,
-                            dy,
-                            remaining,
-                        )?;
-                        drop(stroke_context);
-                        total_segments = add(total_segments, segments)?;
-                        charge_mask(&mask, &mut held, event_charge, limits)?;
-                        Some(mask)
+                    // Alpha zero proves this pass cannot affect any pixel. Do
+                    // not quantize offsets, stroke, rasterize or reserve masks.
+                    // Visible zero-offset shadows still use the coincident E/F.
+                    let shadow = if state.paint().shadow().a() == 0 {
+                        None
                     } else {
-                        let mut shadow_context = RasterContext::with_limits(available(
-                            limits,
-                            add(held, event_charge)?,
-                        )?)?;
-                        let mask = crate::stroke::rasterize_translated(
-                            &mut shadow_context,
-                            group,
-                            dx,
-                            dy,
+                        let dx = script_offset_q6(
+                            state.effects().shadow_x(),
+                            device,
+                            true,
+                            track.script().scaled_border_shadow(),
                         )?;
-                        drop(shadow_context);
-                        charge_mask(&mask, &mut held, event_charge, limits)?;
-                        Some(mask)
+                        let dy = script_offset_q6(
+                            state.effects().shadow_y(),
+                            device,
+                            false,
+                            track.script().scaled_border_shadow(),
+                        )?;
+                        if dx.ticks() == 0 && dy.ticks() == 0 {
+                            Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
+                        } else if border_exists {
+                            let remaining = limits
+                                .path_segments_per_frame()
+                                .checked_sub(total_segments)
+                                .ok_or_else(limited)?;
+                            let mut stroke_context = RasterContext::with_limits(available(
+                                limits,
+                                add(held, event_charge)?,
+                            )?)?;
+                            let (mask, segments) = crate::stroke::rasterize_expanded(
+                                &mut stroke_context,
+                                group,
+                                border_radius,
+                                dx,
+                                dy,
+                                remaining,
+                            )?;
+                            drop(stroke_context);
+                            total_segments = add(total_segments, segments)?;
+                            charge_mask(&mask, &mut held, event_charge, limits)?;
+                            Some(mask)
+                        } else {
+                            let mut shadow_context = RasterContext::with_limits(available(
+                                limits,
+                                add(held, event_charge)?,
+                            )?)?;
+                            let mask = crate::stroke::rasterize_translated(
+                                &mut shadow_context,
+                                group,
+                                dx,
+                                dy,
+                            )?;
+                            drop(shadow_context);
+                            charge_mask(&mask, &mut held, event_charge, limits)?;
+                            Some(mask)
+                        }
                     };
                     if border_exists
                         && shadow

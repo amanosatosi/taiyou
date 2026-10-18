@@ -1079,14 +1079,14 @@ impl RasterContext {
                 .rasterize_path(ops, input_bounds, stride)
                 .map(|mask| (mask, 0));
         }
-        let bounds = PixelRect::new(
+        let mut bounds = PixelRect::new(
             floor_pixel(min_x.checked_sub(radius).ok_or_else(limit)?)?,
             floor_pixel(min_y.checked_sub(radius).ok_or_else(limit)?)?,
             ceil_pixel(max_x.checked_add(radius).ok_or_else(limit)?)?,
             ceil_pixel(max_y.checked_add(radius).ok_or_else(limit)?)?,
         )
         .map_err(|_| limit())?;
-        let (width, height) = (
+        let (mut width, mut height) = (
             usize::try_from(bounds.width()).map_err(|_| limit())?,
             usize::try_from(bounds.height()).map_err(|_| limit())?,
         );
@@ -1098,8 +1098,8 @@ impl RasterContext {
         });
         let input_width = i64::from(input_bounds.width());
         let input_height = i64::from(input_bounds.height());
-        let output_width = i64::try_from(width).map_err(|_| limit())?;
-        let output_height = i64::try_from(height).map_err(|_| limit())?;
+        let mut output_width = i64::try_from(width).map_err(|_| limit())?;
+        let mut output_height = i64::try_from(height).map_err(|_| limit())?;
         if width > u16::MAX as usize
             || height > u16::MAX as usize
             || bounds.width() > limits.max_dimension()
@@ -1110,7 +1110,7 @@ impl RasterContext {
         {
             return Err(limit());
         }
-        let length = width.checked_mul(height).ok_or_else(limit)?;
+        let mut length = width.checked_mul(height).ok_or_else(limit)?;
         let pixels = u64::try_from(length).map_err(|_| limit())?;
         evidence.set(StrokeLimitEvidence {
             check: "mask-pixels",
@@ -1122,11 +1122,6 @@ impl RasterContext {
         let mut contours = Vec::new();
         let mut points = Vec::new();
         let mut tags = Vec::new();
-        contours
-            .try_reserve_exact(contour_count)
-            .map_err(|_| alloc())?;
-        points.try_reserve_exact(point_count).map_err(|_| alloc())?;
-        tags.try_reserve_exact(point_count).map_err(|_| alloc())?;
         let input_length = usize::try_from(input_width)
             .ok()
             .and_then(|w| {
@@ -1156,6 +1151,11 @@ impl RasterContext {
         if base_charge > limits.transient_bytes() {
             return Err(limit());
         }
+        contours
+            .try_reserve_exact(contour_count)
+            .map_err(|_| alloc())?;
+        points.try_reserve_exact(point_count).map_err(|_| alloc())?;
+        tags.try_reserve_exact(point_count).map_err(|_| alloc())?;
         let convert = |p: DevicePoint| -> Result<ft::FT_Vector, RenderError> {
             let x = i64::from(p.x().ticks()) - i64::from(input_bounds.x0()) * 64;
             let y = i64::from(input_bounds.y1()) * 64 - i64::from(p.y().ticks());
@@ -1354,6 +1354,75 @@ impl RasterContext {
         evidence.set(StrokeLimitEvidence {
             check: "export-point-bounds",
             exported_hull_q6: exported_hull,
+            ..evidence.get()
+        });
+        // A round join's Bezier control points can exceed the nominal radius
+        // box even when the curve itself remains close to that radius. The
+        // predicted box is not a resource limit. Preserve the complete exported
+        // control hull, then recheck the actual allocation before rasterizing.
+        if let Some((x0, y0, x1, y1)) = exported_hull {
+            let x_origin = i128::from(bounds.x0()) * 64;
+            let y_origin = i128::from(bounds.y1()) * 64;
+            let ticks = |n| i64::try_from(n).map_err(|_| limit());
+            let actual = PixelRect::new(
+                bounds.x0().min(floor_pixel(ticks(x_origin + x0)?)?),
+                bounds.y0().min(floor_pixel(ticks(y_origin - y1)?)?),
+                bounds.x1().max(ceil_pixel(ticks(x_origin + x1)?)?),
+                bounds.y1().max(ceil_pixel(ticks(y_origin - y0)?)?),
+            )
+            .map_err(|_| limit())?;
+            evidence.set(StrokeLimitEvidence {
+                check: "exported-mask-extent",
+                output_bounds: Some(actual),
+                ..evidence.get()
+            });
+            if actual.width() > limits.max_dimension()
+                || actual.height() > limits.max_dimension()
+                || actual.width() > u32::from(u16::MAX)
+                || actual.height() > u32::from(u16::MAX)
+            {
+                return Err(limit());
+            }
+            let actual_width = usize::try_from(actual.width()).map_err(|_| limit())?;
+            let actual_height = usize::try_from(actual.height()).map_err(|_| limit())?;
+            let actual_length = actual_width.checked_mul(actual_height).ok_or_else(limit)?;
+            let actual_pixels = u64::try_from(actual_length).map_err(|_| limit())?;
+            if actual_pixels > limits.output_pixels() || actual_pixels > limits.output_bytes() {
+                return Err(limit());
+            }
+            let added_charge = u64::try_from(actual_length - length)
+                .ok()
+                .and_then(|n| n.checked_mul(3))
+                .and_then(|n| {
+                    n.checked_add(
+                        u64::try_from(actual_width + actual_height - width - height)
+                            .ok()?
+                            .checked_mul(64)?,
+                    )
+                })
+                .ok_or_else(limit)?;
+            let actual_base = base_charge.checked_add(added_charge).ok_or_else(limit)?;
+            let actual_export = export_charge.checked_add(added_charge).ok_or_else(limit)?;
+            evidence.set(StrokeLimitEvidence {
+                check: "exported-mask-reservation",
+                base_reservation: actual_base,
+                export_reservation: actual_export,
+                ..evidence.get()
+            });
+            if actual_export > limits.transient_bytes() {
+                return Err(limit());
+            }
+            bounds = actual;
+            width = actual_width;
+            height = actual_height;
+            length = actual_length;
+            output_width = i64::try_from(width).map_err(|_| limit())?;
+            output_height = i64::try_from(height).map_err(|_| limit())?;
+        }
+        let x_shift = (i64::from(input_bounds.x0()) - i64::from(bounds.x0())) * 64;
+        let y_shift = (i64::from(bounds.y1()) - i64::from(input_bounds.y1())) * 64;
+        evidence.set(StrokeLimitEvidence {
+            check: "export-point-bounds",
             ..evidence.get()
         });
         for point in &mut expanded_points {

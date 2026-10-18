@@ -55,6 +55,15 @@ jobs:
           restore-keys: t015-cargo-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
+      - name: Supplemental resource and shadow regressions
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_RENDER_REFERENCE_DIR: ${{ runner.temp }}/taiyou-renderer-expectations
+        run: |
+          cargo test --locked -p taiyou-render --features native --test borders_shadows
+          cargo test --locked -p taiyou-cli --features native --test renderer_effect_regressions
       - name: Existing comparator, exact five frozen inputs
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
