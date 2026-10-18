@@ -124,6 +124,53 @@ fn overrides_all_assigned_tags_have_typed_parameters() {
 }
 
 #[test]
+fn static_border_and_shadow_tags_keep_q6_source_values_and_spans() {
+    let parsed = parse(r"{\bord1.25\shad-0.5\bord0\shad0}A");
+    let ops = parsed.track().events()[0].program();
+    assert_eq!(ops.len(), 5);
+    assert!(matches!(
+        &ops[0],
+        TextOp::Override(OverrideOp::SetBorder { width, source })
+            if width.get() == 1.25 && source.slice(parsed.track().source()) == Some(r"\bord1.25")
+    ));
+    assert!(matches!(
+        &ops[1],
+        TextOp::Override(OverrideOp::SetShadow { offset, source })
+            if offset.get() == -0.5 && source.slice(parsed.track().source()) == Some(r"\shad-0.5")
+    ));
+    assert!(matches!(
+        ops[2],
+        TextOp::Override(OverrideOp::SetBorder { width, .. }) if width.get() == 0.0
+    ));
+    assert!(matches!(
+        ops[3],
+        TextOp::Override(OverrideOp::SetShadow { offset, .. }) if offset.get() == 0.0
+    ));
+}
+
+#[test]
+fn anisotropic_border_shadow_and_blur_prefixes_remain_unsupported() {
+    let parsed = parse(r"{\xbord2\ybord3\xshad1\yshad-1\be2}A");
+    let ops = parsed.track().events()[0].program();
+    let names: Vec<_> = ops
+        .iter()
+        .filter_map(|op| match op {
+            TextOp::Unsupported { name, .. } => Some(name.as_ref()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(names, ["xbord", "ybord", "xshad", "yshad", "be"]);
+    assert_eq!(
+        parsed
+            .diagnostics()
+            .iter()
+            .filter(|d| d.code() == DiagnosticCode::UnsupportedFeature)
+            .count(),
+        5
+    );
+}
+
+#[test]
 fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
     let parsed = parse(r" A\NB\nC\hD{} E ");
     let ops = parsed.track().events()[0].program();

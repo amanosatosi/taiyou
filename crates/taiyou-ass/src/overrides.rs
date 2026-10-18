@@ -204,11 +204,7 @@ fn block(
                 )?;
             }
             Ok(None) => {
-                let name_end = raw
-                    .bytes()
-                    .take_while(|b| b.is_ascii_alphanumeric())
-                    .count();
-                let name = &raw[..name_end];
+                let name = unsupported_name(raw);
                 push(
                     program,
                     TextOp::Unsupported {
@@ -250,6 +246,26 @@ fn channel(name: &str) -> PaintChannel {
         _ => PaintChannel::Primary,
     }
 }
+fn unsupported_name(raw: &str) -> &str {
+    // Preserve the tag identity for known, deliberately unsupported static
+    // extensions whose parameters are adjacent to the name.
+    for name in ["xbord", "ybord", "xshad", "yshad", "be"] {
+        if raw.strip_prefix(name).is_some_and(|suffix| {
+            suffix.is_empty()
+                || suffix
+                    .as_bytes()
+                    .first()
+                    .is_some_and(|b| b.is_ascii_digit() || matches!(*b, b'+' | b'-' | b'.'))
+        }) {
+            return &raw[..name.len()];
+        }
+    }
+    let name_end = raw
+        .bytes()
+        .take_while(|b| b.is_ascii_alphanumeric())
+        .count();
+    &raw[..name_end]
+}
 fn parse(
     raw: &str,
     source: SourceSpan,
@@ -257,8 +273,8 @@ fn parse(
 ) -> Result<Option<OverrideOp>, ParseError> {
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "fscx", "fscy", "alpha", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a", "3a", "4a",
-        "fn", "fs", "an", "b", "i", "c", "r",
+        "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a",
+        "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
         return Ok(None);
@@ -339,6 +355,17 @@ fn parse(
         }
         "fsp" => OverrideOp::SetSpacing {
             spacing: decode::number(value)?,
+            source,
+        },
+        "bord" => {
+            let width = decode::number(value)?;
+            if width.get() < 0.0 {
+                return Err(invalid("border width must be nonnegative"));
+            }
+            OverrideOp::SetBorder { width, source }
+        }
+        "shad" => OverrideOp::SetShadow {
+            offset: decode::number(value)?,
             source,
         },
         "an" => OverrideOp::SetAlignment {

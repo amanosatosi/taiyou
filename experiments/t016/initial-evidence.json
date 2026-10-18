@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "candidate": "b645832baaae87940e65bc4f9ecdb748006ef961",
+  "original_candidate": "6a39ad64cd9e8d115231bac824893fde57f4a1b7",
+  "run": 39176405801,
+  "job": 117819882211,
+  "interpretation": "All five are export-point-bounds checks, not configured extent/count/memory failures. This file records observations, never expected outcomes or support classifications.",
+  "records": [
+    {
+      "case": "regression/font_nonunicode/symbol-first-char-0xF000-1000.png",
+      "source": {
+        "bytes": 811,
+        "git_blob": "8b3b2ea2989e2f2574af4109802acfe72eb05cf4",
+        "license": "unknown-upstream-no-license-file",
+        "mode": "100644",
+        "path": "regression/font_nonunicode/symbol-first-char-0xF000.ass",
+        "role": "source",
+        "sha256": "d95b8b580e1843f69dd44e277784b7f412bf79e09c51d2b6c8cbebc1281fcbb0"
+      },
+      "stage": "render",
+      "status": "INFRA_ERROR",
+      "exit_code": 32,
+      "diagnostics": "LimitExceeded: native stroke extent/count/reservation limit: check=export-point-bounds input_ops=27 input_points=40 input_contours=3 output_points=89 output_contours=3 radius_q6=128 input_bounds=Some(PixelRect { x0: 413, y0: 216, x1: 429, y1: 252 }) output_bounds=Some(PixelRect { x0: 411, y0: 214, x1: 431, y1: 254 }) exported_hull_q6=Some((7, 33, 1286, 2536)) remaining_segments=999685 transient_available=117723556 base_reservation=2117628 export_reservation=2129661; event=Some(EventId(1)) span=Some(SourceSpan { start: 680, end: 810 })\n",
+      "strict_diagnostics": null
+    },
+    {
+      "case": "regression/implicit-pos/bordercollision-2000.png",
+      "source": {
+        "bytes": 874,
+        "git_blob": "fc44cd6882fea85aaf2d85b288f43f64f6b17a54",
+        "license": "unknown-upstream-no-license-file",
+        "mode": "100644",
+        "path": "regression/implicit-pos/bordercollision.ass",
+        "role": "source",
+        "sha256": "0f5525cacf19a70037a41fe5274d790207e603aa2d66f925284118c869050a21"
+      },
+      "stage": "render",
+      "status": "INFRA_ERROR",
+      "exit_code": 32,
+      "diagnostics": "LimitExceeded: native stroke extent/count/reservation limit: check=export-point-bounds input_ops=15 input_points=13 input_contours=2 output_points=40 output_contours=2 radius_q6=1920 input_bounds=Some(PixelRect { x0: 183, y0: 254, x1: 201, y1: 273 }) output_bounds=Some(PixelRect { x0: 153, y0: 224, x1: 231, y1: 303 }) exported_hull_q6=Some((-36, 42, 5028, 5002)) remaining_segments=999985 transient_available=118948659 base_reservation=2131300 export_reservation=2136712; event=Some(EventId(0)) span=Some(SourceSpan { start: 593, end: 660 })\n",
+      "strict_diagnostics": null
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-6798.png",
+      "source": {
+        "bytes": 809,
+        "git_blob": "12e573c33475c8fd1bbb0f958566a66f15f51e4f",
+        "license": "unknown-upstream-no-license-file",
+        "mode": "100644",
+        "path": "regression/karaoke/357-k-and-kf-desynced.ass",
+        "role": "source",
+        "sha256": "534d2d14ebcab56046569007387488f1aae7b3649e2213247a1e8511c2c2ac89"
+      },
+      "stage": "render",
+      "status": "INFRA_ERROR",
+      "exit_code": 32,
+      "diagnostics": "LimitExceeded: native stroke extent/count/reservation limit: check=export-point-bounds input_ops=395 input_points=594 input_contours=24 output_points=1518 output_contours=24 radius_q6=384 input_bounds=Some(PixelRect { x0: 437, y0: 77, x1: 1485, y1: 166 }) output_bounds=Some(PixelRect { x0: 431, y0: 71, x1: 1491, y1: 172 }) exported_hull_q6=Some((18, 18, 67842, 6454)) remaining_segments=999605 transient_available=110669258 base_reservation=2957696 export_reservation=3162770; event=Some(EventId(0)) span=Some(SourceSpan { start: 677, end: 808 })\n",
+      "strict_diagnostics": "UnsupportedFeature: unsupported override retained without execution; event=Some(EventId(0)) span=Some(SourceSpan { start: 730, end: 734 })\n"
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-7170.png",
+      "source": {
+        "bytes": 809,
+        "git_blob": "12e573c33475c8fd1bbb0f958566a66f15f51e4f",
+        "license": "unknown-upstream-no-license-file",
+        "mode": "100644",
+        "path": "regression/karaoke/357-k-and-kf-desynced.ass",
+        "role": "source",
+        "sha256": "534d2d14ebcab56046569007387488f1aae7b3649e2213247a1e8511c2c2ac89"
+      },
+      "stage": "render",
+      "status": "INFRA_ERROR",
+      "exit_code": 32,
+      "diagnostics": "LimitExceeded: native stroke extent/count/reservation limit: check=export-point-bounds input_ops=395 input_points=594 input_contours=24 output_points=1518 output_contours=24 radius_q6=384 input_bounds=Some(PixelRect { x0: 437, y0: 77, x1: 1485, y1: 166 }) output_bounds=Some(PixelRect { x0: 431, y0: 71, x1: 1491, y1: 172 }) exported_hull_q6=Some((18, 18, 67842, 6454)) remaining_segments=999605 transient_available=110669258 base_reservation=2957696 export_reservation=3162770; event=Some(EventId(0)) span=Some(SourceSpan { start: 677, end: 808 })\n",
+      "strict_diagnostics": "UnsupportedFeature: unsupported override retained without execution; event=Some(EventId(0)) span=Some(SourceSpan { start: 730, end: 734 })\n"
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-8170.png",
+      "source": {
+        "bytes": 809,
+        "git_blob": "12e573c33475c8fd1bbb0f958566a66f15f51e4f",
+        "license": "unknown-upstream-no-license-file",
+        "mode": "100644",
+        "path": "regression/karaoke/357-k-and-kf-desynced.ass",
+        "role": "source",
+        "sha256": "534d2d14ebcab56046569007387488f1aae7b3649e2213247a1e8511c2c2ac89"
+      },
+      "stage": "render",
+      "status": "INFRA_ERROR",
+      "exit_code": 32,
+      "diagnostics": "LimitExceeded: native stroke extent/count/reservation limit: check=export-point-bounds input_ops=395 input_points=594 input_contours=24 output_points=1518 output_contours=24 radius_q6=384 input_bounds=Some(PixelRect { x0: 437, y0: 77, x1: 1485, y1: 166 }) output_bounds=Some(PixelRect { x0: 431, y0: 71, x1: 1491, y1: 172 }) exported_hull_q6=Some((18, 18, 67842, 6454)) remaining_segments=999605 transient_available=110669258 base_reservation=2957696 export_reservation=3162770; event=Some(EventId(0)) span=Some(SourceSpan { start: 677, end: 808 })\n",
+      "strict_diagnostics": "UnsupportedFeature: unsupported override retained without execution; event=Some(EventId(0)) span=Some(SourceSpan { start: 730, end: 734 })\n"
+    }
+  ]
+}
