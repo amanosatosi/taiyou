@@ -1,0 +1,48 @@
+name: T009 focused candidate
+on:
+  push:
+    branches: [task/T009-harfbuzz-shaping]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: t009-focused-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare:
+    name: Candidate formatting and lock preparation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Inspect formatting; preserve required checks in existing workflows
+        run: cargo +1.99.1 fmt --all -- --check
+      - name: Prepare candidate lock on runner; not a replacement for locked checks
+        if: always()
+        run: |
+          cargo +1.99.1 fetch
+          echo LOCK_BEGIN
+          cat Cargo.lock
+          echo LOCK_END
+          cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
+          cargo +1.99.1 test --locked --workspace
+          git diff --exit-code -- Cargo.lock
+  native:
+    name: Focused Linux shaping and source pipeline
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_SHAPING: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py

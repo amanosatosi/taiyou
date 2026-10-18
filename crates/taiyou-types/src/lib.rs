@@ -20,11 +20,25 @@
 //! ```
 
 mod error;
+mod evaluation;
+mod fonts;
+mod geometry;
+mod layout;
+mod renderer;
 mod scene;
+mod shaping;
+pub mod source_map;
 mod track;
 mod units;
 
 pub use error::*;
+pub use evaluation::*;
+pub use fonts::*;
+pub use geometry::*;
+pub use layout::*;
+pub use renderer::*;
 pub use scene::*;
+pub use shaping::*;
+pub use source_map::{DecodedSpan, SourceMappedText, TextSourcePiece};
 pub use track::*;
 pub use units::*;

@@ -281,6 +281,15 @@ pub struct FontRequest {
     vertical: bool,
 }
 impl FontRequest {
+    /// Preserve the immutable family allocation when changing static attributes.
+    pub fn with_weight(mut self, weight: u16) -> Self {
+        self.weight = weight;
+        self
+    }
+    pub fn with_italic(mut self, italic: bool) -> Self {
+        self.italic = italic;
+        self
+    }
     pub fn new(family: Arc<str>, weight: u16, italic: bool, vertical: bool) -> Self {
         Self {
             family,
@@ -574,10 +583,120 @@ impl ScriptInfo {
     }
 }
 
-/// T003/T004 literal-only subset. Escape/override variants belong to T006.
+/// Ordered text and static Core overrides. Drawing/animation remain unsupported.
+/// Text/Override/Unsupported carry exact original byte spans. The C2 unit escape
+/// variants below intentionally carry no individual span: their provenance is
+/// the containing Event::source() in Track::source(), not a fabricated span for
+/// a decoded newline/space. Host-created unit operations need not claim a source
+/// escape. Consumers requiring per-escape spans need a reviewed IR extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextOp {
     Text { text: Arc<str>, source: SourceSpan },
+    HardBreak,
+    SoftBreak,
+    NoBreakSpace,
+    Override(OverrideOp),
+    Unsupported { name: Arc<str>, source: SourceSpan },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum PaintChannel {
+    Primary,
+    Secondary,
+    Outline,
+    Shadow,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum ScaleAxis {
+    X,
+    Y,
+}
+
+/// Static subset authorized by T006. Numbers are script-space; scale is a factor.
+/// SetPaint changes RGB only (stored alpha must be 255); SetOpacity stores opacity
+/// after transparency inversion, with None selecting all channels. Source spans
+/// include the original backslash. Publication validates host-created operations.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OverrideOp {
+    SetFont {
+        family: Arc<str>,
+        source: SourceSpan,
+    },
+    SetSize {
+        size: FiniteF64,
+        source: SourceSpan,
+    },
+    SetWeight {
+        weight: u16,
+        source: SourceSpan,
+    },
+    SetItalic {
+        italic: bool,
+        source: SourceSpan,
+    },
+    SetScale {
+        axis: ScaleAxis,
+        factor: FiniteF64,
+        source: SourceSpan,
+    },
+    SetSpacing {
+        spacing: FiniteF64,
+        source: SourceSpan,
+    },
+    SetPaint {
+        channel: PaintChannel,
+        color: Rgba8,
+        source: SourceSpan,
+    },
+    SetOpacity {
+        channel: Option<PaintChannel>,
+        opacity: u8,
+        source: SourceSpan,
+    },
+    SetAlignment {
+        alignment: Alignment,
+        source: SourceSpan,
+    },
+    SetPosition {
+        point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    ResetStyle {
+        name: Option<Arc<str>>,
+        source: SourceSpan,
+    },
+}
+impl OverrideOp {
+    pub fn source(&self) -> SourceSpan {
+        match self {
+            Self::SetFont { source, .. }
+            | Self::SetSize { source, .. }
+            | Self::SetWeight { source, .. }
+            | Self::SetItalic { source, .. }
+            | Self::SetScale { source, .. }
+            | Self::SetSpacing { source, .. }
+            | Self::SetPaint { source, .. }
+            | Self::SetOpacity { source, .. }
+            | Self::SetAlignment { source, .. }
+            | Self::SetPosition { source, .. }
+            | Self::ResetStyle { source, .. } => *source,
+        }
+    }
+    pub fn validate(&self) -> Result<(), ParseError> {
+        let valid = match self {
+            Self::SetFont { family, .. } => !family.is_empty(),
+            Self::SetSize { size, .. } => size.get() > 0.0,
+            Self::SetScale { factor, .. } => factor.get() >= 0.0,
+            Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
+            Self::SetPaint { color, .. } => color.a() == 255,
+            _ => true,
+        };
+        if valid {
+            Ok(())
+        } else {
+            Err(invalid("override parameter outside Core bounds"))
+        }
+    }
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
@@ -594,6 +713,8 @@ pub struct Event {
     effect: Arc<str>,
     program: Arc<[TextOp]>,
     source: SourceSpan,
+    text_source: Option<SourceSpan>,
+    operation_sources: Option<Arc<[Option<SourceSpan>]>>,
 }
 impl Event {
     pub fn new(
@@ -614,6 +735,8 @@ impl Event {
             effect: Arc::from(""),
             program: Arc::from([]),
             source,
+            text_source: None,
+            operation_sources: None,
         }
     }
     pub fn with_layer(mut self, layer: i32) -> Self {
@@ -634,7 +757,22 @@ impl Event {
     }
     pub fn with_program(mut self, program: Arc<[TextOp]>) -> Self {
         self.program = program;
+        self.operation_sources = None;
         self
+    }
+    pub fn with_text_source(mut self, source: SourceSpan) -> Self {
+        self.text_source = Some(source);
+        self
+    }
+    pub fn with_operation_sources(mut self, spans: Arc<[Option<SourceSpan>]>) -> Self {
+        self.operation_sources = Some(spans);
+        self
+    }
+    pub const fn text_source(&self) -> Option<SourceSpan> {
+        self.text_source
+    }
+    pub fn operation_sources(&self) -> Option<&[Option<SourceSpan>]> {
+        self.operation_sources.as_deref()
     }
     pub const fn id(&self) -> EventId {
         self.id
@@ -717,8 +855,8 @@ impl Track {
 /// One non-cloneable ingestion owner per renderer session. The renderer owns this
 /// coordinator and all tracks it admits; revisions start at 0 and never recycle.
 /// Independent owners define independent sessions, not a process-global namespace.
-/// How the future parse_ass signature receives this owner remains issue #3;
-/// no implicit global allocator or ParseOptions field is introduced here.
+/// parse_ass receives this owner explicitly under accepted ADR-008; no implicit
+/// global allocator or ParseOptions field is introduced here.
 #[derive(Debug)]
 pub struct TrackIngestor {
     next_revision: Option<u64>,
@@ -772,19 +910,38 @@ impl TrackIngestor {
                 ));
             }
             let mut text_bytes = 0_u64;
+            // Match the tokenizer's existing text-byte-derived operation cap.
+            // Count every variant, including spanless escapes and empty text,
+            // before iterating a host-created program or allocating a revision.
+            if u64::try_from(event.program.len())
+                .map_err(|_| limit("operation count conversion overflow"))?
+                > limits.text_bytes_per_event
+            {
+                return Err(limit("text-derived operation count limit exceeded"));
+            }
+            validate_event_provenance(event, &source)?;
             let mut text_end = event.source.start();
             for operation in event.program.iter() {
-                let TextOp::Text { text, source: span } = operation;
+                let (text, span) = match operation {
+                    TextOp::Text { text, source } => (Some(text), *source),
+                    TextOp::Override(op) => {
+                        op.validate()?;
+                        (None, op.source())
+                    }
+                    TextOp::Unsupported { source, .. } => (None, *source),
+                    TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => continue,
+                };
                 if span.start() < text_end
-                    || !event.source.contains(*span)
-                    || span.slice(&source) != Some(text.as_ref())
+                    || !event.source.contains(span)
+                    || span.slice(&source).is_none()
+                    || text.is_some_and(|text| span.slice(&source) != Some(text.as_ref()))
                 {
                     return Err(invalid(
                         "literal text spans must match track source in source order",
                     ));
                 }
                 text_end = span.end();
-                let length = u64::try_from(text.len())
+                let length = u64::try_from(text.map_or(0, |text| text.len()))
                     .map_err(|_| limit("text length conversion overflow"))?;
                 text_bytes = text_bytes
                     .checked_add(length)
@@ -807,6 +964,134 @@ impl TrackIngestor {
             revision: TrackRevision(revision),
         }))
     }
+}
+
+fn advance_provenance(
+    bytes: &[u8],
+    cursor: &mut usize,
+    block: &mut bool,
+    end: usize,
+    reject_visible: bool,
+) -> Result<(), ParseError> {
+    while *cursor < end {
+        match bytes[*cursor] {
+            b'{' if !*block => *block = true,
+            b'}' if *block => *block = false,
+            _ if reject_visible && !*block => {
+                return Err(invalid("provenance omits visible event text"));
+            }
+            _ => (),
+        }
+        *cursor += 1;
+    }
+    Ok(())
+}
+fn validate_event_provenance(event: &Event, source: &str) -> Result<(), ParseError> {
+    let sidecar = event.operation_sources();
+    if sidecar.is_some_and(|spans| spans.len() != event.program.len()) {
+        return Err(invalid("operation provenance length differs from program"));
+    }
+    let field = event.text_source;
+    if field.is_some_and(|s| !event.source.contains(s) || s.slice(source).is_none()) {
+        return Err(invalid("event Text field is outside original event source"));
+    }
+    let complete = sidecar.is_some()
+        && event.program.iter().enumerate().all(|(i, op)| {
+            !matches!(
+                op,
+                TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace
+            ) || sidecar.and_then(|s| s[i]).is_some()
+        });
+    let mut cursor = field.map_or(0, |s| s.start() as usize);
+    let mut block = false;
+    let mut previous = event.source.start();
+    for (i, op) in event.program.iter().enumerate() {
+        let intrinsic = match op {
+            TextOp::Text { source, .. } | TextOp::Unsupported { source, .. } => Some(*source),
+            TextOp::Override(op) => Some(op.source()),
+            _ => None,
+        };
+        let supplied = sidecar.and_then(|s| s[i]);
+        if intrinsic.is_some() && supplied.is_some() && intrinsic != supplied {
+            return Err(invalid("supplied provenance differs from operation source"));
+        }
+        let Some(span) = supplied.or(intrinsic) else {
+            continue;
+        };
+        let raw = span
+            .slice(source)
+            .ok_or_else(|| invalid("invalid operation provenance"))?;
+        if span.start() < previous
+            || !event.source.contains(span)
+            || field.is_some_and(|f| !f.contains(span))
+        {
+            return Err(invalid(
+                "operation provenance escapes event Text field or source order",
+            ));
+        }
+        if field.is_some() {
+            advance_provenance(
+                source.as_bytes(),
+                &mut cursor,
+                &mut block,
+                span.start() as usize,
+                complete,
+            )?;
+        }
+        match op {
+            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
+                let expected = match op {
+                    TextOp::HardBreak => "\\N",
+                    TextOp::SoftBreak => "\\n",
+                    _ => "\\h",
+                };
+                if raw != expected || (field.is_some() && block) {
+                    return Err(invalid(
+                        "escape provenance is not the exact visible original escape",
+                    ));
+                }
+            }
+            TextOp::Text { text, .. } => {
+                if raw != text.as_ref()
+                    || (field.is_some()
+                        && (block
+                            || raw.contains('{')
+                            || raw
+                                .as_bytes()
+                                .windows(2)
+                                .any(|w| w[0] == b'\\' && matches!(w[1], b'N' | b'n' | b'h'))))
+                {
+                    return Err(invalid(
+                        "literal provenance differs from visible event Text bytes",
+                    ));
+                }
+            }
+            _ if field.is_some() && !block => {
+                return Err(invalid("override provenance is outside its original block"));
+            }
+            _ => (),
+        }
+        if field.is_some() {
+            advance_provenance(
+                source.as_bytes(),
+                &mut cursor,
+                &mut block,
+                span.end() as usize,
+                false,
+            )?;
+        }
+        previous = span.end();
+    }
+    if let Some(field) = field {
+        advance_provenance(
+            source.as_bytes(),
+            &mut cursor,
+            &mut block,
+            field.end() as usize,
+            complete,
+        )?;
+    }
+    Ok(())
 }
 
 /// Parser result ownership from C2; diagnostics are ordered at publication by
@@ -849,6 +1134,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn host_program_operation_limit_counts_every_variant_before_publication() {
+        let limits = Limits::default().with_text_bytes_per_event(2).unwrap();
+        let source: Arc<str> = Arc::from("");
+        let span = SourceSpan::new(&source, 0, 0).unwrap();
+        let mut owner = TrackIngestor::new();
+        let operations = [
+            TextOp::HardBreak,
+            TextOp::SoftBreak,
+            TextOp::NoBreakSpace,
+            TextOp::Text {
+                text: Arc::from(""),
+                source: span,
+            },
+            TextOp::Unsupported {
+                name: Arc::from("unknown"),
+                source: span,
+            },
+            TextOp::Override(OverrideOp::ResetStyle {
+                name: None,
+                source: span,
+            }),
+        ];
+        for (index, operation) in operations.into_iter().enumerate() {
+            let publish = |owner: &mut TrackIngestor, count| {
+                let event = Event::new(
+                    EventId::new(0),
+                    TimeUs::from_micros(0),
+                    TimeUs::from_micros(1),
+                    StyleId::new(0),
+                    span,
+                )
+                .with_program(vec![operation.clone(); count].into());
+                owner.ingest(
+                    source.clone(),
+                    ScriptInfo::core_default(),
+                    Arc::from([Style::core_default()]),
+                    Arc::from([event]),
+                    &limits,
+                )
+            };
+            assert_eq!(
+                publish(&mut owner, 3).unwrap_err().code(),
+                ErrorCode::LimitExceeded
+            );
+            let track = publish(&mut owner, 2).unwrap();
+            assert_eq!(track.revision().get(), u64::try_from(index).unwrap());
+            assert_eq!(track.events()[0].program().len(), 2);
+        }
+    }
+
+    #[test]
     fn exhausted_revision_owner_never_recycles_or_panics() {
         let mut owner = TrackIngestor {
             next_revision: Some(u64::MAX),
@@ -870,6 +1206,140 @@ mod tests {
         assert_eq!(
             make(&mut owner).unwrap_err().code(),
             ErrorCode::LimitExceeded
+        );
+    }
+
+    #[test]
+    fn provenance_checks_actual_text_field_escape_bytes_order_and_program_replacement() {
+        let source = "actor\\N|a\\Nb";
+        let span = |a, b| SourceSpan::new(source, a, b).unwrap();
+        let field = span(8, 12);
+        let program: Arc<[TextOp]> = Arc::from([
+            TextOp::Text {
+                text: Arc::from("a"),
+                source: span(8, 9),
+            },
+            TextOp::HardBreak,
+            TextOp::Text {
+                text: Arc::from("b"),
+                source: span(11, 12),
+            },
+        ]);
+        let event = Event::new(
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            TimeUs::from_micros(1),
+            StyleId::new(0),
+            span(0, 12),
+        )
+        .with_program(program.clone())
+        .with_text_source(field);
+        let valid: Arc<[Option<SourceSpan>]> =
+            Arc::from([Some(span(8, 9)), Some(span(9, 11)), Some(span(11, 12))]);
+        let publish = |event: Event| {
+            TrackIngestor::new().ingest(
+                Arc::from(source),
+                ScriptInfo::core_default(),
+                Arc::from([Style::core_default()]),
+                Arc::from([event]),
+                &Limits::default(),
+            )
+        };
+        assert!(publish(event.clone().with_operation_sources(valid.clone())).is_ok());
+        for bad in [
+            Arc::from([Some(span(8, 9)), Some(span(5, 7)), Some(span(11, 12))]),
+            Arc::from([Some(span(8, 9)), Some(span(9, 10)), Some(span(11, 12))]),
+            Arc::from([Some(span(11, 12)), Some(span(9, 11)), Some(span(8, 9))]),
+        ] {
+            assert_eq!(
+                publish(event.clone().with_operation_sources(bad))
+                    .unwrap_err()
+                    .code(),
+                ErrorCode::InvalidArgument
+            );
+        }
+        assert!(
+            event
+                .clone()
+                .with_operation_sources(valid)
+                .with_program(program)
+                .operation_sources()
+                .is_none()
+        );
+        let unknown = Event::new(
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            TimeUs::from_micros(1),
+            StyleId::new(0),
+            span(0, 12),
+        )
+        .with_program(Arc::from([TextOp::HardBreak]));
+        assert!(publish(unknown).is_ok());
+    }
+    #[test]
+    fn provenance_cannot_claim_escape_inside_override_or_omit_visible_text() {
+        let source = "a{\\fn\\N}b";
+        let s = |a, b| SourceSpan::new(source, a, b).unwrap();
+        let event = Event::new(
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            TimeUs::from_micros(1),
+            StyleId::new(0),
+            s(0, source.len()),
+        )
+        .with_program(Arc::from([
+            TextOp::Text {
+                text: Arc::from("a"),
+                source: s(0, 1),
+            },
+            TextOp::HardBreak,
+            TextOp::Text {
+                text: Arc::from("b"),
+                source: s(source.len() - 1, source.len()),
+            },
+        ]))
+        .with_text_source(s(0, source.len()))
+        .with_operation_sources(Arc::from([
+            Some(s(0, 1)),
+            Some(s(5, 7)),
+            Some(s(source.len() - 1, source.len())),
+        ]));
+        assert!(
+            TrackIngestor::new()
+                .ingest(
+                    Arc::from(source),
+                    ScriptInfo::core_default(),
+                    Arc::from([Style::core_default()]),
+                    Arc::from([event]),
+                    &Limits::default()
+                )
+                .is_err()
+        );
+        let source = "ab";
+        let span = SourceSpan::new(source, 0, 1).unwrap();
+        let event = Event::new(
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            TimeUs::from_micros(1),
+            StyleId::new(0),
+            SourceSpan::new(source, 0, 2).unwrap(),
+        )
+        .with_program(Arc::from([TextOp::Text {
+            text: Arc::from("a"),
+            source: span,
+        }]))
+        .with_text_source(SourceSpan::new(source, 0, 2).unwrap())
+        .with_operation_sources(Arc::from([Some(span)]));
+        assert!(
+            TrackIngestor::new()
+                .ingest(
+                    Arc::from(source),
+                    ScriptInfo::core_default(),
+                    Arc::from([Style::core_default()]),
+                    Arc::from([event]),
+                    &Limits::default()
+                )
+                .is_err()
         );
     }
 }

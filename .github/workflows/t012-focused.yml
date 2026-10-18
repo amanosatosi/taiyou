@@ -1,0 +1,47 @@
+name: T012 focused candidate
+on:
+  push:
+    branches: [task/T012-scalar-fill-raster]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: t012-focused-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  numeric:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: cargo +1.99.1 fmt --all -- --check
+      - if: always()
+        run: |
+          cargo +1.99.1 test --locked -p taiyou-render
+          cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
+  native:
+    needs: numeric
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RASTER: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Archive first genuine A8 stage sample
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: T012-first-A8-focused-${{ github.sha }}
+          path: ${{ runner.temp }}/taiyou-raster-sample/
+          if-no-files-found: ignore
+          retention-days: 7

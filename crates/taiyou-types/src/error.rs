@@ -143,6 +143,7 @@ pub enum DiagnosticCode {
     InactiveEvent,
     UnsupportedFeature,
     DiagnosticsSuppressed,
+    MissingGlyph,
 }
 
 impl DiagnosticCode {
@@ -156,6 +157,7 @@ impl DiagnosticCode {
             Self::InactiveEvent => "InactiveEvent",
             Self::UnsupportedFeature => "UnsupportedFeature",
             Self::DiagnosticsSuppressed => "DiagnosticsSuppressed",
+            Self::MissingGlyph => "MissingGlyph",
         }
     }
 }
@@ -244,6 +246,45 @@ impl DiagnosticBuffer {
 
     pub fn suppressed_count(&self) -> u64 {
         self.suppressed
+    }
+
+    /// Merge a stage's finished bounded diagnostics. Suppression summaries use
+    /// this builder's canonical private encoding, never ordinary push().
+    pub fn extend_finished(&mut self, records: &[Diagnostic]) -> Result<(), ParseError> {
+        if records.len() > MAX_DIAGNOSTICS + 1 {
+            return Err(ParseError::new(
+                ErrorCode::InvalidArgument,
+                "unbounded stage diagnostics",
+            ));
+        }
+        for (i, record) in records.iter().enumerate() {
+            if record.code() == DiagnosticCode::DiagnosticsSuppressed {
+                let count = record
+                    .detail()
+                    .strip_suffix(" diagnostics suppressed")
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .filter(|n| *n > 0);
+                if i + 1 != records.len()
+                    || record.event().is_some()
+                    || record.span().is_some()
+                    || count.is_none()
+                {
+                    return Err(ParseError::new(
+                        ErrorCode::InvalidArgument,
+                        "invalid stage suppression summary",
+                    ));
+                }
+                self.suppressed =
+                    self.suppressed
+                        .checked_add(count.unwrap_or(0))
+                        .ok_or_else(|| {
+                            ParseError::new(ErrorCode::LimitExceeded, "diagnostic counter overflow")
+                        })?;
+            } else {
+                self.push(record.clone())?;
+            }
+        }
+        Ok(())
     }
 
     pub fn finish(mut self) -> Result<Vec<Diagnostic>, ParseError> {

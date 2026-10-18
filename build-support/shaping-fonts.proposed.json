@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "profile": "CoreV1",
+  "status": "Proposed fixture inputs, not approved expected outputs",
+  "fonts": [
+    {
+      "id": "latin",
+      "repository": "adobe-fonts/source-sans",
+      "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+      "path": "OTF/SourceSans3-Regular.otf",
+      "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "license": {
+        "spdx": "OFL-1.1",
+        "path": "LICENSE.md",
+        "git_blob": "88c07f795dfd5e1a149d73ae970db35c8d818659",
+        "size": 4579,
+        "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+      },
+      "sample": "office AV á",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "size": 334924,
+      "metadata": {
+        "version": "Version 3.052;hotconv 1.1.0;makeotfexe 2.6.0",
+        "family": "Source Sans 3",
+        "upem": 1000,
+        "glyphs": 2478,
+        "default_axes": {}
+      }
+    },
+    {
+      "id": "arabic",
+      "repository": "google/fonts",
+      "commit": "47d54ca1ebb14fd864695f1d39dc734f39017c33",
+      "path": "ofl/notonaskharabic/NotoNaskhArabic[wght].ttf",
+      "git_blob": "a8d2867262dc7bb28492ad746de5d56235735c8b",
+      "size": 307592,
+      "license": {
+        "spdx": "OFL-1.1",
+        "path": "ofl/notonaskharabic/OFL.txt",
+        "git_blob": "d4e170557fc8bcf8d1dcb317d9f1accaf8acf223",
+        "size": 4382,
+        "sha256": "a7a5a25eb188bf1cd96982030d53e23c33485c69b1044a562254226857ee13af"
+      },
+      "sample": "السَّلَامُ",
+      "script": "Arab",
+      "language": "ar",
+      "direction": "rtl",
+      "sha256": "67b5a525a661b607971fbd3f96a81b89d3a768e74534fca84f18ac97e6fab72f",
+      "metadata": {
+        "version": "Version 2.021",
+        "family": "Noto Naskh Arabic",
+        "upem": 1000,
+        "glyphs": 1719,
+        "default_axes": {
+          "wght": 400
+        }
+      }
+    },
+    {
+      "id": "indic",
+      "repository": "google/fonts",
+      "commit": "47d54ca1ebb14fd864695f1d39dc734f39017c33",
+      "path": "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf",
+      "git_blob": "163f04bddc5a96fc523e4080466cac5c588f6594",
+      "size": 641944,
+      "license": {
+        "spdx": "OFL-1.1",
+        "path": "ofl/notosansdevanagari/OFL.txt",
+        "git_blob": "cd2cc5c94b4151933eba6ee508e3975274d6fa07",
+        "size": 4386,
+        "sha256": "a216f6f8d85c7228093e0ee5e258d9d377e6671f68acb4db1930b29583d0f331"
+      },
+      "sample": "किरण क्षि",
+      "script": "Deva",
+      "language": "hi",
+      "direction": "ltr",
+      "sha256": "14ec4af41f27482216d1c2229f417ff9b1425e1babb014e57d1d40d03229853e",
+      "metadata": {
+        "version": "Version 2.007",
+        "family": "Noto Sans Devanagari",
+        "upem": 1000,
+        "glyphs": 1117,
+        "default_axes": {
+          "wdth": 100,
+          "wght": 400
+        }
+      }
+    },
+    {
+      "id": "cjk",
+      "repository": "notofonts/noto-cjk",
+      "commit": "f8d157532fbfaeda587e826d4cd5b21a49186f7c",
+      "path": "Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf",
+      "git_blob": "f56224957fb13a81b4c14bac34f2f058a017f9fb",
+      "size": 16467736,
+      "license": {
+        "spdx": "OFL-1.1",
+        "path": "Sans/LICENSE",
+        "git_blob": "d952d62c065f3f35fb83a173496e90b21525aef3",
+        "size": 4301,
+        "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+      },
+      "sample": "日本語",
+      "script": "Hani",
+      "language": "ja",
+      "direction": "ltr",
+      "sha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
+      "metadata": {
+        "version": "Version 2.004;hotconv 1.0.118;makeotfexe 2.5.65603",
+        "family": "Noto Sans CJK JP",
+        "upem": 1000,
+        "glyphs": 65535,
+        "default_axes": {}
+      }
+    }
+  ],
+  "provenance": "SHA-256 and metadata observed in acquisition step of Actions 39065190171/job/117491287008 (superseded run cancelled); exact locked candidate verification required before acceptance."
+}
