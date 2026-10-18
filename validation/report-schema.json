@@ -11,7 +11,23 @@
     "profile": {"const": "CoreV1"},
     "suite": {"enum": ["full", "focused"]},
     "independently_trusted": {"const": false},
-    "summary": {"type": "object", "required": ["total", "counts", "inventory_total", "disabled", "unselected", "carried_results"]},
+    "summary": {
+      "type": "object",
+      "required": ["total", "counts", "inventory_total", "disabled", "unselected", "carried_results", "counts_scope", "visual", "safety"],
+      "properties": {
+        "counts_scope": {"const": "all-active-cases-including-parser-safety"},
+        "visual": {
+          "type": "object",
+          "required": ["total", "counts", "exact_matches"],
+          "properties": {"exact_matches": {"type": "integer", "minimum": 0}}
+        },
+        "safety": {
+          "type": "object",
+          "required": ["total", "counts", "successful_parser_probes"],
+          "properties": {"successful_parser_probes": {"type": "integer", "minimum": 0}}
+        }
+      }
+    },
     "records": {
       "type": "array",
       "items": {

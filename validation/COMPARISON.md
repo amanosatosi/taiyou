@@ -65,9 +65,14 @@ oversampling adapter needs a later reviewed viewport seam; no resizing is done.
 Only noninterlaced RGBA8/16 PNG targets are accepted, as documented upstream.
 Other/corrupt/missing images are infrastructure failures, not unsupported.
 No gamma, profile, color conversion, cropping or dimension substitution occurs.
-Following libass image.c, RGBA8 straight references first premultiply with rounded
-8-bit integer arithmetic, then expand by 257 to 16 bits. RGBA16 references retain
-their native precision and premultiply at 16 bits. Internal T014 premultiplied
+Following pinned libass image.c, RGBA8 straight references use exactly
+`(product + (product >> 8) + 128) >> 8`, then expand by 257. This fixed reciprocal
+differs from rounded division by 255 for 24 channel/alpha pairs (229,152 yields
+136). RGBA16 uses `(product + (product >> 16) + (1 << 15)) >> 16`, preserving its
+native precision. Both paths are checked against the original pinned C decoder:
+all 65,536 RGBA8 channel/alpha pairs, and all 65,536 16-bit channel values against
+six alpha boundaries (393,216 pairs). These synthetic inputs never alter corpus
+files. Internal T014 premultiplied
 RGBA8 raw output expands by 257. Alpha stays ordinary coverage. Metrics use
 0..65535 encoded premultiplied channel units; divide by 257 for byte units.
 
@@ -99,6 +104,16 @@ parse success or safe rejection is a **safety-only** pass, never a visual pass.
 No implicit fonts, synthetic viewport or arbitrary timestamp are assigned to
 these inputs, which have no expected frame. This is a parser safety probe, not
 full render fuzz coverage. Disabled sources are never silently enabled.
+
+Machine-readable `summary.visual.exact_matches` counts only pixel comparisons;
+`summary.safety.successful_parser_probes` counts parser-only successes. Each group
+also has its own total and status counts. T005's aggregate `summary.counts` and
+statuses remain unchanged, explicitly labeled by `counts_scope`; its PASS_EXACT
+includes safety probes and must never be presented as a visual-match count.
+The full-run regression check asserts one visual match, two successful parser
+probes and the eight known infrastructure errors. Invalid compressed PNG payloads
+raise typed `ImageDecodeError`, becoming per-case INFRA_ERROR/InvalidImage;
+remaining cases are still processed and the complete report is emitted.
 
 ## Execution and limitations
 

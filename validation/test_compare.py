@@ -1,17 +1,21 @@
 """Independent tiny image fixtures; never read or alter external reference PNGs."""
 from array import array
 import copy
+import contextlib
+import io
 from pathlib import Path
 import struct
 import tempfile
 import unittest
 import zlib
+from unittest.mock import patch
 
 import compare
 import images
 from libass_adapter import harness_summary
 from inventory import InventoryError, load
 from policy import results
+from reference_pixels import rgba8_pairs, rgba16_samples, write_rgba16
 
 
 class ImageTests(unittest.TestCase):
@@ -47,6 +51,35 @@ class ImageTests(unittest.TestCase):
         raw = self.root / "a.rgba"
         raw.write_bytes(bytes([100, 50, 25, 128]))
         self.assertTrue(images.compare(a, images.raw_rgba(raw, 1, 1))["exact"])
+
+    def test_rgba8_all_65536_pairs_match_pinned_fixed_reciprocal(self):
+        # compare/image.c at f61db567: fixed reciprocal 257/65536, not 1/255.
+        # This algebraic reference is independent of the decoder's shift/add
+        # implementation. The native oracle also executes original image.c.
+        path = self.root / "all-eight.png"
+        images.write_png(path, 256, 256, rgba8_pairs())
+        decoded = images.read_png(path)[2]
+        differs_from_div255 = 0
+        for alpha in range(256):
+            for channel in range(256):
+                product = channel * alpha
+                expected = (product * 257 + 32768) // 65536
+                index = (alpha * 256 + channel) * 4
+                self.assertEqual(list(decoded[index:index + 4]), [expected * 257] * 3 + [alpha * 257])
+                differs_from_div255 += expected != (product + 127) // 255
+        self.assertEqual(differs_from_div255, 24)
+        self.assertEqual(decoded[(152 * 256 + 229) * 4], 136 * 257)
+
+    def test_rgba16_fixed_reciprocal_boundary_sweep(self):
+        # Independently expand the pinned 16-bit reciprocal 65537 / 2**32.
+        # Sweep every channel against six alpha edges, not merely opaque input.
+        data = rgba16_samples()
+        path = self.root / "sixteen-sweep.png"
+        write_rgba16(path, 256, 1536, data)
+        decoded = images.read_png(path)[2]
+        for i, (r, g, b, a) in enumerate(struct.iter_unpack(">HHHH", data)):
+            expected = [(c * a * 65537 + (1 << 31)) // (1 << 32) for c in (r, g, b)] + [a]
+            self.assertEqual(list(decoded[i * 4:i * 4 + 4]), expected)
 
     def test_alpha_only_difference(self):
         a = self.image("a.png", [0, 0, 0, 10], 1)
@@ -104,6 +137,14 @@ class ImageTests(unittest.TestCase):
         path.write_bytes(bytes([255, 0, 0, 0]))
         with self.assertRaises(ValueError): images.raw_rgba(path, 1, 1)
         with self.assertRaises(ValueError): images.dimensions(65536, 65536)
+
+    def test_valid_png_crcs_with_invalid_zlib_are_typed(self):
+        path = self.root / "bad-zlib.png"
+        # Correct zlib header followed by reserved DEFLATE block type 3.
+        path.write_bytes(images.SIGNATURE + images.chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+                         + images.chunk(b"IDAT", b"\x78\x9c\x07") + images.chunk(b"IEND", b""))
+        with self.assertRaisesRegex(images.ImageDecodeError, "invalid PNG zlib stream"):
+            images.read_png(path)
 
 
 class AccountingTests(unittest.TestCase):
@@ -168,6 +209,88 @@ class AccountingTests(unittest.TestCase):
             self.assertEqual(record["status"], "INFRA_ERROR")
             self.assertIn("no explicit fonts", record["diagnostics"])
 
+    def test_visual_and_parser_safety_subtotals_preserve_policy_counts(self):
+        records = [{"case": c["id"], "frame": c["frames"][0]["expected"] if c["frames"] else None,
+                    "profile": "CoreV1", "kind": c["kind"], "status": "UNSUPPORTED", "feature": "synthetic",
+                    "stage": "render", "metrics": None}
+                   for c in self.inventory["cases"] if c["kind"] != "disabled-upstream"]
+        for record in records:
+            if record["kind"] == "crash":
+                record.update(status="PASS_EXACT", stage="parser-safety-probe", safety_only=True)
+        visual = next(r for r in records if r["kind"] == "regression")
+        visual.update(status="PASS_EXACT", stage="pixel-comparison", metrics={"exact": True})
+        summary = compare.summarize(self.inventory, self.inventory["cases"], self.policy, records)
+        self.assertEqual(summary["counts"]["PASS_EXACT"], 3)  # Unchanged T005 aggregate.
+        self.assertEqual(summary["visual"]["exact_matches"], 1)
+        self.assertEqual(summary["safety"]["successful_parser_probes"], 2)
+        self.assertEqual(summary["visual"]["total"] + summary["safety"]["total"] + len(summary["disabled"]), len(self.inventory["cases"]))
+        for mutation in ({"kind": "crash"}, {"metrics": None}, {"safety_only": True}):
+            altered = copy.deepcopy(records)
+            next(r for r in altered if r["kind"] == "regression").update(mutation)
+            with self.assertRaises(InventoryError):
+                compare.summarize(self.inventory, self.inventory["cases"], self.policy, altered)
+
+    def test_bad_zlib_case_does_not_abort_full_report(self):
+        # Entirely synthetic corpus. Neither external bytes nor the accepted
+        # inventory are edited. Only acquisition/probe subprocesses are mocked;
+        # the actual PNG decoder, case loop, accounting and report writer run.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ("test.ass", "font.ttf", "crash1.ass", "crash2.ass", "probe", "renderer"):
+                (root / name).write_text("synthetic")
+            (root / "test-0000.png").write_bytes(images.SIGNATURE
+                + images.chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+                + images.chunk(b"IDAT", b"\x78\x9c\x07") + images.chunk(b"IEND", b""))
+            images.write_png(root / "test-0001.png", 1, 1, bytes(4))
+            cases = [{"id": f"test-{time:04}.png", "source": "test.ass", "kind": "regression", "fonts": ["font.ttf"],
+                      "scale": "8x1", "frames": [{"expected": f"test-{time:04}.png", "timestamp_ms": time, "reference_size": [1, 1]}]}
+                     for time in (0, 1)]
+            cases += [{"id": name, "source": name, "kind": "crash", "fonts": [], "frames": [], "scale": "1"}
+                      for name in ("crash1.ass", "crash2.ass")]
+            cases += [{"id": "disabled.ass.disabled", "kind": "disabled-upstream", "frames": []}]
+            for case in cases:
+                case["profile_records"] = {"CoreV1": {"support": "UNSUPPORTED"}}
+            paths = ["test.ass", "font.ttf", "test-0000.png", "test-0001.png", "crash1.ass", "crash2.ass"]
+            inventory = {"commit": self.inventory["commit"], "cases": cases, "assets": [{"path": p} for p in paths]}
+            output = root / "report"
+            argv = ["compare", "--suite", "full", "--profile", "core-v1", "--corpus", str(root),
+                    "--output", str(output), "--renderer", str(root / "renderer"), "--probe", str(root / "probe")]
+            with patch("sys.argv", argv), patch.object(compare, "accepted_snapshot", return_value=(root, inventory, self.policy)), \
+                 patch.object(compare.subprocess, "run") as verification, \
+                 patch.object(compare.subprocess, "check_output", return_value="0" * 40), \
+                 patch.object(compare, "execute", return_value=(0, "SAFETY_ONLY")), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(compare.main(), 1)
+            self.assertEqual(verification.call_count, 2)  # Before and after.
+            report = load(output / "report.json")
+            self.assertEqual(len(report["records"]), 4)
+            self.assertEqual(report["records"][0]["status"], "INFRA_ERROR")
+            self.assertEqual(report["records"][0]["diagnostic_code"], "InvalidImage")
+            self.assertEqual(report["summary"]["selected_including_disabled"], 5)
+            self.assertEqual(report["summary"]["unselected"], [])
+            self.assertEqual(report["summary"]["visual"]["counts"]["INFRA_ERROR"], 1)
+            self.assertEqual(report["summary"]["safety"]["successful_parser_probes"], 2)
+
+
+def check_full_report(path):
+    """Review-specified observed counts, not new reference/tolerance policy."""
+    report = load(path)
+    inventory = load(Path(__file__).with_name("inventory.json"))
+    policy = load(Path(__file__).with_name("policy.json"))
+    if report["suite"] != "full" or report["corpus_revision"] != inventory["commit"]:
+        raise AssertionError("expected full run at frozen corpus revision")
+    expected = compare.summarize(inventory, inventory["cases"], policy, report["records"])
+    if report["summary"] != expected:
+        raise AssertionError("report summary differs from complete case accounting")
+    if expected["visual"]["exact_matches"] != 1 or expected["safety"]["successful_parser_probes"] != 2:
+        raise AssertionError("reviewed corpus must have one visual match and two parser-only successes")
+    if expected["counts"]["INFRA_ERROR"] != 8:
+        raise AssertionError("eight known infrastructure errors must remain visible")
+    print("FULL_REPORT_ACCOUNTING_VERIFIED: one visual exact, two parser-only successes, eight infrastructure errors")
+
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    import sys
+    if len(sys.argv) == 3 and sys.argv[1] == "--report":
+        check_full_report(Path(sys.argv[2]))
+    else:
+        unittest.main(verbosity=2)

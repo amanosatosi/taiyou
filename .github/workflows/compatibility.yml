@@ -81,10 +81,20 @@ jobs:
         run: |
           set -eu
           if [[ "$SUITE" == full ]]; then
+            case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
+            cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass --output "$RUNNER_TEMP/taiyou-focused-comparison"
             cargo run --locked -p xtask -- compare --suite full --profile core-v1
           else
             case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
             cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass
+          fi
+      - name: Verify reviewed full-corpus visual and safety accounting
+        if: always()
+        env:
+          SUITE: ${{ inputs.suite || ((github.head_ref == 'task/T015-reference-comparison' || github.ref_name == 'task/T015-reference-comparison') && 'full' || 'focused') }}
+        run: |
+          if [[ "$SUITE" == full ]]; then
+            python validation/test_compare.py --report "$RUNNER_TEMP/taiyou-comparison/report.json"
           fi
       - name: Reverify immutable corpus even after failure
         if: always()

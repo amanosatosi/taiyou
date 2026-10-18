@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 from inventory import load
+from reference_pixels import check_pinned_pixels
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,6 +71,7 @@ def main():
         run(["sh", "autogen.sh"], cwd=directory)
         run(["./configure", *flags], cwd=directory)
         run(["make", "-j2"], cwd=directory)
+        report["normalization_checks"] = check_pinned_pixels(directory)
         binary = directory / "compare/compare"
         directories = sorted({str(Path(c["source"]).parent) for c in inventory["cases"] if c["kind"] == "regression"})
         for index, name in enumerate(directories):

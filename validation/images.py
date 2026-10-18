@@ -1,7 +1,7 @@
 """Bounded RGBA PNG I/O for comparison, with no gamma/color-space conversion.
 
-8-bit inputs use libass compare/image.c's rounded 8-bit premultiplication then
-expand by 257. 16-bit inputs premultiply at 16-bit precision. Alpha is ordinary
+Inputs use libass compare/image.c's exact fixed-reciprocal premultiplication;
+8-bit results expand by 257. 16-bit results retain their precision. Alpha is ordinary
 coverage (not libass's internal inverted alpha); absolute deltas are equivalent.
 Only the upstream documented noninterlaced RGBA8/16 targets are accepted.
 """
@@ -13,6 +13,10 @@ import zlib
 MAX_PIXELS = 16 * 1024 * 1024
 MAX_FILE = 128 * 1024 * 1024
 SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+class ImageDecodeError(ValueError):
+    """Malformed compressed PNG payload, reportable as a per-case failure."""
 
 
 def dimensions(width, height):
@@ -88,8 +92,11 @@ def read_png(path):
     bpp = 4 * depth // 8
     stride = width * bpp
     expected = (stride + 1) * height
-    decoder = zlib.decompressobj()
-    raw = decoder.decompress(compressed, expected + 1)
+    try:
+        decoder = zlib.decompressobj()
+        raw = decoder.decompress(compressed, expected + 1)
+    except zlib.error as error:
+        raise ImageDecodeError("invalid PNG zlib stream: " + str(error)) from error
     if len(raw) != expected or not decoder.eof or decoder.unused_data or decoder.unconsumed_tail:
         raise ValueError("invalid/over-budget PNG decompression")
     pixels = array('H')
@@ -106,12 +113,16 @@ def read_png(path):
         if depth == 8:
             for x in range(0, stride, 4):
                 r, g, b, a = row[x:x + 4]
-                pixels.extend(((r * a + 127) // 255 * 257, (g * a + 127) // 255 * 257,
-                               (b * a + 127) // 255 * 257, a * 257))
+                ra, ga, ba = r * a, g * a, b * a
+                pixels.extend((((ra + (ra >> 8) + 128) >> 8) * 257,
+                               ((ga + (ga >> 8) + 128) >> 8) * 257,
+                               ((ba + (ba >> 8) + 128) >> 8) * 257, a * 257))
         else:
             for r, g, b, a in struct.iter_unpack(">HHHH", row):
-                pixels.extend(((r * a + 32767) // 65535, (g * a + 32767) // 65535,
-                               (b * a + 32767) // 65535, a))
+                ra, ga, ba = r * a, g * a, b * a
+                pixels.extend(((ra + (ra >> 16) + (1 << 15)) >> 16,
+                               (ga + (ga >> 16) + (1 << 15)) >> 16,
+                               (ba + (ba >> 16) + (1 << 15)) >> 16, a))
         previous = row
     return width, height, pixels
 

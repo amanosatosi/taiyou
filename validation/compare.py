@@ -93,6 +93,8 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
               "accepted_reason": case.get("profile_records", {}).get("CoreV1", {}).get("reason"),
               "source": assets[case["source"]], "fonts": [assets[f] for f in case["fonts"]],
               "scale": case["scale"], "metrics": None, "stage": "asset-verification", "diagnostics": ""}
+    if case["kind"] == "crash":
+        record["safety_only"] = True
     try:
         source = safe_path(corpus, case["source"])
         fonts = [safe_path(corpus, f) for f in case["fonts"]]
@@ -151,9 +153,44 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                 status = "UNSUPPORTED" if case["profile_records"]["CoreV1"]["support"] == "UNSUPPORTED" else "REGRESSION"
             record.update(status=status, metrics=metrics, diagnostics=diagnostic, stage="pixel-comparison" if metrics else "render",
                           tolerant_attempt=strict_unsupported, exit_code=code)
+    except images.ImageDecodeError as error:
+        record.update(status="INFRA_ERROR", diagnostic_code="InvalidImage", diagnostics=str(error))
     except (OSError, ValueError, KeyError, InventoryError) as error:
         record.update(status="INFRA_ERROR", diagnostics=str(error))
     return record
+
+
+def summarize(inventory, selected, policy, records):
+    # Preserve the accepted T005 status/denominator contract. These additive
+    # subtotals prevent aggregate PASS_EXACT from implying visual matches.
+    summary = results({**inventory, "cases": selected}, {**policy, "profiles": ["CoreV1"]}, records)
+    summary.update(inventory_total=len(inventory["cases"]), selected_including_disabled=len(selected),
+                   unselected=[c["id"] for c in inventory["cases"] if c not in selected],
+                   carried_results=[], disabled=[c["id"] for c in selected if c["kind"] == "disabled-upstream"],
+                   counts_scope="all-active-cases-including-parser-safety")
+    groups = {"visual": [], "safety": []}
+    kinds = {c["id"]: c["kind"] for c in selected}
+    for record in records:
+        kind = kinds[record["case"]]
+        if record["kind"] != kind:
+            raise InventoryError("result kind differs from accepted inventory")
+        if kind == "crash":
+            if record.get("safety_only") is not True or record["metrics"] is not None or (
+                    record["status"] == "PASS_EXACT" and record["stage"] != "parser-safety-probe"):
+                raise InventoryError("invalid parser-only safety result")
+            groups["safety"].append(record)
+        elif kind == "regression":
+            if record.get("safety_only") or (record["status"] == "PASS_EXACT" and not (record["metrics"] or {}).get("exact")):
+                raise InventoryError("visual exact match requires pixel evidence")
+            groups["visual"].append(record)
+        else:
+            raise InventoryError("unexpected result kind")
+    for name, grouped in groups.items():
+        counts = {status: sum(r["status"] == status for r in grouped) for status in policy["allowed_results"]}
+        summary[name] = {"total": len(grouped), "counts": counts}
+    summary["visual"]["exact_matches"] = summary["visual"]["counts"]["PASS_EXACT"]
+    summary["safety"]["successful_parser_probes"] = summary["safety"]["counts"]["PASS_EXACT"]
+    return summary
 
 
 def accepted_snapshot():
@@ -207,13 +244,7 @@ def main():
                               sum("artifacts" in r for r in records))
             records.append(record)
             print(json.dumps({"case": record["case"], "status": record["status"], "stage": record["stage"]}), flush=True)
-        selection_inventory = {**inventory, "cases": selected}
-        summary = results(selection_inventory, {**policy, "profiles": ["CoreV1"]}, records)
-        summary["inventory_total"] = len(inventory["cases"])
-        summary["selected_including_disabled"] = len(selected)
-        summary["unselected"] = [c["id"] for c in inventory["cases"] if c not in selected]
-        summary["carried_results"] = []
-        summary["disabled"] = [c["id"] for c in selected if c["kind"] == "disabled-upstream"]
+        summary = summarize(inventory, selected, policy, records)
         report = {"schema": 1, "candidate_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                   "accepted_baseline": os.environ.get("ACCEPTED_BASELINE", "candidate-local-unaccepted"),
                   "inventory_sha256": digest(canonical(inventory)), "policy_sha256": digest(canonical(policy)),
