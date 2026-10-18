@@ -694,6 +694,46 @@ struct Library(ft::FT_Library);
 pub struct RasterContext {
     owner: FontContext,
 }
+/// Bounded numerical failure evidence, never contour/font bytes. This preserves
+/// LimitExceeded and the comparator's error mapping while identifying its check.
+#[derive(Clone, Copy, Debug, Default)]
+struct StrokeLimitEvidence {
+    check: &'static str,
+    input_ops: usize,
+    input_points: usize,
+    input_contours: usize,
+    output_points: u32,
+    output_contours: u32,
+    radius_q6: i32,
+    input_bounds: Option<PixelRect>,
+    output_bounds: Option<PixelRect>,
+    exported_hull_q6: Option<(i128, i128, i128, i128)>,
+    remaining_segments: u64,
+    transient_available: u64,
+    base_reservation: u64,
+    export_reservation: u64,
+}
+impl StrokeLimitEvidence {
+    fn detail(self) -> String {
+        format!(
+            "check={} input_ops={} input_points={} input_contours={} output_points={} output_contours={} radius_q6={} input_bounds={:?} output_bounds={:?} exported_hull_q6={:?} remaining_segments={} transient_available={} base_reservation={} export_reservation={}",
+            self.check,
+            self.input_ops,
+            self.input_points,
+            self.input_contours,
+            self.output_points,
+            self.output_contours,
+            self.radius_q6,
+            self.input_bounds,
+            self.output_bounds,
+            self.exported_hull_q6,
+            self.remaining_segments,
+            self.transient_available,
+            self.base_reservation,
+            self.export_reservation,
+        )
+    }
+}
 impl RasterContext {
     pub fn new() -> Result<Self, RenderError> {
         Self::with_limits(Limits::default())
@@ -928,10 +968,21 @@ impl RasterContext {
     ) -> Result<(Arc<Mask>, u64), RenderError> {
         let invalid =
             || RenderError::new(ErrorCode::InvalidArgument, "invalid stroke path or radius");
+        let evidence = std::cell::Cell::new(StrokeLimitEvidence {
+            check: "input-counts",
+            input_ops: ops.len(),
+            radius_q6: radius.ticks(),
+            remaining_segments,
+            transient_available: self.owner.limits.transient_bytes(),
+            ..StrokeLimitEvidence::default()
+        });
         let limit = || {
             RenderError::new(
                 ErrorCode::LimitExceeded,
-                "native stroke extent/count/reservation limit",
+                &format!(
+                    "native stroke extent/count/reservation limit: {}",
+                    evidence.get().detail()
+                ),
             )
         };
         let alloc = || {
@@ -999,6 +1050,11 @@ impl RasterContext {
         if open || point_count == 0 || contour_count == 0 {
             return Err(invalid());
         }
+        evidence.set(StrokeLimitEvidence {
+            input_points: point_count,
+            input_contours: contour_count,
+            ..evidence.get()
+        });
         let native_points = i16::try_from(point_count).map_err(|_| limit())?;
         let native_contours = i16::try_from(contour_count).map_err(|_| limit())?;
         let (min_x, min_y, max_x, max_y) = hull.ok_or_else(invalid)?;
@@ -1034,6 +1090,12 @@ impl RasterContext {
             usize::try_from(bounds.width()).map_err(|_| limit())?,
             usize::try_from(bounds.height()).map_err(|_| limit())?,
         );
+        evidence.set(StrokeLimitEvidence {
+            check: "mask-extent",
+            input_bounds: Some(input_bounds),
+            output_bounds: Some(bounds),
+            ..evidence.get()
+        });
         let input_width = i64::from(input_bounds.width());
         let input_height = i64::from(input_bounds.height());
         let output_width = i64::try_from(width).map_err(|_| limit())?;
@@ -1050,6 +1112,10 @@ impl RasterContext {
         }
         let length = width.checked_mul(height).ok_or_else(limit)?;
         let pixels = u64::try_from(length).map_err(|_| limit())?;
+        evidence.set(StrokeLimitEvidence {
+            check: "mask-pixels",
+            ..evidence.get()
+        });
         if pixels > limits.output_pixels() || pixels > limits.output_bytes() {
             return Err(limit());
         }
@@ -1082,6 +1148,11 @@ impl RasterContext {
             .and_then(|n| n.checked_add((input_length as u64).checked_mul(3)?))
             .and_then(|n| n.checked_add(2 * 1024 * 1024))
             .ok_or_else(limit)?;
+        evidence.set(StrokeLimitEvidence {
+            check: "base-reservation",
+            base_reservation: base_charge,
+            ..evidence.get()
+        });
         if base_charge > limits.transient_bytes() {
             return Err(limit());
         }
@@ -1191,8 +1262,18 @@ impl RasterContext {
         }
         let output_point_count = usize::try_from(output_points).map_err(|_| limit())?;
         let output_contour_count = usize::try_from(output_contours).map_err(|_| limit())?;
+        evidence.set(StrokeLimitEvidence {
+            check: "stroker-native-counts",
+            output_points,
+            output_contours,
+            ..evidence.get()
+        });
         let output_native_points = i16::try_from(output_points).map_err(|_| limit())?;
         let output_native_contours = i16::try_from(output_contours).map_err(|_| limit())?;
+        evidence.set(StrokeLimitEvidence {
+            check: "frame-segments",
+            ..evidence.get()
+        });
         if u64::try_from(output_point_count).map_err(|_| limit())? > remaining_segments {
             return Err(limit());
         }
@@ -1210,6 +1291,11 @@ impl RasterContext {
             })
             .and_then(|n| n.checked_add(base_charge))
             .ok_or_else(limit)?;
+        evidence.set(StrokeLimitEvidence {
+            check: "export-reservation",
+            export_reservation: export_charge,
+            ..evidence.get()
+        });
         if export_charge > limits.transient_bytes() {
             return Err(limit());
         }
@@ -1255,6 +1341,21 @@ impl RasterContext {
         }
         let x_shift = (i64::from(input_bounds.x0()) - i64::from(bounds.x0())) * 64;
         let y_shift = (i64::from(bounds.y1()) - i64::from(input_bounds.y1())) * 64;
+        let exported_hull = expanded_points.iter().fold(None, |hull, p| {
+            let x = i128::from(p.x) + i128::from(x_shift);
+            let y = i128::from(p.y) + i128::from(y_shift);
+            Some(hull.map_or(
+                (x, y, x, y),
+                |(x0, y0, x1, y1): (i128, i128, i128, i128)| {
+                    (x0.min(x), y0.min(y), x1.max(x), y1.max(y))
+                },
+            ))
+        });
+        evidence.set(StrokeLimitEvidence {
+            check: "export-point-bounds",
+            exported_hull_q6: exported_hull,
+            ..evidence.get()
+        });
         for point in &mut expanded_points {
             let x = i128::from(point.x) + i128::from(x_shift);
             let y = i128::from(point.y) + i128::from(y_shift);
