@@ -1,0 +1,140 @@
+name: T015 external comparison
+on:
+  push:
+    branches: [task/T015-reference-comparison]
+  pull_request:
+    paths: ['xtask/**', 'validation/**', '.github/workflows/compatibility.yml', 'crates/taiyou-cli/src/comparison_probe.rs']
+  workflow_dispatch:
+    inputs:
+      suite:
+        type: choice
+        options: [focused, full]
+        default: focused
+permissions:
+  contents: read
+concurrency:
+  group: compatibility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  self-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: python validation/test_compare.py
+      - run: python validation/policy.py self-test
+      - run: python scripts/check-unsafe.py
+  compare:
+    needs: self-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize accepted PR-base snapshots without candidate replacements
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || '2f1801f7923e44ef575c96890dfefa93c8678d3c' }}
+        run: |
+          set -eu
+          accepted="$RUNNER_TEMP/accepted"
+          mkdir "$accepted"
+          git archive "$BASE" validation docs/references.lock.json | tar -x -C "$accepted"
+          echo "TAIYOU_ACCEPTED=$accepted" >> "$GITHUB_ENV"
+          echo "ACCEPTED_BASELINE=$BASE" >> "$GITHUB_ENV"
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python "$TAIYOU_ACCEPTED/validation/acquire.py"
+      - name: Verify corpus and remove write permissions
+        run: |
+          python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          chmod -R a-w "$TAIYOU_CORPUS"
+      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: target
+          key: t015-cargo-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-${{ github.sha }}
+          restore-keys: t015-cargo-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
+      - run: python build-support/acquire.py
+      - name: Existing pinned native recipe and T014 regressions
+        run: python build-support/build-native.py
+      - name: Build comparator launcher and real renderer
+        run: |
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          export PKG_CONFIG_ALL_STATIC=1 LIBZ_SYS_STATIC=1
+          cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo run --locked -p xtask -- compare-crash-probe "$TAIYOU_CORPUS/crash/generic.ass"
+      - name: Focused cases on ordinary PRs; full inventory at deliberate T015 milestone
+        env:
+          SUITE: ${{ inputs.suite || (github.event_name == 'push' && 'full' || 'focused') }}
+        run: |
+          set -eu
+          if [[ "$SUITE" == full ]]; then
+            cargo run --locked -p xtask -- compare --suite full --profile core-v1
+          else
+            case_id=$(python -c 'import json,os; d=json.load(open(os.environ["TAIYOU_ACCEPTED"]+"/validation/inventory.json")); print(next(c["id"] for c in d["cases"] if c["kind"]=="regression" and c["scale"]=="1"))')
+            cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case "$case_id" --case crash/generic.ass
+          fi
+      - name: Reverify immutable corpus even after failure
+        if: always()
+        run: |
+          python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          git diff --exit-code -- validation/inventory.json validation/policy.json docs/references.lock.json Cargo.lock
+      - name: Archive actual candidate comparison and bounded difference images
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T015-comparison-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-comparison/
+          if-no-files-found: warn
+          retention-days: 7
+  native-oracle:
+    needs: self-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Materialize accepted oracle pins and corpus inventory
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || '2f1801f7923e44ef575c96890dfefa93c8678d3c' }}
+        run: |
+          set -eu
+          mkdir "$RUNNER_TEMP/accepted"
+          git archive "$BASE" validation docs/references.lock.json | tar -x -C "$RUNNER_TEMP/accepted"
+          echo "TAIYOU_ACCEPTED=$RUNNER_TEMP/accepted" >> "$GITHUB_ENV"
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python "$TAIYOU_ACCEPTED/validation/acquire.py"
+      - run: |
+          python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
+          chmod -R a-w "$TAIYOU_CORPUS"
+      - name: Provision and record native oracle build environment (no system libass)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y autoconf automake libtool pkg-config nasm libfreetype-dev libharfbuzz-dev libfribidi-dev libpng-dev
+      - run: python validation/libass_adapter.py --output "$RUNNER_TEMP/taiyou-native-oracle"
+      - name: Archive original harness logs and environment provenance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T015-native-oracle-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-native-oracle/
+          if-no-files-found: warn
+          retention-days: 7

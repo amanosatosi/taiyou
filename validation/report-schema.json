@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T015 candidate comparison report (not independent validation)",
+  "type": "object",
+  "required": ["schema", "candidate_sha", "accepted_baseline", "corpus_revision", "profile", "suite", "independently_trusted", "summary", "records"],
+  "properties": {
+    "schema": {"const": 1},
+    "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "accepted_baseline": {"type": "string"},
+    "corpus_revision": {"const": "a5073319af8117271d8ac13ef5c088197ff2d59b"},
+    "profile": {"const": "CoreV1"},
+    "suite": {"enum": ["full", "focused"]},
+    "independently_trusted": {"const": false},
+    "summary": {"type": "object", "required": ["total", "counts", "inventory_total", "disabled", "unselected", "carried_results"]},
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case", "frame", "profile", "status", "stage", "source", "fonts", "diagnostics", "metrics"],
+        "properties": {
+          "case": {"type": "string"},
+          "frame": {"type": ["string", "null"]},
+          "profile": {"const": "CoreV1"},
+          "status": {"enum": ["PASS_EXACT", "PASS_APPROVED_TOLERANCE", "EXPECTED_DIFFERENCE", "UNSUPPORTED", "REGRESSION", "CRASH", "INFRA_ERROR"]},
+          "metrics": {
+            "type": ["object", "null"],
+            "properties": {
+              "units": {"const": "premultiplied-encoded-RGBA16"},
+              "max_channel_delta": {"type": ["integer", "null"], "minimum": 0, "maximum": 65535},
+              "channel_mae": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+            }
+          }
+        }
+      }
+    }
+  }
+}
