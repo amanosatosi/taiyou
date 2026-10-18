@@ -89,7 +89,9 @@ impl Arguments {
             ));
         }
         let policy_value = match values.get("--unsupported") {
-            Some(s) => s.to_str().ok_or_else(|| invalid("unsupported policy is not UTF-8"))?,
+            Some(s) => s
+                .to_str()
+                .ok_or_else(|| invalid("unsupported policy is not UTF-8"))?,
             None => "strict",
         };
         let policy = match policy_value {

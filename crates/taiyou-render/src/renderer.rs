@@ -1,9 +1,9 @@
 //! Uncached inline CoreV1 coordinator. Native contexts exist only during a call.
 #[cfg(feature = "native")]
 use crate::{compose, evaluate_with_policy, geometry::*, layout, raster::*};
-use std::{cell::Cell, marker::PhantomData};
 #[cfg(feature = "native")]
 use std::sync::Arc;
+use std::{cell::Cell, marker::PhantomData};
 #[cfg(feature = "native")]
 pub use taiyou_font::{FontCatalogBuilder, FontContext, ValidatedFontCatalog};
 pub use taiyou_types::*;
