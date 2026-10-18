@@ -120,11 +120,14 @@ impl Staged {
             if destinations.contains(&temporary) {
                 continue;
             }
-            match OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&temporary)
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
             {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600); // Do not expose staged subtitle pixels.
+            }
+            match options.open(&temporary) {
                 Ok(file) => {
                     return Ok(Self {
                         destination,
@@ -256,6 +259,11 @@ mod tests {
             fs::write(&png, b"old PNG").unwrap();
             fs::write(&raw, b"old raw").unwrap();
             let result = write(&png, Some(&raw), &[], |png, raw| {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    assert_eq!(png.metadata().unwrap().permissions().mode() & 0o077, 0);
+                }
                 png.write_all(b"partial PNG").map_err(io_error)?;
                 if fail_raw {
                     raw.unwrap().write_all(b"partial raw").map_err(io_error)?;
