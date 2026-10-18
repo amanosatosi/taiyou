@@ -4,6 +4,7 @@ import copy
 import contextlib
 import io
 from pathlib import Path
+import re
 import struct
 import tempfile
 import unittest
@@ -13,7 +14,7 @@ from unittest.mock import patch
 import compare
 import images
 from libass_adapter import harness_summary
-from inventory import InventoryError, load
+from inventory import InventoryError, canonical, digest, load
 from policy import results
 from reference_pixels import rgba8_pairs, rgba16_samples, write_rgba16
 
@@ -271,21 +272,173 @@ class AccountingTests(unittest.TestCase):
             self.assertEqual(report["summary"]["safety"]["successful_parser_probes"], 2)
 
 
-def check_full_report(path):
-    """Review-specified observed counts, not new reference/tolerance policy."""
-    report = load(path)
-    inventory = load(Path(__file__).with_name("inventory.json"))
-    policy = load(Path(__file__).with_name("policy.json"))
-    if report["suite"] != "full" or report["corpus_revision"] != inventory["commit"]:
-        raise AssertionError("expected full run at frozen corpus revision")
+class FullReportInvariantTests(unittest.TestCase):
+    def setUp(self):
+        # Independent tiny corpus; outcome counts are not the external corpus's
+        # present observations. No accepted inventory or policy is modified.
+        self.policy = load(Path(__file__).with_name("policy.json"))
+        self.candidate = "0" * 40
+        self.inventory = {"commit": "1" * 40, "cases": [
+            {"id": "test-0000.png", "kind": "regression", "scale": "1",
+             "frames": [{"expected": "test-0000.png", "reference_size": [1, 1]}]},
+            {"id": "probe.ass", "kind": "crash", "frames": [], "scale": "1"},
+            {"id": "disabled.ass.disabled", "kind": "disabled-upstream", "frames": []}]}
+        for case in self.inventory["cases"]:
+            case["profile_records"] = {"CoreV1": {"support": "UNSUPPORTED"}}
+        self.records = [
+            {"case": "test-0000.png", "frame": "test-0000.png", "profile": "CoreV1", "kind": "regression",
+             "status": "INFRA_ERROR", "exit_code": 30, "stage": "render", "metrics": None, "feature": "synthetic"},
+            {"case": "probe.ass", "frame": None, "profile": "CoreV1", "kind": "crash", "status": "PASS_EXACT",
+             "exit_code": 0, "stage": "parser-safety-probe", "safety_only": True, "metrics": None}]
+
+    def report(self, records=None):
+        records = copy.deepcopy(self.records if records is None else records)
+        return {"suite": "full", "profile": "CoreV1", "candidate_sha": self.candidate,
+                "corpus_revision": self.inventory["commit"], "inventory_sha256": digest(canonical(self.inventory)),
+                "policy_sha256": digest(canonical(self.policy)), "records": records,
+                "summary": compare.summarize(self.inventory, self.inventory["cases"], self.policy, records)}
+
+    def check(self, report):
+        return validate_full_report(report, self.inventory, self.policy, self.candidate)
+
+    def exact_records(self):
+        # Authored opaque red pixel, independently identical on both sides.
+        # Exercise real raw/PNG decoding and comparison, not a fabricated flag.
+        with tempfile.TemporaryDirectory() as directory:
+            raw, png = Path(directory) / "pixel.rgba", Path(directory) / "pixel.png"
+            raw.write_bytes(bytes([255, 0, 0, 255]))
+            images.write_png(png, 1, 1, bytes([255, 0, 0, 255]))
+            records = copy.deepcopy(self.records)
+            records[0].update(status="PASS_EXACT", exit_code=0, stage="pixel-comparison",
+                              metrics=images.compare(images.read_png(png), images.raw_rgba(raw, 1, 1)),
+                              raw_sha256=digest(raw.read_bytes()), png_sha256=digest(png.read_bytes()))
+            return records
+
+    def test_genuine_infrastructure_recovery_can_become_exact(self):
+        before = self.check(self.report())
+        after = self.check(self.report(self.exact_records()))
+        self.assertEqual(before["visual"]["counts"]["INFRA_ERROR"], 1)
+        self.assertEqual(after["visual"]["counts"]["INFRA_ERROR"], 0)
+        self.assertEqual((before["visual"]["exact_matches"], after["visual"]["exact_matches"]), (0, 1))
+        self.assertEqual(before["total"], after["total"])
+        self.assertEqual(before["safety"], after["safety"])
+
+    def test_missing_duplicate_unselected_stale_and_carried_rejected(self):
+        for records in (self.records[:-1], self.records + self.records[:1],
+                        [{**self.records[0], "case": "unselected"}, self.records[1]]):
+            with self.subTest(records=records), self.assertRaises(InventoryError):
+                self.check(self.report(records))
+        for mutate in (lambda r: r.update(candidate_sha="2" * 40),
+                       lambda r: r.update(inventory_sha256="2" * 64),
+                       lambda r: r["summary"]["carried_results"].append("old"),
+                       lambda r: r["summary"]["unselected"].append("test-0000.png"),
+                       lambda r: r["records"][0].update(carried_from_sha="2" * 40),
+                       lambda r: r["summary"]["visual"].update(exact_matches=99),
+                       lambda r: r["summary"]["counts"].update(PASS_EXACT=99)):
+            report = self.report()
+            mutate(report)
+            with self.subTest(report=report), self.assertRaises(AssertionError): self.check(report)
+
+    def test_exact_and_safety_passes_require_consistent_evidence(self):
+        for mutation in ({"metrics": {"exact": True}}, {"exit_code": 30}, {"raw_sha256": ""},
+                         {"stage": "render"}, {"kind": "crash"}, {"safety_only": True}):
+            records = self.exact_records()
+            records[0].update(mutation)
+            with self.subTest(mutation=mutation), self.assertRaises((AssertionError, InventoryError)):
+                self.check(self.report(records))
+        records = self.exact_records()
+        records[0]["metrics"]["max_channel_delta"] = 1
+        with self.assertRaises(AssertionError): self.check(self.report(records))
+        for mutation in ({"exit_code": 1}, {"exit_code": None}, {"stage": "render"}, {"safety_only": False}):
+            records = copy.deepcopy(self.records)
+            records[1].update(mutation)
+            with self.subTest(mutation=mutation), self.assertRaises((AssertionError, InventoryError)):
+                self.check(self.report(records))
+
+    def test_infrastructure_cannot_be_relabelled_unsupported(self):
+        records = copy.deepcopy(self.records)
+        records[0]["status"] = "UNSUPPORTED"
+        with self.assertRaises(AssertionError): self.check(self.report(records))
+        records[0].update(exit_code=None, diagnostic_code="InvalidImage", stage="asset-verification")
+        with self.assertRaises(AssertionError): self.check(self.report(records))
+
+    def test_supported_regression_remains_failure(self):
+        self.inventory["cases"][0]["profile_records"]["CoreV1"]["support"] = "SUPPORTED"
+        records = self.exact_records()
+        expected = (1, 1, array("H", [65535, 0, 0, 65535]))
+        actual = (1, 1, array("H", [0, 0, 0, 65535]))
+        records[0].update(status="REGRESSION", metrics=images.compare(expected, actual))
+        with self.assertRaises(AssertionError): self.check(self.report(records))
+        records[0]["status"] = "UNSUPPORTED"
+        with self.assertRaises(InventoryError): self.check(self.report(records))
+
+
+def validate_full_report(report, inventory, policy, candidate_sha):
+    """Validate current evidence/accounting, never freeze observed outcome counts."""
+    if report["suite"] != "full" or report["profile"] != "CoreV1" or report["corpus_revision"] != inventory["commit"]:
+        raise AssertionError("expected full CoreV1 run at accepted corpus revision")
+    if report["candidate_sha"] != candidate_sha:
+        raise AssertionError("report is not from the current candidate")
+    if report["inventory_sha256"] != digest(canonical(inventory)) or report["policy_sha256"] != digest(canonical(policy)):
+        raise AssertionError("report does not use accepted snapshots")
+    # T005 rejects missing, duplicate, unselected and demoted supported cases;
+    # summarize checks accepted kinds and reconstructs all subtotals/denominators.
     expected = compare.summarize(inventory, inventory["cases"], policy, report["records"])
     if report["summary"] != expected:
         raise AssertionError("report summary differs from complete case accounting")
-    if expected["visual"]["exact_matches"] != 1 or expected["safety"]["successful_parser_probes"] != 2:
-        raise AssertionError("reviewed corpus must have one visual match and two parser-only successes")
-    if expected["counts"]["INFRA_ERROR"] != 8:
-        raise AssertionError("eight known infrastructure errors must remain visible")
-    print("FULL_REPORT_ACCOUNTING_VERIFIED: one visual exact, two parser-only successes, eight infrastructure errors")
+    cases = {c["id"]: c for c in inventory["cases"]}
+    for record in report["records"]:
+        case = cases[record["case"]]
+        status, code = record["status"], record.get("exit_code")
+        if any(record.get(key) for key in ("carried", "carried_from", "carried_from_sha")):
+            raise AssertionError("carried result cannot count as current")
+        if record.get("diagnostic_code") == "InvalidImage" and status != "INFRA_ERROR":
+            raise AssertionError("image infrastructure failure was reclassified")
+        if code is None:
+            # Only pre-execution infrastructure errors or the explicit scale
+            # limitation can lack an execution result. Neither is a pass.
+            if record["stage"] == "scale" and case["scale"] != "1":
+                required = "UNSUPPORTED"
+            else:
+                required = "INFRA_ERROR"
+        elif type(code) is not int:
+            raise AssertionError("invalid subprocess exit evidence")
+        elif case["kind"] == "crash":
+            required = "CRASH" if code < 0 else "PASS_EXACT" if code == 0 else "INFRA_ERROR"
+        else:
+            if code == 0:
+                metrics = record["metrics"]
+                frame = next(f for f in case["frames"] if f["expected"] == record["frame"])
+                if not metrics or record["stage"] != "pixel-comparison" or metrics.get("dimensions_match") is not True:
+                    raise AssertionError("successful render lacks pixel evidence")
+                if metrics["expected_dimensions"] != frame["reference_size"] or metrics["actual_dimensions"] != frame["reference_size"]:
+                    raise AssertionError("pixel evidence has wrong dimensions")
+                zero = (metrics["max_channel_delta"] == 0 and metrics["channel_mae"] == [0] * 4
+                        and metrics["changed_pixels"] == 0 and metrics["changed_bbox"] is None
+                        and metrics["alpha_mismatches"] == 0)
+                if metrics["exact"] is not zero:
+                    raise AssertionError("exact flag contradicts pixel metrics")
+                if any(not re.fullmatch(r"[0-9a-f]{64}", record.get(key, "")) for key in ("raw_sha256", "png_sha256")):
+                    raise AssertionError("pixel evidence lacks output identities")
+            required = compare.classify(case, code, record["metrics"], record.get("diagnostics", ""))
+            if record.get("tolerant_attempt") and required == "PASS_EXACT":
+                support = case["profile_records"]["CoreV1"]["support"]
+                required = "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+        if status != required:
+            raise AssertionError("status contradicts execution evidence")
+        if status in ("REGRESSION", "CRASH"):
+            raise AssertionError("regression or crash remains a failed validation")
+    # INFRA_ERROR counts are deliberately unrestricted: they remain visible in
+    # this valid report and still fail the separate comparator command.
+    return expected
+
+
+def check_full_report(path):
+    report = load(path)
+    _, inventory, policy = compare.accepted_snapshot()
+    candidate = compare.subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=compare.ROOT, text=True).strip()
+    validate_full_report(report, inventory, policy, candidate)
+    print("FULL_REPORT_ACCOUNTING_VERIFIED: complete current inventory, evidence and visual/safety subtotal invariants")
 
 
 if __name__ == "__main__":

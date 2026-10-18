@@ -110,8 +110,12 @@ Machine-readable `summary.visual.exact_matches` counts only pixel comparisons;
 also has its own total and status counts. T005's aggregate `summary.counts` and
 statuses remain unchanged, explicitly labeled by `counts_scope`; its PASS_EXACT
 includes safety probes and must never be presented as a visual-match count.
-The full-run regression check asserts one visual match, two successful parser
-probes and the eight known infrastructure errors. Invalid compressed PNG payloads
+The full-run check rebuilds complete accounting from accepted case kinds and
+validates current-candidate, pixel and parser-exit evidence. Observed outcome
+counts belong in PR evidence, not permanent assertions: a genuine infrastructure
+recovery or visual improvement must remain valid. Infrastructure errors stay
+visible and still fail the comparator command; supported regressions fail too.
+Invalid compressed PNG payloads
 raise typed `ImageDecodeError`, becoming per-case INFRA_ERROR/InvalidImage;
 remaining cases are still processed and the complete report is emitted.
 

@@ -103,7 +103,7 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
             if case["kind"] == "crash":
                 code, text = execute([probe, "compare-crash-probe", source], directory)
                 record.update(status="CRASH" if code < 0 else "PASS_EXACT" if code == 0 else "INFRA_ERROR",
-                              diagnostics=text, stage="parser-safety-probe", safety_only=True)
+                              diagnostics=text, stage="parser-safety-probe", safety_only=True, exit_code=code)
                 return record
             frame = case["frames"][0]
             time_us = timestamp(case, frame)
