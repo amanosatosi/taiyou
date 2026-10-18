@@ -1,0 +1,21 @@
+{
+  "be-one.ass": "632c734539cd55f67b0c45369427c56df00a2dca63842f025779400bb57d9c57",
+  "be-repeated.ass": "da94b20d035ea2053f0faa8311d14afc5b6a899ad8a5289b358f4e76f1ce79b6",
+  "fill-cubic.ass": "544c36980a3cfcf39f751ddd68a1269d5a432e4fdf390191c26b6159cfcc5005",
+  "fill-phase.ass": "b8e6f6c56df2b8ee371c254cf0ee96d356dd006adc12a9234784214280802c76",
+  "fill-straight.ass": "dbab8dae40a58c0dd40312ee6afc63c17e0ebab8dd6e1431aca807db4abdcb80",
+  "fill-winding.ass": "3f723cef2bd1837f4745095fe37f963d98c6b31e8d819da061b15e93bba2b53d",
+  "gaussian-be.ass": "c00aa5b52d0aceb08b85a7df9482a46f34612dd17c94ee6957ee1b487c9386cb",
+  "gaussian.ass": "3b855abdad75fe77b076ff860b3d859e13105d7cbe93ccceb804df12c05e32a4",
+  "group-opaque.ass": "a3bf95ea91143e30d537d0b0a473f3da9cccc69ca157e0f6e6eb88d39fc556bf",
+  "group-translucent.ass": "bcb500bb0c5855968c96a0b5c6acad478b7948013648453aac1bf9af686bf33b",
+  "outline-hole.ass": "e5a9950f70113675c693932a30e351c2cb13b351b5034451ced0ee30d005322f",
+  "shadow-clip.ass": "32ca6792e26482522f3e4c6be3f3f29d5c5e3e172efaf29af73c04753eb000f1",
+  "shadow-fractional.ass": "d1d0dd4710be4f52912d6fabfd07a25c23a853c325c96c4196620480f5590a82",
+  "stroke-anisotropic.ass": "d30fb9d2cb250b44118bfaaa3bfafd8e5db0693e539ffe2df24d0b332a570b5b",
+  "stroke-rotated.ass": "336d344490af019233bad45294b6fcdbffa7aa7512a56aa700fff8491231f983",
+  "stroke-thick-acute.ass": "e67653d98217ccbd29e5fed94b7884ba5c792255c88a6868c72ded7fb82e33fb",
+  "stroke-thin.ass": "cfe80cb7f5e1384aa8b81a8d5fd4024cbd2282147b9b5c64d3081bbeaef16489",
+  "stroke-zero-x.ass": "9c4a663f329a7c58ef7cbd3416d3e004e5907f3c418c1808b4527776dff846c0",
+  "stroke-zero-y.ass": "5d0772056cd8eb1eb4e0a485bad126824d13edb3f60d68314a9d58237bd9ba61"
+}

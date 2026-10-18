@@ -1,0 +1,66 @@
+{
+  "identity": "README: pinterf pfmod 3.2.0.810 (20240123), xy_sub_filter_rc5",
+  "schema": 1,
+  "locked_commit_equivalence": "unverified",
+  "source_id": "pinterf-local",
+  "root": "C:/taiyou-time/refrences/xy-VSFilter-3.2.0.810",
+  "archive_container_sha256": null,
+  "files": [
+    {
+      "file": "README.md",
+      "sha256": "daa5075f77078787d9645c6d3d86c726f21c1d19ee6b33eec535979f74af2f89",
+      "lines": 148
+    },
+    {
+      "file": "License.txt",
+      "sha256": "19404e184cf45ec991b54e1e6f05f847ad8f13fee2a51f3a2d9a960c8f7cb26b",
+      "lines": 340
+    },
+    {
+      "file": "src/subtitles/Rasterizer.cpp",
+      "sha256": "29b113f2c927793005afd25d8d0c861a430b55462f6e8e057e1bbaceccf08334",
+      "lines": 3389
+    },
+    {
+      "file": "src/subtitles/Rasterizer.h",
+      "sha256": "e270d7fd7a8497086f758b16e5b903c7fdb73cb0f3e5ee2dac3c6cd2e3e77f6d",
+      "lines": 264
+    },
+    {
+      "file": "src/subtitles/RTS.cpp",
+      "sha256": "dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb",
+      "lines": 3658
+    },
+    {
+      "file": "src/subtitles/xy_widen_region.cpp",
+      "sha256": "af0034118448829065a6bdd6748bb8943aac4a62fbf852a59cd869d63486dd7c",
+      "lines": 745
+    },
+    {
+      "file": "src/subtitles/xy_filter.cpp",
+      "sha256": "f4ef0161a7f11cc93ea86987c4c632f0852342e4690bbb3bc6f2d3ee6e22808c",
+      "lines": 1387
+    },
+    {
+      "file": "src/subtitles/draw_item.cpp",
+      "sha256": "3e8085ce65377fe8be28968ee7e87d038a9c552c672183c5ee2ffbc5c474f0d6",
+      "lines": 598
+    },
+    {
+      "file": "src/filters/transform/vsfilter/csriapi.cpp",
+      "sha256": "9d2a5a38813457610322859072f99a2674259aacfc24888bee503b605334a7eb",
+      "lines": 179
+    },
+    {
+      "file": "src/filters/transform/vsfilter/csri.h",
+      "sha256": "4f4fd21cce06b9a5cacc58babe9dd9af2d1cc0cdfaeac2ecbca8b9212b8141c5",
+      "lines": 348
+    },
+    {
+      "file": "src/filters/transform/vsfilter/plugins.cpp",
+      "sha256": "10d71207e445f16112d78b29a03b08efb121782ccaacf31efab74757515a59bc",
+      "lines": 1638
+    }
+  ],
+  "upstream_commit": null
+}
