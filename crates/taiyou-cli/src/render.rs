@@ -16,6 +16,13 @@ fn io_error(e: std::io::Error) -> RenderError {
 fn parse_error(e: ParseError) -> RenderError {
     RenderError::new(e.code(), e.detail()).with_context(e.event(), e.span())
 }
+fn font_error(e: FontError) -> RenderError {
+    let mut result = RenderError::new(e.code(), e.detail()).with_context(e.event(), e.span());
+    if let Some(code) = e.native_code() {
+        result = result.with_native_code(code);
+    }
+    result
+}
 fn number<T: std::str::FromStr>(value: &std::ffi::OsStr) -> Result<T, RenderError> {
     value
         .to_str()
@@ -230,16 +237,16 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     )
     .map_err(parse_error)?;
     let mut context = FontContext::with_limits(limits.clone())
-        .map_err(|e| RenderError::new(e.code(), e.detail()))?;
+        .map_err(font_error)?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {
         builder
             .register(&mut context, &read_limited(path, limits.font_bytes())?, 0)
-            .map_err(|e| RenderError::new(e.code(), e.detail()))?;
+            .map_err(font_error)?;
     }
     let catalog = builder
         .snapshot(&mut CatalogIngestor::new())
-        .map_err(|e| RenderError::new(e.code(), e.detail()))?;
+        .map_err(font_error)?;
     drop(builder);
     drop(context);
     let frame = Renderer::new(config.clone())?.render_parsed(&parsed, catalog, &request)?;

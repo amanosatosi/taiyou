@@ -199,7 +199,7 @@ impl Renderer {
             ));
         }
         let mut ctx = FontContext::with_limits(available(limits, held)?)
-            .map_err(|e| RenderError::new(e.code(), e.detail()))?;
+            .map_err(crate::geometry::font_error)?;
         for event in events {
             let result = (|| {
                 let eval_charge = crate::evaluate::preflight(event)?;
@@ -243,13 +243,7 @@ impl Renderer {
                     &Default::default(),
                     &available(limits, stage_held)?,
                 )
-                .map_err(|e| {
-                    let mut r = RenderError::new(e.code(), e.detail());
-                    if let Some(n) = e.native_code() {
-                        r = r.with_native_code(n);
-                    }
-                    r
-                })?;
+                .map_err(crate::geometry::font_error)?;
                 diagnostics
                     .extend_finished(shaped.diagnostics())
                     .map_err(convert)?;
