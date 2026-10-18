@@ -1,0 +1,52 @@
+name: T014 focused candidate
+on:
+  push:
+    branches: [task/T014-single-worker-render]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: t014-focused-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: cargo +1.99.1 fmt --all -- --check
+      - name: Resolve candidate lock on runner; final locked checks remain required
+        if: always()
+        run: |
+          cargo +1.99.1 fetch
+          echo LOCK_BEGIN
+          cat Cargo.lock
+          echo LOCK_END
+          cargo +1.99.1 clippy --locked --workspace --all-targets -- -D warnings
+          cargo +1.99.1 test --locked --workspace
+          git diff --exit-code -- Cargo.lock
+  native:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Archive actual Taiyou CLI PNG and raw frame
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T014-first-PNG-${{ github.sha }}
+          path: ${{ runner.temp }}/taiyou-render-sample/
+          if-no-files-found: ignore
+          retention-days: 7

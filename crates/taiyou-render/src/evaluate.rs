@@ -49,7 +49,7 @@ fn unsupported(
         ))
         .map_err(convert)
 }
-fn preflight(event: &Event) -> Result<u64, RenderError> {
+pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
     // Include override-only diagnostics and empty-event storage as well as runs.
     // The multiplier covers Vec growth and Vec-to-Arc publication overlap.
     let count = event.program().len();

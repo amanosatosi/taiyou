@@ -10,6 +10,7 @@ pub mod geometry;
 pub mod layout;
 mod paint;
 pub mod raster;
+pub mod renderer;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy};
 pub use layout::layout;
