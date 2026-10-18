@@ -1,0 +1,3 @@
+# Proposal hashes bind these exact UTF-8 BOM/LF bytes on every checkout.
+scripts/*.ass text eol=lf
+scripts/*.ssa text eol=lf

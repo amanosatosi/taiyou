@@ -278,4 +278,3 @@ No accepted tool/policy is modified, no guard bypass is introduced, and the PR
 stops for technical/maintainer review without merging. Current run/job URLs,
 pass/fail/blocked results and candidate SHA belong in the PR completion report;
 old T015 evidence above is explicitly not a new-candidate pass.
-
