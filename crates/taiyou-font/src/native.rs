@@ -199,21 +199,13 @@ impl FontContext {
                         return Err(native_error(0, "unconsumed outline points"));
                     }
                     for point in std::slice::from_raw_parts(outline.points, points) {
-                        copy_point(point)
-                            .ok_or_else(|| native_error(0, "native outline coordinate overflow"))?;
+                        check_outline_point(point)?;
                     }
                     let code = FT_Outline_Check(outline);
                     if code != 0 {
                         return Err(native_error(code, "FT_Outline_Check failed"));
                     }
-                    let funcs = OutlineFuncs {
-                        move_to: copy_move,
-                        line_to: copy_line,
-                        conic_to: copy_quad,
-                        cubic_to: copy_cubic,
-                        shift: 0,
-                        delta: 0,
-                    };
+                    let funcs = outline_funcs();
                     let code = FT_Outline_Decompose(
                         outline,
                         &funcs,
@@ -510,6 +502,18 @@ struct OutlineFuncs {
     shift: ft::FT_Int,
     delta: ft::FT_Pos,
 }
+fn outline_funcs() -> OutlineFuncs {
+    OutlineFuncs {
+        move_to: copy_move,
+        line_to: copy_line,
+        conic_to: copy_quad,
+        cubic_to: copy_cubic,
+        // Retain exact half-design-unit implied TrueType conic endpoints.
+        // FreeType scales before calculating midpoints; callbacks divide by 2.
+        shift: 1,
+        delta: 0,
+    }
+}
 unsafe extern "C" {
     fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
     fn FT_Outline_Decompose(
@@ -552,10 +556,20 @@ impl OutlineCopy {
 }
 fn copy_point(p: &ft::FT_Vector) -> Option<FontPoint> {
     FontPoint::new(
-        f64::from(i32::try_from(p.x).ok()?),
-        f64::from(i32::try_from(p.y).ok()?),
+        f64::from(i32::try_from(i128::from(p.x)).ok()?) / 2.0,
+        f64::from(i32::try_from(i128::from(p.y)).ok()?) / 2.0,
     )
     .ok()
+}
+fn check_outline_point(p: &ft::FT_Vector) -> Result<(), FontError> {
+    // Bound scaled coordinates AND their sums before C computes conic midpoints.
+    // This common bound keeps FT_Pos arithmetic valid on Windows' 32-bit long
+    // as well as LP64 platforms, independent of the host's native word width.
+    let cap = i128::from(i32::MAX) / 4;
+    if [i128::from(p.x), i128::from(p.y)].iter().any(|v| v.abs() > cap) {
+        return Err(FontError::new(ErrorCode::LimitExceeded,"native outline midpoint arithmetic overflow"));
+    }
+    Ok(())
 }
 fn copy_callback(user: *mut std::ffi::c_void, pointers: &[*const ft::FT_Vector], kind: u8) -> i32 {
     // SAFETY: only FT_Outline_Decompose invokes these private callbacks with the
@@ -1134,6 +1148,22 @@ mod tests {
         assert!(state.ops.is_empty());
         assert_eq!(copy_line(ptr::null(), user), 1);
         assert_eq!(copy_move(&point, ptr::null_mut()), 1);
+    }
+    #[test]
+    fn geometry_native_implied_quadratic_endpoints_retain_half_units() {
+        let mut points = [ft::FT_Vector {x:0,y:0}, ft::FT_Vector {x:1,y:1}, ft::FT_Vector {x:2,y:0}];
+        let mut tags = [1,0,0];
+        let mut contours = [2];
+        let outline = ft::FT_Outline {n_contours:1,n_points:3,points:points.as_mut_ptr(),tags:tags.as_mut_ptr(),contours:contours.as_mut_ptr(),flags:0};
+        let mut state = OutlineCopy {ops:Vec::with_capacity(8),failed:false,open:false};
+        for p in &points { check_outline_point(p).unwrap(); }
+        // SAFETY: all native arrays above have validated extents and remain live;
+        // the callback state is exclusive for this synchronous decomposition.
+        assert_eq!(unsafe { FT_Outline_Decompose(&outline,&outline_funcs(),(&mut state as *mut OutlineCopy).cast()) },0);
+        state.close();
+        assert!(!state.failed);
+        assert_eq!(state.ops[1],PathOp::QuadTo(FontPoint::new(1.0,1.0).unwrap(),FontPoint::new(1.5,0.5).unwrap()));
+        assert!(check_outline_point(&ft::FT_Vector {x:2_000_000_000,y:0}).is_err());
     }
     #[test]
     fn harfbuzz_abi_owned_results_and_rejected_requests_cleanup() {

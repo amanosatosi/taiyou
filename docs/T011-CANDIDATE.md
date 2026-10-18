@@ -19,6 +19,12 @@ Native outline counts, pointers, contour endpoints and coordinates are checked;
 the callback vector is reserved before entering C. Copy callbacks cannot grow
 it or unwind on reservation failure. Face/library ownership remains per context,
 not Send/Sync. Native pointers and callbacks stay in `taiyou-font/src/native.rs`.
+
+Decomposition uses shift 1 and divides copied coordinates by 2, retaining exact
+half-unit implied TrueType quadratic endpoints. Native coordinates and their
+scaled sums are preflighted against the common 32-bit-long bound before C runs.
+This follows the pinned [FreeType decomposition implementation](https://github.com/freetype/freetype/blob/VER-2-14-3/src/base/ftoutln.c),
+which calculates conic midpoints after applying the callback shift.
 Owned paths survive all native owners. Outline identity contains font digest,
 face, glyph and extraction revision, without paint or placement. Variable-font
 coordinates and synthetic decorations are not introduced in this task.
