@@ -9,7 +9,7 @@ import urllib.request
 root = Path(__file__).resolve().parent.parent
 manifest = root / "build-support/dependency-smoke/Cargo.toml"
 metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--manifest-path", str(manifest), "--format-version", "1"], cwd=root, text=True))
-production = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--features", "taiyou-font/native", "--format-version", "1"], cwd=root, text=True))
+production = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--features", "taiyou-cli/native", "--format-version", "1"], cwd=root, text=True))
 unique = {(package["name"], package["version"]): package for package in metadata["packages"] + production["packages"] if package["source"] is not None}
 packages = [{key: package.get(key) for key in ["name", "version", "license", "repository", "rust_version"]} for _, package in sorted(unique.items())]
 queries = [{"package": {"name": package["name"], "ecosystem": "crates.io"}, "version": package["version"]} for package in packages]

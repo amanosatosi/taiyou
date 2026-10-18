@@ -1,5 +1,6 @@
 [package]
 name = "taiyou-cli"
+default-run = "taiyou-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,9 +9,10 @@ publish.workspace = true
 [dependencies]
 taiyou-ass.workspace = true
 taiyou-render.workspace = true
+png = { workspace = true, optional = true }
 
 [lints]
 workspace = true
 
 [features]
-native = ["taiyou-render/native"]
+native = ["taiyou-render/native", "dep:png"]

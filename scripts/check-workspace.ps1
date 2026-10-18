@@ -11,9 +11,11 @@ $external = @{
     'harfbuzz-sys' = @('=0.8.0', $false, '')
     'unicode-bidi' = @('=0.3.18', $true, '')
     'unicode-script' = @('=0.5.8', $true, '')
+    'png' = @('=0.18.1', $false, '')
 }
 function Assert-ExternalDependency($packageName, $dependency) {
-    if ($packageName -cne 'taiyou-font' -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
+    $owner = if ($dependency.name -ceq 'png') { 'taiyou-cli' } else { 'taiyou-font' }
+    if ($packageName -cne $owner -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
     $spec = $external[$dependency.name]
     $externalPath = if ($dependency -is [System.Collections.IDictionary]) { $dependency['path'] } elseif ($dependency.PSObject.Properties['path']) { $dependency.path } else { $null }
     if ($dependency.source -cne 'registry+https://github.com/rust-lang/crates.io-index' -or
@@ -52,6 +54,19 @@ if ($SelfTest) {
         }
     }
     Write-Output 'PASS: exact T002 shaping dependencies with nine additional tamper scenarios.'
+    $png = $sample.Clone()
+    $png.name = 'png'; $png.req = '=0.18.1'; $png.uses_default_features = $false
+    Assert-ExternalDependency 'taiyou-cli' $png
+    foreach ($mutation in @(@{req='*'}, @{uses_default_features=$true}, @{features=@('unstable')}, @{optional=$false}, @{source='git+https://example.invalid/png'})) {
+        $changed = $png.Clone()
+        foreach ($key in $mutation.Keys) { $changed[$key] = $mutation[$key] }
+        $rejected = $false
+        try { Assert-ExternalDependency 'taiyou-cli' $changed } catch { $rejected = $true }
+        if (-not $rejected) { throw 'T014 PNG dependency tamper test failed' }
+    }
+    $rejected = $false
+    try { Assert-ExternalDependency 'taiyou-font' $png } catch { $rejected = $true }
+    if (-not $rejected) { throw 'T014 PNG owner tamper test failed' }
 }
 Push-Location -LiteralPath $Root
 try {

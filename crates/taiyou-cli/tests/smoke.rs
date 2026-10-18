@@ -10,9 +10,16 @@ fn cli(args: &[&str]) -> Output {
 fn assert_unimplemented(output: Output) {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
+    #[cfg(not(feature = "native"))]
     assert_eq!(
         String::from_utf8(output.stderr).unwrap(),
-        "taiyou: rendering is not implemented (T001 foundation; no output produced)\n"
+        "taiyou: UnsupportedFeature: rendering requires the native feature (no output produced)\n"
+    );
+    #[cfg(feature = "native")]
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("InvalidArgument")
     );
 }
 

@@ -224,6 +224,14 @@ impl GeometryEvent {
     }
 }
 #[cfg(feature = "native")]
+pub(crate) fn font_error(e: FontError) -> RenderError {
+    let mut result = RenderError::new(e.code(), e.detail()).with_context(e.event(), e.span());
+    if let Some(code) = e.native_code() {
+        result = result.with_native_code(code);
+    }
+    result
+}
+#[cfg(feature = "native")]
 pub fn geometry(
     context: &mut taiyou_font::FontContext,
     catalog: &taiyou_font::ValidatedFontCatalog,
@@ -231,7 +239,6 @@ pub fn geometry(
     placement: GeometryPlacement,
     limits: &Limits,
 ) -> Result<GeometryEvent, RenderError> {
-    let fail = |e: FontError| RenderError::new(e.code(), e.detail());
     let count = layout.glyphs().len();
     let mut charge = (count as u64)
         .checked_mul(3 * std::mem::size_of::<GeometryGlyph>() as u64)
@@ -279,7 +286,7 @@ pub fn geometry(
             .map_err(|_| geometry_limit())?;
         let outline = context
             .outline(blob, glyph.glyph(), &intake_limits)
-            .map_err(fail)?;
+            .map_err(font_error)?;
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;
