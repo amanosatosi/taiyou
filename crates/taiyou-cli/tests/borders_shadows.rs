@@ -4,7 +4,7 @@ use std::{path::PathBuf, process::Command};
 
 fn ass(outline: u8, shadow: u8, text: &str) -> String {
     format!(
-        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&H000000FF,&H00FF0000,{outline},{shadow},7,10,10,10\n[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 0,0:00:00.10,0:00:01.00,Default,{text}"
+        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,OutlineColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&H000000FF,&HFFFF0000,{outline},{shadow},7,10,10,10\n[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 0,0:00:00.10,0:00:01.00,Default,{text}"
     )
 }
 
