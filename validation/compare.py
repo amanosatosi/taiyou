@@ -73,13 +73,15 @@ def classify(case, outcome, metrics, diagnostic):
     if outcome < 0:
         return "CRASH"
     if outcome != 0:
-        if "UnsupportedFeature" in diagnostic:
+        match = re.search(r"(?m)^taiyou: ([A-Za-z]+):", diagnostic)
+        code = match.group(1) if match else None
+        if code == "UnsupportedFeature":
             return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
-        if any(v in diagnostic for v in ("FontUnavailable", "file I/O", "native", "AllocationFailed")):
+        if code in ("FontUnavailable", "NativeFailure", "AllocationFailed", "LimitExceeded", "InternalError") or "file I/O" in diagnostic:
             return "INFRA_ERROR"
         # A malformed source that the renderer safely rejects is still reported;
         # it is never a compatibility pass. Accepted supported sources must work.
-        return "UNSUPPORTED" if support == "UNSUPPORTED" and any(v in diagnostic for v in ("ParseError", "InvalidArgument", "Malformed", "InvalidUtf8", "InvalidTimestamp")) else "REGRESSION"
+        return "UNSUPPORTED" if support == "UNSUPPORTED" and code in ("InvalidScript", "InvalidEncoding") else "REGRESSION"
     if metrics and metrics["exact"]:
         return "PASS_EXACT"
     return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
@@ -118,7 +120,7 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
             for font in fonts:
                 command.extend(["--font", font])
             code, diagnostic = execute(command, directory)
-            strict_unsupported = code > 0 and "UnsupportedFeature" in diagnostic
+            strict_unsupported = code > 0 and re.search(r"(?m)^taiyou: UnsupportedFeature:", diagnostic) is not None
             # Tolerant exploratory output cannot promote the accepted support state.
             if strict_unsupported:
                 record["strict_diagnostics"] = diagnostic
@@ -159,7 +161,15 @@ def accepted_snapshot():
     policy = load(accepted / "validation/policy.json")
     # Baseline identity is recorded; the Actions workflow materializes it from
     # the PR base. No assertion that candidate CI is independently trusted.
-    snapshots(inventory, policy, digest(canonical(inventory)), digest(canonical(policy)), os.environ)
+    baseline = os.environ.get("ACCEPTED_BASELINE")
+    if baseline:
+        if not re.fullmatch(r"[0-9a-f]{40}", baseline):
+            raise InventoryError("invalid accepted baseline SHA")
+        original_inventory = json.loads(subprocess.check_output(["git", "show", baseline + ":validation/inventory.json"], cwd=ROOT))
+        original_policy = json.loads(subprocess.check_output(["git", "show", baseline + ":validation/policy.json"], cwd=ROOT))
+    else:
+        original_inventory, original_policy = inventory, policy
+    snapshots(inventory, policy, digest(canonical(original_inventory)), digest(canonical(original_policy)), os.environ)
     return accepted, inventory, policy
 
 

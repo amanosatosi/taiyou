@@ -78,7 +78,7 @@ jobs:
           cargo run --locked -p xtask -- compare-crash-probe "$TAIYOU_CORPUS/crash/generic.ass"
       - name: Focused cases on ordinary PRs; full inventory at deliberate T015 milestone
         env:
-          SUITE: ${{ inputs.suite || (github.event_name == 'push' && 'full' || 'focused') }}
+          SUITE: ${{ inputs.suite || ((github.head_ref == 'task/T015-reference-comparison' || github.ref_name == 'task/T015-reference-comparison') && 'full' || 'focused') }}
         run: |
           set -eu
           if [[ "$SUITE" == full ]]; then

@@ -9,6 +9,7 @@ import zlib
 
 import compare
 import images
+from libass_adapter import harness_summary
 from inventory import InventoryError, load
 from policy import results
 
@@ -132,16 +133,39 @@ class AccountingTests(unittest.TestCase):
         for name, value in [("test-x.png", 0), ("test-1.png", 2), ("other-1.png", 1), ("test-9223372036854776.png", 9223372036854776)]:
             with self.assertRaises(InventoryError): compare.timestamp(case, {"expected": name, "timestamp_ms": value})
 
+    def test_native_harness_denominator(self):
+        self.assertEqual(harness_summary("All 10 images have passed test (SAME or better)", 10), {"passed": 10, "total": 10})
+        self.assertEqual(harness_summary("Only 2 of 10 images have passed test (BAD or better)", 10), {"passed": 2, "total": 10})
+        for text in ("No images found!", "All 9 images have passed test", "Only 11 of 10 images have passed test"):
+            with self.assertRaises(ValueError): harness_summary(text, 10)
+
     def test_no_false_pass_for_unsupported_or_missing_fonts(self):
         case = next(c for c in self.inventory["cases"] if c["kind"] == "regression")
-        self.assertEqual(compare.classify(case, 2, None, "FontUnavailable"), "INFRA_ERROR")
+        self.assertEqual(compare.classify(case, 2, None, "taiyou: FontUnavailable: font absent"), "INFRA_ERROR")
         self.assertEqual(compare.classify(case, -9, None, "killed"), "CRASH")
         self.assertEqual(compare.classify(case, -999, None, "timeout"), "CRASH")
         self.assertEqual(compare.classify(case, 0, {"exact": False}, ""), "UNSUPPORTED")
         supported = copy.deepcopy(case)
         supported["profile_records"]["CoreV1"]["support"] = "SUPPORTED"
         self.assertEqual(compare.classify(supported, 0, {"exact": False}, ""), "REGRESSION")
-        self.assertEqual(compare.classify(supported, 2, None, "UnsupportedFeature"), "REGRESSION")
+        self.assertEqual(compare.classify(supported, 2, None, "taiyou: UnsupportedFeature: tag"), "REGRESSION")
+
+    def test_renderer_errors_cannot_be_hidden_by_message_substrings(self):
+        case = next(c for c in self.inventory["cases"] if c["kind"] == "regression")
+        self.assertEqual(compare.classify(case, 2, None, "fake UnsupportedFeature"), "REGRESSION")
+        self.assertEqual(compare.classify(case, 2, None, "taiyou: InternalError: UnsupportedFeature"), "INFRA_ERROR")
+
+    def test_missing_explicit_fonts_are_infrastructure_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "test.ass").write_text("synthetic source")
+            images.write_png(root / "test-0000.png", 1, 1, bytes([0, 0, 0, 0]))
+            case = {"id": "test-0000.png", "kind": "regression", "source": "test.ass", "fonts": [], "scale": "1",
+                    "frames": [{"expected": "test-0000.png", "timestamp_ms": 0, "reference_size": [1, 1]}]}
+            assets = {p: {"path": p} for p in ("test.ass", "test-0000.png")}
+            record = compare.run_case(case, root, root / "never-executed", root / "never-executed", root, assets, 0)
+            self.assertEqual(record["status"], "INFRA_ERROR")
+            self.assertIn("no explicit fonts", record["diagnostics"])
 
 
 if __name__ == "__main__":

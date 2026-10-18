@@ -7,12 +7,24 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
 from inventory import load
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def harness_summary(text, expected_count):
+    match = re.search(r"(?:All (\d+)|Only (\d+) of (\d+)) images have passed test", text)
+    if not match:
+        raise ValueError("native harness missing complete frame summary")
+    passed = int(match[1] or match[2])
+    total = int(match[1] or match[3])
+    if total != expected_count or passed > total:
+        raise ValueError("native harness denominator differs from accepted inventory")
+    return {"passed": passed, "total": total}
 
 
 def run(command, **kwargs):
@@ -69,8 +81,10 @@ def main():
                 completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120, text=True)
                 log = f"directory-{index}-p{level}.txt"
                 (args.output / log).write_text(completed.stdout)
+                expected_count = sum(len(c["frames"]) for c in inventory["cases"] if c["kind"] == "regression" and str(Path(c["source"]).parent) == name)
+                summary = harness_summary(completed.stdout, expected_count)
                 report["results"].append({"directory": name, "scale": scale, "pass_level": level,
-                                          "exit_code": completed.returncode, "log": log})
+                                          "exit_code": completed.returncode, "log": log, **summary})
         # All original scripts are retained in provenance, not executed with
         # unsafe ART_REG_* knobs. No failure is suppressed or renamed a pass.
         report["certification"] = "REPRODUCED" if all(r["exit_code"] == 0 for r in report["results"] if r["pass_level"] == 2) else "REFERENCE_DIFFERENCES"
