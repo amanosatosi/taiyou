@@ -274,7 +274,9 @@ fn offscreen_stacks_are_clipped_only_at_composition_and_wrap_modes_stay_gated() 
         frame(&source(2, &explicit), fonts.clone(), Size::new(160, 100)).pixels()
     );
     for mode in [0, 1, 3] {
-        let unsupported = input.replace("WrapStyle: 2", &format!("WrapStyle: {mode}"));
+        let unsupported = input
+            .replace("WrapStyle: 2", &format!("WrapStyle: {mode}"))
+            .replace(",Default,H\n", ",Default,{\\warpmode1}H\n");
         let error = renderer()
             .render(
                 track(&unsupported),
