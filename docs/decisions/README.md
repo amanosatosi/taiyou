@@ -15,3 +15,5 @@ Accepted means an implementation constraint, not a completed implementation. A g
 * [ADR-011: Solo-maintainer validation and explicit baseline promotion (maintainer-authorized)](011-solo-maintainer-validation.md)
 * [ADR-012: Core geometric collision footprint (owner-approved for implementation)](012-core-collision-footprint.md)
 * [ADR-013: Core Unicode wrapping and recursive score selection (owner-approved contract; production admission pending)](013-core-unicode-wrapping.md)
+
+* [ADR-014: Event-level wrapping-engine selection and source-derived mode0](014-wrapping-engine-selection.md)

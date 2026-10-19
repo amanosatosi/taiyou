@@ -1,0 +1,56 @@
+name: Warpmode formatting evidence
+on:
+  push:
+    branches: [task/T017-wrap-validation]
+  pull_request:
+    paths: ['crates/**', '.github/workflows/warpmode-format.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  formatting:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - run: |
+          cargo +1.99.1 fmt --all
+          git diff --binary > "$RUNNER_TEMP/warpmode-format.patch"
+          test ! -s "$RUNNER_TEMP/warpmode-format.patch"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: warpmode-format-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/warpmode-format.patch
+          retention-days: 7
+  units:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: |
+          cargo +1.99.1 test --locked -p taiyou-render --lib
+          cargo +1.99.1 test --locked -p taiyou-cli --test warpmode --test automatic_wrapping
+  native:
+    if: github.event_name != 'pull_request'
+    needs: [formatting, units]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CANDIDATE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py

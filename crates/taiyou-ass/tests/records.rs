@@ -30,6 +30,17 @@ fn literal(event: &Event) -> (&str, SourceSpan) {
 }
 
 #[test]
+fn missing_wrapstyle_defaults_to_zero_like_an_explicit_header() {
+    let missing = parse("[Script Info]\n");
+    let explicit = parse("[Script Info]\nWrapStyle: 0\n");
+    assert_eq!(missing.track().script().wrap().get(), 0);
+    assert_eq!(
+        missing.track().script().wrap(),
+        explicit.track().script().wrap()
+    );
+}
+
+#[test]
 fn records_preserve_commas_whitespace_unicode_bom_and_line_endings() {
     for ending in ["\n", "\r\n", "\r"] {
         let input = format!("\u{feff}{}Dialogue: 4,1:02:03.45,1:02:04.00,Default, actor ,0,20,0, fx ,  héllo, 世界 {{\\b1}} ", EVENTS).replace('\n', ending);

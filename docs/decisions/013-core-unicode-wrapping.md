@@ -9,6 +9,19 @@ enable production wrapping, establish C7 defaults or admit LegacyXyV1.
 ADR-012/F1 remains separately accepted. The final exact-head ADR-011 baseline
 acknowledgment remains a separate human decision.
 
+## Explicit Unicode opt-in amendment
+
+The approved algorithm below is the `\warpmode1` engine. Missing `\warpmode`
+or explicit0 selects source-derived xy-style word wrapping, as requested by the
+owner and recorded in [ADR-014](014-wrapping-engine-selection.md). q0/1/2/3 is
+independent; q2 uses the shared hard-break path. This changes selection only,
+not the approved Unicode algorithm, profile, binary64 recurrence or gates.
+Mode1 automatic wrapping remains unavailable pending its outstanding prerequisites
+and C7 review; mode0 never silently replaces a requested mode1. PR29 merged as
+a partial collision/backend checkpoint at
+`6cfa33ddb38c714a43a096abf53096f9f9aff69c`; preserve its approved F1 policy.
+No full T017 completion or Legacy admission is implied.
+
 ## Decision
 
 Adopt the exact opportunities, atoms, admissibility, boundary shaping, source

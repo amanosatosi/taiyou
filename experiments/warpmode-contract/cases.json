@@ -1,0 +1,674 @@
+{
+  "schema": 1,
+  "proposal": "ADR-014-warpmode-1",
+  "status": "contract-review-only-not-runtime-tests",
+  "integration_base": "d5a545ac49aabbfc23e3895231d407da576e276f",
+  "pr29_prerequisite_head": "3144993e31e52513e044f47a95518930e0a45a80",
+  "production_parser_enabled": true,
+  "automatic_engines_enabled": [],
+  "accepted_visual_outputs": [],
+  "captures": [],
+  "font_reference": "../../build-support/shaping-fonts.proposed.json#latin",
+  "input_environment": {
+    "encoding": "UTF-8",
+    "timestamps_us": [
+      500000
+    ],
+    "output_size": [
+      160,
+      100
+    ],
+    "profile": "CoreV1",
+    "pipeline": "not executed; future ASS-to-stage evidence"
+  },
+  "notes": [
+    "All q-tag cases use one uniform q value. No mixed-q rule is inferred.",
+    "Default script q is2; warpmode never modifies that value.",
+    "Recognition and selection expectations require ADR-014 review before parser implementation.",
+    "No pixels, golden hashes or xy rendering results are supplied."
+  ],
+  "cases": [
+    {
+      "id": "WM00-missing",
+      "file": "scripts/WM00-missing.ass",
+      "kind": "selector-and-hard-breaks",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": [
+          "A",
+          "B",
+          "C D"
+        ],
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM01-zero",
+      "file": "scripts/WM01-zero.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM02-one",
+      "file": "scripts/WM02-one.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM03-last-wins",
+      "file": "scripts/WM03-last-wins.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM04-return-zero",
+      "file": "scripts/WM04-return-zero.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM05-bare-reset",
+      "file": "scripts/WM05-bare-reset.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM06-named-reset",
+      "file": "scripts/WM06-named-reset.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM07-late-multiple-paragraphs",
+      "file": "scripts/WM07-late-multiple-paragraphs.ass",
+      "kind": "selector-and-hard-breaks",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": [
+          "A",
+          "BC"
+        ],
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM08-literal",
+      "file": "scripts/WM08-literal.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM09-nested-unsupported",
+      "file": "scripts/WM09-nested-unsupported.ass",
+      "kind": "unsupported-outer-no-child",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_selector_unchanged": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM10-invalid-strict",
+      "file": "scripts/WM10-invalid-strict.ass",
+      "kind": "invalid-strict",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": null,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "parse_error": "InvalidScript"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM11-invalid-recover",
+      "file": "scripts/WM11-invalid-recover.ass",
+      "kind": "invalid-recover",
+      "syntax": "recover",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "diagnostic": "MalformedRecord",
+        "ignore_invalid_selector": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM12-empty-recover",
+      "file": "scripts/WM12-empty-recover.ass",
+      "kind": "invalid-recover",
+      "syntax": "recover",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "diagnostic": "MalformedRecord",
+        "ignore_invalid_selector": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM13-suffix-recover",
+      "file": "scripts/WM13-suffix-recover.ass",
+      "kind": "invalid-recover",
+      "syntax": "recover",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "diagnostic": "MalformedRecord",
+        "ignore_invalid_selector": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM14-case-unknown",
+      "file": "scripts/WM14-case-unknown.ass",
+      "kind": "unsupported-outer-no-child",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_selector_unchanged": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM15-space-digit",
+      "file": "scripts/WM15-space-digit.ass",
+      "kind": "selector",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM16-no-auto-zero",
+      "file": "scripts/WM16-no-auto-zero.ass",
+      "kind": "q2-shared-path",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": [
+          "A",
+          "B",
+          "C D"
+        ],
+        "selected_engine_scope": "whole-event",
+        "automatic_engine_invocations": 0
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM17-no-auto-one",
+      "file": "scripts/WM17-no-auto-one.ass",
+      "kind": "q2-shared-path",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": [
+          "A",
+          "B",
+          "C D"
+        ],
+        "selected_engine_scope": "whole-event",
+        "automatic_engine_invocations": 0
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM18-q0-default-gated",
+      "file": "scripts/WM18-q0-default-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 0,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM19-q1-zero-gated",
+      "file": "scripts/WM19-q1-zero-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 1,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM20-q3-zero-gated",
+      "file": "scripts/WM20-q3-zero-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 0,
+            "q": 3,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM21-q0-one-gated",
+      "file": "scripts/WM21-q0-one-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 0,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM22-q1-one-gated",
+      "file": "scripts/WM22-q1-one-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 1,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM23-q3-one-gated",
+      "file": "scripts/WM23-q3-one-gated.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 3,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM24-hidden-prior-engine",
+      "file": "scripts/WM24-hidden-prior-engine.ass",
+      "kind": "unavailable-auto-engine",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 0,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "strict_render_error": "UnsupportedFeature",
+        "tolerant_render_error": "UnsupportedFeature",
+        "no_fallback": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM25-blank-lines-one",
+      "file": "scripts/WM25-blank-lines-one.ass",
+      "kind": "selector-and-hard-breaks",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": [
+          "A",
+          "",
+          "B"
+        ],
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM26-nonfinite-recover",
+      "file": "scripts/WM26-nonfinite-recover.ass",
+      "kind": "invalid-recover",
+      "syntax": "recover",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "diagnostic": "MalformedRecord",
+        "ignore_invalid_selector": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM27-fraction-recover",
+      "file": "scripts/WM27-fraction-recover.ass",
+      "kind": "invalid-recover",
+      "syntax": "recover",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event",
+        "diagnostic": "MalformedRecord",
+        "ignore_invalid_selector": true
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    },
+    {
+      "id": "WM28-two-independent-events",
+      "file": "scripts/WM28-two-independent-events.ass",
+      "kind": "independent-event",
+      "syntax": "strict",
+      "expected": {
+        "events": [
+          {
+            "engine": 1,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          },
+          {
+            "engine": 0,
+            "q": 2,
+            "render": "not-executed-proposed-expectation"
+          }
+        ],
+        "logical_lines": null,
+        "selected_engine_scope": "whole-event"
+      },
+      "status": "proposed-not-accepted",
+      "approved": false,
+      "enabled": false
+    }
+  ]
+}

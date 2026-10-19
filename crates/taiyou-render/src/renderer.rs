@@ -218,11 +218,19 @@ fn prepare_local(
         )?,
     )?;
     let stage_held = add(stage_held, shape_charge)?;
-    let local = Arc::new(layout(
-        &shaped,
-        &LayoutConstraints::new(shaped.placement().alignment())
-            .with_limits(available(limits, stage_held)?),
-    )?);
+    let mut constraints = LayoutConstraints::new(shaped.placement().alignment())
+        .with_wrap(evaluated.wrap_mode())
+        .with_limits(available(limits, stage_held)?);
+    if evaluated.wrap_mode().get() != 2 {
+        let style_index = usize::try_from(event.style().index()).map_err(|_| limited())?;
+        let base = track.styles().get(style_index).ok_or_else(limited)?;
+        let margins = event.margins().inherit(base.margins());
+        let width = f64::from(track.script().play_res().width())
+            - f64::from(margins.left())
+            - f64::from(margins.right());
+        constraints = constraints.with_width(FiniteF64::new(width).map_err(convert)?)?;
+    }
+    let local = Arc::new(layout(&shaped, &constraints)?);
     let layout_charge = add(
         bytes::<PositionedGlyph>(local.glyphs().len())?,
         bytes::<Line>(local.lines().len())?,

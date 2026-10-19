@@ -297,6 +297,10 @@ fn evaluate_escapes_and_tiny_budget_fail_without_partial_output() {
     let t = track(
         vec![Style::core_default()],
         vec![
+            TextOp::Override(OverrideOp::SetWrapMode {
+                mode: Some(WrapMode::new(2).unwrap()),
+                source: span(0, 0),
+            }),
             TextOp::HardBreak,
             TextOp::SoftBreak,
             TextOp::NoBreakSpace,

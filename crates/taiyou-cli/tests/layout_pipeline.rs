@@ -7,7 +7,7 @@ use taiyou_render::{
 fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coalesce() {
     for (text, glyph_count) in [("f{\\fscx200}f", 2), ("f{\\c&HFF0000&}f", 1)] {
         let input = format!(
-            "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
+            "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
         );
         let options = Default::default();
         let parsed =
@@ -123,7 +123,7 @@ fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
 fn layout_pipeline_empty_and_break_only_events_have_real_metrics() {
     for text in ["", "\\N", "\\N\\N", "{\\fs40}"] {
         let input = format!(
-            "[V4+ Styles]\nFormat: Name,Fontname,Fontsize\nStyle: Default,Source Sans 3,20\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
+            "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize\nStyle: Default,Source Sans 3,20\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
         );
         let options = Default::default();
         let parsed =

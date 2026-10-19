@@ -1,4 +1,4 @@
-//! Core hard-line layout in local script space. No wrapping or event placement.
+//! Core local layout: explicit breaks or source-derived xy word wrapping.
 use std::sync::Arc;
 use taiyou_types::*;
 pub use taiyou_types::{LayoutConstraints, LocalLayout};
@@ -108,28 +108,144 @@ struct DraftLine {
     glyphs: std::ops::Range<usize>,
 }
 
+fn xy_plan(
+    input: &ShapedEvent,
+    constraints: &LayoutConstraints,
+) -> Result<Vec<crate::xy_wrap::Span>, RenderError> {
+    use crate::xy_wrap::{Word, width_units};
+    let text = input.source_map().text();
+    let maximum = text
+        .len()
+        .checked_mul(2)
+        .and_then(|n| n.checked_add(input.evaluated().runs().len().checked_mul(2)?))
+        .and_then(|n| n.checked_add(2))
+        .ok_or_else(limited)?;
+    let charge = maximum
+        .checked_mul(
+            3 * (std::mem::size_of::<Word>()
+                + 2 * std::mem::size_of::<f64>()
+                + std::mem::size_of::<crate::xy_wrap::Span>()),
+        )
+        .ok_or_else(limited)?;
+    if charge as u64 > constraints.limits().transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
+    }
+    let mut points = Vec::new();
+    reserve(&mut points, maximum)?;
+    points.push(0_u32);
+    points.push(text.len() as u32);
+    for (at, ch) in text.char_indices() {
+        if ch == ' ' {
+            points.push(at as u32);
+            points.push(at as u32 + 1);
+        }
+    }
+    for run in input.evaluated().runs() {
+        if let Some(span) = run.decoded() {
+            points.extend([span.start(), span.end()]);
+        }
+    }
+    for span in input.breaks() {
+        points.extend([span.start(), span.end()]);
+    }
+    points.sort_unstable();
+    points.dedup();
+    // CRLF and other retained hard-break ranges remain one separator.
+    points.retain(|&at| {
+        let i = input.breaks().partition_point(|b| b.end() <= at);
+        input.breaks().get(i).is_none_or(|b| at <= b.start())
+    });
+    let mut widths = Vec::new();
+    reserve(&mut widths, points.len())?;
+    widths.resize(points.len(), 0.0_f64);
+    for run in input.runs() {
+        for (g, glyph) in run.glyphs().iter().enumerate() {
+            let i = points
+                .partition_point(|&p| p <= glyph.cluster().start())
+                .checked_sub(1)
+                .ok_or_else(limited)?;
+            let state = &input.evaluated().runs()[association(input, glyph.cluster().start())?];
+            let scale = state.geometry().scale_x().get() * constraints.scale_x().get();
+            widths[i] += glyph.advance_x().get() * scale;
+            if run
+                .glyphs()
+                .get(g + 1)
+                .is_none_or(|next| next.cluster() != glyph.cluster())
+            {
+                widths[i] += state.shaping().spacing().get() * scale;
+            }
+            finite(widths[i])?;
+        }
+    }
+    let mut words = Vec::new();
+    reserve(&mut words, points.len())?;
+    for (i, p) in points.windows(2).enumerate() {
+        let raw = &text[p[0] as usize..p[1] as usize];
+        let hard = input
+            .breaks()
+            .binary_search_by_key(&p[0], |b| b.start())
+            .is_ok();
+        words.push(Word {
+            start: p[0],
+            end: p[1],
+            width: width_units(widths[i])?,
+            space: raw == " ",
+            hard,
+        });
+    }
+    let available = constraints.available_width().get() * 8.0;
+    if !available.is_finite() || available.abs() >= i64::MAX as f64 {
+        return Err(limited());
+    }
+    crate::xy_wrap::lines(
+        &words,
+        text.len() as u32,
+        constraints.wrap().get(),
+        available.trunc() as i64,
+    )
+}
+
 pub fn layout(
     input: &ShapedEvent,
     constraints: &LayoutConstraints,
 ) -> Result<LocalLayout, RenderError> {
-    if constraints.profile() != Profile::CoreV1 || constraints.wrap().get() != 2 {
+    if constraints.profile() != Profile::CoreV1
+        || constraints.wrap() != input.evaluated().wrap_mode()
+    {
         return Err(error(
             ErrorCode::UnsupportedFeature,
-            "layout supports CoreV1 hard-break WrapStyle 2",
+            "layout profile or evaluated wrapping policy mismatch",
         ));
     }
     let limits = constraints.limits();
+    let automatic = constraints.wrap().get() != 2;
+    if automatic && input.evaluated().warp_mode() == WarpMode::Unicode {
+        return Err(error(
+            ErrorCode::UnsupportedFeature,
+            "warpmode1 automatic wrapping is not admitted",
+        ));
+    }
+    let plan = if automatic {
+        Some(xy_plan(input, constraints)?)
+    } else {
+        None
+    };
     let count = input.runs().iter().try_fold(0_usize, |n, r| {
         n.checked_add(r.glyphs().len()).ok_or_else(limited)
     })?;
-    let lines = input.breaks().len().checked_add(1).ok_or_else(limited)?;
+    let lines = plan.as_ref().map_or_else(
+        || input.breaks().len().checked_add(1).ok_or_else(limited),
+        |p| Ok(p.len()),
+    )?;
     let bytes = count
         .checked_mul(
             3 * (std::mem::size_of::<DraftGlyph>() + std::mem::size_of::<PositionedGlyph>()),
         )
         .and_then(|n| {
             n.checked_add(lines.checked_mul(
-                3 * (std::mem::size_of::<DraftLine>() + std::mem::size_of::<Line>()),
+                3 * (std::mem::size_of::<DraftLine>()
+                    + std::mem::size_of::<Line>()
+                    + std::mem::size_of::<crate::xy_wrap::Span>()),
             )?)
         })
         .and_then(|n| {
@@ -184,10 +300,21 @@ pub fn layout(
     let mut start = 0;
     let mut total_height = 0.0;
     for i in 0..lines {
-        let end = input
-            .breaks()
-            .get(i)
-            .map_or(input.source_map().text().len() as u32, |s| s.start());
+        let proposed = plan.as_ref().map(|p| p[i]);
+        if let Some(p) = proposed {
+            start = p.start;
+        }
+        let end = proposed.map_or_else(
+            || {
+                input
+                    .breaks()
+                    .get(i)
+                    .map_or(input.source_map().text().len() as u32, |s| s.start())
+            },
+            |p| p.end,
+        );
+        let visible_start = proposed.map_or(start, |p| p.visible_start);
+        let visible_end = proposed.map_or(end, |p| p.visible_end);
         let decoded = input
             .source_map()
             .decoded_span(start..end)
@@ -195,6 +322,12 @@ pub fn layout(
         order.clear();
         while run_cursor < input.runs().len() && input.runs()[run_cursor].decoded().start() < end {
             let run = &input.runs()[run_cursor];
+            if automatic
+                && (run.decoded().end() <= visible_start || run.decoded().start() >= visible_end)
+            {
+                run_cursor += 1;
+                continue;
+            }
             if run.decoded().start() < start || run.decoded().end() > end {
                 return Err(error(
                     ErrorCode::InvalidArgument,
@@ -208,21 +341,32 @@ pub fn layout(
         let (mut ascent, mut descent, mut pen_x, mut pen_y, mut min, mut max) =
             (0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64, 0.0_f64);
         let begin = drafts.len();
-        if start == end {
+        if visible_start == visible_end {
             let metrics = input
                 .empty_lines()
                 .binary_search_by_key(&start, |m| m.decoded.start())
                 .ok()
-                .map(|i| &input.empty_lines()[i])
-                .ok_or_else(|| {
-                    error(
-                        ErrorCode::InvalidArgument,
-                        "empty line lacks actual font metrics",
-                    )
-                })?;
-            let sy = metrics.scale_y.get() * constraints.scale_y().get();
-            ascent = metrics.metrics.ascent().get() * sy;
-            descent = metrics.metrics.descent().get() * sy;
+                .map(|i| &input.empty_lines()[i]);
+            if let Some(metrics) = metrics {
+                let sy = metrics.scale_y.get() * constraints.scale_y().get();
+                ascent = metrics.metrics.ascent().get() * sy;
+                descent = metrics.metrics.descent().get() * sy;
+            } else if automatic {
+                let run = input
+                    .runs()
+                    .iter()
+                    .find(|r| r.decoded().start() >= start && r.decoded().start() < end)
+                    .ok_or_else(limited)?;
+                let state = &input.evaluated().runs()[association(input, run.decoded().start())?];
+                let sy = state.geometry().scale_y().get() * constraints.scale_y().get();
+                ascent = run.metrics().ascent().get() * sy;
+                descent = run.metrics().descent().get() * sy;
+            } else {
+                return Err(error(
+                    ErrorCode::InvalidArgument,
+                    "empty line lacks actual font metrics",
+                ));
+            }
         }
         for &r in &order {
             let run = &input.runs()[r];
@@ -317,7 +461,7 @@ pub fn layout(
             max,
             glyphs: begin..drafts.len(),
         });
-        if let Some(b) = input.breaks().get(i) {
+        if let Some(b) = input.breaks().get(i).filter(|_| !automatic) {
             if !matches!(b.text(), "\n" | "\r" | "\r\n" | "\u{2029}") {
                 return Err(error(
                     ErrorCode::UnsupportedFeature,

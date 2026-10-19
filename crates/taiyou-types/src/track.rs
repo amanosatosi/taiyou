@@ -212,7 +212,7 @@ impl Alignment {
     }
 }
 
-/// Header representation only. Rendering modes other than 2 remain T017-gated.
+/// ASS wrapping style, independent of the event's wrapping-engine selector.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct WrapMode(u8);
 impl WrapMode {
@@ -519,7 +519,7 @@ impl ScriptInfo {
         Self {
             play_res: Size::new(384, 288),
             layout_res: None,
-            wrap: WrapMode(2),
+            wrap: WrapMode(0),
             scaled_border_shadow: false,
             ycbcr_matrix: Arc::from(""),
             collision_header: None,
@@ -612,12 +612,37 @@ pub enum ScaleAxis {
     Y,
 }
 
-/// Static subset authorized by T006. Numbers are script-space; scale is a factor.
+/// Event-level automatic wrapping engine intent. Admission is independent of q.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub enum WarpMode {
+    #[default]
+    XyStyle,
+    Unicode,
+}
+impl WarpMode {
+    pub const fn get(self) -> u8 {
+        match self {
+            Self::XyStyle => 0,
+            Self::Unicode => 1,
+        }
+    }
+}
+
+/// Static subset authorized by T006 and the warpmode selector amendment.
+/// Numbers are script-space; scale is a factor.
 /// SetPaint changes RGB only (stored alpha must be 255); SetOpacity stores opacity
 /// after transparency inversion, with None selecting all channels. Source spans
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    SetWrapMode {
+        mode: Option<WrapMode>,
+        source: SourceSpan,
+    },
+    SetWarpMode {
+        mode: WarpMode,
+        source: SourceSpan,
+    },
     SetFont {
         family: Arc<str>,
         source: SourceSpan,
@@ -677,7 +702,9 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetFont { source, .. }
+            Self::SetWrapMode { source, .. }
+            | Self::SetWarpMode { source, .. }
+            | Self::SetFont { source, .. }
             | Self::SetSize { source, .. }
             | Self::SetWeight { source, .. }
             | Self::SetItalic { source, .. }
