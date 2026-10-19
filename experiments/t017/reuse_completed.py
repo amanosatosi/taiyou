@@ -80,6 +80,12 @@ def unchanged(measured, kind):
             existed = subprocess.run(["git", "cat-file", "-e", REVIEWED + ":" + path], cwd=ROOT, capture_output=True)
             if existed.returncode != 0 and (status == "A" or path == "crates/taiyou-cli/tests/adaptive_optimized_performance.rs"):
                 continue
+            if existed.returncode != 0 and status == "M":
+                # Owner-authorized additive experiment tests: every original
+                # byte/function/assertion must remain the unchanged file prefix.
+                original = subprocess.check_output(["git", "show", measured + ":" + path], cwd=ROOT)
+                if (ROOT / path).read_bytes().startswith(original):
+                    continue
         return None
     return changed
 

@@ -52,7 +52,7 @@ All active-set work is rebuilt for every requested timestamp.
 |---|---|---|
 | Core C4 stateless collision using existing local boxes | Implemented; Actions verification recorded on PR | Technical review and maintainer acceptance |
 | Core hard/soft breaks in WrapStyle 2, empty-line metrics, NBSP, nine alignments | Existing behavior preserved | Existing T010/stage tests plus additive integration tests |
-| Automatic WrapStyle 0/1/3 | Unsupported; W1 rejected, W2 proposed | Owner approval of [W2](T017-wrapping-policy-v2.md), Unicode data/dependency choice, measured work limits and exact fixtures; no production wrapping yet |
+| Automatic WrapStyle 0/1/3 | Unsupported; W2 Core semantics approved in review | Final [ADR-013](../decisions/013-core-unicode-wrapping.md)/C4 confirmation of recursive rounding, Unicode data/conformance/storage/licensing, native-work preflight and C7 limits; no production wrapping yet |
 | Legacy collision/placement L04–L07 | Unsupported | Authenticated xy captures, metrics, exact fixture/policy and maintainer admission |
 | Historical persistent allocation L08 | Blocked | Resolve conflict with C1/C4 deterministic seeking through separate contract review; never enable implicitly |
 | Core geometric effect footprint | F1 owner-approved, implemented for review | ADR-012/C4/CACHING amendment, numeric and fixed-font verification, final technical review and exact-head protected-change acknowledgment |
@@ -102,4 +102,4 @@ the conservative workspace reservation was 1200000 bytes versus old 960000 bytes
 Pure solver workspace increases; the large renderer memory reduction comes from
 dropping retained full layouts, not pretending intervals have no memory cost.
 No production multi-worker or universal speedup claim is made. Full T017 completion
-remains blocked on W2 semantics/work-budget approval and final technical acceptance.
+remains blocked on final W2 contract/admission gates and technical acceptance.

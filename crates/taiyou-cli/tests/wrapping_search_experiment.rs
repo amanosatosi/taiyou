@@ -107,3 +107,57 @@ fn mode_one_must_scan_past_nonfitting_intermediate_widths() {
     let widths = [3.0, 8.0, 4.0, 9.0];
     assert_eq!(widths.iter().rposition(|&w| w <= 5.0), Some(2));
 }
+
+#[test]
+fn recursive_suffix_choice_is_not_reopened_when_prefix_rounding_erases_costs() {
+    let width = 16_384.0_f64;
+    let delta = 1.0 / 32_768.0;
+    let prefix = width * width;
+    let small = delta * delta;
+    let large = 4.0 * small;
+    assert!(small < large);
+    assert_eq!((prefix + small).to_bits(), (prefix + large).to_bits());
+    for (mode, a, b) in [
+        (0, [width - delta, width], [width, width - 2.0 * delta]),
+        (3, [width, width - delta], [width - 2.0 * delta, width]),
+    ] {
+        let mut costs = vec![vec![width + 1.0; 5]; 4];
+        costs[0][1] = 0.0;
+        costs[1][2] = a[0];
+        costs[2][4] = a[1];
+        costs[1][3] = b[0];
+        costs[3][4] = b[1];
+        let chosen = search(&costs, width, mode);
+        assert_eq!(chosen.ends, [1, 2, 4]);
+        assert_eq!(chosen.widths, [0.0, a[0], a[1]]);
+        assert_eq!(chosen.cost, prefix);
+        let discarded_suffix = Plan {
+            widths: vec![0.0, b[0], b[1]],
+            ends: vec![1, 3, 4],
+            cost: prefix + large,
+        };
+        // A global comparison of all rounded complete plans would reopen the
+        // discarded suffix and prefer it lexicographically. Recursive DP must
+        // retain its locally lower-cost suffix, for either opposite tie rule.
+        assert!(better(&discarded_suffix, &chosen, mode));
+    }
+}
+
+#[test]
+fn recursive_binary64_score_does_not_claim_exact_global_squared_slack() {
+    let width = 16_384.0_f64;
+    let delta = 1.0 / 32_768.0;
+    let prefix = width * width;
+    assert_eq!((prefix + delta * delta).to_bits(), prefix.to_bits());
+    let mut costs = vec![vec![width + 1.0; 4]; 3];
+    costs[0][1] = 0.0;
+    costs[1][3] = width - delta;
+    costs[0][2] = 0.0;
+    costs[2][3] = width;
+    // Exact dyadic scores are prefix+2^-30 and prefix. Rounded scores tie,
+    // so mode3 selects the smaller second width despite its larger exact cost.
+    let mode3 = search(&costs, width, 3);
+    assert_eq!(mode3.ends, [1, 3]);
+    assert_eq!(mode3.cost, prefix);
+    assert_eq!(search(&costs, width, 0).ends, [2, 3]);
+}

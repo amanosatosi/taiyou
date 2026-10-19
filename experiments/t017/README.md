@@ -89,7 +89,11 @@ The owner also authorized evidence-preserving reuse in `reuse_completed.py`.
 Only complete, individually hashed original reports listed in `results/completed.json`
 can be reused after Git checks measured production/build/input code is unchanged.
 Complementary experiment-script changes do not invalidate the other experiment.
-Deleted tests and changes to preexisting tests are rejected. Every workload and
+Deleted tests and changes to preexisting tests are rejected. Owner-authorized
+append-only additions to experiment tests introduced after the reviewed baseline
+are admitted only when the complete measured file remains an unchanged byte
+prefix; original functions/assertions cannot be rewritten under that exception.
+Every workload and
 sample must remain present; invalid, duplicate, failed-as-match or mismatched
 frame evidence is rejected. Reuse reports its original SHA/job/environment and
 current SHA explicitly. All ordinary correctness gates and the full external

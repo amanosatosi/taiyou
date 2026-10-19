@@ -3,7 +3,9 @@
 Performance/verification follow-up to reviewed candidate
 `027e58a52efdd870b99f49ab5f3bae6e952f8f59`. Existing measurements, including the
 5,000-event four-glyph 180-second timeout, remain evidence, not acceptance limits.
-W2 remains proposed; no automatic wrapping mode is enabled.
+W2 Core semantics are owner-approved; its final recursive-rounding contract,
+data/conformance/native-work admission and C7 limits remain pending. No automatic
+wrapping mode is enabled.
 
 ## Deterministic staging
 
@@ -217,7 +219,10 @@ frozen assets. The independent native libass oracle remains separate. No newly
 failing case or reference/threshold/classification/harness/workflow change is
 authorized. Final candidate results must be checked individually again.
 
-F1 is approved Core policy. W2 semantics/data/work budgets and implementation
-remain gated; no automatic mode0/1/3 or Legacy capability is enabled. PR#29 must
+F1 is approved Core policy. The owner approved W2 semantics and approved its
+Unicode data plan in principle. [Draft ADR-013](../decisions/013-core-unicode-wrapping.md)
+submits the narrow recursive-rounding choice and proposed C4 text for final
+confirmation. Data/conformance/native-work/C7 admission and implementation remain
+gated; no automatic mode0/1/3 or Legacy capability is enabled. PR#29 must
 remain unmerged for technical review and the final exact-head ADR-011 human
 acknowledgment. An agent must not post that acknowledgment or mark T017 complete.

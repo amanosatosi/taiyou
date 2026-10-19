@@ -1,13 +1,18 @@
 # T017 W2 — Unicode-aware Core wrapping proposal
 
-Status: **proposed, not approved or implemented**. Supersedes W1's space-only
-proposal following the owner's 2026-10-19 review. F1 is separately approved in
+Status: **Core semantics owner-approved in review; final contract confirmation
+and implementation admission pending**. Supersedes W1's space-only proposal.
+The owner approved the Unicode15.1 data plan in principle and the backwards DP
+approach subject to the rounding clarification proposed below and in
+[draft ADR-013](../decisions/013-core-unicode-wrapping.md). Production limits,
+generated data and automatic wrapping remain unapproved/unimplemented.
+F1 is separately approved in
 [ADR-012](../decisions/012-core-collision-footprint.md). This proposal does not
 admit R001 L01–L03 or claim historical xy-VSFilter behavior.
 
 The advances-only API and search tests in this PR are **experiments**, not an
 automatic wrapping implementation. Their full-line equivalence and workload
-measurements must be reviewed before any production admission.
+measurements do not admit missing data/conformance/native-work prerequisites.
 
 ## Exact opportunities and atoms
 
@@ -101,8 +106,10 @@ overwide. Every selected line must be admissible; no hidden greedy fallback.
 - Mode1 selects the furthest fitting logical end among all ends at the current
   start. If none fits, emit the first atom alone. Continue after its consumed
   delimiter. Do not assume candidate widths are monotonic.
-- Modes0/3 minimize line count, then sum of squared slack
-  max(0,available_width-line_width)^2. Equal-cost mode0 chooses the
+- Modes0/3 use the proposed recursive DP comparator defined below: minimize
+  line count, then rounded squared-slack score over selected suffix plans.
+  This is not exact global minimization over all complete plans. Equal-score
+  candidates at a state use mode0's
   lexicographically larger line-width vector; mode3 chooses smaller. Final tie
   is lexicographically earliest decoded break-offset vector. Evaluate costs in
   fixed logical order, with no epsilon or unspecified hash order.
@@ -135,8 +142,10 @@ edge plus already selected suffix by line count, cost, width-vector tie and
 break-offset tie in that order. Specify floating evaluation as the backwards
 recurrence `cost(start) = squared_slack(edge) + cost(end)`; calculate each slack
 and square with separate finite operations, no FMA. This explicit association
-is a proposed clarification requiring approval. The independent experiment
-compares this recurrence against exhaustive small plans with nonmonotonic costs.
+is the clarification submitted for final owner confirmation. The independent
+experiment compares this recurrence against exhaustive small plans with exact
+small dyadic costs and nonmonotonic widths; that agreement is not a claim about
+global optimization of arbitrary rounded floating-point costs.
 Its simple tie-vector implementation has O(B cubed) worst-case scalar/copy work
 and O(B squared) storage, but only O(B squared) boundary shapes; no exponential
 search or repeated native shaping of equal ranges. A future more compact tie
@@ -145,6 +154,31 @@ ranking requires equivalent fixtures before replacing that ordering.
 The selected lines still receive full independent boundary shaping with ink;
 their logical widths must equal the saved candidate costs exactly. Width-only
 results contain Unknown ink and cannot be used as renderable local layouts.
+
+### Proposed narrow DP rounding decision
+
+**Recursive comparison itself is normative**, rather than exact global
+squared-slack minimization or global enumeration followed by a rounded-cost tie.
+Process starts backwards. A state's candidates are only an admissible edge plus
+the one already selected plan at its end. Never reopen a discarded suffix when
+a preceding large cost erases a former score difference. Compare candidates by
+line count, rounded binary64 score, mode-specific width vector and decoded break
+offset vector, in that order. Terminal cost is positive zero. Use binary64
+round-to-nearest/ties-to-even separately for subtraction, square multiplication
+and addition; no FMA, extended-precision score, epsilon or arbitrary-precision
+global objective. A nonfinite score is LimitExceeded, not an alternative wrap.
+
+The append-only adversarial experiments use available width16384 and
+delta=2^-15. Suffix A has exact cost2^-30 and suffix B cost4×2^-30. Adding a
+zero-width preceding line costs2^28 and rounds both totals to2^28. Mode0 and
+mode3 can each prefer B in a global rounded comparison, but recursive DP must
+keep previously selected A. A second fixture has two rounded-equal complete
+scores, exact2^28+2^-30 versus2^28: mode3 selects the former by its width tie,
+explicitly demonstrating that exact global minimization is not promised.
+These fixtures check the actual experimental search, with independently
+calculated multiplication/bit expectations; existing small-plan assertions stay
+unchanged. Future production code must spell out separate square multiplication,
+not rely on a general power function's unspecified precision.
 
 ## Proposed work bounds and required measurement
 
@@ -208,7 +242,7 @@ before allocation. Per-call memoization may avoid repeated shape work but is
 charged and released in that call. No acceptance claim for arbitrary 1-MiB
 typesetting events follows from a few representative measurements.
 
-## Completed optimized-width experiment (Core proposal still unapproved)
+## Completed optimized-width experiment (production admission pending)
 
 Candidate `ae467c953b9cf937469fb118e48f3f8c909fcaac`,
 [Linux job118108262024](https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024),
@@ -260,9 +294,10 @@ The additive search experiment already compares the DAG/DP proposal against
 exhaustive small nonmonotonic plans, including opposite ties, overwide atoms and
 mode1 scanning beyond a nonfitting end. It is not necessary to repeat complete
 plan enumeration or build a production wrapper to resolve this policy decision.
-Owner review is requested for the exact W2 semantics, backwards cost recurrence,
-Unicode15.1 generated-data choice and pilot budgets; implementation remains gated
-on that approval and the explicitly missing conformance/native-work evidence.
+The owner approved W2 semantics and the Unicode15.1 data plan in principle.
+Final review now concerns the narrow recursive-rounding clarification in
+draft ADR-013; pilot budgets and production admission remain gated on the
+explicitly missing conformance/native-work evidence and final contract approval.
 
 ## Executable proposed arithmetic expectations
 
@@ -298,9 +333,14 @@ not establish line metrics, raster pixels or historical compatibility.
 
 ## Approval gate
 
-Owner approval is still required for this exact policy, its measured search
-limits, dependency/data choice and C4/C7 amendment. No automatic production wrap
-mode is enabled yet. Legacy admission separately needs authenticated pinterf
+Owner review approved Core semantics, the DP direction conditionally and the
+Unicode15.1 data plan in principle. Final confirmation of the narrow recursive
+rounding decision and [proposed ADR/C4 text](../decisions/013-core-unicode-wrapping.md)
+is still required. Generated data hashes/licensing/provenance/storage review,
+unmodified Unicode conformance, separate ASS-tailored/cluster-filtered fixtures,
+raw native-work preflight and a reviewed C7 amendment remain mandatory before
+implementation admission. The32,000/16,000,000 pilot limits are not production
+defaults. No automatic production wrap mode is enabled. Legacy admission separately needs authenticated pinterf
 L01–L03 captures, font/GDI metrics and tie examples with the full environment/
 binary/font/script/timestamp/output provenance specified by R001. Neither this
 Core proposal nor libass output supplies that historical evidence.
