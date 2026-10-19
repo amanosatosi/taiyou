@@ -76,7 +76,8 @@ fn request(now: i64) -> RenderRequest {
 #[test]
 fn adaptive_full_partial_minimal_and_limit_results_agree() {
     let fonts = catalog();
-    let track = track(64, 4);
+    let count = 256;
+    let track = track(count, 4);
     let (mut full, mut partial, mut succeeded, mut failed) = (false, false, false, false);
     for mib in [1, 18, 20, 22, 24, 32, 128] {
         let config = RendererConfig {
@@ -99,15 +100,15 @@ fn adaptive_full_partial_minimal_and_limit_results_agree() {
                 .unwrap()
                 .render(track.clone(), fonts.clone(), &request(750_000));
         let retained = RETAINED_CALLS.with(Cell::get);
-        full |= retained == 64;
-        partial |= retained > 0 && retained < 64;
+        full |= retained == count as usize;
         match (minimal, adaptive) {
             (Ok(a), Ok(b)) => {
                 succeeded = true;
+                partial |= retained > 0 && retained < count as usize;
                 assert_eq!(a.pixels(), b.pixels(), "budget {mib}");
                 assert_eq!(a.diagnostics(), b.diagnostics());
                 if mib == 128 {
-                    assert_eq!(PREPARE_CALLS.with(Cell::get), 68);
+                    assert_eq!(PREPARE_CALLS.with(Cell::get), count as usize + 4);
                 }
             }
             (Err(a), Err(b)) => {

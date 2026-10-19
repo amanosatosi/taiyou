@@ -5,6 +5,10 @@ proposal following the owner's 2026-10-19 review. F1 is separately approved in
 [ADR-012](../decisions/012-core-collision-footprint.md). This proposal does not
 admit R001 L01–L03 or claim historical xy-VSFilter behavior.
 
+The advances-only API and search tests in this PR are **experiments**, not an
+automatic wrapping implementation. Their full-line equivalence and workload
+measurements must be reviewed before any production admission.
+
 ## Exact opportunities and atoms
 
 Pin Unicode **15.1.0**, [UAX14 revision51](https://www.unicode.org/reports/tr14/tr14-51.html)
@@ -31,6 +35,20 @@ including opening/closing punctuation restrictions. Thai/Lao/Khmer sequences
 that need a dictionary remain atomic unless an explicit legal separator exists;
 do not invent character-by-character emergency breaks. Unknown Unicode 15.1
 characters use that version's default properties, not the host Unicode database.
+
+Proposed data choice: independently implement the default boundary rules over
+vendored, hashed Unicode15.1 property tables generated from LineBreak.txt,
+GraphemeBreakProperty.txt, emoji-data.txt and DerivedCoreProperties.txt (including
+Indic_Conjunct_Break). Vendor the matching conformance inputs and Unicode license
+with provenance in a separately reviewed additive proposal. Do not use the host
+Unicode database. This adds no Rust/runtime dependency. Existing unicode-bidi
+0.3.18 and unicode-script0.5.8 remain the shaping/itemization dependencies; they
+do not by themselves provide the proposed pinned line/grapheme algorithm.
+Alternatives are a pinned line-break plus segmentation crate with matching data,
+or ICU4X segmentation with matching data. Existing ICU case-map tables are not
+proof of matching segmentation data. Table hashes, generated size, conformance
+results and license review remain prerequisites; no tables or dependency are
+admitted by this document.
 
 Core-specific tailoring:
 
@@ -90,6 +108,40 @@ Publish only selected line shapes, their visual run order and full provenance.
 Use T010 max ascent/descent including empty-line style metrics. Build distinct
 logical/ink/local boxes after wrapping, then ADR-012 effects footprint, then
 complete-active-set collision placement. No frame-history or retained wrap cache.
+
+### Candidate reuse and polynomial search (proposed refinement)
+
+Evaluate the ASS event once. Retain the original decoded map and immutable style
+ranges; a candidate creates a line-boundary view with original source intervals,
+not a newly generated ASS document. Re-itemize bidi for that actual line and
+shape its actual context. Use the authenticated immutable catalog, not repeated
+font authentication. The advances experiment skips ink extents but preserves
+actual fallback, glyph IDs/positions, face metrics, clusters and provenance.
+Reject scale seams inside a cluster consistently with full layout. Do not infer
+line widths from paragraph glyph slices or additive character measurements.
+
+Key a candidate cost by its exact logical start/end and consumed-delimiter rule.
+Measure every unique range at most once during this event's search; checked
+triangular storage is O(B squared), where B is the boundary count. No candidate
+width monotonicity assumption is allowed. Mode1 scans all remaining legal ends
+and selects the furthest fitting one; overwide-single-atom admission is unchanged.
+
+For modes0/3, use a DAG of admissible candidate edges and dynamic programming,
+not enumeration of all complete break plans. At each start, choose the best
+edge plus already selected suffix by line count, cost, width-vector tie and
+break-offset tie in that order. Specify floating evaluation as the backwards
+recurrence `cost(start) = squared_slack(edge) + cost(end)`; calculate each slack
+and square with separate finite operations, no FMA. This explicit association
+is a proposed clarification requiring approval. The independent experiment
+compares this recurrence against exhaustive small plans with nonmonotonic costs.
+Its simple tie-vector implementation has O(B cubed) worst-case scalar/copy work
+and O(B squared) storage, but only O(B squared) boundary shapes; no exponential
+search or repeated native shaping of equal ranges. A future more compact tie
+ranking requires equivalent fixtures before replacing that ordering.
+
+The selected lines still receive full independent boundary shaping with ink;
+their logical widths must equal the saved candidate costs exactly. Width-only
+results contain Unknown ink and cannot be used as renderable local layouts.
 
 ## Proposed work bounds and required measurement
 

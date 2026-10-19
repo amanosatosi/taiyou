@@ -40,7 +40,9 @@ fn catalog_authentication_preserves_untrusted_outline_checks_and_results() {
         Limits::default().with_transient_bytes(1024).unwrap(),
     ] {
         let a = context.outline(blob, u32::MAX, &limits).unwrap_err();
-        let b = catalog.outline(&mut context, id, u32::MAX, &limits).unwrap_err();
+        let b = catalog
+            .outline(&mut context, id, u32::MAX, &limits)
+            .unwrap_err();
         assert_eq!(a.code(), b.code());
     }
 }
