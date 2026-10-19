@@ -354,91 +354,224 @@ fn boundary_widths_match_independent_full_line_shaping_and_report_costs() {
 #[test]
 fn every_native_fallback_and_context_attempt_is_budgeted() {
     use taiyou_render::shaping::NativeWorkExperiment as Work;
-    let limits = Limits::default().with_transient_bytes(512*1024*1024).unwrap();
+    let limits = Limits::default()
+        .with_transient_bytes(512 * 1024 * 1024)
+        .unwrap();
     let mut ctx = FontContext::with_limits(limits.clone()).unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
-    for (id,ext) in [("latin","otf"),("arabic","ttf"),("indic","ttf"),("cjk","otf")] {
-        builder.register(&mut ctx,&std::fs::read(PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap()).join(format!("taiyou-shaping-fonts/{id}.{ext}"))).unwrap(),0).unwrap();
+    for (id, ext) in [
+        ("latin", "otf"),
+        ("arabic", "ttf"),
+        ("indic", "ttf"),
+        ("cjk", "otf"),
+    ] {
+        builder
+            .register(
+                &mut ctx,
+                &std::fs::read(
+                    PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
+                        .join(format!("taiyou-shaping-fonts/{id}.{ext}")),
+                )
+                .unwrap(),
+                0,
+            )
+            .unwrap();
     }
     let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-    let style = Style::core_default().with_font(FontRequest::new(Arc::from("Source Sans 3"),400,false,false));
+    let style = Style::core_default().with_font(FontRequest::new(
+        Arc::from("Source Sans 3"),
+        400,
+        false,
+        false,
+    ));
     let text: Arc<str> = Arc::from("office 日本語 مرحبا नमस्ते a\u{301}");
-    let input = event(text.clone(),0..text.len(),&[style.clone()],&limits);
-    let unlimited = Work {calls:u64::MAX,context_bytes:u64::MAX,range_bytes:u64::MAX,raw_glyphs:u64::MAX};
+    let input = event(text.clone(), 0..text.len(), &[style.clone()], &limits);
+    let unlimited = Work {
+        calls: u64::MAX,
+        context_bytes: u64::MAX,
+        range_bytes: u64::MAX,
+        raw_glyphs: u64::MAX,
+    };
     ctx.begin_native_work_experiment(unlimited);
-    let full = shape_event(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap();
+    let full = shape_event(&mut ctx, &fonts, &input, &Default::default(), &limits).unwrap();
     let full_work = ctx.native_work_experiment().unwrap();
     ctx.begin_native_work_experiment(unlimited);
-    let advances = shape_event_advances_experiment(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap();
+    let advances =
+        shape_event_advances_experiment(&mut ctx, &fonts, &input, &Default::default(), &limits)
+            .unwrap();
     let actual = ctx.native_work_experiment().unwrap();
-    same_advances(&full,&advances,&limits);
-    assert_eq!(actual,full_work);
-    let returned = advances.runs().iter().map(|r|r.glyphs().len() as u64).sum::<u64>();
-    assert!(actual.raw_glyphs > returned,"fallback/rejected native output must be counted");
+    same_advances(&full, &advances, &limits);
+    assert_eq!(actual, full_work);
+    let returned = advances
+        .runs()
+        .iter()
+        .map(|r| r.glyphs().len() as u64)
+        .sum::<u64>();
+    assert!(
+        actual.raw_glyphs > returned,
+        "fallback/rejected native output must be counted"
+    );
     assert!(actual.context_bytes >= actual.range_bytes);
-    for budget in [Work {calls:0,..unlimited},Work {context_bytes:0,..unlimited},Work {range_bytes:0,..unlimited}] {
+    for budget in [
+        Work {
+            calls: 0,
+            ..unlimited
+        },
+        Work {
+            context_bytes: 0,
+            ..unlimited
+        },
+        Work {
+            range_bytes: 0,
+            ..unlimited
+        },
+    ] {
         ctx.begin_native_work_experiment(budget);
-        let error = shape_event_advances_experiment(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap_err();
-        assert_eq!(error.code(),ErrorCode::LimitExceeded);
-        assert_eq!(ctx.native_work_experiment().unwrap(),Work::default());
+        let error =
+            shape_event_advances_experiment(&mut ctx, &fonts, &input, &Default::default(), &limits)
+                .unwrap_err();
+        assert_eq!(error.code(), ErrorCode::LimitExceeded);
+        assert_eq!(ctx.native_work_experiment().unwrap(), Work::default());
     }
-    ctx.begin_native_work_experiment(Work {raw_glyphs:0,..unlimited});
-    assert_eq!(shape_event_advances_experiment(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap_err().code(),ErrorCode::LimitExceeded);
+    ctx.begin_native_work_experiment(Work {
+        raw_glyphs: 0,
+        ..unlimited
+    });
+    assert_eq!(
+        shape_event_advances_experiment(&mut ctx, &fonts, &input, &Default::default(), &limits)
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
     let rejected = ctx.native_work_experiment().unwrap();
-    assert_eq!(rejected.calls,1);
-    assert!(rejected.raw_glyphs > 0,"charge actual rejected output before returning error");
-    assert_eq!(shape_event_advances_experiment(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap_err().code(),ErrorCode::LimitExceeded);
-    assert_eq!(ctx.native_work_experiment().unwrap(),rejected,"exhausted budget rejects before further native work");
+    assert_eq!(rejected.calls, 1);
+    assert!(
+        rejected.raw_glyphs > 0,
+        "charge actual rejected output before returning error"
+    );
+    assert_eq!(
+        shape_event_advances_experiment(&mut ctx, &fonts, &input, &Default::default(), &limits)
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(
+        ctx.native_work_experiment().unwrap(),
+        rejected,
+        "exhausted budget rejects before further native work"
+    );
     // Linux-only long probe; no extra benchmark process or historical rebuild.
-    if !cfg!(target_os="linux") || !std::env::var("RUSTUP_TOOLCHAIN").unwrap_or_default().starts_with("1.99.1") { return; }
-    let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") else {return;};
+    if !cfg!(target_os = "linux")
+        || !std::env::var("RUSTUP_TOOLCHAIN")
+            .unwrap_or_default()
+            .starts_with("1.99.1")
+    {
+        return;
+    }
+    let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") else {
+        return;
+    };
     let mut reports = String::new();
-    for (name,units) in [
-        ("latin-long",(0..204).map(|i|format!("word{i}")).collect::<Vec<_>>()),
-        ("cjk-long",(0..225).map(|i|["日","本","語","字","幕"][i%5].to_string()).collect::<Vec<_>>()),
-        ("mixed-bidi",(0..48).map(|i|["abc","مرحبا","日本語","नमस्ते","a\u{301}","אבג"][i%6].to_string()).collect::<Vec<_>>()),
-        ("pathological-combining",(0..48).map(|_|"a\u{301}\u{200d}".to_string()).collect::<Vec<_>>()),
+    for (name, units) in [
+        (
+            "latin-long",
+            (0..204).map(|i| format!("word{i}")).collect::<Vec<_>>(),
+        ),
+        (
+            "cjk-long",
+            (0..225)
+                .map(|i| ["日", "本", "語", "字", "幕"][i % 5].to_string())
+                .collect::<Vec<_>>(),
+        ),
+        (
+            "mixed-bidi",
+            (0..48)
+                .map(|i| ["abc", "مرحبا", "日本語", "नमस्ते", "a\u{301}", "אבג"][i % 6].to_string())
+                .collect::<Vec<_>>(),
+        ),
+        (
+            "pathological-combining",
+            (0..48)
+                .map(|_| "a\u{301}\u{200d}".to_string())
+                .collect::<Vec<_>>(),
+        ),
     ] {
         let source: Arc<str> = Arc::from(units.join(" "));
         let mut starts = Vec::new();
         let mut ends = Vec::new();
         let mut offset = 0;
-        for unit in &units { starts.push(offset); offset += unit.len(); ends.push(offset); offset += 1; }
+        for unit in &units {
+            starts.push(offset);
+            offset += unit.len();
+            ends.push(offset);
+            offset += 1;
+        }
         ctx.begin_native_work_experiment(unlimited);
         let start = Instant::now();
-        let (mut preparation_ns,mut native_ns,mut measurement_ns) = (0u128,0u128,0u128);
+        let (mut preparation_ns, mut native_ns, mut measurement_ns) = (0u128, 0u128, 0u128);
         let mut candidates = 0u64;
-        let cells = units.len().checked_mul(units.len()+1).unwrap();
-        let mut costs = vec![None;cells];
-        for first in 0..units.len() { for last in first+1..=units.len() {
-            let index = first*(units.len()+1)+last;
-            assert!(costs[index].is_none());
-            let t = Instant::now();
-            let input = event(source.clone(),starts[first]..ends[last-1],&[style.clone()],&limits);
-            preparation_ns += t.elapsed().as_nanos();
-            let t = Instant::now();
-            let shaped = shape_event_advances_experiment(&mut ctx,&fonts,&input,&Default::default(),&limits).unwrap();
-            native_ns += t.elapsed().as_nanos();
-            let t = Instant::now();
-            let w = width(&shaped);
-            assert!(w.is_finite());
-            costs[index] = Some(w);
-            measurement_ns += t.elapsed().as_nanos();
-            candidates = candidates.checked_add(1).unwrap();
-        }}
+        let cells = units.len().checked_mul(units.len() + 1).unwrap();
+        let mut costs = vec![None; cells];
+        for first in 0..units.len() {
+            for last in first + 1..=units.len() {
+                let index = first * (units.len() + 1) + last;
+                assert!(costs[index].is_none());
+                let t = Instant::now();
+                let input = event(
+                    source.clone(),
+                    starts[first]..ends[last - 1],
+                    &[style.clone()],
+                    &limits,
+                );
+                preparation_ns += t.elapsed().as_nanos();
+                let t = Instant::now();
+                let shaped = shape_event_advances_experiment(
+                    &mut ctx,
+                    &fonts,
+                    &input,
+                    &Default::default(),
+                    &limits,
+                )
+                .unwrap();
+                native_ns += t.elapsed().as_nanos();
+                let t = Instant::now();
+                let w = width(&shaped);
+                assert!(w.is_finite());
+                costs[index] = Some(w);
+                measurement_ns += t.elapsed().as_nanos();
+                candidates = candidates.checked_add(1).unwrap();
+            }
+        }
         let elapsed = start.elapsed().as_nanos();
         // Search overhead measured independently using the reusable width table.
         // No assumption of monotonically increasing candidate widths.
         let t = Instant::now();
-        let mut best = vec![0u64;units.len()+1];
+        let mut best = vec![0u64; units.len() + 1];
         for first in (0..units.len()).rev() {
-            best[first] = (first+1..=units.len()).filter(|&last| costs[first*(units.len()+1)+last].unwrap() <= 120.0 || last == first+1).map(|last|best[last]+1).min().unwrap();
+            best[first] = (first + 1..=units.len())
+                .filter(|&last| {
+                    costs[first * (units.len() + 1) + last].unwrap() <= 120.0 || last == first + 1
+                })
+                .map(|last| best[last] + 1)
+                .min()
+                .unwrap();
         }
         let search_ns = t.elapsed().as_nanos();
         let work = ctx.native_work_experiment().unwrap();
-        let report = format!("{{\"case\":\"{name}\",\"candidates\":{candidates},\"native_calls\":{},\"context_bytes\":{},\"range_bytes\":{},\"raw_glyphs\":{},\"prepare_ns\":{preparation_ns},\"shape_ns\":{native_ns},\"extent_ns\":{measurement_ns},\"elapsed_ns\":{elapsed},\"reusable_search_ns\":{search_ns},\"candidate_storage_bytes\":{},\"status\":\"complete-experiment-not-production\"}}\n",work.calls,work.context_bytes,work.range_bytes,work.raw_glyphs,cells*std::mem::size_of::<Option<f64>>());
+        let report = format!(
+            "{{\"case\":\"{name}\",\"candidates\":{candidates},\"native_calls\":{},\"context_bytes\":{},\"range_bytes\":{},\"raw_glyphs\":{},\"prepare_ns\":{preparation_ns},\"shape_ns\":{native_ns},\"extent_ns\":{measurement_ns},\"elapsed_ns\":{elapsed},\"reusable_search_ns\":{search_ns},\"candidate_storage_bytes\":{},\"status\":\"complete-experiment-not-production\"}}\n",
+            work.calls,
+            work.context_bytes,
+            work.range_bytes,
+            work.raw_glyphs,
+            cells * std::mem::size_of::<Option<f64>>()
+        );
         eprintln!("T017_RAW_WORK={report}");
         reports.push_str(&report);
     }
-    std::fs::write(PathBuf::from(folder).join("T017-raw-native-work.jsonl"),reports).unwrap();
+    std::fs::write(
+        PathBuf::from(folder).join("T017-raw-native-work.jsonl"),
+        reports,
+    )
+    .unwrap();
 }

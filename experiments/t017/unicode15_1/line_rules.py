@@ -1,7 +1,7 @@
 """Independent UAX14 revision51 default rule probe; no ASS shaping/tailoring.
 Uses only the version-pinned tables generated alongside this experiment.
 """
-def line_breaks(cps, db):
+def line_breaks(cps, db, number_test_tailoring=False):
     raw = [db.get("LB",c,"XX") for c in cps]
     gc = [db.get("GC",c,"Cn") for c in cps]
     p = []
@@ -54,7 +54,7 @@ def line_breaks(cps, db):
             continue
         if b == "GL" and a not in {"SP","BA","HY"}:
             continue
-        if b in closing or previous == "OP":
+        if (b in closing and not (number_test_tailoring and a == "NU" and b != "EX")) or previous == "OP":
             continue
         if previous == "QU" and k >= 0 and category(k) == "Pi" and at(k-1) in hard|{"sot","OP","QU","GL","SP","ZW"}:
             continue
@@ -82,9 +82,26 @@ def line_breaks(cps, db):
             continue
         if a in {"PR","PO"} and b in alphabetic or a in alphabetic and b in {"PR","PO"}:
             continue
-        if (a in {"CL","CP","NU"} and b in {"PO","PR"}
-            or a in {"PO","PR"} and b in {"OP","NU"}
-            or a in {"HY","IS","NU","SY"} and b == "NU"):
+        if number_test_tailoring:
+            # The *unmodified upstream corpus* explicitly selects UAX14 §8.2
+            # Example7 numeric tailoring. Keep it distinct from the default
+            # pair approximation and from all ASS/cluster filters.
+            k = j-1
+            if at(k) in {"CL","CP"}:
+                k -= 1
+            numeric_suffix = False
+            while k >= 0 and at(k) in {"NU","SY","IS"}:
+                numeric_suffix |= at(k) == "NU"
+                k -= 1
+            if (a in {"PO","PR"} and (b == "NU" or b in {"OP","HY"} and at(j+1) == "NU")
+                or a in {"OP","HY"} and b == "NU"
+                or a == "NU" and b in {"NU","SY","IS"}
+                or a in {"NU","SY","IS"} and numeric_suffix and b in {"NU","SY","IS","CL","CP"}
+                or numeric_suffix and b in {"PO","PR"}):
+                continue
+        elif (a in {"CL","CP","NU"} and b in {"PO","PR"}
+              or a in {"PO","PR"} and b in {"OP","NU"}
+              or a in {"HY","IS","NU","SY"} and b == "NU"):
             continue
         if a == "JL" and b in {"JL","JV","H2","H3"} or a in {"JV","H2"} and b in {"JV","JT"} or a in {"JT","H3"} and b == "JT":
             continue

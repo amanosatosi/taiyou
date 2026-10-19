@@ -159,7 +159,7 @@ if __name__ == "__main__":
     from line_rules import line_breaks
     line_cases,line_failures = 0,[]
     for line,cps,expected in cases("LineBreakTest.txt"):
-        actual = line_breaks(cps,db)
+        actual = line_breaks(cps,db,number_test_tailoring=True)
         line_cases += 1
         if actual != expected:
             line_failures.append({"line":line,"actual":sorted(actual),"expected":sorted(expected)})

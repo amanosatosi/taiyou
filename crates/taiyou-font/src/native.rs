@@ -1774,15 +1774,23 @@ impl FontContext {
     }
     fn preflight_native_work(&mut self, context: u64, range: u64) -> Result<(), FontError> {
         if let Some((limits, used)) = &mut self.work {
-            let fail = || FontError::new(ErrorCode::LimitExceeded, "experimental native-work budget exceeded");
+            let fail = || {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "experimental native-work budget exceeded",
+                )
+            };
             let next = NativeWorkExperiment {
                 calls: used.calls.checked_add(1).ok_or_else(fail)?,
                 context_bytes: used.context_bytes.checked_add(context).ok_or_else(fail)?,
                 range_bytes: used.range_bytes.checked_add(range).ok_or_else(fail)?,
                 raw_glyphs: used.raw_glyphs,
             };
-            if next.calls > limits.calls || next.context_bytes > limits.context_bytes
-                || next.range_bytes > limits.range_bytes || next.raw_glyphs > limits.raw_glyphs {
+            if next.calls > limits.calls
+                || next.context_bytes > limits.context_bytes
+                || next.range_bytes > limits.range_bytes
+                || next.raw_glyphs > limits.raw_glyphs
+            {
                 return Err(fail());
             }
             *used = next;
@@ -1791,7 +1799,12 @@ impl FontContext {
     }
     fn record_native_glyphs(&mut self, count: u64) -> Result<(), FontError> {
         if let Some((limits, used)) = &mut self.work {
-            let fail = || FontError::new(ErrorCode::LimitExceeded, "experimental raw-glyph budget exceeded");
+            let fail = || {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "experimental raw-glyph budget exceeded",
+                )
+            };
             used.raw_glyphs = used.raw_glyphs.checked_add(count).ok_or_else(fail)?;
             if used.raw_glyphs > limits.raw_glyphs {
                 return Err(fail());
