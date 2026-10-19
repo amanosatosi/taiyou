@@ -20,6 +20,17 @@ pub struct PlacedEvent {
     pub bounds: ScriptBounds,
 }
 
+/// Deterministic work counters and conservative Taiyou-owned workspace charge.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CollisionStats {
+    pub eligible: u64,
+    pub obstacle_tests: u64,
+    pub intervals: u64,
+    pub sort_comparisons: u64,
+    pub interval_visits: u64,
+    pub reserved_bytes: u64,
+}
+
 fn limited() -> RenderError {
     RenderError::new(
         ErrorCode::LimitExceeded,
@@ -49,21 +60,34 @@ pub fn resolve_collisions(
     profile: Profile,
     limits: &Limits,
 ) -> Result<Vec<PlacedEvent>, RenderError> {
+    resolve_collisions_with_stats(events, profile, limits).map(|(placed, _)| placed)
+}
+
+pub fn resolve_collisions_with_stats(
+    events: &[CollisionInput],
+    profile: Profile,
+    limits: &Limits,
+) -> Result<(Vec<PlacedEvent>, CollisionStats), RenderError> {
     if profile != Profile::CoreV1 {
         return Err(RenderError::new(
             ErrorCode::UnsupportedFeature,
             "Legacy collision policy requires authenticated evidence and approval",
         ));
     }
+    let count = events.iter().filter(|e| e.eligible).count();
     let reservation = (events.len() as u64)
-        .checked_mul(3 * (std::mem::size_of::<usize>() + std::mem::size_of::<PlacedEvent>()) as u64)
+        .checked_mul(3 * std::mem::size_of::<PlacedEvent>() as u64)
+        .and_then(|n| n.checked_add((count as u64).checked_mul(3 * (std::mem::size_of::<usize>() + std::mem::size_of::<(f64, f64)>()) as u64)?))
         .ok_or_else(limited)?;
     if events.len() as u64 > limits.events() || reservation > limits.transient_bytes() {
         return Err(limited());
     }
     let mut order = Vec::new();
     let mut result: Vec<PlacedEvent> = Vec::new();
-    order.try_reserve_exact(events.len()).map_err(|_| {
+    let mut intervals: Vec<(f64, f64)> = Vec::new();
+    let mut stats = CollisionStats { eligible: count as u64, reserved_bytes: reservation, ..Default::default() };
+    intervals.try_reserve_exact(count).map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "collision interval allocation failed"))?;
+    order.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
             "collision order allocation failed",
@@ -75,34 +99,29 @@ pub fn resolve_collisions(
             "collision placement allocation failed",
         )
     })?;
-    order.extend(0..events.len());
-    // Validate identity independently of start/layer, before placement.
-    order.sort_unstable_by_key(|&i| events[i].id);
-    if order.windows(2).any(|p| events[p[0]].id == events[p[1]].id) {
-        return Err(RenderError::new(
-            ErrorCode::InvalidArgument,
-            "duplicate collision EventId",
-        ));
+    // Ineligible inputs only receive natural output records. They never enter
+    // placement ordering, obstacle collection or interval processing. The
+    // renderer structurally excludes them before calling this compatibility API.
+    for (i, input) in events.iter().enumerate() {
+        if input.eligible {
+            order.push(i);
+        }
     }
     order.sort_unstable_by_key(|&i| (events[i].layer, events[i].start, events[i].id));
-    for &index in &order {
+    let mut layer_start = 0;
+    for (ordinal, &index) in order.iter().enumerate() {
         let input = &events[index];
+        if ordinal > 0 && events[order[ordinal - 1]].layer != input.layer {
+            layer_start = ordinal;
+        }
         let natural = translated(input.bounds, input.anchor)?;
         let mut y = input.anchor.y().get();
-        if input.eligible && occupied(natural) {
+        if occupied(natural) {
             let up = input.alignment.get() <= 3;
-            let mut cleared = false;
-            // Each jump leaves one fixed forbidden interval permanently, in
-            // the chosen direction. At most N prior obstacles can be left;
-            // the final scan proves clearance. This is a derived bound, not
-            // an arbitrary iteration/displacement cap.
-            for _ in 0..=result.len() {
-                let mut next = None;
-                for (&prior_index, prior) in order.iter().zip(&result) {
-                    let obstacle = &events[prior_index];
-                    if obstacle.layer != input.layer
-                        || !obstacle.eligible
-                        || !occupied(prior.bounds)
+            intervals.clear();
+            for prior in &result[layer_start..] {
+                    stats.obstacle_tests += 1;
+                    if !occupied(prior.bounds)
                         || natural.x0() >= prior.bounds.x1()
                         || natural.x1() <= prior.bounds.x0()
                     {
@@ -116,24 +135,30 @@ pub fn resolve_collisions(
                     if low >= high {
                         return Err(limited());
                     }
-                    if y > low && y < high {
-                        next = Some(if up { low } else { high });
-                        break;
-                    }
-                }
-                match next {
-                    Some(value) => y = value,
-                    None => {
-                        cleared = true;
-                        break;
-                    }
-                }
+                    intervals.push((low, high));
+                    stats.intervals += 1;
             }
-            if !cleared {
-                return Err(RenderError::new(
-                    ErrorCode::InternalError,
-                    "collision search failed its derived bound",
-                ));
+            intervals.sort_unstable_by(|a, b| {
+                stats.sort_comparisons += 1;
+                a.0.total_cmp(&b.0).then_with(|| a.1.total_cmp(&b.1))
+            });
+            // Union OPEN intervals. Equal endpoints must remain separate: the
+            // touching point is legal. A connected component supplies the
+            // nearest legal anchor directly, with one scan and no restarts.
+            let mut at = 0;
+            while at < intervals.len() {
+                let (low, mut high) = intervals[at];
+                at += 1;
+                stats.interval_visits += 1;
+                while at < intervals.len() && intervals[at].0 < high {
+                    high = high.max(intervals[at].1);
+                    at += 1;
+                    stats.interval_visits += 1;
+                }
+                if y > low && y < high {
+                    y = if up { low } else { high };
+                    break;
+                }
             }
         }
         let anchor = ScriptPoint::new(input.anchor.x(), finite(y)?);
@@ -143,6 +168,14 @@ pub fn resolve_collisions(
             bounds: translated(input.bounds, anchor)?,
         });
     }
+    for input in events.iter().filter(|input| !input.eligible) {
+        result.push(PlacedEvent { id: input.id, anchor: input.anchor, bounds: translated(input.bounds, input.anchor)? });
+    }
+    // Identity publication is distinct from collision order, including for the
+    // older public API accepting ineligible inputs. Renderer inputs are eligible only.
     result.sort_unstable_by_key(|event| event.id);
-    Ok(result)
+    if result.windows(2).any(|p| p[0].id == p[1].id) {
+        return Err(RenderError::new(ErrorCode::InvalidArgument, "duplicate collision EventId"));
+    }
+    Ok((result, stats))
 }

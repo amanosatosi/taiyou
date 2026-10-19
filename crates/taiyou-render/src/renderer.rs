@@ -49,12 +49,6 @@ struct GroupMasks {
     shadow_paint: Rgba8,
 }
 #[cfg(feature = "native")]
-struct PreparedEvent<'a> {
-    event: &'a Event,
-    local: Arc<LocalLayout>,
-    charge: u64,
-}
-#[cfg(feature = "native")]
 fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
     Q6::from_pixels(FiniteF64::new(value).map_err(convert)?).map_err(convert)
 }
@@ -125,6 +119,86 @@ fn push_operation(
     ));
     *held = future;
     Ok(())
+}
+#[cfg(feature = "native")]
+fn prepare_local(
+    ctx: &mut FontContext,
+    fonts: &ValidatedFontCatalog,
+    track: &Track,
+    event: &Event,
+    request: &RenderRequest,
+    profile: Profile,
+    limits: &Limits,
+    held: u64,
+    diagnostics: &mut DiagnosticBuffer,
+) -> Result<(Arc<LocalLayout>, u64), RenderError> {
+    let eval_charge = crate::evaluate::preflight(event)?;
+    let (evaluated, report) = evaluate_with_policy(
+        track,
+        event.id(),
+        request.now,
+        profile,
+        request.unsupported,
+        &available(limits, held)?,
+    )?;
+    diagnostics.extend_finished(&report).map_err(convert)?;
+    let stage_held = add(held, eval_charge)?;
+    // Static Core borders/shadows are rendered below. Decorations
+    // remain explicitly unsupported and are omitted in tolerant mode.
+    for state in evaluated.runs() {
+        if state.geometry().underline() || state.geometry().strikeout() {
+            let detail =
+                "underline and strikeout decorations require a later Core stage";
+            if request.unsupported == UnsupportedPolicy::Strict {
+                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
+                    .with_context(Some(event.id()), Some(state.source())));
+            }
+            diagnostics
+                .push(Diagnostic::new(
+                    DiagnosticCode::UnsupportedFeature,
+                    Some(event.id()),
+                    Some(state.source()),
+                    detail,
+                ))
+                .map_err(convert)?;
+        }
+    }
+    let shaped = taiyou_font::shape_event(
+        ctx,
+        fonts,
+        &evaluated,
+        &Default::default(),
+        &available(limits, stage_held)?,
+    )
+    .map_err(crate::geometry::font_error)?;
+    diagnostics
+        .extend_finished(shaped.diagnostics())
+        .map_err(convert)?;
+    let glyphs = shaped.runs().iter().try_fold(0usize, |n, r| {
+        n.checked_add(r.glyphs().len()).ok_or_else(limited)
+    })?;
+    let shape_charge = add(
+        bytes::<ShapedGlyph>(glyphs)?,
+        add(
+            bytes::<ShapedRun>(shaped.runs().len())?,
+            (shaped.source_map().text().len() as u64)
+                .checked_mul(256)
+                .ok_or_else(limited)?,
+        )?,
+    )?;
+    let stage_held = add(stage_held, shape_charge)?;
+    let local = Arc::new(layout(
+        &shaped,
+        &LayoutConstraints::new(shaped.placement().alignment())
+            .with_limits(available(limits, stage_held)?),
+    )?);
+    let layout_charge = add(
+        bytes::<PositionedGlyph>(local.glyphs().len())?,
+        bytes::<Line>(local.lines().len())?,
+    )?;
+    let stage_held = add(stage_held, layout_charge)?;
+    available(limits, stage_held)?;
+    Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
 }
 /// Natural script-space alignment anchor. Margins define the horizontal usable
 /// rectangle; middle vertical alignment is the script midpoint. Explicit pos
@@ -289,141 +363,85 @@ impl Renderer {
         }
         let mut ctx = FontContext::with_limits(available(limits, held)?)
             .map_err(crate::geometry::font_error)?;
-        let preparation_charge = bytes::<PreparedEvent<'_>>(count)?;
-        held = add(held, preparation_charge)?;
+        // Classification retains one byte per active event, never a full
+        // evaluated/shaped layout. Explicit events never reach collision inputs.
+        let flag_charge = bytes::<bool>(count)?;
+        held = add(held, flag_charge)?;
         available(limits, held)?;
-        let mut prepared = Vec::new();
-        prepared.try_reserve_exact(count).map_err(|_| {
-            RenderError::new(
-                ErrorCode::AllocationFailed,
-                "local event staging allocation failed",
-            )
+        let mut eligible = Vec::new();
+        eligible.try_reserve_exact(count).map_err(|_| {
+            RenderError::new(ErrorCode::AllocationFailed, "placement classification allocation failed")
         })?;
-        // Shape/layout every active event before deciding any placement. These
-        // immutable local artifacts do not depend on collision displacement.
+        for event in &events {
+            let (state, _) = evaluate_with_policy(
+                &track, event.id(), request.now, self.config.profile,
+                request.unsupported, &available(limits, held)?,
+            )?;
+            eligible.push(state.placement().collision_eligible());
+        }
+        let collision_count = eligible.iter().filter(|&&value| value).count();
+        // Zero/single-eligible scenes need neither a native prepass nor a solver.
+        let placements = if collision_count <= 1 {
+            Vec::new()
+        } else {
+            let input_charge = bytes::<CollisionInput>(collision_count)?;
+            held = add(held, input_charge)?;
+            available(limits, held)?;
+            let mut inputs = Vec::new();
+            inputs.try_reserve_exact(collision_count).map_err(|_| {
+                RenderError::new(ErrorCode::AllocationFailed, "collision descriptor allocation failed")
+            })?;
+            for (event, &collides) in events.iter().zip(&eligible) {
+                if !collides {
+                    continue;
+                }
+                // A bounded native prepass publishes only compact descriptors.
+                // Drop every local layout before preparing the next one.
+                // Diagnostics publish once in the ordinary rendering pass.
+                let (local, _) = prepare_local(
+                    &mut ctx, &fonts, &track, event, request, self.config.profile,
+                    limits, held, &mut DiagnosticBuffer::new(),
+                ).map_err(|e| {
+                    let id = e.event().or(Some(event.id()));
+                    let span = e.span().or(Some(event.source()));
+                    e.with_context(id, span)
+                })?;
+                let placement = local.shaped().placement();
+                inputs.push(CollisionInput {
+                    id: event.id(), layer: event.layer(), start: event.start(),
+                    alignment: placement.alignment(),
+                    anchor: alignment_anchor(placement, track.script().play_res())?,
+                    bounds: crate::collision_footprint::collision_footprint(
+                        &local, DeviceMapping::new(track.script().play_res(), request.viewport.content())?,
+                        track.script().scaled_border_shadow(), request.unsupported,
+                    )?, eligible: true,
+                });
+            }
+            let placed = resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
+            held = add(held, bytes::<PlacedEvent>(collision_count)?)?;
+            drop(inputs);
+            held = held.checked_sub(input_charge).ok_or_else(limited)?;
+            placed
+        };
+        drop(eligible);
+        held = held.checked_sub(flag_charge).ok_or_else(limited)?;
+        // Ordinary paint order and full effects apply to explicit events too.
+        // At most one full local layout is retained in either pass.
         for event in events {
             let result = (|| {
-                let eval_charge = crate::evaluate::preflight(event)?;
-                let (evaluated, report) = evaluate_with_policy(
-                    &track,
-                    event.id(),
-                    request.now,
-                    self.config.profile,
-                    request.unsupported,
-                    &available(limits, held)?,
+                let (local, local_charge) = prepare_local(
+                    &mut ctx, &fonts, &track, event, request, self.config.profile,
+                    limits, held, &mut diagnostics,
                 )?;
-                diagnostics.extend_finished(&report).map_err(convert)?;
-                let stage_held = add(held, eval_charge)?;
-                // Static Core borders/shadows are rendered below. Decorations
-                // remain explicitly unsupported and are omitted in tolerant mode.
-                for state in evaluated.runs() {
-                    if state.geometry().underline() || state.geometry().strikeout() {
-                        let detail =
-                            "underline and strikeout decorations require a later Core stage";
-                        if request.unsupported == UnsupportedPolicy::Strict {
-                            return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
-                                .with_context(Some(event.id()), Some(state.source())));
-                        }
-                        diagnostics
-                            .push(Diagnostic::new(
-                                DiagnosticCode::UnsupportedFeature,
-                                Some(event.id()),
-                                Some(state.source()),
-                                detail,
-                            ))
-                            .map_err(convert)?;
-                    }
-                }
-                let shaped = taiyou_font::shape_event(
-                    &mut ctx,
-                    &fonts,
-                    &evaluated,
-                    &Default::default(),
-                    &available(limits, stage_held)?,
-                )
-                .map_err(crate::geometry::font_error)?;
-                diagnostics
-                    .extend_finished(shaped.diagnostics())
-                    .map_err(convert)?;
-                let glyphs = shaped.runs().iter().try_fold(0usize, |n, r| {
-                    n.checked_add(r.glyphs().len()).ok_or_else(limited)
-                })?;
-                let shape_charge = add(
-                    bytes::<ShapedGlyph>(glyphs)?,
-                    add(
-                        bytes::<ShapedRun>(shaped.runs().len())?,
-                        (shaped.source_map().text().len() as u64)
-                            .checked_mul(256)
-                            .ok_or_else(limited)?,
-                    )?,
-                )?;
-                let stage_held = add(stage_held, shape_charge)?;
-                let local = Arc::new(layout(
-                    &shaped,
-                    &LayoutConstraints::new(shaped.placement().alignment())
-                        .with_limits(available(limits, stage_held)?),
-                )?);
-                let layout_charge = add(
-                    bytes::<PositionedGlyph>(local.glyphs().len())?,
-                    bytes::<Line>(local.lines().len())?,
-                )?;
-                let stage_held = add(stage_held, layout_charge)?;
-                available(limits, stage_held)?;
-                Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
-            })();
-            let (local, charge) = result.map_err(|e: RenderError| {
-                let id = e.event().or(Some(event.id()));
-                let span = e.span().or(Some(event.source()));
-                e.with_context(id, span)
-            })?;
-            held = add(held, charge)?;
-            prepared.push(PreparedEvent {
-                event,
-                local,
-                charge,
-            });
-        }
-        let input_charge = bytes::<CollisionInput>(count)?;
-        held = add(held, input_charge)?;
-        available(limits, held)?;
-        let mut collision_inputs = Vec::new();
-        collision_inputs.try_reserve_exact(count).map_err(|_| {
-            RenderError::new(
-                ErrorCode::AllocationFailed,
-                "collision input allocation failed",
-            )
-        })?;
-        for stage in &prepared {
-            let placement = stage.local.shaped().placement();
-            collision_inputs.push(CollisionInput {
-                id: stage.event.id(),
-                layer: stage.event.layer(),
-                start: stage.event.start(),
-                alignment: placement.alignment(),
-                anchor: alignment_anchor(placement, track.script().play_res())?,
-                bounds: stage.local.collision_bounds(),
-                eligible: placement.collision_eligible(),
-            });
-        }
-        let placements = resolve_collisions(
-            &collision_inputs,
-            self.config.profile,
-            &available(limits, held)?,
-        )?;
-        held = add(held, bytes::<PlacedEvent>(count)?)?;
-        drop(collision_inputs);
-        held = held.checked_sub(input_charge).ok_or_else(limited)?;
-        // Keep canonical paint order, independently of start-ordered collision.
-        for stage in prepared {
-            let event = stage.event;
-            let result = (|| {
-                let placement = placements
-                    .binary_search_by_key(&event.id(), |p| p.id)
-                    .ok()
-                    .map(|i| placements[i])
-                    .ok_or_else(|| {
-                        RenderError::new(ErrorCode::InternalError, "missing collision placement")
-                    })?;
+                held = add(held, local_charge)?;
+                let state = local.shaped().placement();
+                let anchor = if collision_count > 1 && state.collision_eligible() {
+                    placements.binary_search_by_key(&event.id(), |p| p.id)
+                        .ok().map(|i| placements[i].anchor)
+                        .ok_or_else(|| RenderError::new(ErrorCode::InternalError, "missing eligible placement"))?
+                } else {
+                    alignment_anchor(state, track.script().play_res())?
+                };
                 let remaining_segments = limits
                     .path_segments_per_frame()
                     .checked_sub(total_segments)
@@ -434,13 +452,13 @@ impl Renderer {
                     .map_err(convert)?;
                 let device =
                     DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
-                let origin = stage.local.shaped().placement().origin();
+                let origin = local.shaped().placement().origin();
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
-                    stage.local,
+                    local,
                     GeometryPlacement {
-                        anchor: placement.anchor,
+                        anchor,
                         origin,
                         device,
                     },
@@ -668,6 +686,7 @@ impl Renderer {
                         )?;
                     }
                 }
+                held = held.checked_sub(local_charge).ok_or_else(limited)?;
                 Ok(())
             })();
             result.map_err(|e: RenderError| {
@@ -675,7 +694,6 @@ impl Renderer {
                 let span = e.span().or(Some(event.source()));
                 e.with_context(id, span)
             })?;
-            held = held.checked_sub(stage.charge).ok_or_else(limited)?;
         }
         compose(
             request.viewport.size(),

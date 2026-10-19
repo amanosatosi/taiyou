@@ -22,7 +22,7 @@ Every key includes a stage schema/policy revision and profile when semantics dif
 | Font resolution | catalog revision, family/weight/italic/vertical/encoding policy, cluster text/context, script/language | selected FontIds, fallback diagnostics |
 | Shape | exact text and cluster/source map identity, resolved font sequence, feature settings, direction/script/language, variation coordinates, size/metric policy, spacing ligature policy, profile | glyph IDs, design-unit positions, cluster map and metrics |
 | Local layout | shape keys, available width, wrap/alignment policy, line metric/spacing settings, margins where they constrain width, scale, break plan | line breaks, baselines, boxes; no absolute placement |
-| Collision placement | complete ordered active eligible set, each local box+anchor+layer+start, viewport/content transform, collision policy | placed boxes; never just one event's layout key |
+| Collision placement | complete ordered active eligible set, each ADR-012 footprint+anchor+layer+start, per-run geometry/effects/paint visibility, viewport/content transform, collision policy identity | placed boxes; never just one event's layout key; explicit positions excluded |
 | Glyph geometry | font bytes digest+face index, glyph ID, variations, synthetic bold/italic/decorations, outline extraction flags/version | design-unit outline; no color or absolute position |
 | Drawing geometry | normalized command sequence, p scale, baseline offset and fill rule | path; no paint |
 | Transformed geometry | outline identity, full mapping including origin/3D parameters, size, viewport scaling, profile | Q6 contours with integer translation factored out only when equivalent |
@@ -41,13 +41,13 @@ Shape outputs may use design units internally, but size is conservatively in the
 
 | Changed input | Earliest affected stage | Reusable artifacts / caveats |
 |---|---|---|
-| `\c`, per-channel alpha, fade | paint and possibly grouping | shape/layout/outlines; masks reusable if group partition unchanged; never reraster solely for RGB |
+| `\c`, per-channel alpha, fade | paint/grouping; collision placement if visibility changes an ADR-012 footprint | shape/layout/outlines; masks reusable if group partition unchanged; never reraster solely for RGB |
 | `\pos`, `\move` | placement | integer translation reuses local masks when phase and mapping unchanged; fractional movement rerasterizes; explicit org, perspective, device paint or clip intersection can invalidate more |
-| `\frz` | transformed geometry | shape/local layout and base outline; masks/stroke/effects rebuilt |
+| `\frz` | collision footprint and transformed geometry | shape/local layout and base outline; masks/stroke/effects rebuilt |
 | `\fs` | shape/metrics | base design-unit outline may survive; layout/transform/masks rebuild |
 | `\fscx`, `\fscy`, `\fsp` | shape policy/layout | spacing can disable ligatures; layout and geometry change; base outline reusable |
 | `\bord`, x/y border | border and collision box | fill may survive; placement of other colliding events may change; all downstream affected placements re-evaluated |
-| `\shad` | shadow placement/effect | fill/border unchanged; phase may require separate shadow raster |
+| `\shad` | collision footprint and shadow placement/effect | fill/border unchanged; phase may require separate shadow raster; complete active-set placement recomputed |
 | `\blur`, `\be` | effects | base fill/border masks survive; effect bounds and tile lists change |
 | `\clip`, `\iclip` | clip | text geometry/effects survive; clipped final output changes |
 | gradient colors/stops (future) | paint | geometry/masks survive; grouping may change; animation does not justify a geometry key |

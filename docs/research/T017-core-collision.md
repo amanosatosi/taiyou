@@ -7,30 +7,37 @@ T017. Candidate SHA and exact Actions jobs are recorded in the implementation PR
 
 ## Implemented policy
 
-The renderer evaluates, shapes and locally lays out the complete active set
-before resolving placement. Local layout remains immutable and independent of
-absolute displacement; moving an event does not reshape its glyphs. Reservations
-include all simultaneously retained local artifacts, collision descriptors,
-ordering and placement outputs. Local reservations release after each event's
-geometry and passes are finished. Native path and retained-mask accounting remain
-in the existing geometry/raster stages.
+The review correction replaces full-active-set layout retention with a bounded
+prepass. Classification evaluates placement and retains one flag per active
+event. Zero/single-eligible scenes bypass the native prepass and collision solver.
+For other scenes, only eligible events are shaped and locally laid out in the
+prepass; each publishes a compact descriptor and drops its full layout before
+the next event. Explicit positions never enter descriptors, collision sorting,
+obstacle search or intervals. The ordinary paint pass prepares/renders one event
+at a time, including full effects for explicit positions. There is no retained
+layout/history cache. Eligible native work is intentionally repeated in the
+two-pass case; actual calls, runtime and memory are measured in the additive
+review experiments, rather than claiming this tradeoff is free.
 
-The resolver uses script-space `LocalLayout::collision_bounds()`, distinct from
-logical and ink bounds. This is the existing union of the logical box and any
-ink box, with no added stroke/shadow/bitmap padding. It translates that local box
-by the natural alignment anchor, including inherited margins and PlayRes.
+The resolver uses the owner-approved [ADR-012](../decisions/012-core-collision-footprint.md)
+Core geometric effect footprint, distinct from immutable logical/ink/local
+boxes. It includes visible transformed ink, device-space Q6 stroke radius and
+visible Q6-offset shadow source support. Transparent effects add no padding;
+the base layout reservation remains. No arbitrary antialias/bitmap padding or
+historical rule is inferred. Geometric edge contact can share an antialiased
+boundary pixel; a future fixed explicit rotation origin requires a new decision.
 
 Each layer is independent. Eligible events are placed in `(start, EventId)`
 order; bottom alignment moves up and middle/top moves down. Explicit positions
 are neither moved nor obstacles. Zero-width/height boxes occupy no region;
 blank lines inside a nonempty block still contribute the existing style metrics.
-Every jump clears the first intersecting placed obstacle in canonical order,
-then rechecks all obstacles. Open forbidden intervals of anchor Y values give
-half-open edge contact without epsilon or pixel rounding. Each jump permanently
-leaves an obstacle's interval in the chosen direction, so N prior obstacles
-require at most N jumps and a final clearance scan. There is no viewport clamp,
-history cache, arbitrary displacement or iteration cap. Nonfinite/unrepresentable
-arithmetic and allocation/reservation failures return explicit errors.
+Each event gathers horizontally relevant same-layer obstacle intervals once,
+sorts them and merges strictly overlapping open intervals. Equal endpoints are
+not merged, preserving legal touching anchors. The component containing the
+natural anchor gives its nearest legal up/down endpoint directly. Complete-set
+complexity is O(N² log N), with O(N) workspace, replacing the prior O(N³) repeated
+scan. No viewport clamp, history, arbitrary displacement/iteration cap or epsilon.
+Checked numeric/allocation/reservation failures remain explicit errors.
 
 Results are sorted by stable EventId. Geometry uses the resolved anchor, then
 the unchanged T016 coverage grouping and event-wide shadow/border/fill passes.
@@ -44,13 +51,13 @@ All active-set work is rebuilt for every requested timestamp.
 |---|---|---|
 | Core C4 stateless collision using existing local boxes | Implemented; Actions verification recorded on PR | Technical review and maintainer acceptance |
 | Core hard/soft breaks in WrapStyle 2, empty-line metrics, NBSP, nine alignments | Existing behavior preserved | Existing T010/stage tests plus additive integration tests |
-| Automatic WrapStyle 0/1/3 | Unsupported | Approved executable break examples, font metrics, tie rules and boundary reshaping evidence; R001 L01–L03 are proposals only |
+| Automatic WrapStyle 0/1/3 | Unsupported; W1 rejected, W2 proposed | Owner approval of [W2](T017-wrapping-policy-v2.md), Unicode data/dependency choice, measured work limits and exact fixtures; no production wrapping yet |
 | Legacy collision/placement L04–L07 | Unsupported | Authenticated xy captures, metrics, exact fixture/policy and maintainer admission |
 | Historical persistent allocation L08 | Blocked | Resolve conflict with C1/C4 deterministic seeking through separate contract review; never enable implicitly |
-| Border-inflated collision boxes | Unresolved task/contract conflict | T017 asks for inflation; C4 gates border inflation on R001. Decide whether to add a separately reviewed Core padding rule (including units, transforms, per-line/per-event extents and rounding), or retain existing Core boxes and admit historical inflation only with captures. No padding formula is chosen here. |
+| Core geometric effect footprint | F1 owner-approved, implemented for review | ADR-012/C4/CACHING amendment, numeric and fixed-font verification, final technical review and exact-head protected-change acknowledgment |
 
 R001/R002 remain research checkpoints: no Legacy rule, capture or golden image
-is promoted. Different border widths continue to affect T016 raster support;
+is promoted. Different border widths now affect Core collision through ADR-012;
 this checkpoint makes no historical claim about collision displacement.
 No blur/BE, cache framework, new font metrics or parser behavior is implemented.
 

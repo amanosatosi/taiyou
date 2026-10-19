@@ -5,6 +5,7 @@
 //! composition through the single-worker CoreV1 coordinator.
 
 pub mod collision;
+pub mod collision_footprint;
 mod compose;
 mod evaluate;
 pub mod geometry;

@@ -1,6 +1,9 @@
 # T017 — Core policy proposals for owner decision
 
-Status: **proposed, not approved or implemented**. Applies only to CoreV1.
+Status: F1 was subsequently **owner-approved for CoreV1**; see
+[ADR-012](../decisions/012-core-collision-footprint.md). W1 below was rejected
+pending revision; [W2](T017-wrapping-policy-v2.md) supersedes it as a proposal.
+Neither W1 nor W2 is implemented or approved. Applies only to CoreV1.
 Reviewed implementation: `9eee96fe16989089d8fd3f65b1bb136455ffca7e`.
 The two decisions below become separate ADRs and explicit C4 amendments only
 after human owner approval and architecture review. They do not admit any
