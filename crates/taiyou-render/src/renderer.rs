@@ -222,7 +222,8 @@ fn prepare_local(
         .with_wrap(evaluated.wrap_mode())
         .with_limits(available(limits, stage_held)?);
     if evaluated.wrap_mode().get() != 2 {
-        let base = track.style(event.style()).ok_or_else(limited)?;
+        let style_index = usize::try_from(event.style().index()).map_err(|_| limited())?;
+        let base = track.styles().get(style_index).ok_or_else(limited)?;
         let margins = event.margins().inherit(base.margins());
         let width = f64::from(track.script().play_res().width())
             - f64::from(margins.left())
