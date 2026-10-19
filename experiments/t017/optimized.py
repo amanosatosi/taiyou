@@ -90,7 +90,7 @@ pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|
     code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")
     path.write_text(code)
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
-    driver = r'''use std::{path::PathBuf,sync::Arc,time::Instant};
+    driver = r'''use std::{path::PathBuf,time::Instant};
 use taiyou_render::{renderer::*,shaping::shape_event};
 fn main(){
 let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();
@@ -118,8 +118,12 @@ println!("{identity}"); taiyou_types::t017_metrics::report();
     driver_path.write_text(driver)
     modifications[str(driver_path.relative_to(destination))] = {"generated_driver_sha256": hashlib.sha256(driver.encode()).hexdigest(), "purpose": "12 fixed CJK boundary candidates, original parse/evaluate/full-shape harness stage profile"}
     (out / (label + "-instrumentation.json")).write_text(json.dumps({"commit": sha, "files": modifications, "scope": "measurement-only timers/counters, inclusive nested stage times"}, indent=2))
+    # Separate checkout mtimes can predate another checkout's successful build.
+    # Remove workspace artifacts explicitly; keep verified native/registry deps.
+    subprocess.run(["cargo", "clean", "--release", "-p", "taiyou-types", "-p", "taiyou-ass", "-p", "taiyou-font", "-p", "taiyou-render", "-p", "taiyou-cli", "--target-dir", str(temp / "target")], cwd=destination, check=True, capture_output=True)
     with (out / (label + "-build.log")).open("w") as log:
         subprocess.run(["cargo", "build", "--release", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--bin", "t017-width-profile", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+    assert "Compiling taiyou-font" in (out / (label + "-build.log")).read_text(), "font crate must compile from each measured snapshot"
     profile = subprocess.run([str(temp / "target/release/t017-width-profile")], capture_output=True, timeout=30, check=True)
     (out / (label + "-cjk-profile.stderr.txt")).write_bytes(profile.stderr)
     (out / (label + "-cjk-shape-identity.txt")).write_bytes(profile.stdout)
@@ -129,6 +133,7 @@ println!("{identity}"); taiyou_types::t017_metrics::report();
     return binary
 
 binaries = {label: build(label, sha) for label, sha in versions.items()}
+assert len({hashlib.sha256((out / (label + "-cjk-shape-identity.txt")).read_bytes()).hexdigest() for label in versions}) == 1, "CJK glyph/advance/offset identity changed"
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
