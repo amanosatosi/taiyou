@@ -31,8 +31,10 @@ fn q_prefix_parameters_resets_and_soft_escapes_follow_source_order() {
         (r"\q1.5", 1),
         (r"\q+3tail", 3),
         (r"\q(2)", 2),
+        (r"\q1(foo)", 1),
         (r"\q1()", 1),
-        (r"\q(,3)", 3),
+        (r"\q(,3)", 2),
+        (r"\q2(3)", 2),
         (r"\q999999999999999999", 2),
     ] {
         let track = parsed(&format!("{{{tag}}}A"), 2, 0);
@@ -44,6 +46,23 @@ fn q_prefix_parameters_resets_and_soft_escapes_follow_source_order() {
         )
         .unwrap();
         assert_eq!(e.wrap_mode().get(), expected, "{tag}");
+    }
+    for header in 0..=3 {
+        for tag in [r"\q(2)", r"\q(,3)", r"\q"] {
+            let input = parsed(&format!("{{\\q1}}{{{tag}}}A\\nB"), header, 0);
+            let event = taiyou_render::evaluate(
+                input.track(),
+                EventId::new(0),
+                TimeUs::from_micros(1),
+                Profile::CoreV1,
+            )
+            .unwrap();
+            assert_eq!(event.wrap_mode().get(), header, "header={header} {tag}");
+            assert_eq!(
+                event.source_map().unwrap().text(),
+                if header == 2 { "A\nB" } else { "A B" }
+            );
+        }
     }
     let input = parsed(r"{\q2}A\nB{\q0}C\nD{\r\q2}E\nF", 1, 0);
     let e = taiyou_render::evaluate(
@@ -65,6 +84,77 @@ fn q_prefix_parameters_resets_and_soft_escapes_follow_source_order() {
     .unwrap();
     assert_eq!(e.warp_mode(), WarpMode::Unicode);
     assert_eq!(e.source_map().unwrap().text(), "A\nB\nC\u{a0}D");
+}
+
+#[cfg(feature = "native")]
+#[test]
+fn missing_wrapstyle_matches_q0_and_wraps_automatically() {
+    use taiyou_render::{layout, shaping::shape_event};
+    let explicit = parsed("AA AA AA", 0, 0);
+    let source = explicit.track().source().replace("WrapStyle: 0\n", "");
+    let missing = taiyou_ass::parse_ass(
+        source.as_bytes(),
+        &ParseOptions::new(
+            InputEncoding::Utf8,
+            Profile::CoreV1,
+            Limits::default(),
+            SyntaxPolicy::Strict,
+        ),
+        &mut TrackIngestor::new(),
+    )
+    .unwrap();
+    assert_eq!(missing.track().script().wrap().get(), 0);
+    let mut ctx = FontContext::new().unwrap();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let font = std::path::PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
+        .join("taiyou-shaping-fonts/latin.otf");
+    builder
+        .register(&mut ctx, &std::fs::read(font).unwrap(), 0)
+        .unwrap();
+    let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    let mut expected_pixels = None;
+    for input in [&explicit, &missing] {
+        let evaluated = taiyou_render::evaluate(
+            input.track(),
+            EventId::new(0),
+            TimeUs::from_micros(1),
+            Profile::CoreV1,
+        )
+        .unwrap();
+        let shaped = shape_event(
+            &mut ctx,
+            &fonts,
+            &evaluated,
+            &Default::default(),
+            &Limits::default(),
+        )
+        .unwrap();
+        let constraints = LayoutConstraints::new(Alignment::new(7).unwrap())
+            .with_wrap(evaluated.wrap_mode())
+            .with_width(FiniteF64::new(70.0).unwrap())
+            .unwrap();
+        let local = layout(&shaped, &constraints).unwrap();
+        let lines: Vec<_> = local
+            .lines()
+            .iter()
+            .map(|line| line.decoded().text().trim_matches(' '))
+            .collect();
+        assert_eq!(lines, ["AA AA", "AA"]);
+        let request = RenderRequest {
+            now: TimeUs::from_micros(1),
+            viewport: Viewport::full(Size::new(90, 120)).unwrap(),
+            unsupported: UnsupportedPolicy::Strict,
+        };
+        let frame = Renderer::new(Default::default())
+            .unwrap()
+            .render(input.track().clone(), fonts.clone(), &request)
+            .unwrap();
+        if let Some(pixels) = &expected_pixels {
+            assert_eq!(frame.pixels(), pixels);
+        } else {
+            expected_pixels = Some(frame.pixels().to_vec());
+        }
+    }
 }
 
 #[cfg(feature = "native")]

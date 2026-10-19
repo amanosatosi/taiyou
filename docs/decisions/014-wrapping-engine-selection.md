@@ -19,14 +19,23 @@ parameters fail strict parsing; recovery diagnoses and retains the earlier
 selection. This finite grammar is a Taiyou extension, not an xy tag.
 Every operation retains its original source span; default0 has no invented span.
 
-The independent q axis starts with Script Info WrapStyle. Supported q operations
-follow the local pinterf decimal-prefix conversion: an empty or out-of-range
+The independent q axis starts with Script Info WrapStyle, default0 if absent. Supported q operations
+follow the owner-reviewed decimal-prefix command-suffix conversion: an empty or out-of-range
 parameter restores the script default; a nonempty nondigit prefix converts to0.
-Parenthesized nonempty parameters precede a command suffix. Style reset does not
+Only the suffix before the first parenthesis supplies q. Style reset does not
 reset q. Decode each text fragment under the q state at that source position:
 `\N` is mandatory; `\n` is a space in0/1/3 and a newline in2; `\h` is NBSP.
 The final q state selects the event's line policy. Thus a later q does not
 retroactively reinterpret an already decoded soft break.
+
+The default0 is source-established in STS.cpp CSimpleTextSubtitle::Empty at
+2447. The owner review requires q command-suffix precedence, including q(2) and
+q(,3) restoring the header and q1(foo) selecting1. This supersedes the initial
+parenthesized-parameter interpretation. The supplied RTS.cpp cached parser at
+2080–2180 appends parentheses before the suffix and its evaluator at2232 selects
+params[0]; that local path conflicts with the required review examples. Record
+this discrepancy rather than assert archive/binary agreement. The implemented
+suffix rule is review-directed; no authenticated capture resolves the mismatch.
 
 ## Mode0 implementation
 

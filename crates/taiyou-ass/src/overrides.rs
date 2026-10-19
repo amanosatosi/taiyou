@@ -274,16 +274,8 @@ fn parse(
     // pinterf's q path uses a decimal integer prefix. No digits means zero;
     // empty/out-of-domain values restore Script Info's wrapping style.
     if let Some(value) = raw.strip_prefix('q') {
-        let value = value.find('(').map_or(value, |at| {
-            value[at + 1..]
-                .split(')')
-                .next()
-                .unwrap_or("")
-                .split(',')
-                .map(|p| p.trim_matches([' ', '\t', '\r', '\n']))
-                .find(|p| !p.is_empty())
-                .unwrap_or(&value[..at])
-        });
+        // q consumes only its command suffix; parentheses never supply its value.
+        let value = value.split_once('(').map_or(value, |(suffix, _)| suffix);
         let value = value.trim_start_matches([' ', '\t', '\r', '\n']);
         let negative = value.starts_with('-');
         let digits = value.strip_prefix(['+', '-']).unwrap_or(value);

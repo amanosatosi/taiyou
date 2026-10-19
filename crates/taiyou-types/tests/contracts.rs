@@ -267,7 +267,7 @@ fn core_defaults_and_style_invariants_are_explicit() {
     );
     let script = ScriptInfo::core_default();
     assert_eq!(script.play_res(), Size::new(384, 288));
-    assert_eq!(script.wrap().get(), 2);
+    assert_eq!(script.wrap().get(), 0);
     assert!(!script.scaled_border_shadow());
     assert!(script.clone().with_play_res(Size::new(0, 1)).is_err());
     assert!(script.with_layout_res(Some(Size::new(1, 0))).is_err());

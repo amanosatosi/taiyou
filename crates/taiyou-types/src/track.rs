@@ -212,7 +212,7 @@ impl Alignment {
     }
 }
 
-/// Header representation only. Rendering modes other than 2 remain T017-gated.
+/// ASS wrapping style, independent of the event's wrapping-engine selector.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct WrapMode(u8);
 impl WrapMode {
@@ -519,7 +519,7 @@ impl ScriptInfo {
         Self {
             play_res: Size::new(384, 288),
             layout_res: None,
-            wrap: WrapMode(2),
+            wrap: WrapMode(0),
             scaled_border_shadow: false,
             ycbcr_matrix: Arc::from(""),
             collision_header: None,

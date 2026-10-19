@@ -234,7 +234,7 @@ impl Header {
         Ok(ScriptInfo::core_default()
             .with_play_res(play)?
             .with_layout_res(layout)?
-            .with_wrap(self.wrap.unwrap_or(WrapMode::new(2)?))
+            .with_wrap(self.wrap.unwrap_or(WrapMode::new(0)?))
             .with_scaled_border_shadow(self.scaled)
             .with_ycbcr_matrix(self.matrix.unwrap_or_else(|| Arc::from("")))
             .with_collision_header(self.collisions)
