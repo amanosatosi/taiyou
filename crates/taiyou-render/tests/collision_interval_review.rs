@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{io::Write, time::Instant};
 use taiyou_render::collision::*;
 use taiyou_types::*;
 
@@ -184,6 +184,9 @@ fn scaling_measurement_on_actions_native_linux() {
         }
     }
     std::fs::create_dir_all(&folder).unwrap();
+    for line in lines.lines() {
+        writeln!(std::io::stdout(), "T017_SCALE_SAMPLE={line}").unwrap();
+    }
     std::fs::write(
         std::path::Path::new(&folder).join("T017-collision-scaling.jsonl"),
         lines,

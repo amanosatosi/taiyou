@@ -1,6 +1,6 @@
 //! Workload experiment only. No production automatic line breaker is enabled.
 #![cfg(feature = "native")]
-use std::{path::PathBuf, time::Instant};
+use std::{io::Write, path::PathBuf, time::Instant};
 use taiyou_render::{renderer::*, shaping::shape_event};
 
 #[test]
@@ -149,6 +149,9 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
         }
     }
     std::fs::create_dir_all(&folder).unwrap();
+    for line in report.lines() {
+        writeln!(std::io::stdout(), "T017_WRAP_WORKLOAD={line}").unwrap();
+    }
     std::fs::write(
         PathBuf::from(folder).join("T017-wrap-workload-limits.jsonl"),
         report,

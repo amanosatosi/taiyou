@@ -465,13 +465,8 @@ impl Renderer {
         // At most one full local layout is retained in either pass.
         for event in events {
             let result = (|| {
-                let (local, local_charge) = prepare_local(
-                    &mut ctx,
-                    event,
-                    &preparation,
-                    held,
-                    &mut diagnostics,
-                )?;
+                let (local, local_charge) =
+                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?;
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let anchor = if collision_count > 1 && state.collision_eligible() {
