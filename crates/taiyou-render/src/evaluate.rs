@@ -465,7 +465,15 @@ mod placement_analysis_tests {
                         StyleId::new(0),
                         span,
                     )
-                    .with_program(Arc::from([a.clone(), b.clone(), c.clone(), TextOp::Text { text: source.clone(), source: span }]));
+                    .with_program(Arc::from([
+                        a.clone(),
+                        b.clone(),
+                        c.clone(),
+                        TextOp::Text {
+                            text: source.clone(),
+                            source: span,
+                        },
+                    ]));
                     let track = TrackIngestor::new()
                         .ingest(
                             source.clone(),
