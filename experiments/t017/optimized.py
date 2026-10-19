@@ -90,9 +90,40 @@ pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|
     code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")
     path.write_text(code)
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
+    driver = r'''use std::{path::PathBuf,sync::Arc,time::Instant};
+use taiyou_render::{renderer::*,shaping::shape_event};
+fn main(){
+let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();
+let mut ctx=FontContext::with_limits(limits.clone()).unwrap();
+let mut builder=FontCatalogBuilder::new(limits.clone());
+let path=PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts/cjk.otf");
+builder.register(&mut ctx,&std::fs::read(path).unwrap(),0).unwrap();
+let fonts=builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+let mut parse_ns=0_u128; let mut eval_ns=0_u128; let mut shape_ns=0_u128;
+let mut identity=String::new();
+for n in [1,3,6,9,12,15,18,21,24,27,30,36]{
+let text="日本語字幕表示確認".repeat(4).chars().take(n).collect::<String>();
+let source=format!("[Script Info]\nPlayResX: 384\nPlayResY: 288\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Noto Sans CJK JP,20,0,0\n[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 0,0:00:00.00,0:00:02.00,Default,{text}");
+let t=Instant::now();
+let parsed=taiyou_ass::parse_ass(source.as_bytes(),&ParseOptions::new(InputEncoding::Utf8,Profile::CoreV1,limits.clone(),SyntaxPolicy::Strict),&mut TrackIngestor::new()).unwrap(); parse_ns+=t.elapsed().as_nanos();
+let t=Instant::now(); let event=taiyou_render::evaluate(parsed.track(),EventId::new(0),TimeUs::from_micros(750000),Profile::CoreV1).unwrap(); eval_ns+=t.elapsed().as_nanos();
+let t=Instant::now(); let shaped=shape_event(&mut ctx,&fonts,&event,&Default::default(),&limits).unwrap(); shape_ns+=t.elapsed().as_nanos();
+for run in shaped.runs(){for glyph in run.glyphs(){identity.push_str(&format!("{}:{:?}:{:?};",glyph.glyph(),glyph.advance_x(),glyph.offset_x()));}}
+}
+eprintln!("T017_WRAP_PROFILE={{\"parse_ns\":{parse_ns},\"evaluation_ns\":{eval_ns},\"shape_ns\":{shape_ns}}}");
+println!("{identity}"); taiyou_types::t017_metrics::report();
+}
+'''
+    driver_path = destination / "crates/taiyou-cli/src/bin/t017-width-profile.rs"
+    driver_path.write_text(driver)
+    modifications[str(driver_path.relative_to(destination))] = {"generated_driver_sha256": hashlib.sha256(driver.encode()).hexdigest(), "purpose": "12 fixed CJK boundary candidates, original parse/evaluate/full-shape harness stage profile"}
     (out / (label + "-instrumentation.json")).write_text(json.dumps({"commit": sha, "files": modifications, "scope": "measurement-only timers/counters, inclusive nested stage times"}, indent=2))
     with (out / (label + "-build.log")).open("w") as log:
-        subprocess.run(["cargo", "build", "--release", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+        subprocess.run(["cargo", "build", "--release", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--bin", "t017-width-profile", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+    profile = subprocess.run([str(temp / "target/release/t017-width-profile")], capture_output=True, timeout=30, check=True)
+    (out / (label + "-cjk-profile.stderr.txt")).write_bytes(profile.stderr)
+    (out / (label + "-cjk-shape-identity.txt")).write_bytes(profile.stdout)
+    print("T017_CJK_PROFILE=" + label + " " + profile.stderr.decode(), flush=True)
     binary = temp / (label + "-taiyou")
     shutil.copy2(temp / "target/release/taiyou", binary)
     return binary
@@ -109,7 +140,8 @@ cases += [(f"dense-{n}", row(r"{\fs1}H") * n) for n in [100, 500, 1000]]
 cases += [("mixed-2000", row(r"{\pos(-100,-100)\fs1}H") * 2000 + row("dialogue") * 2), ("positioned-5000", row(r"{\pos(-100,-100)\fs1}H") * 5000)]
 for n in [100, 500]:
     for border, shadow in [(0.5, "&HFF&"), (3, "&H00&")]:
-        cases.append((f"typesetting-{n}-border-{border}", row(fr"{{\pos(-50,-50)\fs5\bord{border}\shad1.25\4a{shadow}}}Fansub typesetting") * (n-2) + row("dialogue") * 2))
+        typesetting = "".join(row(fr"{{\pos({(i % 10) * 16},{(i // 10 % 10) * 10})\fs5\bord{border}\shad1.25\4a{shadow}}}Fansub typesetting") for i in range(n-2))
+        cases.append((f"typesetting-{n}-border-{border}", typesetting + row("dialogue") * 2))
 records = []
 budget = time.monotonic() + 12 * 60
 for name, events in cases:

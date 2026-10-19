@@ -38,8 +38,11 @@ characters use that version's default properties, not the host Unicode database.
 
 Proposed data choice: independently implement the default boundary rules over
 vendored, hashed Unicode15.1 property tables generated from LineBreak.txt,
-GraphemeBreakProperty.txt, emoji-data.txt and DerivedCoreProperties.txt (including
-Indic_Conjunct_Break). Vendor the matching conformance inputs and Unicode license
+GraphemeBreakProperty.txt, emoji-data.txt, UnicodeData.txt, EastAsianWidth.txt and
+DerivedCoreProperties.txt (including Indic_Conjunct_Break). General categories
+are needed by LB1 and quote handling; East Asian Width is needed by LB30 in
+[the pinned annex](https://www.unicode.org/reports/tr14/tr14-51.html).
+Vendor the matching conformance inputs and [Unicode license](https://www.unicode.org/license.txt)
 with provenance in a separately reviewed additive proposal. Do not use the host
 Unicode database. This adds no Rust/runtime dependency. Existing unicode-bidi
 0.3.18 and unicode-script0.5.8 remain the shaping/itemization dependencies; they

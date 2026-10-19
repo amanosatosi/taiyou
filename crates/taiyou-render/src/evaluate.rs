@@ -417,11 +417,52 @@ pub(crate) fn evaluate_event_with_policy(
 /// `one` starts at Default; only SetPosition writes the anchor. Style resets,
 /// recovery literals and unsupported operations never write it. Full evaluation
 /// still runs before rendering and enforces policy/errors independently.
+#[cfg(any(test, feature = "native"))]
 pub(crate) fn collision_eligible(event: &Event) -> bool {
     !event
         .program()
         .iter()
         .any(|operation| matches!(operation, TextOp::Override(OverrideOp::SetPosition { .. })))
+}
+
+pub fn evaluate_active(
+    track: &Track,
+    now: TimeUs,
+    profile: Profile,
+    policy: UnsupportedPolicy,
+    limits: &Limits,
+) -> Result<Evaluation, RenderError> {
+    if profile != Profile::CoreV1 {
+        return Err(error(
+            ErrorCode::UnsupportedFeature,
+            "Legacy evaluation requires research gates",
+        ));
+    }
+    let mut cost = 0_u64;
+    for event in track.events().iter().filter(|e| e.is_active(now)) {
+        cost = cost
+            .checked_add(preflight(event)?)
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation budget overflow"))?;
+    }
+    if cost > limits.transient_bytes() {
+        return Err(error(
+            ErrorCode::LimitExceeded,
+            "evaluation transient budget exceeded",
+        ));
+    }
+    let mut diagnostics = DiagnosticBuffer::new();
+    let mut events = Vec::new();
+    for event in track.events().iter().filter(|e| e.is_active(now)) {
+        reserve(&mut events)?;
+        events.push(one(track, event, policy, &mut diagnostics, limits)?);
+    }
+    // Event IDs are unique; this total key preserves source order without the
+    // scratch allocation used by a stable sort.
+    events.sort_unstable_by_key(EvaluatedEvent::order);
+    Ok(Evaluation::new(
+        events.into(),
+        diagnostics.finish().map_err(convert)?.into(),
+    ))
 }
 
 #[cfg(test)]
@@ -503,43 +544,4 @@ mod placement_analysis_tests {
             }
         }
     }
-}
-pub fn evaluate_active(
-    track: &Track,
-    now: TimeUs,
-    profile: Profile,
-    policy: UnsupportedPolicy,
-    limits: &Limits,
-) -> Result<Evaluation, RenderError> {
-    if profile != Profile::CoreV1 {
-        return Err(error(
-            ErrorCode::UnsupportedFeature,
-            "Legacy evaluation requires research gates",
-        ));
-    }
-    let mut cost = 0_u64;
-    for event in track.events().iter().filter(|e| e.is_active(now)) {
-        cost = cost
-            .checked_add(preflight(event)?)
-            .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation budget overflow"))?;
-    }
-    if cost > limits.transient_bytes() {
-        return Err(error(
-            ErrorCode::LimitExceeded,
-            "evaluation transient budget exceeded",
-        ));
-    }
-    let mut diagnostics = DiagnosticBuffer::new();
-    let mut events = Vec::new();
-    for event in track.events().iter().filter(|e| e.is_active(now)) {
-        reserve(&mut events)?;
-        events.push(one(track, event, policy, &mut diagnostics, limits)?);
-    }
-    // Event IDs are unique; this total key preserves source order without the
-    // scratch allocation used by a stable sort.
-    events.sort_unstable_by_key(EvaluatedEvent::order);
-    Ok(Evaluation::new(
-        events.into(),
-        diagnostics.finish().map_err(convert)?.into(),
-    ))
 }

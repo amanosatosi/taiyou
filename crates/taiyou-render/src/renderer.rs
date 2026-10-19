@@ -11,8 +11,6 @@ pub use taiyou_font::{FontCatalogBuilder, FontContext, ValidatedFontCatalog};
 pub use taiyou_types::*;
 
 #[cfg(all(test, feature = "native"))]
-mod staging_tests;
-#[cfg(all(test, feature = "native"))]
 std::thread_local! {
     static PREPARE_CALLS: Cell<usize> = const { Cell::new(0) };
     static RETAINED_CALLS: Cell<usize> = const { Cell::new(0) };
@@ -854,3 +852,6 @@ impl Renderer {
         .with_diagnostics(diagnostics)
     }
 }
+
+#[cfg(all(test, feature = "native"))]
+mod staging_tests;
