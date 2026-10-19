@@ -145,7 +145,9 @@ fn scaling_measurement_on_actions_native_linux() {
         return;
     };
     if !cfg!(target_os = "linux")
-        || std::env::var("RUSTUP_TOOLCHAIN").unwrap_or_default() != "1.99.1"
+        || !std::env::var("RUSTUP_TOOLCHAIN")
+            .unwrap_or_default()
+            .starts_with("1.99.1")
     {
         return;
     }

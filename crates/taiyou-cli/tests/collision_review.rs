@@ -1,5 +1,5 @@
 #![cfg(feature = "native")]
-use std::{path::PathBuf, sync::Arc};
+use std::{io::Write, path::PathBuf, sync::Arc};
 use taiyou_render::{
     collision_footprint::collision_footprint, geometry::DeviceMapping, layout, renderer::*,
     shaping::shape_event,
@@ -105,8 +105,14 @@ fn thousands_of_explicit_kfx_events_keep_automatic_frames_and_fit_bounded_stagin
         Limits::default(),
     );
     let positioned = row(r"{\pos(-100,-100)\fs1}HHHHHHHHHHHHHHHHHHHH").repeat(2_000);
+    // Keep the fixed C7 diagnostic/context reservation, then permit only 8 MiB
+    // for active work. An 8-MiB total cannot even admit an empty renderer frame.
+    let diagnostic_peak = 3
+        * (MAX_DIAGNOSTICS as u64 + 1)
+        * (MAX_DETAIL_BYTES as u64 + std::mem::size_of::<Diagnostic>() as u64);
+    let fixed = diagnostic_peak + 2 * 1024 * 1024 + 160 * 100 * 4;
     let tiny = Limits::default()
-        .with_transient_bytes(8 * 1024 * 1024)
+        .with_transient_bytes(fixed + 8 * 1024 * 1024)
         .unwrap();
     for input in [format!("{positioned}{auto}"), format!("{auto}{positioned}")] {
         let actual = render(
@@ -201,13 +207,21 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
 #[test]
 fn before_after_measurements_on_native_linux_actions() {
     if !cfg!(target_os = "linux")
-        || std::env::var("RUSTUP_TOOLCHAIN").unwrap_or_default() != "1.99.1"
+        || !std::env::var("RUSTUP_TOOLCHAIN")
+            .unwrap_or_default()
+            .starts_with("1.99.1")
     {
         return;
     }
     let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") else {
         return;
     };
+    let record = format!(
+        "T017_MEASUREMENT_ENV={:?} {:?}\n",
+        std::env::var("RUSTUP_TOOLCHAIN"),
+        folder
+    );
+    std::io::stdout().write_all(record.as_bytes()).unwrap();
     let script =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../experiments/t017/measure.py");
     let result = std::process::Command::new("python")

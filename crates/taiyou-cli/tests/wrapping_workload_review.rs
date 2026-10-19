@@ -6,7 +6,9 @@ use taiyou_render::{renderer::*, shaping::shape_event};
 #[test]
 fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
     if !cfg!(target_os = "linux")
-        || std::env::var("RUSTUP_TOOLCHAIN").unwrap_or_default() != "1.99.1"
+        || !std::env::var("RUSTUP_TOOLCHAIN")
+            .unwrap_or_default()
+            .starts_with("1.99.1")
     {
         return;
     }
