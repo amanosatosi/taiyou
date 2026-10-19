@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -66,8 +67,12 @@ def snapshot(label, sha):
     path.write_text(code)
     (out / (label + "-instrumentation.json")).write_text(json.dumps({"sha": sha, "source_sha256": hashlib.sha256(original.encode()).hexdigest(), "instrumented_sha256": hashlib.sha256(code.encode()).hexdigest(), "changes": "three measurement-only atomic counters; no algorithm changes"}, indent=2) + "\n")
     with (out / (label + "-build.log")).open("w") as log:
-        subprocess.run(["cargo", "build", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--target-dir", str(temp / (label + "-target"))], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
-    return temp / (label + "-target/debug/taiyou")
+        subprocess.run(["cargo", "build", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+    # Same compiler/native prefix/lockfiles permit registry artifacts to be
+    # reused. Preserve each executable before Cargo builds the next snapshot.
+    binary = temp / (label + "-taiyou")
+    shutil.copy2(temp / "target/debug/taiyou", binary)
+    return binary
 
 executables = {label: snapshot(label, sha) for label, sha in [("before", base), ("after", head)]}
 header = "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,13,21,9\n[Events]\nFormat: Layer,Start,End,Style,Text\n"

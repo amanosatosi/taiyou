@@ -185,7 +185,8 @@ fn scaling_measurement_on_actions_native_linux() {
     }
     std::fs::create_dir_all(&folder).unwrap();
     for line in lines.lines() {
-        writeln!(std::io::stdout(), "T017_SCALE_SAMPLE={line}").unwrap();
+        let record = format!("T017_SCALE_SAMPLE={line}\n");
+        std::io::stdout().write_all(record.as_bytes()).unwrap();
     }
     std::fs::write(
         std::path::Path::new(&folder).join("T017-collision-scaling.jsonl"),

@@ -150,7 +150,8 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
     }
     std::fs::create_dir_all(&folder).unwrap();
     for line in report.lines() {
-        writeln!(std::io::stdout(), "T017_WRAP_WORKLOAD={line}").unwrap();
+        let record = format!("T017_WRAP_WORKLOAD={line}\n");
+        std::io::stdout().write_all(record.as_bytes()).unwrap();
     }
     std::fs::write(
         PathBuf::from(folder).join("T017-wrap-workload-limits.jsonl"),
