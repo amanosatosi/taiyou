@@ -88,8 +88,20 @@ pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")
+    if label == "candidate":
+        marker = "        let limits = &self.config.limits;"
+        # First occurrence in render_staged; the public wrapper has no limits.
+        assert code.count(marker) == 1
+        code = code.replace(marker, '        let retain = retain && std::env::var_os("TAIYOU_EXPERIMENT_MINIMAL").is_none();\n' + marker)
     path.write_text(code)
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
+    cli_path = destination / "crates/taiyou-cli/src/render.rs"
+    cli_original = cli_path.read_text()
+    marker = "let config = RendererConfig::default();"
+    assert cli_original.count(marker) == 1
+    cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();}')
+    cli_path.write_text(cli_code)
+    modifications[str(cli_path.relative_to(destination))] = {"original": hashlib.sha256(cli_original.encode()).hexdigest(), "instrumented": hashlib.sha256(cli_code.encode()).hexdigest(), "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"}
     driver = r'''use std::{path::PathBuf,time::Instant};
 use taiyou_render::{renderer::*,shaping::shape_event};
 fn main(){
@@ -143,6 +155,7 @@ def row(text):
 cases = [("normal-one", row("ordinary subtitle")), ("normal-eight", row("ordinary subtitle") * 8)]
 cases += [(f"dense-{n}", row(r"{\fs1}H") * n) for n in [100, 500, 1000]]
 cases += [("mixed-2000", row(r"{\pos(-100,-100)\fs1}H") * 2000 + row("dialogue") * 2), ("positioned-5000", row(r"{\pos(-100,-100)\fs1}H") * 5000)]
+cases += [("adaptive-256-multiglyph", row(r"{\fs5\bord0.5\shad1.25\4a&H00&}" + "H" * 32) * 256)]
 for n in [100, 500]:
     for border, shadow in [(0.5, "&HFF&"), (3, "&H00&")]:
         typesetting = "".join(row(fr"{{\pos({(i % 10) * 16},{(i // 10 % 10) * 10})\fs5\bord{border}\shad1.25\4a{shadow}}}Fansub typesetting") for i in range(n-2))
@@ -153,7 +166,14 @@ for name, events in cases:
     script = out / (name + ".ass")
     script.write_text(header + events)
     for sample in range(3):
-        for label, binary in binaries.items():
+        variants = [(label, binary, versions[label], dict(os.environ)) for label, binary in binaries.items()]
+        if name == "adaptive-256-multiglyph":
+            for mib, minimal in [(32, False), (32, True), (128, True)]:
+                env = dict(os.environ, TAIYOU_EXPERIMENT_BYTES=str(mib*1024*1024))
+                if minimal:
+                    env["TAIYOU_EXPERIMENT_MINIMAL"] = "1"
+                variants.append((f"candidate-{'minimal' if minimal else 'adaptive'}-{mib}MiB", binaries["candidate"], head, env))
+        for label, binary, commit, env in variants:
             if time.monotonic() > budget:
                 raise RuntimeError("bounded experiment exceeded 12 minutes; partial JSONL remains evidence")
             stem = f"{name}-{label}-{sample}"
@@ -161,7 +181,7 @@ for name, events in cases:
             raw = out / (stem + ".rgba")
             command = ["/usr/bin/time", "-f", "%M %U %S", "-o", str(resource), str(binary), "render", "--input", str(script), "--font", str(font), "--time-us", "750000", "--width", "160", "--height", "100", "--profile", "core-v1", "--output", str(out / (stem + ".png")), "--raw", str(raw)]
             start = time.perf_counter_ns()
-            result = subprocess.run(command, capture_output=True, timeout=40)
+            result = subprocess.run(command, capture_output=True, timeout=40, env=env)
             elapsed = time.perf_counter_ns() - start
             (out / (stem + ".stderr.txt")).write_bytes(result.stderr)
             result.check_returncode()
@@ -169,10 +189,10 @@ for name, events in cases:
             assert match, result.stderr
             calls, ns, peaks = map(json.loads, match.groups())
             rss, user, system = resource.read_text().split()
-            record = {"case": name, "implementation": label, "commit": versions[label], "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest(), "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
+            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest(), "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
             records.append(record)
             with (out / "samples.jsonl").open("a") as stream:
                 stream.write(json.dumps(record) + "\n")
             print("T017_OPTIMIZED=" + json.dumps(record), flush=True)
-    assert len({r["raw_sha256"] for r in records if r["case"] == name and r["implementation"] in ["reviewed", "candidate"]}) == 1, name
+    assert len({r["raw_sha256"] for r in records if r["case"] == name and (r["implementation"] == "reviewed" or r["implementation"].startswith("candidate"))}) == 1, name
 (out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))

@@ -43,7 +43,7 @@ def snapshot(label, sha):
     path = destination / "crates/taiyou-render/src/renderer.rs"
     original = path.read_text()
     code = original
-    counters = ["HELD", "LOCAL", "SHAPES"]
+    counters = ["HELD", "LOCAL", "SHAPES", "RETAINED"]
     prefix = "".join(f'#[cfg(feature = "native")]\nstatic BENCH_{name}: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);\n' for name in counters)
     # Keep the module-level documentation before items.
     first = code.index('\n') + 1
@@ -62,14 +62,24 @@ def snapshot(label, sha):
         # The new helper retains one local artifact, not the full active set.
         marker = "Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))"
         assert code.count(marker) == 1
-        code = code.replace(marker, 'BENCH_LOCAL.fetch_max(stage_held.checked_sub(held).ok_or_else(limited)?, std::sync::atomic::Ordering::Relaxed);\n    ' + marker)
+        code = code.replace(marker, 'BENCH_LOCAL.fetch_max(BENCH_RETAINED.load(std::sync::atomic::Ordering::Relaxed) + stage_held.checked_sub(held).ok_or_else(limited)?, std::sync::atomic::Ordering::Relaxed);\n    ' + marker)
+        if "retained_charge = next;" in code:
+            code = code.replace("retained_charge = next;", "retained_charge = next;\nBENCH_RETAINED.store(next, std::sync::atomic::Ordering::Relaxed);")
+            marker = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+            assert code.count(marker) == 1
+            code = code.replace(marker, marker + "\nBENCH_RETAINED.fetch_sub(saved.charge, std::sync::atomic::Ordering::Relaxed);")
     marker = "        .with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = code.replace(marker, marker + '.inspect(|_| { eprintln!("T017_BENCH={} {} {}", BENCH_HELD.load(std::sync::atomic::Ordering::Relaxed), BENCH_LOCAL.load(std::sync::atomic::Ordering::Relaxed), BENCH_SHAPES.load(std::sync::atomic::Ordering::Relaxed)); })')
     path.write_text(code)
-    (out / (label + "-instrumentation.json")).write_text(json.dumps({"sha": sha, "source_sha256": hashlib.sha256(original.encode()).hexdigest(), "instrumented_sha256": hashlib.sha256(code.encode()).hexdigest(), "changes": "three measurement-only atomic counters; no algorithm changes"}, indent=2) + "\n")
+    (out / (label + "-instrumentation.json")).write_text(json.dumps({"sha": sha, "source_sha256": hashlib.sha256(original.encode()).hexdigest(), "instrumented_sha256": hashlib.sha256(code.encode()).hexdigest(), "changes": "measurement-only atomics, including aggregate retained plus current local ownership; no algorithm changes"}, indent=2) + "\n")
+    # Owner-authorized snapshot isolation: archive source mtimes can predate the
+    # other checkout's fingerprints. Rebuild every workspace package, preserving
+    # registry dependencies and the verified native prefix.
+    subprocess.run(["cargo", "clean", "-p", "taiyou-types", "-p", "taiyou-ass", "-p", "taiyou-font", "-p", "taiyou-render", "-p", "taiyou-cli", "--target-dir", str(temp / "target")], cwd=destination, check=True, capture_output=True)
     with (out / (label + "-build.log")).open("w") as log:
         subprocess.run(["cargo", "build", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+    assert "Compiling taiyou-font" in (out / (label + "-build.log")).read_text(), "font crate must compile from each snapshot"
     # Same compiler/native prefix/lockfiles permit registry artifacts to be
     # reused. Preserve each executable before Cargo builds the next snapshot.
     binary = temp / (label + "-taiyou")
