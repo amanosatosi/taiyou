@@ -214,6 +214,27 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
 }
 
 #[test]
+fn equivalent_cardinal_style_rotations_have_identical_footprints_and_frames() {
+    let fonts = catalog();
+    let size = Size::new(160, 100);
+    let make = |angle| {
+        source(&row(r"{\bord12\shad3.5\4a&H00&}H"))
+            .replace(",9,0\n[Events]", &format!(",9,{angle}\n[Events]"))
+    };
+    let reference = make(90_i64);
+    let expected_bounds = footprint(&reference, &fonts, size).unwrap();
+    let expected = render(&reference, fonts.clone(), size, Limits::default());
+    for angle in [450_i64, -270, 360_000_000_000_090] {
+        let input = make(angle);
+        assert_eq!(footprint(&input, &fonts, size).unwrap(), expected_bounds);
+        assert_eq!(
+            render(&input, fonts.clone(), size, Limits::default()).pixels(),
+            expected.pixels()
+        );
+    }
+}
+
+#[test]
 fn before_after_measurements_on_native_linux_actions() {
     if !cfg!(target_os = "linux")
         || !std::env::var("RUSTUP_TOOLCHAIN")

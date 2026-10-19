@@ -4,6 +4,7 @@ Build the reviewed implementation and candidate with identical measurement-only
 atomic counters. Reuse the already verified native prefix; never rebuild FT/HB.
 Record actual process peak RSS separately from conservative reservation bytes.
 """
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -14,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 
 if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
@@ -100,8 +102,11 @@ for item in unavailable:
     (out / (item["case"] + ".ass")).write_bytes(script_bytes)
     item["script_sha256"] = hashlib.sha256(script_bytes).hexdigest()
 (out / "larger-workloads-unavailable.json").write_text(json.dumps(unavailable, indent=2) + "\n")
-records = []
-for name, events in cases:
+sample_lock = threading.Lock()
+
+def measure_case(case):
+    name, events = case
+    records = []
     script = out / (name + ".ass")
     script.write_text(header + events)
     for sample in range(3):
@@ -121,11 +126,20 @@ for name, events in cases:
             raw_hash = hashlib.sha256((out / (stem + ".rgba")).read_bytes()).hexdigest()
             record = {"case": name, "implementation": label, "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss_kib), "user_seconds": float(user), "system_seconds": float(system), "peak_requested_reservation_bytes": peak, "peak_retained_local_reservation_bytes": local, "shape_calls": shapes, "raw_sha256": raw_hash, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
             records.append(record)
-            with (out / "samples.jsonl").open("a") as samples:
-                samples.write(json.dumps(record) + "\n")
+            with sample_lock:
+                with (out / "samples.jsonl").open("a") as samples:
+                    samples.write(json.dumps(record) + "\n")
             print("T017_MEMORY_SAMPLE=" + json.dumps(record), flush=True)
     hashes = {r["raw_sha256"] for r in records if r["case"] == name}
     assert len(hashes) == 1, f"ordinary no-effects pixels changed for {name}"
+    return records
+
+# Keep every original case and all three before/after pairs. Two bounded case
+# workers avoid putting a complete repeated benchmark on the critical path of
+# the 35-minute native matrix. Each case still runs its pairs in fixed order.
+# Record concurrency explicitly: wall/CPU samples are not sequential-run claims.
+with ThreadPoolExecutor(max_workers=2) as workers:
+    records = [record for group in workers.map(measure_case, cases) for record in group]
 (out / "samples.json").write_text(json.dumps(records, indent=2) + "\n")
-environment = {"base": base, "candidate": head, "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "font": pin, "profile": "debug, identical pinned native prefix, three atomic counters per process", "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims", "limits": "unchanged CLI defaults"}
+environment = {"base": base, "candidate": head, "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "font": pin, "profile": "debug, identical pinned native prefix, three atomic counters per process", "benchmark_case_workers": 2, "concurrency_semantics": "two cases concurrently, each case's three pairs sequential; other correctness tests may share the runner; do not compare wall times directly with the original sequential experiment", "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims", "limits": "unchanged CLI defaults"}
 (out / "environment.json").write_text(json.dumps(environment, indent=2) + "\n")

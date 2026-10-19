@@ -104,8 +104,16 @@ pub fn collision_footprint(
                 positioned.position().x().get(),
                 positioned.position().y().get(),
             )?;
-        let angle = state.geometry().rotation_z().get().to_radians();
-        let (sin, cos) = angle.sin_cos();
+        // Match GeometryMap before its separate Q6 point quantization. Angle
+        // reduction and exact cardinals matter for equivalent large rotations.
+        let angle = state.geometry().rotation_z().get().rem_euclid(360.0);
+        let (sin, cos) = match angle {
+            0.0 => (0.0, 1.0),
+            90.0 => (1.0, 0.0),
+            180.0 => (0.0, -1.0),
+            270.0 => (-1.0, 0.0),
+            _ => angle.to_radians().sin_cos(),
+        };
         let mut hull = None;
         for x in [ink.x0().get(), ink.x1().get()] {
             for y in [ink.y0().get(), ink.y1().get()] {

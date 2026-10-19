@@ -105,6 +105,45 @@ experiment budget is reported distinctly from the proposed production limits.
 Raw results and any proposed default adjustment are presented on PR #29 before
 requesting W2 approval. No production limit/algorithm is changed by the experiment.
 
+### Actual workload evidence — defaults remain unapproved
+
+Completed on candidate `7900332ff318a4fb029add11cbc9f063d1eafdcd`,
+[Linux native job118040887111](https://github.com/amanosatosi/taiyou/actions/runs/39246785396/job/118040887111).
+[Original JSON records](../../experiments/t017/results/7900332/wrapping-workloads.jsonl)
+and adjacent provenance preserve the actual values. This used the existing
+multilingual fixtures' explicit 512 MiB font-intake configuration; the default
+128 MiB intake correctly rejected the large CJK font in the earlier experiment.
+No production budget was increased.
+
+| Workload | Candidates evaluated / all | Glyphs shaped | Seconds | Actual stop |
+|---|---:|---:|---:|---|
+| Latin12 words | 78/78 | 2,616 | 0.728 | complete |
+| Arabic16 words | 136/136 | 6,176 | 1.175 | complete |
+| Devanagari12 words | 78/78 | 2,106 | 1.439 | complete |
+| Japanese36 ideographs | 136/666 | 2,387 | 60.116 | experiment-time-budget |
+| Latin204 words | 1,377/20,910 | 1,000,847 | 15.797 | glyph-work-limit |
+| Japanese225 ideographs | 136/25,425 | 9,316 | 60.137 | experiment-time-budget |
+
+Thus 10,000/1,000,000 are **not validated production defaults**. The CJK stops
+are incomplete searches, not accepted wrapping results. The experimental glyph
+counter is checked after each whole candidate; its observed 847-glyph overshoot
+is reported. A production implementation must reserve remaining work before
+native calls or reject the completed candidate/event, never publish a partial
+wrap or treat this experimental counter as a strict native-work bound.
+
+Concrete next gate: independently measure a candidate-width prepass using the
+existing logical advances, spacing, bidi and fallback policy without collecting
+glyph ink/outline bounds for every rejected candidate. Selected lines still
+need full boundary shaping and ink metrics. First prove advance/source-range
+equivalence against the full shaping API on these workloads plus mixed styles,
+joining scripts, clusters and negative/fractional advances; then remeasure all
+candidates and propose exact caller limits. This is a proposed bounded experiment,
+not authorization to introduce new font metrics, a cache or a production shortcut.
+If that equivalence/cost cannot be demonstrated, automatic modes remain explicitly
+unsupported rather than silently switching to a generic wrapper. Owner approval
+of W2 semantics alone must not be represented as approval of these unverified
+work defaults or of Legacy behavior.
+
 An accepted implementation must expose caller-selected candidate/glyph-work
 limits in Limits/C7. Count every actual candidate shaping, including repeats;
 preflight work where possible. Crossing a limit returns LimitExceeded, preserves

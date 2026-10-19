@@ -1,0 +1,10 @@
+{
+  "candidate": "7900332ff318a4fb029add11cbc9f063d1eafdcd",
+  "job": "https://github.com/amanosatosi/taiyou/actions/runs/39246785396/job/118040887111",
+  "platform": "ubuntu-24.04 GitHub Actions, Rust 1.99.1 native debug recipe",
+  "origin": "Original T017_SCALE_SAMPLE and T017_WRAP_WORKLOAD JSON lines copied without changing their values from the completed job log",
+  "fonts": "Existing build-support/shaping-fonts.proposed.json pins, acquired and verified by the native recipe",
+  "wrapping_intake_transient_limit_bytes": 536870912,
+  "wrapping_status": "Experimental candidate shaping only; no production line-break implementation or approved search limits",
+  "old_5000_solver": "Not executed: derived 20845830000 obstacle checks exceeds the separate experimental 200000000-check budget. No old runtime or RSS invented."
+}

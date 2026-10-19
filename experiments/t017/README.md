@@ -26,6 +26,10 @@ No experiment changes an external comparator, reference or accepted outcome.
   local-stage reservation and actual shape calls. Conservative reservation bytes
   are not claimed as actual heap allocation or process RSS. Debug timings are
   hosted-runner observations, not release-performance guarantees.
+  Subsequent remeasurement retains every case and all three pairs, with two
+  bounded case workers. Each case's pairs remain sequential. Per-process RSS,
+  CPU time and wall samples are recorded with this concurrency; wall samples
+  must not be compared directly with the original sequential run as speedups.
   The original 5,000-event/four-glyph baseline exceeded the explicit 180-second
   experiment timeout at run39183812909/job117841967333; no completed frame or
   RSS is claimed for it. Its input and the unexecuted 2,000-event/twenty-glyph

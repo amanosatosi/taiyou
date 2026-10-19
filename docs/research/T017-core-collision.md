@@ -89,5 +89,16 @@ reference, selection, threshold, classification, error mapping or workflow chang
 All compilation, rendering and test execution occurs in GitHub Actions.
 The unchanged full T015 comparator must retain its true exit status and artifacts;
 the pinned native libass oracle is independent of Taiyou results and future xy
-captures. No performance or multi-worker claim is made. Full T017 completion
-remains blocked on the wrapping and border policy acceptance gates above.
+captures. Raw paired renderer measurements are preserved under
+`experiments/t017/results/f473e81/`; their measured source/environment remain
+explicit, including the original larger-workload timeout. Pure solver scaling
+and candidate-width workload records are under `results/7900332/` with their
+source job. At 100/500/1000/5000 events the new solver's median times were
+0.709/15.358/60.495/1506.555 ms, with 4950/124750/499500/12497500 obstacle checks.
+Old 1000 took 14928.342 ms; old 5000 was not executed (20.846 billion derived checks).
+New 5000 isolated process median RSS was 3692 KiB and vector capacities 400000 bytes;
+the conservative workspace reservation was 1200000 bytes versus old 960000 bytes.
+Pure solver workspace increases; the large renderer memory reduction comes from
+dropping retained full layouts, not pretending intervals have no memory cost.
+No production multi-worker or universal speedup claim is made. Full T017 completion
+remains blocked on W2 semantics/work-budget approval and final technical acceptance.
