@@ -231,8 +231,12 @@ fn fresh_forward_backward_randomized_seeks_and_exact_end_are_byte_identical() {
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         let now = i64::from(seed % 2_100_000) - 50_000;
         let req = request(now, size);
-        let actual = sequential.render(parsed.clone(), fonts.clone(), &req).unwrap();
-        let fresh = renderer().render(parsed.clone(), fonts.clone(), &req).unwrap();
+        let actual = sequential
+            .render(parsed.clone(), fonts.clone(), &req)
+            .unwrap();
+        let fresh = renderer()
+            .render(parsed.clone(), fonts.clone(), &req)
+            .unwrap();
         assert_eq!(actual.pixels(), fresh.pixels(), "random time {now}");
     }
     let solo = source(
