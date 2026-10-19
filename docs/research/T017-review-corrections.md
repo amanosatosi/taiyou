@@ -3,8 +3,9 @@
 This is a corrective checkpoint on PR29, based on integration commit
 `d5a545ac49aabbfc23e3895231d407da576e276f` and reviewed candidate
 `f41261ddebc61b1ebb77e6175aba619f0d45a41e`. It does not complete T017 or admit
-production automatic wrapping. ADR-012/F1 remains accepted; ADR-013/C4 and new
-C7 wrapping defaults remain proposed. All protected comparison inputs are unchanged.
+production automatic wrapping. ADR-012/F1 remains accepted; the owner has now
+confirmed ADR-013 and authorized its C4 amendment. New C7 wrapping defaults and
+production activation remain unapproved. All protected comparison inputs are unchanged.
 
 ## P0: typed, retention-dependent recovery
 
@@ -45,8 +46,9 @@ The pinned Unicode source/test data, license and generator live in
 [unicode15_1](../../experiments/t017/unicode15_1/README.md). All unmodified upstream
 cases are exercised independently of ASS tailoring and shaping restrictions.
 The line corpus's own header selects UAX14 Example7 numeric tailoring; the probe
-makes this explicit and keeps default pair rules separate. This needs explicit
-identification in final Core policy confirmation, not silent admission.
+makes this explicit and keeps default pair rules separate. The owner explicitly
+approved this complete Regex-Number/LB13 profile in ADR-013; that contract
+approval does not admit the experimental tables or enable production wrapping.
 
 Generated JSON uses 168,471 bytes for 8,969 merged ranges: LB2848, GCB1371,
 EAW1169, EP78, InCB201 and general-category3302. SHA-256:

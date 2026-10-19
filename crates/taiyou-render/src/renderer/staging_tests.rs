@@ -217,12 +217,8 @@ fn effects_track(border: f64) -> Arc<Track> {
                         FiniteF64::new(((i % 10) * 16) as f64).unwrap(),
                         FiniteF64::new(((i / 10 % 10) * 10) as f64).unwrap(),
                     ),
-                    source: SourceSpan::new(
-                        &source,
-                        span.start() as usize,
-                        span.start() as usize,
-                    )
-                    .unwrap(),
+                    source: SourceSpan::new(&source, span.start() as usize, span.start() as usize)
+                        .unwrap(),
                 }));
             }
             program.push(TextOp::Text {

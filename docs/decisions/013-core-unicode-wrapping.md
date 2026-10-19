@@ -1,17 +1,19 @@
-# ADR-013 — Proposed Core Unicode wrapping and recursive score selection
+# ADR-013 — Core Unicode wrapping and recursive score selection
 
-Status: **proposed for final owner confirmation, not an accepted contract**.
-The human owner's T017 review approved Core deterministic semantics and approved
-the Unicode15.1 data plan in principle. The backwards DP approach was approved
-subject to clarifying rounding/lexicographic selection. This record proposes
-the narrow clarification; it does not enable production wrapping, establish C7
-defaults or admit LegacyXyV1. ADR-012/F1 remains separately accepted.
+Status: **owner-approved contract; production admission pending**.
+The human owner's explicit PR29 implementation-session confirmation accepts
+this exact recursive binary64 decision and the Unicode15.1 numeric profile below,
+and authorizes the C4 amendment. The data plan is approved in principle subject
+to provenance, licensing, conformance and storage review. This approval does not
+enable production wrapping, establish C7 defaults or admit LegacyXyV1.
+ADR-012/F1 remains separately accepted. The final exact-head ADR-011 baseline
+acknowledgment remains a separate human decision.
 
-## Proposed decision
+## Decision
 
 Adopt the exact opportunities, atoms, admissibility, boundary shaping, source
 provenance, margins, mandatory/soft breaks and mode selection rules in
-[W2](../research/T017-wrapping-policy-v2.md). Proposed policy identity:
+[W2](../research/T017-wrapping-policy-v2.md). Contract policy identity:
 `core-wrap-unicode15_1-recursive-1`. Existing WrapStyle2 is unchanged.
 
 For modes0/3, **the recursive DP comparison is normative**. At each logical start,
@@ -34,7 +36,7 @@ explicit policy, not accidental implementation behavior.
 This choice preserves bounded reusable candidate costs and one selected suffix
 per state. Exact global optimization would require a different arithmetic/search
 policy and resource analysis. It is an alternative requiring owner direction,
-not an undocumented promise of this proposed DP implementation.
+not an undocumented promise of this recursive policy.
 
 ## Executable arithmetic expectations
 
@@ -55,15 +57,18 @@ The pilot's constant-exponent square is checked against independently calculated
 multiplication/bit expectations in these fixtures. Production admission must use
 the explicitly specified separate multiplication. No production wrapper exists.
 
-## Proposed C4 amendment — not applied
+## Authorized C4 amendment
 
-After final owner confirmation, replace C4's sentence “T017 introduces other wrap
-modes only after R001 rules” with the following text; keep the rest of the
-WrapStyle2/line-metrics/box-separation paragraph intact:
+The owner authorized replacing C4's sentence “T017 introduces other wrap modes
+only after R001 rules” with the following text, preserving the rest of the
+WrapStyle2/line-metrics/box-separation paragraph:
 
 > CoreV1 automatic WrapStyle0/1/3 follows ADR-013 and W2's pinned Unicode15.1
 > opportunities, Core tailoring, grapheme/shaping-cluster filters, overwide atoms,
 > inherited margin width and fresh boundary shaping with original provenance.
+> The line profile is Unicode15.1 UAX14 revision51 section8.2 Example7's complete
+> Regex-Number behavior with its required LB13 adjustments, not the default LB25
+> approximation; grapheme boundaries use UAX29 revision43.
 > Mode1 examines all legal ends without assuming monotonic widths. Modes0/3 use
 > the normative backwards recursive binary64 DP comparator, including opposite
 > width-vector ties and earliest decoded offsets; discarded suffixes are never
@@ -75,24 +80,27 @@ WrapStyle2/line-metrics/box-separation paragraph intact:
 > separately reviewed C7 caller limits are satisfied. Legacy automatic wrapping
 > still requires authenticated R001 evidence and separate admission.
 
-Do not edit normative C4/C7 or add a runtime policy revision until the owner
-confirms this exact proposal. The final exact-head ADR-011 acknowledgment is a
-separate gate, not acceptance of this proposed behavior by an agent.
+The amendment records the approved contract only. It does not add a runtime
+policy revision or approve C7 defaults. Production activation remains subject
+to every prerequisite below and separately reviewed resource limits.
 
 ## Mandatory implementation prerequisites
 
-### Proposed Unicode numeric profile clarification
+### Approved Unicode numeric profile
 
 The unmodified Unicode15.1 LineBreakTest header explicitly selects UAX14
 section8.2 Example7 numeric tailoring, rather than the default LB25 pair
 approximation. The isolated prerequisite probe tests that exact declared profile
-and keeps the default pair path separate. Propose the same numeric profile for
-Core W2, together with LB1's default SA/CJ resolution. For example `%(` has no
+and keeps the default pair path separate. Core W2 uses this numeric profile,
+together with LB1's default SA/CJ resolution. Use the complete Regex-Number
+behavior and its required LB13 adjustments; do not mix the default LB25
+approximation into this profile. For example `%(` has no
 interior break under default pair rules, but has one under the upstream test
-profile when no following number exists. This is a concrete additional
-clarification for final owner confirmation; it is not silently applied to C4,
-production wrapping or ASS-specific tailoring. Generated properties and passing
-unmodified test cases do not decide this Core policy on the owner's behalf.
+profile when no following number exists. Pin the profile explicitly, run the
+original unmodified LineBreakTest against its declared numeric tailoring, and
+test default pair rules separately, including this distinction. ASS-specific
+tailoring and shaping-cluster restrictions require independent tests; upstream
+conformance must never be adjusted to hide those differences.
 
 * Vendor/hash Unicode15.1 UAX14 revision51 and UAX29 revision43 properties and
   matching unmodified conformance inputs; record license/provenance/table size.

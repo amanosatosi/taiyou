@@ -1,11 +1,12 @@
 # T017 W2 — Unicode-aware Core wrapping proposal
 
-Status: **Core semantics owner-approved in review; final contract confirmation
-and implementation admission pending**. Supersedes W1's space-only proposal.
-The owner approved the Unicode15.1 data plan in principle and the backwards DP
-approach subject to the rounding clarification proposed below and in
-[draft ADR-013](../decisions/013-core-unicode-wrapping.md). Production limits,
-generated data and automatic wrapping remain unapproved/unimplemented.
+Status: **Core contract owner-approved; production admission pending**.
+Supersedes W1's space-only proposal. The owner confirmed the exact recursive
+binary64 comparator and numeric-tailored profile in
+[ADR-013](../decisions/013-core-unicode-wrapping.md), and authorized its C4
+amendment. The Unicode15.1 data plan is approved in principle, subject to
+provenance, licensing, storage and conformance review. Production limits and
+automatic wrapping remain unapproved/unimplemented.
 F1 is separately approved in
 [ADR-012](../decisions/012-core-collision-footprint.md). This proposal does not
 admit R001 L01–L03 or claim historical xy-VSFilter behavior.
@@ -17,7 +18,9 @@ measurements do not admit missing data/conformance/native-work prerequisites.
 ## Exact opportunities and atoms
 
 Pin Unicode **15.1.0**, [UAX14 revision51](https://www.unicode.org/reports/tr14/tr14-51.html)
-default line-breaking rules and [UAX29 revision43](https://www.unicode.org/reports/tr29/tr29-43.html)
+line-breaking rules with section8.2 Example7's complete Regex-Number numeric
+tailoring and required LB13 adjustments, and
+[UAX29 revision43](https://www.unicode.org/reports/tr29/tr29-43.html)
 extended grapheme boundaries. This deliberately stable version is a policy pin,
 not a claim to use the latest Unicode release. A future implementation must
 identify/hash its data tables and pass the matching LineBreakTest and
@@ -34,8 +37,11 @@ order never determines logical break selection. Font changes cannot introduce a
 break forbidden by the text boundary policy.
 
 Use default LB1 resolution (including CJ→NS and SA's combining-mark treatment).
-No dictionary segmentation, language-specific hyphenation or locale-dependent
-tailoring. Japanese/CJK/precomposed Hangul use the default Unicode opportunities,
+Do not mix the default LB25 approximation into the approved numeric profile.
+Unmodified LineBreakTest uses that declared profile; keep default pair-rule
+tests separate, including `%(`. No dictionary segmentation, language-specific
+hyphenation or locale-dependent tailoring. Japanese/CJK/precomposed Hangul use
+the pinned Unicode opportunities,
 including opening/closing punctuation restrictions. Thai/Lao/Khmer sequences
 that need a dictionary remain atomic unless an explicit legal separator exists;
 do not invent character-by-character emergency breaks. Unknown Unicode 15.1
@@ -106,7 +112,7 @@ overwide. Every selected line must be admissible; no hidden greedy fallback.
 - Mode1 selects the furthest fitting logical end among all ends at the current
   start. If none fits, emit the first atom alone. Continue after its consumed
   delimiter. Do not assume candidate widths are monotonic.
-- Modes0/3 use the proposed recursive DP comparator defined below: minimize
+- Modes0/3 use the approved recursive DP comparator defined below: minimize
   line count, then rounded squared-slack score over selected suffix plans.
   This is not exact global minimization over all complete plans. Equal-score
   candidates at a state use mode0's
@@ -119,7 +125,7 @@ Use T010 max ascent/descent including empty-line style metrics. Build distinct
 logical/ink/local boxes after wrapping, then ADR-012 effects footprint, then
 complete-active-set collision placement. No frame-history or retained wrap cache.
 
-### Candidate reuse and polynomial search (proposed refinement)
+### Candidate reuse and polynomial search
 
 Evaluate the ASS event once. Retain the original decoded map and immutable style
 ranges; a candidate creates a line-boundary view with original source intervals,
@@ -142,7 +148,7 @@ edge plus already selected suffix by line count, cost, width-vector tie and
 break-offset tie in that order. Specify floating evaluation as the backwards
 recurrence `cost(start) = squared_slack(edge) + cost(end)`; calculate each slack
 and square with separate finite operations, no FMA. This explicit association
-is the clarification submitted for final owner confirmation. The independent
+is normative under owner-approved ADR-013. The independent
 experiment compares this recurrence against exhaustive small plans with exact
 small dyadic costs and nonmonotonic widths; that agreement is not a claim about
 global optimization of arbitrary rounded floating-point costs.
@@ -295,9 +301,9 @@ exhaustive small nonmonotonic plans, including opposite ties, overwide atoms and
 mode1 scanning beyond a nonfitting end. It is not necessary to repeat complete
 plan enumeration or build a production wrapper to resolve this policy decision.
 The owner approved W2 semantics and the Unicode15.1 data plan in principle.
-Final review now concerns the narrow recursive-rounding clarification in
-draft ADR-013; pilot budgets and production admission remain gated on the
-explicitly missing conformance/native-work evidence and final contract approval.
+The owner has confirmed ADR-013's recursive-rounding choice and numeric profile.
+Pilot budgets and production admission remain gated on implementation
+conformance, native-work/preflight evidence and separately reviewed C7 limits.
 
 ## Executable proposed arithmetic expectations
 
@@ -333,10 +339,10 @@ not establish line metrics, raster pixels or historical compatibility.
 
 ## Approval gate
 
-Owner review approved Core semantics, the DP direction conditionally and the
-Unicode15.1 data plan in principle. Final confirmation of the narrow recursive
-rounding decision and [proposed ADR/C4 text](../decisions/013-core-unicode-wrapping.md)
-is still required. Generated data hashes/licensing/provenance/storage review,
+Owner review confirmed Core semantics, recursive binary64 rounding and the
+complete numeric profile in [ADR-013/C4](../decisions/013-core-unicode-wrapping.md).
+The Unicode15.1 data plan is approved in principle. Generated data
+hashes/licensing/provenance/storage review,
 unmodified Unicode conformance, separate ASS-tailored/cluster-filtered fixtures,
 raw native-work preflight and a reviewed C7 amendment remain mandatory before
 implementation admission. The32,000/16,000,000 pilot limits are not production
