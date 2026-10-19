@@ -83,12 +83,23 @@ cases = [
     ("normal-one", row("ordinary subtitle")),
     ("normal-two", row("ordinary subtitle") * 2),
     ("normal-eight", row("ordinary subtitle") * 8),
-    ("positioned-5000", row(r"{\pos(-100,-100)\fs1}HHHH") * 5000),
-    ("mixed-2000", row(r"{\pos(-100,-100)\fs1}HHHHHHHHHHHHHHHHHHHH") * 2000 + row("H") * 2),
+    ("positioned-5000-one-glyph", row(r"{\pos(-100,-100)\fs1}H") * 5000),
+    ("mixed-2000-one-glyph", row(r"{\pos(-100,-100)\fs1}H") * 2000 + row("H") * 2),
     ("dense-100", row(r"{\fs1}H") * 100),
     ("dense-500", row(r"{\fs1}H") * 500),
     ("dense-1000", row(r"{\fs1}H") * 1000),
 ]
+# Preserve the original larger inputs and the incomplete measurement instead of
+# silently relabelling the smaller practical workloads as those measurements.
+unavailable = [
+    {"case": "positioned-5000-four-glyphs", "events": row(r"{\pos(-100,-100)\fs1}HHHH") * 5000, "status": "baseline-timeout-180s", "evidence": "https://github.com/amanosatosi/taiyou/actions/runs/39183812909/job/117841967333", "completed_frame": False},
+    {"case": "mixed-2000-twenty-glyphs", "events": row(r"{\pos(-100,-100)\fs1}HHHHHHHHHHHHHHHHHHHH") * 2000 + row("H") * 2, "status": "not-executed-after-prior-timeout", "completed_frame": False},
+]
+for item in unavailable:
+    script_bytes = (header + item.pop("events")).encode()
+    (out / (item["case"] + ".ass")).write_bytes(script_bytes)
+    item["script_sha256"] = hashlib.sha256(script_bytes).hexdigest()
+(out / "larger-workloads-unavailable.json").write_text(json.dumps(unavailable, indent=2) + "\n")
 records = []
 for name, events in cases:
     script = out / (name + ".ass")
@@ -110,6 +121,8 @@ for name, events in cases:
             raw_hash = hashlib.sha256((out / (stem + ".rgba")).read_bytes()).hexdigest()
             record = {"case": name, "implementation": label, "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss_kib), "user_seconds": float(user), "system_seconds": float(system), "peak_requested_reservation_bytes": peak, "peak_retained_local_reservation_bytes": local, "shape_calls": shapes, "raw_sha256": raw_hash, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
             records.append(record)
+            with (out / "samples.jsonl").open("a") as samples:
+                samples.write(json.dumps(record) + "\n")
             print("T017_MEMORY_SAMPLE=" + json.dumps(record), flush=True)
     hashes = {r["raw_sha256"] for r in records if r["case"] == name}
     assert len(hashes) == 1, f"ordinary no-effects pixels changed for {name}"

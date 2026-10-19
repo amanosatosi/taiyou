@@ -11,7 +11,8 @@ No experiment changes an external comparator, reference or accepted outcome.
   unrelated explicit positions. Existing regression tests remain untouched.
 - `collision_interval_review` records 100/500/1000/5000-event dense solver
   measurements on Linux native Rust1.99.1. It measures the new solver three times
-  and records operation counters and conservative workspace reservations. Old
+  and records operation counters, conservative workspace reservations, observed
+  vector backing capacities and isolated child-process peak RSS. Old
   dense obstacle checks are independently derived as N(N-1)(N+4)/6. Old runs
   above 200 million checks are not executed; their runtime is null, never a
   fabricated measured speedup. Small old runs execute for comparison.
@@ -25,6 +26,11 @@ No experiment changes an external comparator, reference or accepted outcome.
   local-stage reservation and actual shape calls. Conservative reservation bytes
   are not claimed as actual heap allocation or process RSS. Debug timings are
   hosted-runner observations, not release-performance guarantees.
+  The original 5,000-event/four-glyph baseline exceeded the explicit 180-second
+  experiment timeout at run39183812909/job117841967333; no completed frame or
+  RSS is claimed for it. Its input and the unexecuted 2,000-event/twenty-glyph
+  input remain in the unavailable-evidence manifest. Separately named one-glyph
+  KFX workloads measure event staging without that unrelated native glyph cost.
 - `wrapping_workload_review` measures real candidate shaping for independently
   authored Latin/Arabic/Devanagari/Japanese whole-word/ideograph ranges. It is not
   a production automatic wrapper or Unicode conformance implementation. Search

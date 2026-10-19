@@ -29,6 +29,7 @@ pub struct CollisionStats {
     pub sort_comparisons: u64,
     pub interval_visits: u64,
     pub reserved_bytes: u64,
+    pub allocated_vector_bytes: u64,
 }
 
 fn limited() -> RenderError {
@@ -112,6 +113,19 @@ pub fn resolve_collisions_with_stats(
             "collision placement allocation failed",
         )
     })?;
+    let order_bytes = (order.capacity() as u64)
+        .checked_mul(std::mem::size_of::<usize>() as u64)
+        .ok_or_else(limited)?;
+    let interval_bytes = (intervals.capacity() as u64)
+        .checked_mul(std::mem::size_of::<(f64, f64)>() as u64)
+        .ok_or_else(limited)?;
+    let result_bytes = (result.capacity() as u64)
+        .checked_mul(std::mem::size_of::<PlacedEvent>() as u64)
+        .ok_or_else(limited)?;
+    stats.allocated_vector_bytes = order_bytes
+        .checked_add(interval_bytes)
+        .and_then(|n| n.checked_add(result_bytes))
+        .ok_or_else(limited)?;
     // Ineligible inputs only receive natural output records. They never enter
     // placement ordering, obstacle collection or interval processing. The
     // renderer structurally excludes them before calling this compatibility API.

@@ -21,8 +21,8 @@ fn input(id: u32) -> CollisionInput {
         eligible: true,
     }
 }
-fn old(events: &[CollisionInput]) -> Vec<previous::PlacedEvent> {
-    let input: Vec<_> = events
+fn old_inputs(events: &[CollisionInput]) -> Vec<previous::CollisionInput> {
+    events
         .iter()
         .map(|e| previous::CollisionInput {
             id: e.id,
@@ -33,8 +33,10 @@ fn old(events: &[CollisionInput]) -> Vec<previous::PlacedEvent> {
             bounds: e.bounds,
             eligible: e.eligible,
         })
-        .collect();
-    previous::resolve_collisions(&input, Profile::CoreV1, &Limits::default()).unwrap()
+        .collect()
+}
+fn old(events: &[CollisionInput]) -> Vec<previous::PlacedEvent> {
+    previous::resolve_collisions(&old_inputs(events), Profile::CoreV1, &Limits::default()).unwrap()
 }
 fn next(seed: &mut u32) -> u32 {
     *seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
@@ -140,6 +142,29 @@ fn five_thousand_explicit_events_do_not_add_collision_work() {
 }
 
 #[test]
+fn scaling_worker() {
+    let Ok(value) = std::env::var("TAIYOU_T017_SOLVER_CHILD") else {
+        return;
+    };
+    let count: u32 = value.parse().unwrap();
+    let events: Vec<_> = (0..count).map(input).collect();
+    let start = Instant::now();
+    let (actual, stats) =
+        resolve_collisions_with_stats(&events, Profile::CoreV1, &Limits::default()).unwrap();
+    let elapsed = start.elapsed().as_nanos();
+    assert_eq!(
+        actual.last().unwrap().anchor.y().get(),
+        -f64::from(count - 1)
+    );
+    assert_eq!(
+        stats.obstacle_tests,
+        u64::from(count) * u64::from(count - 1) / 2
+    );
+    let record = format!("T017_SOLVER_CHILD {elapsed} {} {} {} {} {} {}\n",stats.obstacle_tests,stats.intervals,stats.sort_comparisons,stats.interval_visits,stats.reserved_bytes,stats.allocated_vector_bytes);
+    std::io::stdout().write_all(record.as_bytes()).unwrap();
+}
+
+#[test]
 fn scaling_measurement_on_actions_native_linux() {
     let Ok(folder) = std::env::var("TAIYOU_RENDER_SAMPLE_DIR") else {
         return;
@@ -158,8 +183,10 @@ fn scaling_measurement_on_actions_native_linux() {
         // The old 5000-event run exceeds the explicit experiment work budget
         // (20 billion checks). Do not spend the runner's timeout proving that.
         let old_ns = if old_operations <= 200_000_000 {
+            let input = old_inputs(&events);
             let start = Instant::now();
-            let result = old(&events);
+            let result =
+                previous::resolve_collisions(&input, Profile::CoreV1, &Limits::default()).unwrap();
             assert_eq!(
                 result.last().unwrap().anchor.y().get(),
                 -f64::from(count - 1)
@@ -169,20 +196,29 @@ fn scaling_measurement_on_actions_native_linux() {
             None
         };
         for sample in 0..3 {
-            let start = Instant::now();
-            let (actual, stats) =
-                resolve_collisions_with_stats(&events, Profile::CoreV1, &Limits::default())
-                    .unwrap();
-            let elapsed = start.elapsed().as_nanos();
-            assert_eq!(
-                actual.last().unwrap().anchor.y().get(),
-                -f64::from(count - 1)
-            );
-            assert_eq!(
-                stats.obstacle_tests,
-                u64::from(count) * u64::from(count - 1) / 2
-            );
-            lines.push_str(&format!("{{\"events\":{count},\"sample\":{sample},\"new_ns\":{elapsed},\"old_ns\":{},\"old_obstacle_checks_derived\":{old_operations},\"new_obstacle_checks\":{},\"intervals\":{},\"sort_comparisons\":{},\"interval_visits\":{},\"reserved_workspace_bytes\":{},\"old_workspace_bytes\":{}}}\n", old_ns.map_or_else(|| "null".to_owned(), |n| n.to_string()), stats.obstacle_tests, stats.intervals, stats.sort_comparisons, stats.interval_visits, stats.reserved_bytes, u64::from(count) * 3 * (std::mem::size_of::<usize>() + std::mem::size_of::<previous::PlacedEvent>()) as u64));
+            // A fresh child per sample gives an isolated process high-water RSS
+            // instead of attributing an earlier case's peak to this case.
+            let output = std::process::Command::new("/usr/bin/time")
+                .args(["-f", "%M"])
+                .arg(std::env::current_exe().unwrap())
+                .args(["--exact", "scaling_worker", "--nocapture"])
+                .env("TAIYOU_T017_SOLVER_CHILD", count.to_string())
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{output:?}");
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            let record = stdout
+                .lines()
+                .find_map(|s| s.strip_prefix("T017_SOLVER_CHILD "))
+                .unwrap();
+            let values: Vec<u64> = record
+                .split_whitespace()
+                .map(|s| s.parse().unwrap())
+                .collect();
+            assert_eq!(values.len(), 7);
+            let stderr = String::from_utf8(output.stderr).unwrap();
+            let rss: u64 = stderr.trim().parse().unwrap();
+            lines.push_str(&format!("{{\"events\":{count},\"sample\":{sample},\"new_ns\":{},\"new_peak_rss_kib\":{rss},\"old_ns\":{},\"old_obstacle_checks_derived\":{old_operations},\"new_obstacle_checks\":{},\"intervals\":{},\"sort_comparisons\":{},\"interval_visits\":{},\"reserved_workspace_bytes\":{},\"allocated_vector_bytes\":{},\"old_workspace_reservation_bytes\":{}}}\n",values[0],old_ns.map_or_else(|| "null".to_owned(), |n| n.to_string()),values[1],values[2],values[3],values[4],values[5],values[6],u64::from(count) * 3 * (std::mem::size_of::<usize>() + std::mem::size_of::<previous::PlacedEvent>()) as u64));
         }
     }
     std::fs::create_dir_all(&folder).unwrap();

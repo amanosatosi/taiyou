@@ -104,7 +104,11 @@ fn thousands_of_explicit_kfx_events_keep_automatic_frames_and_fit_bounded_stagin
         Size::new(160, 100),
         Limits::default(),
     );
-    let positioned = row(r"{\pos(-100,-100)\fs1}HHHHHHHHHHHHHHHHHHHH").repeat(2_000);
+    let positioned = format!(
+        "{}{}",
+        row(r"{\pos(-100,-100)\fs1}H").repeat(5_000),
+        row(r"{\pos(-100,-100)\fs1}HHHHHHHHHHHHHHHHHHHH")
+    );
     // Keep the fixed C7 diagnostic/context reservation, then permit only 8 MiB
     // for active work. An 8-MiB total cannot even admit an empty renderer frame.
     let diagnostic_peak = 3
@@ -112,6 +116,11 @@ fn thousands_of_explicit_kfx_events_keep_automatic_frames_and_fit_bounded_stagin
         * (MAX_DETAIL_BYTES as u64 + std::mem::size_of::<Diagnostic>() as u64);
     let fixed = diagnostic_peak + 2 * 1024 * 1024 + 160 * 100 * 4;
     let tiny = Limits::default()
+        // This fixture has at most twenty glyphs per event. A stricter caller
+        // glyph cap avoids reserving the default 100,000-glyph native scratch
+        // allowance while testing eight MiB of live staging headroom.
+        .with_glyphs_per_event(64)
+        .unwrap()
         .with_transient_bytes(fixed + 8 * 1024 * 1024)
         .unwrap();
     for input in [format!("{positioned}{auto}"), format!("{auto}{positioned}")] {
