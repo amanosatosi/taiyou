@@ -21,7 +21,10 @@ pub struct PlacedEvent {
 }
 
 fn limited() -> RenderError {
-    RenderError::new(ErrorCode::LimitExceeded, "collision arithmetic/reservation exceeded")
+    RenderError::new(
+        ErrorCode::LimitExceeded,
+        "collision arithmetic/reservation exceeded",
+    )
 }
 fn finite(value: f64) -> Result<FiniteF64, RenderError> {
     FiniteF64::new(value).map_err(|_| limited())
@@ -61,16 +64,25 @@ pub fn resolve_collisions(
     let mut order = Vec::new();
     let mut result: Vec<PlacedEvent> = Vec::new();
     order.try_reserve_exact(events.len()).map_err(|_| {
-        RenderError::new(ErrorCode::AllocationFailed, "collision order allocation failed")
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "collision order allocation failed",
+        )
     })?;
     result.try_reserve_exact(events.len()).map_err(|_| {
-        RenderError::new(ErrorCode::AllocationFailed, "collision placement allocation failed")
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "collision placement allocation failed",
+        )
     })?;
     order.extend(0..events.len());
     // Validate identity independently of start/layer, before placement.
     order.sort_unstable_by_key(|&i| events[i].id);
     if order.windows(2).any(|p| events[p[0]].id == events[p[1]].id) {
-        return Err(RenderError::new(ErrorCode::InvalidArgument, "duplicate collision EventId"));
+        return Err(RenderError::new(
+            ErrorCode::InvalidArgument,
+            "duplicate collision EventId",
+        ));
     }
     order.sort_unstable_by_key(|&i| (events[i].layer, events[i].start, events[i].id));
     for &index in &order {
@@ -88,8 +100,11 @@ pub fn resolve_collisions(
                 let mut next = None;
                 for (&prior_index, prior) in order.iter().zip(&result) {
                     let obstacle = &events[prior_index];
-                    if obstacle.layer != input.layer || !obstacle.eligible || !occupied(prior.bounds)
-                        || natural.x0() >= prior.bounds.x1() || natural.x1() <= prior.bounds.x0()
+                    if obstacle.layer != input.layer
+                        || !obstacle.eligible
+                        || !occupied(prior.bounds)
+                        || natural.x0() >= prior.bounds.x1()
+                        || natural.x1() <= prior.bounds.x0()
                     {
                         continue;
                     }
@@ -115,7 +130,10 @@ pub fn resolve_collisions(
                 }
             }
             if !cleared {
-                return Err(RenderError::new(ErrorCode::InternalError, "collision search failed its derived bound"));
+                return Err(RenderError::new(
+                    ErrorCode::InternalError,
+                    "collision search failed its derived bound",
+                ));
             }
         }
         let anchor = ScriptPoint::new(input.anchor.x(), finite(y)?);

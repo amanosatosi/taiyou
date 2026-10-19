@@ -4,8 +4,8 @@
 //! owned geometry, grayscale coverage, FreeType border/shadow masks and scalar
 //! composition through the single-worker CoreV1 coordinator.
 
-mod compose;
 pub mod collision;
+mod compose;
 mod evaluate;
 pub mod geometry;
 pub mod layout;

@@ -23,7 +23,10 @@ fn bottom_up_and_middle_top_down_minimum_contact() {
         let b = input(1, alignment, [0.0, 0.0, 10.0, 10.0]);
         let p = place(&[b, a]);
         assert_eq!(p[0].anchor.y().get(), 0.0);
-        assert_eq!(p[1].anchor.y().get(), if alignment <= 3 { -10.0 } else { 10.0 });
+        assert_eq!(
+            p[1].anchor.y().get(),
+            if alignment <= 3 { -10.0 } else { 10.0 }
+        );
         assert_eq!(p[0].id, EventId::new(0));
     }
 }
@@ -31,9 +34,15 @@ fn bottom_up_and_middle_top_down_minimum_contact() {
 #[test]
 fn layers_explicit_and_nonoverlapping_rectangles_are_not_obstacles() {
     let a = input(0, 2, [0.0, 0.0, 10.0, 10.0]);
-    for mut b in [a, input(1, 2, [10.0, 0.0, 20.0, 10.0]), input(1, 2, [0.0, 10.0, 10.0, 20.0])] {
+    for mut b in [
+        a,
+        input(1, 2, [10.0, 0.0, 20.0, 10.0]),
+        input(1, 2, [0.0, 10.0, 10.0, 20.0]),
+    ] {
         b.id = EventId::new(1);
-        if b.bounds == a.bounds { b.layer = 1; }
+        if b.bounds == a.bounds {
+            b.layer = 1;
+        }
         assert_eq!(place(&[a, b])[1].anchor.y().get(), 0.0);
     }
     let mut explicit = a;
@@ -77,7 +86,10 @@ fn empty_boxes_fractional_anchors_and_offscreen_placement() {
     let mut events = Vec::new();
     for id in 0..200 {
         let mut e = input(id, 2, [-1.25, -2.5, 1.25, 0.0]);
-        e.anchor = ScriptPoint::new(FiniteF64::new(-10.5).unwrap(), FiniteF64::new(0.25).unwrap());
+        e.anchor = ScriptPoint::new(
+            FiniteF64::new(-10.5).unwrap(),
+            FiniteF64::new(0.25).unwrap(),
+        );
         events.push(e);
     }
     let p = place(&events);
@@ -88,11 +100,34 @@ fn empty_boxes_fractional_anchors_and_offscreen_placement() {
 #[test]
 fn rejects_duplicate_ids_overflow_limits_and_unapproved_profile() {
     let a = input(0, 2, [0.0, 0.0, 10.0, 10.0]);
-    assert_eq!(resolve_collisions(&[a, a], Profile::CoreV1, &Limits::default()).unwrap_err().code(), ErrorCode::InvalidArgument);
+    assert_eq!(
+        resolve_collisions(&[a, a], Profile::CoreV1, &Limits::default())
+            .unwrap_err()
+            .code(),
+        ErrorCode::InvalidArgument
+    );
     let tiny = Limits::default().with_transient_bytes(1).unwrap();
-    assert_eq!(resolve_collisions(&[a], Profile::CoreV1, &tiny).unwrap_err().code(), ErrorCode::LimitExceeded);
-    assert_eq!(resolve_collisions(&[a], Profile::LegacyXyV1, &Limits::default()).unwrap_err().code(), ErrorCode::UnsupportedFeature);
+    assert_eq!(
+        resolve_collisions(&[a], Profile::CoreV1, &tiny)
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(
+        resolve_collisions(&[a], Profile::LegacyXyV1, &Limits::default())
+            .unwrap_err()
+            .code(),
+        ErrorCode::UnsupportedFeature
+    );
     let mut huge = input(1, 2, [0.0, 0.0, 1.0, f64::MAX]);
-    huge.anchor = ScriptPoint::new(FiniteF64::new(0.0).unwrap(), FiniteF64::new(f64::MAX).unwrap());
-    assert_eq!(resolve_collisions(&[huge], Profile::CoreV1, &Limits::default()).unwrap_err().code(), ErrorCode::LimitExceeded);
+    huge.anchor = ScriptPoint::new(
+        FiniteF64::new(0.0).unwrap(),
+        FiniteF64::new(f64::MAX).unwrap(),
+    );
+    assert_eq!(
+        resolve_collisions(&[huge], Profile::CoreV1, &Limits::default())
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
 }

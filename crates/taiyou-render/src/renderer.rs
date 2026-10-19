@@ -1,8 +1,8 @@
 //! Uncached inline CoreV1 coordinator. Native contexts exist only during a call.
 #[cfg(feature = "native")]
-use crate::{compose, evaluate_with_policy, geometry::*, layout, raster::*};
-#[cfg(feature = "native")]
 use crate::collision::{CollisionInput, PlacedEvent, resolve_collisions};
+#[cfg(feature = "native")]
+use crate::{compose, evaluate_with_policy, geometry::*, layout, raster::*};
 #[cfg(feature = "native")]
 use std::sync::Arc;
 use std::{cell::Cell, marker::PhantomData};
@@ -294,7 +294,10 @@ impl Renderer {
         available(limits, held)?;
         let mut prepared = Vec::new();
         prepared.try_reserve_exact(count).map_err(|_| {
-            RenderError::new(ErrorCode::AllocationFailed, "local event staging allocation failed")
+            RenderError::new(
+                ErrorCode::AllocationFailed,
+                "local event staging allocation failed",
+            )
         })?;
         // Shape/layout every active event before deciding any placement. These
         // immutable local artifacts do not depend on collision displacement.
@@ -374,14 +377,21 @@ impl Renderer {
                 e.with_context(id, span)
             })?;
             held = add(held, charge)?;
-            prepared.push(PreparedEvent { event, local, charge });
+            prepared.push(PreparedEvent {
+                event,
+                local,
+                charge,
+            });
         }
         let input_charge = bytes::<CollisionInput>(count)?;
         held = add(held, input_charge)?;
         available(limits, held)?;
         let mut collision_inputs = Vec::new();
         collision_inputs.try_reserve_exact(count).map_err(|_| {
-            RenderError::new(ErrorCode::AllocationFailed, "collision input allocation failed")
+            RenderError::new(
+                ErrorCode::AllocationFailed,
+                "collision input allocation failed",
+            )
         })?;
         for stage in &prepared {
             let placement = stage.local.shaped().placement();
@@ -411,7 +421,9 @@ impl Renderer {
                     .binary_search_by_key(&event.id(), |p| p.id)
                     .ok()
                     .map(|i| placements[i])
-                    .ok_or_else(|| RenderError::new(ErrorCode::InternalError, "missing collision placement"))?;
+                    .ok_or_else(|| {
+                        RenderError::new(ErrorCode::InternalError, "missing collision placement")
+                    })?;
                 let remaining_segments = limits
                     .path_segments_per_frame()
                     .checked_sub(total_segments)
