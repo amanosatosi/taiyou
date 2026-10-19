@@ -175,4 +175,46 @@ fn actual_automatic_lines_margins_overwide_words_and_seeks_render() {
             }
         }
     }
+    // Exercise automatic line geometry through PR29's complete-active-set
+    // collision pipeline: identical opaque events must occupy more pixels.
+    for q in [0, 1, 3] {
+        let single = parsed("AA AA AA", q, 0);
+        let source = format!(
+            "{}\nDialogue: 0:00:00.00,0:00:02.00,0,0,AA AA AA",
+            single.track().source()
+        );
+        let pair = taiyou_ass::parse_ass(
+            source.as_bytes(),
+            &ParseOptions::new(
+                InputEncoding::Utf8,
+                Profile::CoreV1,
+                Limits::default(),
+                SyntaxPolicy::Strict,
+            ),
+            &mut TrackIngestor::new(),
+        )
+        .unwrap();
+        let request = RenderRequest {
+            now: TimeUs::from_micros(1),
+            viewport: Viewport::full(Size::new(90, 120)).unwrap(),
+            unsupported: UnsupportedPolicy::Strict,
+        };
+        let render = |input: &ParsedTrack| {
+            Renderer::new(Default::default())
+                .unwrap()
+                .render(input.track().clone(), fonts.clone(), &request)
+                .unwrap()
+        };
+        let one = render(&single);
+        let two = render(&pair);
+        let occupied = |frame: &Frame| {
+            frame
+                .pixels()
+                .chunks_exact(4)
+                .filter(|p| p[3] != 0)
+                .count()
+        };
+        assert!(occupied(&two) > occupied(&one), "q{q} collision placement");
+        assert_eq!(two.pixels(), render(&pair).pixels());
+    }
 }

@@ -1,0 +1,12 @@
+{
+  "candidate": "77afbd20be79b5a5c4863fe55eff79d3fefa9e30",
+  "source_job": "https://github.com/amanosatosi/taiyou/actions/runs/39288634496/job/118183558546",
+  "artifact_id": 12205740743,
+  "artifact_zip_sha256": "82a3da1be815d7ee4f77ee4ceace43927774e98fd0774befd3bb54c5be5bcc59",
+  "status": "Complete144-attempt release experiment:126 frames and18 genuine default-limit failures; all native platforms,MSRV,sanitizer and Platform gate passed",
+  "production_source": "Unchanged from ae467c953b9cf937469fb118e48f3f8c909fcaac",
+  "scope": "Original artifact JSONL/environment/scripts/instrumentation/build/profile/error bytes; summary authored from records; sanitizer excerpt copied from the original job log",
+  "debug": "Original48 ae467c9 samples hash-verified and reused, not reexecuted",
+  "sanitizer": "Exact four Cargo targets;30 tests passed with unchanged ASan/UBSan/native verification",
+  "historical": "Original5000-event four-glyph180-second timeout remains incomplete and was not rerun"
+}

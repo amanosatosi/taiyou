@@ -1,0 +1,2 @@
+T017_BENCH=15744327 5007 5000
+taiyou 0.1.0 profile=core-v1 workers=1 RGBA8 premultiplied 160x100 time-us=750000 diagnostics=0

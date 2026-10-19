@@ -82,6 +82,17 @@ impl FontContext {
     ) -> Result<GlyphOutline, FontError> {
         self.check_bytes(blob.bytes())?;
         crate::catalog::check_blob_identity(blob)?;
+        self.outline_authenticated(blob, glyph, limits)
+    }
+
+    /// Only the catalog module may supply an immutable, authenticated blob.
+    pub(crate) fn outline_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        self.check_bytes(blob.bytes())?;
         let native_charge = (blob.bytes().len() as u64)
             .checked_mul(12)
             .and_then(|n| n.checked_add(64 * 1024))
@@ -91,11 +102,14 @@ impl FontContext {
                     "outline native reservation overflow",
                 )
             })?;
-        if blob.bytes().len() as u64 > limits.font_bytes()
-            || native_charge > limits.transient_bytes()
-        {
+        if blob.bytes().len() as u64 > limits.font_bytes() {
             return Err(FontError::new(
                 ErrorCode::LimitExceeded,
+                "outline native reservation exceeded",
+            ));
+        }
+        if native_charge > limits.transient_bytes() {
+            return Err(FontError::transient_limit(
                 "outline native reservation exceeded",
             ));
         }
@@ -160,15 +174,17 @@ impl FontContext {
                                 .checked_sub(native_charge)
                                 .filter(|n| *n > 0)
                                 .ok_or_else(|| {
-                                    FontError::new(
-                                        ErrorCode::LimitExceeded,
-                                        "outline copy reservation exceeded",
-                                    )
+                                    FontError::transient_limit("outline copy reservation exceeded")
                                 })?,
                         )
-                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
-                    check_path_budget(capacity, &copy_limits)
-                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                        .map_err(|e| {
+                            FontError::new(e.code(), e.detail())
+                                .with_resource_failure(e.resource_failure())
+                        })?;
+                    check_path_budget(capacity, &copy_limits).map_err(|e| {
+                        FontError::new(e.code(), e.detail())
+                            .with_resource_failure(e.resource_failure())
+                    })?;
                 }
                 let mut state = OutlineCopy {
                     ops: Vec::new(),
@@ -219,12 +235,14 @@ impl FontContext {
                         return Err(native_error(0, "outline copy capacity exceeded"));
                     }
                 }
-                let owned = Outline::new(state.ops, limits)
-                    .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                let owned = Outline::new(state.ops, limits).map_err(|e| {
+                    FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure())
+                })?;
                 GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
             }
         })
     }
+    #[cfg(test)]
     pub(crate) fn shape_raw(
         &mut self,
         blob: &FontBlob,
@@ -233,6 +251,27 @@ impl FontContext {
     ) -> Result<RawRun, FontError> {
         self.check_bytes(blob.bytes())?;
         crate::catalog::check_blob_identity(blob)?;
+        self.shape_authenticated(blob, request, limits)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shape_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        request: &NativeRequest<'_>,
+        limits: &Limits,
+    ) -> Result<RawRun, FontError> {
+        self.shape_authenticated_with_ink(blob, request, limits, true)
+    }
+
+    pub(crate) fn shape_authenticated_with_ink(
+        &mut self,
+        blob: &FontBlob,
+        request: &NativeRequest<'_>,
+        limits: &Limits,
+        collect_ink: bool,
+    ) -> Result<RawRun, FontError> {
+        self.check_bytes(blob.bytes())?;
         let invalid = || {
             FontError::new(
                 ErrorCode::InvalidArgument,
@@ -280,11 +319,17 @@ impl FontContext {
             })
             .and_then(|n| n.checked_add(4096))
             .ok_or_else(limited)?;
-        if charge > limits.transient_bytes() || charge > self.limits.transient_bytes() {
+        // The coordinator's FontContext cap is fixed before optional retention.
+        // A failure of that cap cannot be helped by releasing retained layouts.
+        if charge > self.limits.transient_bytes() {
             return Err(limited());
+        }
+        if charge > limits.transient_bytes() {
+            return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let font_len = u32::try_from(blob.bytes().len()).map_err(|_| limited())?;
         let bytes = blob.shared_bytes();
+        self.preflight_native_work(context.len() as u64, request.range.len() as u64)?;
         // SAFETY: immutable bytes have checked extent and remain owned by HbBlob.
         // Every constructor is checked and RAII unwinds earlier handles on error.
         unsafe {
@@ -419,6 +464,7 @@ impl FontContext {
                 return Err(failed());
             }
             let count = hb::hb_buffer_get_length(buffer.0);
+            self.record_native_glyphs(u64::from(count))?;
             if u64::from(count) > limits.glyphs_per_event() {
                 return Err(limited());
             }
@@ -453,7 +499,10 @@ impl FontContext {
                 glyphs.push(RawGlyph {
                     ink: {
                         let mut extents: hb::hb_glyph_extents_t = std::mem::zeroed();
-                        if hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents) != 0 {
+                        if collect_ink
+                            && hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents)
+                                != 0
+                        {
                             Some([
                                 extents.x_bearing,
                                 extents.y_bearing,
@@ -742,7 +791,8 @@ impl RasterContext {
         FontContext::with_limits(limits)
             .map(|owner| Self { owner })
             .map_err(|e| {
-                let mut r = RenderError::new(e.code(), e.detail());
+                let mut r = RenderError::new(e.code(), e.detail())
+                    .with_resource_failure(e.resource_failure());
                 if let Some(code) = e.native_code() {
                     r = r.with_native_code(code);
                 }
@@ -847,11 +897,11 @@ impl RasterContext {
             .and_then(|n| n.checked_add(((width + height) as u64).checked_mul(64)?))
             .and_then(|n| n.checked_add(2 * 1024 * 1024))
             .ok_or_else(limit)?;
-        if pixels > limits.output_pixels()
-            || length as u64 > limits.output_bytes()
-            || charge > limits.transient_bytes()
-        {
+        if pixels > limits.output_pixels() || length as u64 > limits.output_bytes() {
             return Err(limit());
+        }
+        if charge > limits.transient_bytes() {
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let mut points = Vec::new();
         let mut tags = Vec::new();
@@ -1149,7 +1199,7 @@ impl RasterContext {
             ..evidence.get()
         });
         if base_charge > limits.transient_bytes() {
-            return Err(limit());
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         contours
             .try_reserve_exact(contour_count)
@@ -1297,7 +1347,7 @@ impl RasterContext {
             ..evidence.get()
         });
         if export_charge > limits.transient_bytes() {
-            return Err(limit());
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let mut expanded_points = Vec::new();
         let mut expanded_tags = Vec::new();
@@ -1410,7 +1460,7 @@ impl RasterContext {
                 ..evidence.get()
             });
             if actual_export > limits.transient_bytes() {
-                return Err(limit());
+                return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
             }
             bounds = actual;
             width = actual_width;
@@ -1691,6 +1741,18 @@ pub(crate) struct Metadata {
     pub italic: bool,
     pub glyphs: u32,
 }
+/// Experimental cumulative native-work budgets, never production C7 defaults.
+/// Context/range UTF-8 bytes and calls are charged before each native attempt,
+/// including fallback and context reshapes. Actual raw glyphs are charged after
+/// HB returns and before any glyph publication (their count is not known sooner).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct NativeWorkExperiment {
+    pub calls: u64,
+    pub context_bytes: u64,
+    pub range_bytes: u64,
+    pub raw_glyphs: u64,
+}
+
 /// Thread-local native owner. It cannot be sent or shared; handles never escape.
 /// ```compile_fail
 /// fn require_send<T: Send>() {}
@@ -1704,9 +1766,57 @@ pub struct FontContext {
     library: Library,
     version: (i32, i32, i32),
     limits: Limits,
+    work: Option<(NativeWorkExperiment, NativeWorkExperiment)>,
     _local: PhantomData<Rc<()>>,
 }
 impl FontContext {
+    /// Isolated experimental accounting. No renderer path enables it.
+    pub fn begin_native_work_experiment(&mut self, limits: NativeWorkExperiment) {
+        self.work = Some((limits, NativeWorkExperiment::default()));
+    }
+    pub fn native_work_experiment(&self) -> Option<NativeWorkExperiment> {
+        self.work.map(|(_, used)| used)
+    }
+    fn preflight_native_work(&mut self, context: u64, range: u64) -> Result<(), FontError> {
+        if let Some((limits, used)) = &mut self.work {
+            let fail = || {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "experimental native-work budget exceeded",
+                )
+            };
+            let next = NativeWorkExperiment {
+                calls: used.calls.checked_add(1).ok_or_else(fail)?,
+                context_bytes: used.context_bytes.checked_add(context).ok_or_else(fail)?,
+                range_bytes: used.range_bytes.checked_add(range).ok_or_else(fail)?,
+                raw_glyphs: used.raw_glyphs,
+            };
+            if next.calls > limits.calls
+                || next.context_bytes > limits.context_bytes
+                || next.range_bytes > limits.range_bytes
+                || next.raw_glyphs > limits.raw_glyphs
+            {
+                return Err(fail());
+            }
+            *used = next;
+        }
+        Ok(())
+    }
+    fn record_native_glyphs(&mut self, count: u64) -> Result<(), FontError> {
+        if let Some((limits, used)) = &mut self.work {
+            let fail = || {
+                FontError::new(
+                    ErrorCode::LimitExceeded,
+                    "experimental raw-glyph budget exceeded",
+                )
+            };
+            used.raw_glyphs = used.raw_glyphs.checked_add(count).ok_or_else(fail)?;
+            if used.raw_glyphs > limits.raw_glyphs {
+                return Err(fail());
+            }
+        }
+        Ok(())
+    }
     pub fn new() -> Result<Self, FontError> {
         Self::with_limits(Limits::default())
     }
@@ -1758,6 +1868,7 @@ impl FontContext {
             library,
             version: (major, minor, patch),
             limits,
+            work: None,
             _local: PhantomData,
         })
     }
@@ -1823,9 +1934,13 @@ impl FontContext {
         let cost = (byte_limit as u64)
             .checked_mul(12)
             .and_then(|n| n.checked_add(64 * 1024));
-        if byte_limit as u64 > self.limits.font_bytes()
-            || cost.is_none_or(|n| n > self.limits.transient_bytes())
-        {
+        if byte_limit as u64 > self.limits.font_bytes() || cost.is_none() {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "native intake reservation exceeded",
+            ));
+        }
+        if cost.is_some_and(|n| n > self.limits.transient_bytes()) {
             return Err(FontError::new(
                 ErrorCode::LimitExceeded,
                 "native intake reservation exceeded",

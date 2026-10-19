@@ -4,6 +4,8 @@
 //! owned geometry, grayscale coverage, FreeType border/shadow masks and scalar
 //! composition through the single-worker CoreV1 coordinator.
 
+pub mod collision;
+pub mod collision_footprint;
 mod compose;
 mod evaluate;
 pub mod geometry;
@@ -19,5 +21,8 @@ pub use layout::layout;
 pub use paint::{blend_pixel, mul255};
 #[cfg(feature = "native")]
 pub mod shaping {
-    pub use taiyou_font::{FontCatalogBuilder, FontContext, ShapeOptions, shape_event};
+    pub use taiyou_font::{
+        FontCatalogBuilder, FontContext, NativeWorkExperiment, ShapeOptions, shape_event,
+        shape_event_advances_experiment,
+    };
 }

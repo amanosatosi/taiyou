@@ -12,24 +12,21 @@ acknowledgment remains a separate human decision.
 ## Explicit Unicode opt-in amendment
 
 The approved algorithm below is the `\warpmode1` engine. Missing `\warpmode`
-or explicit0 selects the separate source-derived xy-style word engine, as
-requested by the owner and recorded in [ADR-014](014-wrapping-engine-selection.md).
-The q0/1/2/3 axis stays independent; q2 shares the existing hard-break path.
-This changes selection, not the approved Unicode algorithm, numeric profile,
-binary64 recurrence or gates. Mode1 automatic wrapping remains unavailable
-pending its outstanding prerequisites and C7 limit review; mode0 never silently
-stands in for a requested mode1.
-
-This file was carried from reviewed PR29 revision
-`3144993e31e52513e044f47a95518930e0a45a80` because main did not yet contain it.
-Reconcile after PR29's human-acknowledged merge; preserve F1 and its partial
-checkpoint status. No full T017 or LegacyXyV1 admission is implied.
+or explicit0 selects source-derived xy-style word wrapping, as requested by the
+owner and recorded in [ADR-014](014-wrapping-engine-selection.md). q0/1/2/3 is
+independent; q2 uses the shared hard-break path. This changes selection only,
+not the approved Unicode algorithm, profile, binary64 recurrence or gates.
+Mode1 automatic wrapping remains unavailable pending its outstanding prerequisites
+and C7 review; mode0 never silently replaces a requested mode1. PR29 merged as
+a partial collision/backend checkpoint at
+`6cfa33ddb38c714a43a096abf53096f9f9aff69c`; preserve its approved F1 policy.
+No full T017 completion or Legacy admission is implied.
 
 ## Decision
 
 Adopt the exact opportunities, atoms, admissibility, boundary shaping, source
 provenance, margins, mandatory/soft breaks and mode selection rules in
-[W2](https://github.com/amanosatosi/taiyou/blob/3144993e31e52513e044f47a95518930e0a45a80/docs/research/T017-wrapping-policy-v2.md). Contract policy identity:
+[W2](../research/T017-wrapping-policy-v2.md). Contract policy identity:
 `core-wrap-unicode15_1-recursive-1`. Existing WrapStyle2 is unchanged.
 
 For modes0/3, **the recursive DP comparison is normative**. At each logical start,
@@ -73,12 +70,11 @@ The pilot's constant-exponent square is checked against independently calculated
 multiplication/bit expectations in these fixtures. Production admission must use
 the explicitly specified separate multiplication. No production wrapper exists.
 
-## PR29-approved C4 wording — historical base for amendment
+## Authorized C4 amendment
 
-PR29's owner-approved amendment used the following wording. Preserve it here as
-the historical base, not as acceptance of ADR-014. The separately proposed
-selector amendment changes its exclusive selection into explicit opt-in without
-changing the Unicode algorithm, arithmetic or prerequisites:
+The owner authorized replacing C4's sentence “T017 introduces other wrap modes
+only after R001 rules” with the following text, preserving the rest of the
+WrapStyle2/line-metrics/box-separation paragraph:
 
 > CoreV1 automatic WrapStyle0/1/3 follows ADR-013 and W2's pinned Unicode15.1
 > opportunities, Core tailoring, grapheme/shaping-cluster filters, overwide atoms,
@@ -108,7 +104,7 @@ to every prerequisite below and separately reviewed resource limits.
 The unmodified Unicode15.1 LineBreakTest header explicitly selects UAX14
 section8.2 Example7 numeric tailoring, rather than the default LB25 pair
 approximation. The isolated prerequisite probe tests that exact declared profile
-and keeps the default pair path separate. The ADR-013 Unicode engine uses this numeric profile,
+and keeps the default pair path separate. Core W2 uses this numeric profile,
 together with LB1's default SA/CJ resolution. Use the complete Regex-Number
 behavior and its required LB13 adjustments; do not mix the default LB25
 approximation into this profile. For example `%(` has no
@@ -133,8 +129,7 @@ conformance must never be adjusted to hide those differences.
 * Preserve all protected libass comparisons and the independent planned xy suite.
   No new reference capture, expected image, tolerance or classification is admitted.
 
-The [complete performance report](https://github.com/amanosatosi/taiyou/blob/3144993e31e52513e044f47a95518930e0a45a80/experiments/t017/results/77afbd2/summary.md)
-and [W2 width evidence](https://github.com/amanosatosi/taiyou/blob/3144993e31e52513e044f47a95518930e0a45a80/docs/research/T017-wrapping-policy-v2.md#completed-optimized-width-experiment-production-admission-pending)
-inform feasibility only. PR29's merge requires its separate human baseline acknowledgment; its accepted
-scope is a partial collision/backend checkpoint. T017 automatic wrapping remains
-incomplete until these gates are met. ADR-014 does not authorize its activation.
+The [complete performance report](../../experiments/t017/results/77afbd2/summary.md)
+and [W2 width evidence](../research/T017-wrapping-policy-v2.md#completed-optimized-width-experiment-production-admission-pending)
+inform feasibility only. PR#29 stays unmerged and T017 automatic wrapping remains
+incomplete until these gates are met.

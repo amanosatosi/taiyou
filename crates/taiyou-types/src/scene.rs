@@ -319,8 +319,7 @@ impl Frame {
         if u64::try_from(pixels.capacity())
             .map_or(true, |capacity| capacity > limits.transient_bytes())
         {
-            return Err(RenderError::new(
-                ErrorCode::LimitExceeded,
+            return Err(RenderError::transient_limit(
                 "frame publication transient capacity exceeded",
             ));
         }

@@ -1,0 +1,6 @@
+   Compiling taiyou-types v0.1.0 (/home/runner/work/_temp/t017-optimized-build/reviewed/crates/taiyou-types)
+   Compiling taiyou-font v0.1.0 (/home/runner/work/_temp/t017-optimized-build/reviewed/crates/taiyou-font)
+   Compiling taiyou-ass v0.1.0 (/home/runner/work/_temp/t017-optimized-build/reviewed/crates/taiyou-ass)
+   Compiling taiyou-render v0.1.0 (/home/runner/work/_temp/t017-optimized-build/reviewed/crates/taiyou-render)
+   Compiling taiyou-cli v0.1.0 (/home/runner/work/_temp/t017-optimized-build/reviewed/crates/taiyou-cli)
+    Finished `release` profile [optimized] target(s) in 4.14s

@@ -2,8 +2,8 @@
 
 Status: **owner-directed implementation; final integration/review pending**.
 The owner explicitly requested working source-derived mode0 automatic wrapping,
-rather than a selector-only feature. PR29's human-acknowledged merge remains the
-integration prerequisite; this branch does not modify or merge PR29.
+rather than a selector-only feature. The human merged PR29 at
+`6cfa33ddb38c714a43a096abf53096f9f9aff69c`, the integration base.
 
 ## Selection and scope
 
@@ -90,7 +90,7 @@ malformed q conversion, selector/reset behavior and fresh/repeated/seek equality
 Native execution occurs only on Actions. Test results are reported separately
 from source findings; no proposed fixture becomes a trusted reference image.
 
-Reconcile the renderer adapter with PR29's accepted collision/backend stages
-after its merge, preserving F1, complete-active-set placement, adaptive retention
-and diagnostics. Run the full required validation on that integrated candidate.
+The renderer adapter uses PR29's accepted collision/backend stages, preserving
+F1, complete-active-set placement, adaptive retention and diagnostics. Run the
+full required validation on the integrated candidate.
 This is not completion of mode1 or full T017.

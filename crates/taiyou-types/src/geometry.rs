@@ -144,8 +144,11 @@ pub fn check_path_budget(count: usize, limits: &Limits) -> Result<(), RenderErro
         )
         .and_then(|n| n.checked_add(4096))
         .ok_or_else(geometry_limit)?;
-    if count as u64 > limits.path_segments_per_frame() || cost > limits.transient_bytes() {
+    if count as u64 > limits.path_segments_per_frame() {
         return Err(geometry_limit());
+    }
+    if cost > limits.transient_bytes() {
+        return Err(geometry_limit().with_resource_failure(crate::ResourceFailure::TransientMemory));
     }
     Ok(())
 }

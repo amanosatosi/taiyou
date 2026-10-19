@@ -94,8 +94,11 @@ fn group_budget(n: usize, limits: &Limits) -> Result<(), RenderError> {
                 as u64,
         )
         .ok_or_else(limited)?;
-    if n as u64 > limits.glyphs_per_event() || bytes > limits.transient_bytes() {
+    if n as u64 > limits.glyphs_per_event() {
         return Err(limited());
+    }
+    if bytes > limits.transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     Ok(())
 }
@@ -206,7 +209,7 @@ pub(crate) fn coverage_path(
         .and_then(|n| n.checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64))
         .ok_or_else(limited)?;
     if bytes > limits.transient_bytes() {
-        return Err(limited());
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut ops = Vec::new();
     ops.try_reserve_exact(count).map_err(|_| {

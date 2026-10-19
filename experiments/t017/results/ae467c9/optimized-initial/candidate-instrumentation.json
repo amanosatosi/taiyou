@@ -1,0 +1,59 @@
+{
+  "commit": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+  "files": {
+    "crates/taiyou-render/src/evaluate.rs": {
+      "original": "838246d921f0f074887b5213e864d6f69dd1cc94c148739f8ed6b10fa6ecda63",
+      "instrumented": "982f534688f155c902a9a9db61fc99cd0e81b1041adb37cf23475e8798712c57"
+    },
+    "crates/taiyou-font/src/shape.rs": {
+      "original": "39a79e8a37c6e3bda9d1798ebd67b4e0ed83539a32bb3a53d14e052085b9e7b2",
+      "instrumented": "3d51608e4c1f88b1df807df599bcd314eaed19fc0034e381d0f88b78efcd8705"
+    },
+    "crates/taiyou-render/src/layout.rs": {
+      "original": "d57d2b5f5330d39c50eee7754dd40ece3f78099f9ebca590bca251cf51394806",
+      "instrumented": "b355b706e8cf33c242f672edf74d046534406392e372f10829a87de1c6a18ba8"
+    },
+    "crates/taiyou-render/src/collision.rs": {
+      "original": "a86448aeebd8c6718d2ead19f07e4999217aefff6c63eb75a8e77ea4dd96e1ea",
+      "instrumented": "869a65adcea120a5f6d5f6ed108ec69c326523e407ebea2f3009c2992de9a2fb"
+    },
+    "crates/taiyou-render/src/geometry.rs": {
+      "original": "8d93ca34d04b576d05129965bc66b2765ab876c9d962bdf9fd207c8f70be8258",
+      "instrumented": "73f3854bc76c71aada5660022070e773b32ac0e09dc998061a41c06bd667d5c5"
+    },
+    "crates/taiyou-render/src/stroke.rs": {
+      "original": "5428eb7b2da6d5e5f1e1b6d430cd8677a18e6cc7fef14f697b42757505a9d255",
+      "instrumented": "be243598eb686866dfb910c49c98699d4c0bab59ac00f5e0094a9e4549f0a45b"
+    },
+    "crates/taiyou-render/src/compose.rs": {
+      "original": "12859bb444e25526bc9b5a0d0a1276cd5595924ec3ecab7a2cb0b143c3ea1120",
+      "instrumented": "cdc6bd14c0909b502ab5751b39b8a91725d5951d92854c58963b5a648dad98ec"
+    },
+    "crates/taiyou-font/src/catalog.rs": {
+      "original": "d4d515c982f9cd41a53777df34ce476d6aaec63d78c836c501395e13bce6ca2e",
+      "instrumented": "a136f2a88da992c598b6b08b597222da725dbb667509fff845317d32290638e0"
+    },
+    "crates/taiyou-font/src/native.rs": {
+      "original": "780d4b7fede18819170695efc9806d7bd7998ddafacceeac4fd456226c2fb852",
+      "instrumented": "3a1398c007670a37dab1794b863a72665493cacb8c259aeea4297de6f6129dc2"
+    },
+    "crates/taiyou-render/src/collision_footprint.rs": {
+      "original": "56164b8b65b9b4e21af55a2c637280f7dc6066c9f0a80ced06816340fc19a8f1",
+      "instrumented": "258278996319ea542efa762776638033f870e93239d3661ff21d4f2b7c498bbc"
+    },
+    "crates/taiyou-render/src/renderer.rs": {
+      "original": "061f3bd87fd3c04c9465ba803dee80874f4ed89cb542cb14a9b171f4e198997e",
+      "instrumented": "079f2eec104350b534b114644267f614fcb651dcce5ae945ef37628b17e337e2"
+    },
+    "crates/taiyou-cli/src/render.rs": {
+      "original": "7dd73cc5122d07214dc6415b56aba94925a20fbc35d0ab8d12afd6347f9232a4",
+      "instrumented": "38efb796641862905e9993b6de52e01601541685ab5145667a82259974072657",
+      "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"
+    },
+    "crates/taiyou-cli/src/bin/t017-width-profile.rs": {
+      "generated_driver_sha256": "55b418d67f4763caa0545427eee0d58494644d292c45b50c760ec611148e2960",
+      "purpose": "12 fixed CJK boundary candidates, original parse/evaluate/full-shape harness stage profile"
+    }
+  },
+  "scope": "measurement-only timers/counters, inclusive nested stage times"
+}

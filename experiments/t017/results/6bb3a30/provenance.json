@@ -1,0 +1,10 @@
+{
+  "candidate": "6bb3a30f8084255661b6da60e4ddfa1b97ed7ab2",
+  "job": "https://github.com/amanosatosi/taiyou/actions/runs/39262853223/job/118094821507",
+  "artifact_id": 12189939607,
+  "artifact_zip_sha256": "66ee28e47dfd3ed07c5f8c5d61c2f51beb6fc79e1a33416ef4db4b608eac79b2",
+  "status": "paired experiment failed before rendering any sample",
+  "failure": "candidate snapshot reused earlier compiled font crate; new shaping export and catalog outline method absent in stale artifact",
+  "measurements": null,
+  "scope": "four original small diagnostic files extracted without rewriting; no binary or corpus downloaded"
+}

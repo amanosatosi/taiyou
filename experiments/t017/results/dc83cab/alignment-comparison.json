@@ -1,0 +1,125 @@
+{
+  "candidate": "dc83cab0be5bbb86d1a994956f77a97a08e9716b",
+  "reference": "independent C FreeType metrics/outline/bitmap; C6 integer paint expectations",
+  "reference_source_sha256": "117223af0b6b74d5d352d4206bc949e44a250eeb36db496b88a62e73e7e6793d",
+  "cases": [
+    {
+      "case": "align1",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align2",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align3",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align4",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align5",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align6",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align7",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align8",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    },
+    {
+      "case": "align9",
+      "max_delta": 0,
+      "per_channel_mae": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mismatch_count": 0,
+      "alpha_mismatch_count": 0,
+      "changed_pixel_bounds": null
+    }
+  ],
+  "status": "exact candidate-side checks, pending numeric review"
+}

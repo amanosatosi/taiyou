@@ -1,0 +1,22 @@
+{
+  "unicode": "15.1.0",
+  "manifest_sha256": "affde9d5ae7a859e9c47df51c3e0e229bb224f3c0e6242409e580a75b8512f86",
+  "generator_sha256": "ce5dacf246f36331cf76e60fb753a6ae5f730ecdc7ea0b7eae8dd7c50d64c02b",
+  "generated_bytes": 168471,
+  "generated_sha256": "08871fae7d3c776d7aee03cf70bf3dca0a512fdd6fcf4f7721dbd22c9e427d16",
+  "ranges": {
+    "LB": 2848,
+    "GCB": 1371,
+    "EAW": 1169,
+    "EP": 78,
+    "InCB": 201,
+    "GC": 3302
+  },
+  "grapheme_unmodified_cases": 1187,
+  "grapheme_failures": [],
+  "line_unmodified_cases_imported": 10274,
+  "line_failures": [],
+  "line_algorithm_conformance": "experimental rule probe; admission pending review",
+  "ass_tailoring": "not applied to Unicode conformance",
+  "production_automatic_wrapping": "disabled"
+}

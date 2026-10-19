@@ -139,20 +139,21 @@ fn reserve<T>(v: &mut Vec<T>, count: usize, limits: &Limits) -> Result<(), FontE
         .and_then(|n| n.checked_add(1024))
         .ok_or_else(limited)?;
     if cost as u64 > limits.transient_bytes() {
-        return Err(limited());
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     v.try_reserve_exact(count)
         .map_err(|_| error(ErrorCode::AllocationFailed, "shaping allocation failed"))
 }
 fn preflight(text: &str, limits: &Limits) -> Result<(), FontError> {
-    if text.len() as u64 > limits.text_bytes_per_event()
-        || text.len() > u32::MAX as usize
-        || (text.len() as u64)
-            .checked_mul(1024)
-            .and_then(|n| n.checked_add(4096))
-            .is_none_or(|n| n > limits.transient_bytes())
-    {
+    if text.len() as u64 > limits.text_bytes_per_event() || text.len() > u32::MAX as usize {
         return Err(limited());
+    }
+    let cost = (text.len() as u64)
+        .checked_mul(1024)
+        .and_then(|n| n.checked_add(4096))
+        .ok_or_else(limited)?;
+    if cost > limits.transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     Ok(())
 }
@@ -453,6 +454,7 @@ fn request<'a>(input: &'a ResolvedRun, range: Range<usize>) -> NativeRequest<'a>
 fn shape_item(
     ctx: &mut FontContext,
     input: &ResolvedRun,
+    collect_ink: bool,
 ) -> Result<(ShapedRun, Vec<MissingCluster>), FontError> {
     let limits = &input.limits;
     let order = priorities(&input.catalog, &input.style, limits)?;
@@ -467,13 +469,17 @@ fn shape_item(
                     .transient_bytes()
                     .checked_sub(retained)
                     .filter(|&n| n != 0)
-                    .ok_or_else(limited)?,
+                    .ok_or_else(|| {
+                        limited().with_resource_failure(ResourceFailure::TransientMemory)
+                    })?,
             )
             .map_err(|_| limited())?;
-        let raw = ctx.shape_raw(
-            input.catalog.faces()[index].blob(),
+        let raw = input.catalog.shape_raw(
+            ctx,
+            input.catalog.faces()[index].blob().id(),
             &request(input, input.item.range.clone()),
             &remaining,
+            collect_ink,
         )?;
         retained = retained
             .checked_add(
@@ -483,7 +489,7 @@ fn shape_item(
             )
             .ok_or_else(limited)?;
         if retained > limits.transient_bytes() {
-            return Err(limited());
+            return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let candidate_points =
             boundaries(&raw, input.decoded.start(), input.decoded.end(), limits)?;
@@ -544,7 +550,13 @@ fn shape_item(
         let raw = if a as usize == input.item.range.start && b as usize == input.item.range.end {
             &candidates[selected].raw
         } else {
-            reshaped = ctx.shape_raw(face, &request(input, a as usize..b as usize), limits)?;
+            reshaped = input.catalog.shape_raw(
+                ctx,
+                face.id(),
+                &request(input, a as usize..b as usize),
+                limits,
+                collect_ink,
+            )?;
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
@@ -662,7 +674,7 @@ fn shape_item(
     ))
 }
 pub fn shape(ctx: &mut FontContext, input: &ResolvedRun) -> Result<ShapedRun, FontError> {
-    Ok(shape_item(ctx, input)?.0)
+    Ok(shape_item(ctx, input, true)?.0)
 }
 // Match xy's word context: ASCII spaces delimit words; NBSP does not. This is
 // confined to the new automatic path; existing q2 shaping stays unchanged.
@@ -717,6 +729,31 @@ pub fn shape_event(
     event: &EvaluatedEvent,
     options: &ShapeOptions,
     limits: &Limits,
+) -> Result<ShapedEvent, FontError> {
+    shape_event_impl(ctx, catalog, event, options, limits, true)
+}
+
+/// W2 experiment only: identical boundary shaping, fallback, clusters and
+/// advances, without native ink extraction. Unknown ink deliberately prevents
+/// publishing this artifact through ordinary layout/rendering. No wrapping
+/// selection or production automatic mode is enabled by this API.
+pub fn shape_event_advances_experiment(
+    ctx: &mut FontContext,
+    catalog: &ValidatedFontCatalog,
+    event: &EvaluatedEvent,
+    options: &ShapeOptions,
+    limits: &Limits,
+) -> Result<ShapedEvent, FontError> {
+    shape_event_impl(ctx, catalog, event, options, limits, false)
+}
+
+fn shape_event_impl(
+    ctx: &mut FontContext,
+    catalog: &ValidatedFontCatalog,
+    event: &EvaluatedEvent,
+    options: &ShapeOptions,
+    limits: &Limits,
+    collect_ink: bool,
 ) -> Result<ShapedEvent, FontError> {
     if event.wrap_mode().get() != 2 && event.warp_mode() == WarpMode::Unicode {
         return Err(error(
@@ -778,7 +815,7 @@ pub fn shape_event(
     let mut diagnostics = DiagnosticBuffer::new();
     let mut count = 0_u64;
     for input in &resolved {
-        let (run, absent) = shape_item(ctx, input)?;
+        let (run, absent) = shape_item(ctx, input, collect_ink)?;
         count = count
             .checked_add(run.glyphs().len() as u64)
             .ok_or_else(limited)?;
@@ -855,7 +892,10 @@ fn empty_line_metrics(
                     language: options.language(),
                     ligatures: true,
                 };
-                previous = Some((face.id(), ctx.shape_raw(face, &request, limits)?));
+                previous = Some((
+                    face.id(),
+                    catalog.shape_raw(ctx, face.id(), &request, limits, true)?,
+                ));
             }
             let raw = &previous
                 .as_ref()

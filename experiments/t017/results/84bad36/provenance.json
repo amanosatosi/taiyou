@@ -1,0 +1,56 @@
+{
+  "source_sha": "84bad36f26e7715824a935a03954ad27e76fdbe2",
+  "base_sha": "d5a545ac49aabbfc23e3895231d407da576e276f",
+  "status": "completed-successful-current-correctness-with-separately-labeled-reused-performance",
+  "artifacts": [
+    {
+      "platform": "linux",
+      "id": 12213631501,
+      "job": "https://github.com/amanosatosi/taiyou/actions/runs/39304505409/job/118238496931",
+      "sha256": "b495deafa5605fb36cd93b39054222ca7eeff922b11e62ab08f5df1d1b3d11d0"
+    },
+    {
+      "platform": "windows",
+      "id": 12214075647,
+      "job": "https://github.com/amanosatosi/taiyou/actions/runs/39304505409/job/118238496984",
+      "sha256": "105bb332850f7612593e65b64466bde21ca41866edc1a8d2201cd80683a8ef75"
+    },
+    {
+      "platform": "macos",
+      "id": 12213902100,
+      "job": "https://github.com/amanosatosi/taiyou/actions/runs/39304505409/job/118238496957",
+      "sha256": "bc9d3d2c929ef988b9d9a54983ead98e1672b19d7e5aac52be908c14a86152d9"
+    },
+    {
+      "platform": "full-comparator",
+      "id": 12213042517,
+      "job": "https://github.com/amanosatosi/taiyou/actions/runs/39304505616/job/118238426803",
+      "sha256": "92bc70db181148404e03ea4adc4209715664404048c51101fff98fec5423d7e4"
+    }
+  ],
+  "note": "Raw P0, warm and reuse files copied byte-for-byte from verified archives. Sanitizer excerpt derives from identified Linux job logs. No native execution or local validation program ran on the user PC. Full comparator archive was inspected; images/references were not imported.",
+  "files": {
+    "linux/P0-memory-msrv.txt": "a788b1f4bf3af9ced350816200b0ec4e4ec5aa789dc16ed26433adff6dcb33c5",
+    "linux/P0-memory-native.txt": "ddb308eab437725df6bd336fc51b9491a5ad6aade6a57b8b175a0927394498e4",
+    "linux/P0-segments-0.5-msrv.txt": "7d211b85ecacdfb337fa71b43454df4de1a86611975cf7eb5fb3a95a8653043e",
+    "linux/P0-segments-0.5-native.txt": "9f43a134122462dde74771ef64fa15bb53b46189dd09294fcfe993b3a2c03e71",
+    "linux/P0-segments-3-msrv.txt": "f4cc4b444ea95712efa9c9aee494b312af714f203aa972846fb1cbf81dbc0619",
+    "linux/P0-segments-3-native.txt": "d1e9b1bd8140992d0a03fca3d92bafadc497acd70f08a06c8be0e4b3fbbd9a99",
+    "linux/sanitizer-log-excerpt.txt": "e5d4390e08b3255a955f1c50c8ee1cfb5224f65fb5b6828b9b2edb1d9de6bb9c",
+    "linux/T017-native-work-reused/reuse-provenance.json": "e0dac2c1356275f576696578f178ed97f11612e66f095829d30753faeb6400aa",
+    "linux/T017-optimized-reused/reuse-provenance.json": "0d2025a3207718945d6a83ea9404be8041c0cb9f9d116d810690fa6adad9ec02",
+    "linux/T017-review-measurements-reused/reuse-provenance.json": "62a9975a53d31384bd73a596df4711074b99e1ca89c65a9b56de0ef0e2423978",
+    "linux/T017-warm-normal-eight.ass": "04846d6a105c72794636850b650eabfd08dc03714507851d8265f0b8f2afe556",
+    "linux/T017-warm-normal-one.ass": "66359303bdc774976c009748a5770798b7e5411dc8540d6aa4ad66e7f86673ba",
+    "linux/T017-warm-process.txt": "17b64f408b47d085ca44c99236352956d24f5ebf50930c6ec7ed7617aa1cc662",
+    "linux/T017-warm-seek.jsonl": "6a6758937f1f5e3587e3a2c68e056b508464a1d60e95d72de5c843d39438f7e7",
+    "linux/T017-warm-typesetting-100-border-0.5.ass": "0c2c25fc8ee3047e3e40d34c5f6191e6e17e770c1b5010a4f67f1dfcb4d0097b",
+    "linux/T017-warm-typesetting-hd-100.ass": "e725ec283c2e02774f48e66a7898fea98af48861cd807d34e3940ae230bced06",
+    "mac/P0-memory-native.txt": "950815d84b8f9fae928c665744d750ee0a1086c15b488ff16835a4583756a1f3",
+    "mac/P0-segments-0.5-native.txt": "016c15e1dcbf6681f14b05862d64343b24233a3574c085a4d671b40faaf6a30f",
+    "mac/P0-segments-3-native.txt": "3c3e0f450193df28289591ad8e571b6302ed8d9829ed429b84c27b9c664db5f1",
+    "win/P0-memory-native.txt": "94f0acc3ab55eac4155f44e52a687236854181ae42c193cb00e3551103503d22",
+    "win/P0-segments-0.5-native.txt": "09f1fb4721fef36d5043d2f3cc39931c8d86c0b34b8dbfbd9f797f0dd2af7b62",
+    "win/P0-segments-3-native.txt": "91c0c5cccb20d808e9997823f103b1eef5e2fa1d8415ff5e81a840aef620dca1"
+  }
+}

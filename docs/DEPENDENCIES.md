@@ -48,3 +48,17 @@ Runner-generated Cargo.lock files are included for the root workspace and isolat
 Initial cold smoke and locked workspace checks passed on Linux and macOS ARM64 at `0f37aa173cd3dce609c61d88368bb18a79455ee3`: [Linux + exact Rust 1.85.0 MSRV + advisory audit](https://github.com/amanosatosi/taiyou/actions/runs/39041025417/job/117420399738), [macOS ARM64](https://github.com/amanosatosi/taiyou/actions/runs/39041025417/job/117420399987). Both report FreeType 2.14.3, HarfBuzz 14.5.0, zlib 1.3.2 and 2478 glyphs. Windows failed at HarfBuzz command length on that candidate. The PR records subsequent repaired candidate evidence; no whole matrix pass is claimed here.
 
 Remaining gates: final three-platform result on committed locks, assigned dependency/native/FFI and component-license review, and owner licensing choice before distribution. Neither owner-delegated routine integration nor candidate Actions jobs establish independent review or T005's protected validation.
+
+## T017 Unicode prerequisite data (experimental)
+
+Unicode15.1 UAX14 revision51/UAX29 revision43 data and unmodified conformance
+inputs are pinned by individual SHA-256/byte counts in
+[the experimental manifest](../experiments/t017/unicode15_1/manifest.json).
+The original files retain their notices and the [Unicode License V3](../experiments/t017/unicode15_1/data/LICENSE.txt)
+permission notice is distributed alongside them. Acquisition locations, generation
+procedure and isolated conformance scope are in the [prerequisite README](../experiments/t017/unicode15_1/README.md).
+This adds data and Actions-only Python probes, with no Rust runtime dependency.
+Host Unicode databases are an excluded alternative because their revision varies.
+Using a new external line-breaking crate remains an alternative requiring its
+own version/license/data/conformance and storage review. No production wrapping
+admission or Core/Legacy policy change follows from importing these files.

@@ -128,7 +128,7 @@ fn xy_plan(
         )
         .ok_or_else(limited)?;
     if charge as u64 > constraints.limits().transient_bytes() {
-        return Err(limited());
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut points = Vec::new();
     reserve(&mut points, maximum)?;
@@ -269,10 +269,12 @@ pub fn layout(
         .ok_or_else(limited)?;
     if count as u64 > limits.glyphs_per_event()
         || input.source_map().text().len() as u64 > limits.text_bytes_per_event()
-        || bytes as u64 > limits.transient_bytes()
         || constraints.available_width().get() > f64::from(limits.max_dimension())
     {
         return Err(limited());
+    }
+    if bytes as u64 > limits.transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut drafts = Vec::new();
     reserve(&mut drafts, count)?;

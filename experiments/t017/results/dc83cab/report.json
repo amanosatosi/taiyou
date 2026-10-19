@@ -1,0 +1,77 @@
+{
+  "task": "T014",
+  "candidate": "dc83cab0be5bbb86d1a994956f77a97a08e9716b",
+  "profile": "CoreV1",
+  "workers": 1,
+  "cache": "disabled",
+  "time_us": 500000,
+  "width": 320,
+  "height": 180,
+  "stride": 1280,
+  "png_producer": "actual Taiyou CLI --bin taiyou",
+  "raw_format": "premultiplied encoded-domain RGBA8 top-down",
+  "png_format": "straight encoded-domain RGBA8; no color conversion",
+  "source_sha256": "4ceb2c08603ef81c206c026e65f0a53d713d8416a50c5fab633f21fb78c09971",
+  "raw_sha256": "030e89b942a3443c295c5c559aeded00380c2d1bab051b191a53c4a4d281368a",
+  "png_sha256": "6c941b262ad287a947c6cf09a3e36264f9698fa38bb4e94926b808c6b3d097ad",
+  "font": {
+    "id": "latin",
+    "repository": "adobe-fonts/source-sans",
+    "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+    "path": "OTF/SourceSans3-Regular.otf",
+    "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+    "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+    "license": {
+      "spdx": "OFL-1.1",
+      "path": "LICENSE.md",
+      "git_blob": "88c07f795dfd5e1a149d73ae970db35c8d818659",
+      "size": 4579,
+      "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+    },
+    "sample": "office AV a\u0301",
+    "script": "Latn",
+    "language": "en",
+    "direction": "ltr",
+    "size": 334924,
+    "metadata": {
+      "version": "Version 3.052;hotconv 1.1.0;makeotfexe 2.6.0",
+      "family": "Source Sans 3",
+      "upem": 1000,
+      "glyphs": 2478,
+      "default_axes": {}
+    }
+  },
+  "native_sources": [
+    {
+      "commit": "863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+      "id": "harfbuzz",
+      "sha256": "35d6211b9310646c8d6b7c06d697439efd26d787ec8fff2508e6b936836ca492",
+      "url": "https://codeload.github.com/harfbuzz/harfbuzz/tar.gz/863d3f7787c6df18d20e4535c5906bf3eb803bd5",
+      "version": "14.5.0"
+    },
+    {
+      "commit": "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "id": "freetype",
+      "sha256": "11cd478953fc1d382f20a233b8e2aed6c31b47cbf0568c4bdb3334bcc1550698",
+      "url": "https://codeload.github.com/freetype/freetype/tar.gz/0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "version": "2.14.3"
+    },
+    {
+      "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+      "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+      "id": "font",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "url": "https://raw.githubusercontent.com/adobe-fonts/source-sans/ed1808970eb3c7301c9a523bee26473ba0bb62fa/OTF/SourceSans3-Regular.otf",
+      "version": "Source Sans 3 3.052R"
+    }
+  ],
+  "png_chunks": [
+    "IHDR",
+    "IDAT",
+    "IEND"
+  ],
+  "png_conversion_max_delta": 0,
+  "png_conversion_mismatches": 0,
+  "diagnostics": "    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s\n     Running `target/debug/taiyou render --input /home/runner/work/_temp/taiyou-render-sample/input.ass --font /home/runner/work/_temp/taiyou-shaping-fonts/latin.otf --time-us 500000 --width 320 --height 180 --profile core-v1 --output /home/runner/work/_temp/taiyou-render-sample/first.png --raw /home/runner/work/_temp/taiyou-render-sample/first.rgba`\ntaiyou 0.1.0 profile=core-v1 workers=1 RGBA8 premultiplied 320x180 time-us=500000 diagnostics=0\n",
+  "status": "candidate evidence, not approved reference or T005 validation"
+}
