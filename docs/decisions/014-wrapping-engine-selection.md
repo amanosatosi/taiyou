@@ -28,7 +28,7 @@ reset q. Decode each text fragment under the q state at that source position:
 The final q state selects the event's line policy. Thus a later q does not
 retroactively reinterpret an already decoded soft break.
 
-The default0 is source-established in STS.cpp CSimpleTextSubtitle::Empty at
+The default0 is source-established in STS.cpp CSimpleTextSubtitle::CSimpleTextSubtitle at
 2447. The owner review requires q command-suffix precedence, including q(2) and
 q(,3) restoring the header and q1(foo) selecting1. This supersedes the initial
 parenthesized-parameter interpretation. The supplied RTS.cpp cached parser at
@@ -83,7 +83,7 @@ No GPL code is copied into Taiyou and no source tree is modified.
 | CSubtitle::GetNextLine 1453–1503 | Whitespace groups, overwide first group |
 | CSubtitle::MakeLines 1537–1563 | Available width and margins |
 | CRenderedTextSubtitle::ParseString 1966–2020 | N/n/h decoding and space grouping |
-| CRenderedTextSubtitle::ParseSSATag 2047–2215, 2612–2625 | Parameter ordering, q conversion, style-only reset |
+| CRenderedTextSubtitle::ParseSSATag 2047–2215, 2612–2625 | Cached parameter order (conflict above), q conversion, style-only reset |
 | CRenderedTextSubtitle::GetSubtitle 2872–2991 | Script q initialization, source-order evaluation, margins |
 
 Source observations establish policy, not visual capture evidence. R001 proposals,
