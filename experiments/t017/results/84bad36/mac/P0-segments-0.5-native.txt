@@ -1,0 +1,3 @@
+toolchain=1.99.1-aarch64-apple-darwin
+border=0.5 event=441 default_prepares=444 default_attempts=1 expanded_prepares=500 expanded_attempts=1 rgba_bytes=64000
+original_error=RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(441)), span: Some(SourceSpan { start: 7938, end: 7956 }), native_code: None, detail: "native stroke extent/count/reservation limit: check=frame-segments input_ops=301 input_points=526 input_contours=25 output_points=1964 output_contours=25 radius_q6=32 input_bounds=Some(PixelRect { x0: 16, y0: 41, x1: 56, y1: 47 }) output_bounds=Some(PixelRect { x0: 15, y0: 40, x1: 57, y1: 47 }) exported_hull_q6=None remaining_segments=834 transient_available=118355252 base_reservation=2261830 export_reservation=0", resource: Other })

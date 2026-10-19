@@ -1,0 +1,20 @@
+   Compiling taiyou-render v0.1.0 (/home/runner/work/_temp/t017-review-build/after/crates/taiyou-render)
+error[E0432]: unresolved import `taiyou_font::shape_event_advances_experiment`
+  --> crates/taiyou-render/src/lib.rs:24:69
+   |
+24 |         FontCatalogBuilder, FontContext, ShapeOptions, shape_event, shape_event_advances_experiment,
+   |                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `shape_event_advances_experiment` in the root
+
+error[E0599]: no method named `outline` found for reference `&ValidatedFontCatalog` in the current scope
+   --> crates/taiyou-render/src/geometry.rs:288:14
+    |
+287 |           let outline = catalog
+    |  _______________________-
+288 | |             .outline(context, blob.id(), glyph.glyph(), &intake_limits)
+    | |             -^^^^^^^ method not found in `&ValidatedFontCatalog`
+    | |_____________|
+    |
+
+Some errors have detailed explanations: E0432, E0599.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `taiyou-render` (lib) due to 2 previous errors

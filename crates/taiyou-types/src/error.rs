@@ -49,6 +49,16 @@ impl ErrorCode {
     }
 }
 
+/// Internal resource provenance. This is not a new C7 failure code or a change
+/// to failure classification. Only a checked transient reservation (or failed
+/// allocation) can be helped by releasing optional retained stage ownership.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResourceFailure {
+    Other,
+    TransientMemory,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ErrorData {
     code: ErrorCode,
@@ -56,6 +66,7 @@ struct ErrorData {
     span: Option<SourceSpan>,
     native_code: Option<i64>,
     detail: Arc<str>,
+    resource: ResourceFailure,
 }
 
 macro_rules! error_wrapper {
@@ -72,7 +83,29 @@ macro_rules! error_wrapper {
                     span: None,
                     native_code: None,
                     detail: bounded_detail(detail),
+                    resource: if code == ErrorCode::AllocationFailed {
+                        ResourceFailure::TransientMemory
+                    } else {
+                        ResourceFailure::Other
+                    },
                 })
+            }
+
+            #[doc(hidden)]
+            pub fn transient_limit(detail: &str) -> Self {
+                Self::new(ErrorCode::LimitExceeded, detail)
+                    .with_resource_failure(ResourceFailure::TransientMemory)
+            }
+
+            #[doc(hidden)]
+            pub fn with_resource_failure(mut self, resource: ResourceFailure) -> Self {
+                self.0.resource = resource;
+                self
+            }
+
+            #[doc(hidden)]
+            pub fn resource_failure(&self) -> ResourceFailure {
+                self.0.resource
             }
 
             pub fn with_context(

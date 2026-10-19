@@ -13,3 +13,5 @@ Accepted means an implementation constraint, not a completed implementation. A g
 * [ADR-009: Core reset-token disambiguation (owner-accepted; protected integration pending)](009-core-reset-token-disambiguation.md)
 * [ADR-010: Decoded cluster ranges and retained original-source maps (proposed)](010-shaped-cluster-provenance.md)
 * [ADR-011: Solo-maintainer validation and explicit baseline promotion (maintainer-authorized)](011-solo-maintainer-validation.md)
+* [ADR-012: Core geometric collision footprint (owner-approved for implementation)](012-core-collision-footprint.md)
+* [ADR-013: Core Unicode wrapping and recursive score selection (owner-approved contract; production admission pending)](013-core-unicode-wrapping.md)

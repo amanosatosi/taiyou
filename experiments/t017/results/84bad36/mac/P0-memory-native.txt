@@ -1,0 +1,3 @@
+toolchain=1.99.1-aarch64-apple-darwin
+minimal_success_bytes=29445497 minimal_failure_bytes=29445496 repeated_retry_attempts=[2, 2] rgba_bytes=64000
+minimal_error=RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(5)), span: Some(SourceSpan { start: 160, end: 192 }), native_code: None, detail: "native shaping reservation exceeded", resource: TransientMemory })

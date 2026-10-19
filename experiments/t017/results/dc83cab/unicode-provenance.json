@@ -1,0 +1,9 @@
+{
+  "candidate": "dc83cab0be5bbb86d1a994956f77a97a08e9716b",
+  "job": "https://github.com/amanosatosi/taiyou/actions/runs/39300717564/job/118224884387",
+  "artifact_id": 12211851057,
+  "artifact_zip_sha256": "3761b411c9c9deb4b9ba03005f2de249c98f5a6ac43c60d3091ac9468a378b6a",
+  "original_summary_sha256": "335a129365044090391a986cd28fdf785b5f81ca117164feceda1af0abab3b23",
+  "generated_json_sha256": "08871fae7d3c776d7aee03cf70bf3dca0a512fdd6fcf4f7721dbd22c9e427d16",
+  "scope": "Actions-only isolated Unicode probes; no production wrapping admission"
+}

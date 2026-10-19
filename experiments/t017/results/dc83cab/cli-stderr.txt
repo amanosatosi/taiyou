@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running `target/debug/taiyou render --input /home/runner/work/_temp/taiyou-render-sample/input.ass --font /home/runner/work/_temp/taiyou-shaping-fonts/latin.otf --time-us 500000 --width 320 --height 180 --profile core-v1 --output /home/runner/work/_temp/taiyou-render-sample/first.png --raw /home/runner/work/_temp/taiyou-render-sample/first.rgba`
+taiyou 0.1.0 profile=core-v1 workers=1 RGBA8 premultiplied 320x180 time-us=500000 diagnostics=0

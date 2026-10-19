@@ -1,0 +1,6 @@
+{
+  "sha": "9eee96fe16989089d8fd3f65b1bb136455ffca7e",
+  "source_sha256": "c706ac7bd0b97eb71488472b46f23ea6c54b06ef6c19bc7cc62d376c4814f738",
+  "instrumented_sha256": "68ff8f9570ebd87e939981f69df89ba89b1e15ad705aa9a3780b000fbd984c0d",
+  "changes": "three measurement-only atomic counters; no algorithm changes"
+}

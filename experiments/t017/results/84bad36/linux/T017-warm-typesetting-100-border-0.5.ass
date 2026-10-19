@@ -1,0 +1,109 @@
+[Script Info]
+PlayResX: 160
+PlayResY: 100
+WrapStyle: 2
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,PrimaryColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV
+Style: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,13,21,9
+[Events]
+Format: Layer,Start,End,Style,Text
+Dialogue: 0,0:00:00.00,0:00:01.00,Default,{\pos(0,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,0)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,10)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,20)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,30)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,40)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,50)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,60)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,70)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(128,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(144,80)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(16,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(32,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(48,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(64,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(80,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(96,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(112,90)\fs5\bord0.5\shad1.25\4a&HFF&}Fansub typesetting
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,dialogue
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,dialogue

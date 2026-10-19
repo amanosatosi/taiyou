@@ -1,0 +1,10 @@
+{
+  "candidate": "6d1e2421a33cd993e343da101e4c5394676c5251",
+  "job": "https://github.com/amanosatosi/taiyou/actions/runs/39264675783/job/118101463855",
+  "artifact_id": 12193211013,
+  "artifact_zip_sha256": "40ddd591a78c5135221d54fec7f8f56cf6a48f22be4926490a39cfa4c79598fe",
+  "status": "optimized experiment failed before measuring any frame",
+  "failure": "generated measurement driver referenced a transitive crate directly; corrected to use the existing renderer re-export",
+  "measurements": null,
+  "scope": "original build log and instrumentation manifest; renderer's ordinary native build and macOS matrix passed"
+}

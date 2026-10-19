@@ -30,6 +30,47 @@ impl ValidatedFontCatalog {
     pub fn faces(&self) -> &[FontRecord] {
         self.inner.faces()
     }
+    /// Extract through the immutable catalog's authentication proof. Arbitrary
+    /// public FontBlob inputs still use FontContext::outline and reauthenticate.
+    pub fn outline(
+        &self,
+        context: &mut FontContext,
+        font: FontId,
+        glyph: u32,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        let face = self
+            .faces()
+            .iter()
+            .find(|face| face.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
+        context.outline_authenticated(face.blob(), glyph, limits)
+    }
+    pub(crate) fn shape_raw(
+        &self,
+        context: &mut FontContext,
+        font: FontId,
+        request: &crate::shape::NativeRequest<'_>,
+        limits: &Limits,
+        collect_ink: bool,
+    ) -> Result<crate::shape::RawRun, FontError> {
+        let face = self
+            .faces()
+            .iter()
+            .find(|face| face.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
+        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink)
+    }
 }
 pub(crate) fn check_blob_identity(blob: &FontBlob) -> Result<(), FontError> {
     let actual: [u8; 32] = Sha256::digest(blob.bytes()).into();
@@ -48,8 +89,7 @@ pub fn fold_family(name: &str, limits: &Limits) -> Result<String, FontError> {
         .and_then(|n| n.checked_add(128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "family fold length overflow"))?;
     if cost > limits.transient_bytes() {
-        return Err(error(
-            ErrorCode::LimitExceeded,
+        return Err(FontError::transient_limit(
             "family fold transient budget exceeded",
         ));
     }

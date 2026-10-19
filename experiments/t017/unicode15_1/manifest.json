@@ -1,0 +1,71 @@
+{
+  "unicode": "15.1.0",
+  "uax14_revision": 51,
+  "uax29_revision": 43,
+  "acquired": "2026-10-20",
+  "license": "Unicode-3.0",
+  "license_note": "Official permission notice retrieved on acquisition date, copyright 1991-2026; original file copyright notices preserved.",
+  "status": "experimental data only; no production automatic wrapping",
+  "files": [
+    {
+      "file": "ReadMe.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/ReadMe.txt",
+      "bytes": 631,
+      "sha256": "0d2da782ead4e85630d510f50808355e8c3355e670841d257dd1e6fbd40db9fa"
+    },
+    {
+      "file": "LineBreak.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/LineBreak.txt",
+      "bytes": 255876,
+      "sha256": "a55cdc118493491e0a9c885b48eda953a6258a1e218f6050a11891231c79683f"
+    },
+    {
+      "file": "GraphemeBreakProperty.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/auxiliary/GraphemeBreakProperty.txt",
+      "bytes": 96863,
+      "sha256": "a7e52eee647e52dc210b8719b4d7037276f4b353810293d69377fc46374cec3f"
+    },
+    {
+      "file": "emoji-data.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/emoji/emoji-data.txt",
+      "bytes": 111505,
+      "sha256": "d7aef489c8fe4c14f09ea5695200277c6b93ac82ac60845cdd2161b0d6835cc1"
+    },
+    {
+      "file": "UnicodeData.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/UnicodeData.txt",
+      "bytes": 1914200,
+      "sha256": "2fc713e6a31a87c4850a37fe2caffa4218180fadb5de86b43a143ddb4581fb86"
+    },
+    {
+      "file": "EastAsianWidth.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt",
+      "bytes": 194188,
+      "sha256": "b08191401dc125f4e84ef262a95754faae6b737c79538e17ea9664a63434e94e"
+    },
+    {
+      "file": "DerivedCoreProperties.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/DerivedCoreProperties.txt",
+      "bytes": 1072686,
+      "sha256": "f55d0db69123431a7317868725b1fcbf1eab6b265d756d1bd7f0f6d9f9ee108b"
+    },
+    {
+      "file": "LineBreakTest.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/auxiliary/LineBreakTest.txt",
+      "bytes": 1510316,
+      "sha256": "ae7af38ceb2d34e8382b43f08abce0835b1d44aba3b98a1d17ea8f5252284376"
+    },
+    {
+      "file": "GraphemeBreakTest.txt",
+      "url": "https://www.unicode.org/Public/15.1.0/ucd/auxiliary/GraphemeBreakTest.txt",
+      "bytes": 188211,
+      "sha256": "ed9c5e92fd0911ccbeeb63c97cb19c519ea272ff1112ce843abd991582dd848f"
+    },
+    {
+      "file": "LICENSE.txt",
+      "url": "https://www.unicode.org/license.txt",
+      "bytes": 1995,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    }
+  ]
+}

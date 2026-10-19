@@ -1,0 +1,22 @@
+   Compiling taiyou-cli v0.1.0 (/home/runner/work/taiyou/taiyou/crates/taiyou-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/renderer_slice.rs (target/debug/deps/renderer_slice-ff4146289892845b)
+
+running 14 tests
+test output_safety::hard_linked_outputs_and_identical_resolved_names_preserve_old_bytes ... ok
+test output_safety::successful_publication_replaces_both_outputs_and_repeats_identically ... ok
+test renderer_slice_cli_rejects_invalid_input_and_flags_without_output ... ok
+test output_safety::failed_generation_or_output_preparation_preserves_existing_files ... ok
+test renderer_slice_cumulative_event_reservations ... ok
+test output_safety::hard_links_to_ass_and_font_are_rejected_for_both_outputs ... ok
+test renderer_slice_layer_source_order_and_paint_boundaries ... ok
+test renderer_slice_png_conversion_is_exact_and_preserves_frame ... ok
+test renderer_slice_parsed_diagnostics_and_header_capabilities ... ok
+test renderer_slice_timing_seeks_owned_pixels ... ok
+test renderer_slice_nine_alignments_independent_pixels_and_color ... ok
+test renderer_slice_unsupported_errors_diagnostics_and_limits ... ok
+test output_safety::symlinks_and_symlinked_parent_destinations_are_rejected ... ok
+test renderer_slice_position_breaks_fallback_and_clipping ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
