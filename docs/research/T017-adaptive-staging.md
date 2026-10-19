@@ -59,7 +59,11 @@ changes do not change these production sources. Original samples, scripts,
 environment, instrumentation/build identities and artifact provenance are under
 [results/ae467c9](../../experiments/t017/results/ae467c9/provenance.json).
 The source job completed the measurements before its sanitizer discovery failed.
-That job is not reported as a passing native gate.
+That job is not reported as a passing native gate. Follow-up candidate
+`77afbd20be79b5a5c4863fe55eff79d3fefa9e30` passed Linux/macOS/Windows, the
+Platform gate, Fast/MSRV and Documentation. Its completed release rerun,
+including expanded-budget cases, is preserved in the
+[144-attempt report](../../experiments/t017/results/77afbd2/summary.md).
 
 ### Release measurements
 
@@ -115,8 +119,8 @@ peaks (bytes) are conservative reservations, not heap/RSS measurements.
 Auto-only scenes intentionally spend the caller's bounded optional allowance to
 avoid repeated shaping; they use more memory than reviewed minimal staging.
 Position-dominated scenes keep the prior large memory savings. This is a measured
-tradeoff, not a claim of universal lower RSS. Partial retention is worthwhile
-here without an eviction mechanism:
+tradeoff, not a claim of universal lower RSS. Partial retention reduces shaping
+work here, with modest observed time changes and no eviction mechanism:
 
 | 256×32-glyph scene strategy | Shaping calls | Median ms | RSS KiB | Transient B | Aggregate local B |
 |---|---:|---:|---:|---:|---:|
@@ -183,7 +187,28 @@ three-target set after addition of authenticated_outline. The narrow owner-
 authorized fix validates exact Cargo target names/kinds,manifest and target-dir
 ownership for the four unit/integration executables, logs the actual list and
 runs all four with unchanged ASan/UBSan flags and pinned-native verification.
-Final rerun evidence and protected-owner acknowledgment are recorded on PR#29.
+[Linux job118183558546](https://github.com/amanosatosi/taiyou/actions/runs/39288634496/job/118183558546)
+confirmed the actual four Cargo artifacts and ran all30 tests successfully:
+9font-unit,9catalog,11shaping,1authenticated-outline. The
+[original sanitizer log excerpt](../../experiments/t017/results/77afbd2/sanitizer-log-excerpt.txt)
+preserves executable identities and test results. ASan/UBSan instrumentation,
+native prefix checks, leak detection and halt-on-error remain unchanged.
+
+The final expanded4M-segment experiment completed all18 previously limited
+configuration/sample pairs: thin-border median earlier/reviewed/current was
+2790.392/2808.607/780.277ms; thick-border was3120.886/3141.708/1113.481ms.
+Each workload's RGBA hashes match all three generations. Current RSS was
+6760/7376KiB; logical transient peaks15973040/17255522B,local39422B.
+The18 default-limit errors remain separate, with no raw output. The candidate's
+bounded optional fallback retries those non-memory failures once; the resulting
+failed-attempt counts are not completed-frame performance. No production limit
+or protected comparator behavior is changed.
+
+All126 successful frames in the144-attempt rerun retain exact reviewed/current
+identity, including three samples of439-call partial staging. The complete48
+debug samples were verified and reused with their originalae467c9 provenance.
+Final exact-head correctness/reuse evidence and the human-owner acknowledgment
+request are reported on PR#29; an earlier SHA's acknowledgment is never reused.
 
 The complete T015 comparison onae467c9 remains exit1:101 visual frames comprise
 1exact,92unsupported,8infrastructure errors,0regressions,0crashes; two parser

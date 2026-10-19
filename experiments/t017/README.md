@@ -104,3 +104,10 @@ when Git proves only the named new review fixtures, documentation and evidence
 have changed. Any production/build/input/measurement change runs it again.
 Reuse publishes its original candidate/environment and explicit reuse provenance;
 it never claims new timings, skips correctness tests or controls the comparator.
+
+The adaptive follow-up's complete48 debug samples are preserved atae467c9.
+The [complete release report](results/77afbd2/summary.md) preserves144 attempts,
+including18 genuine default-limit failures and18 successful expanded-budget
+samples, with original scripts, identities and sanitizer evidence. Both complete
+sets are individually hashed in `results/completed.json`; later documentation
+checkpoints reuse their original provenance while rerunning all correctness gates.

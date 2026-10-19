@@ -1,0 +1,56 @@
+2026-10-19T17:00:45.6965644Z FONT_SANITIZER_ARTIFACTS=[{"name": "taiyou_font", "kind": ["lib"], "manifest_path": "/home/runner/work/taiyou/taiyou/crates/taiyou-font/Cargo.toml", "executable": "/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/taiyou_font-5aea5dc3a7e4e3a8"}, {"name": "authenticated_outline", "kind": ["test"], "manifest_path": "/home/runner/work/taiyou/taiyou/crates/taiyou-font/Cargo.toml", "executable": "/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/authenticated_outline-c9d461b6781878cd"}, {"name": "catalog", "kind": ["test"], "manifest_path": "/home/runner/work/taiyou/taiyou/crates/taiyou-font/Cargo.toml", "executable": "/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/catalog-6f6cabe7829086a1"}, {"name": "shaping", "kind": ["test"], "manifest_path": "/home/runner/work/taiyou/taiyou/crates/taiyou-font/Cargo.toml", "executable": "/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/shaping-0b68b1e8cb8bd283"}]
+2026-10-19T17:00:45.6999102Z SANITIZER_RUN=["/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/authenticated_outline-c9d461b6781878cd", "--test-threads=1"]
+2026-10-19T17:00:45.7715548Z 
+2026-10-19T17:00:45.7716310Z running 1 test
+2026-10-19T17:00:45.8858453Z test catalog_authentication_preserves_untrusted_outline_checks_and_results ... ok
+2026-10-19T17:00:45.8859312Z 
+2026-10-19T17:00:45.8859572Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+2026-10-19T17:00:45.8859918Z 
+2026-10-19T17:00:45.9026479Z SANITIZER_RUN=["/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/catalog-6f6cabe7829086a1", "--test-threads=1"]
+2026-10-19T17:00:45.9339493Z 
+2026-10-19T17:00:45.9339856Z running 9 tests
+2026-10-19T17:00:45.9659575Z test catalog_budget_and_malformed_failures_do_not_corrupt_existing_snapshot ... ok
+2026-10-19T17:00:46.0524585Z test catalog_collection_face_indices_and_shared_byte_budget ... ok
+2026-10-19T17:00:46.0528072Z test catalog_default_full_unicode_fold_is_locale_free_without_normalization ... ok
+2026-10-19T17:00:46.0917560Z test catalog_identity_dedup_order_and_owned_lifetime ... ok
+2026-10-19T17:00:46.1203642Z test catalog_native_blob_consumption_rejects_forged_digests_and_face_indices ... ok
+2026-10-19T17:00:46.1505177Z test catalog_replacement_builders_share_one_session_identity_owner ... ok
+2026-10-19T17:00:46.1713897Z test catalog_ties_follow_weight_then_italic_then_registration_order ... ok
+2026-10-19T17:00:46.1814840Z test catalog_transient_reservations_fail_before_publication_and_native_work ... ok
+2026-10-19T17:00:46.3689119Z test catalog_unverified_import_recomputes_identity_and_metadata_before_publication ... ok
+2026-10-19T17:00:46.3690020Z 
+2026-10-19T17:00:46.3690573Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+2026-10-19T17:00:46.3691371Z 
+2026-10-19T17:00:46.3877940Z SANITIZER_RUN=["/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/shaping-0b68b1e8cb8bd283", "--test-threads=1"]
+2026-10-19T17:00:46.4227938Z 
+2026-10-19T17:00:46.4228398Z running 11 tests
+2026-10-19T17:00:46.9576905Z test shaping_arabic_style_boundary_retains_neighboring_joining_context ... ok
+2026-10-19T17:00:47.4939813Z test shaping_bidi_logical_order_and_arabic_fallback_with_context ... ok
+2026-10-19T17:00:47.5340006Z test shaping_collection_face_identity_uses_requested_weight ... ok
+2026-10-19T17:00:48.0727859Z test shaping_cross_script_marks_are_not_separated_before_fallback ... ok
+2026-10-19T17:00:48.6068386Z test shaping_escapes_hard_breaks_and_owned_context_lifetime ... ok
+2026-10-19T17:00:49.1500103Z test shaping_exact_provisional_native_sequences_metrics_and_advances ... ok
+2026-10-19T17:00:49.6908363Z test shaping_kerning_ligatures_spacing_and_design_unit_scaling ... ok
+2026-10-19T17:00:50.2327565Z test shaping_limits_unmappable_inputs_repeatability_and_foreign_maps ... ok
+2026-10-19T17:00:50.3143326Z test shaping_missing_diagnostics_are_bounded_and_available_without_event_coordinator ... ok
+2026-10-19T17:00:50.8515965Z test shaping_noncontiguous_ligature_and_combining_paint_provenance ... ok
+2026-10-19T17:00:51.4091936Z test shaping_whole_cluster_fallback_and_explicit_notdef ... ok
+2026-10-19T17:00:51.4092889Z 
+2026-10-19T17:00:51.4093656Z test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.99s
+2026-10-19T17:00:51.4094319Z 
+2026-10-19T17:00:51.4541871Z SANITIZER_RUN=["/home/runner/work/_temp/taiyou-font-sanitizer-target/debug/deps/taiyou_font-5aea5dc3a7e4e3a8", "--test-threads=1"]
+2026-10-19T17:00:51.4856668Z 
+2026-10-19T17:00:51.4857378Z running 9 tests
+2026-10-19T17:00:51.4865807Z test catalog::tests::catalog_ties_follow_weight_then_italic_then_registration_order_synthetic ... ok
+2026-10-19T17:00:51.5119873Z test native::tests::failure_after_face_initialization_releases_face_and_library_remains_usable ... ok
+2026-10-19T17:00:51.5123059Z test native::tests::geometry_native_copy_failure_stays_inside_callback_boundary ... ok
+2026-10-19T17:00:51.5126503Z test native::tests::geometry_native_implied_quadratic_endpoints_retain_half_units ... ok
+2026-10-19T17:00:51.8145539Z test native::tests::geometry_native_outlines_are_owned_curves_and_checked ... ok
+2026-10-19T17:00:51.9815313Z test native::tests::harfbuzz_abi_owned_results_and_rejected_requests_cleanup ... ok
+2026-10-19T17:00:52.0181874Z test native::tests::raster_native_compound_outline_survives_font_and_raster_owners ... ok
+2026-10-19T17:00:52.0186097Z test native::tests::raster_native_span_validation_and_lifetime ... ok
+2026-10-19T17:00:52.0213632Z test native::tests::rejected_library_initialization_finishes_native_owner ... ok
+2026-10-19T17:00:52.0224638Z 
+2026-10-19T17:00:52.0225127Z test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+2026-10-19T17:00:52.0225939Z 
+2026-10-19T17:00:52.0435786Z FONT_NATIVE_ASAN_UBSAN_COMPLETE
