@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "sets": {
+    "debug": {
+      "candidate": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+      "directory": "experiments/t017/results/ae467c9/debug",
+      "source_job": "https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024",
+      "artifact_id": 12195041622,
+      "artifact_zip_sha256": "73f9b14d785b250465c7a797a864a0657fffdae3a31f9e7a1f6ba6ca80d892af",
+      "files": {
+        "after-build.log": "e7a34d20c944f1713d42e20fab82bfee38ade8f2a4a172fd3f255b2afec72459",
+        "after-instrumentation.json": "15fdf37e7cb241da5c7d53a019180b7990d405f84f971d43c80b9899313368a0",
+        "before-build.log": "40a1c78a7d66d98c3e2acb159026d565a09278017ac26506d664c41dcddc8f10",
+        "before-instrumentation.json": "7af40a5338cd6c7c28a148465216ec6aca80d1dbe0d5e43e88847945111c2e2a",
+        "dense-100.ass": "04752b5e30ce7a3827dc3081298db1280341bc65942670bc0a509d39e9ccf5d0",
+        "dense-1000.ass": "f187c0173e0c61aeffe96ec89da7a5e08e266b8d536232149c36128ecc421c81",
+        "dense-500.ass": "27194a533614b578275dedc33270e48c2f76b82de8e5fcefeb315102e6b0b962",
+        "environment.json": "8f0b271b693093ff2b7a628b2b2206dd3457b7fbaaf24827a62e2fc17feba7b5",
+        "larger-workloads-unavailable.json": "955abe59061d8211ddbdfd6a716d45d2363deb8e25adebbb74b712c45b92ac37",
+        "mixed-2000-one-glyph.ass": "a531c35fdbde164f372669af3b8905a11b3d0d9481abc432db8e08d7112ad903",
+        "mixed-2000-twenty-glyphs.ass": "96122be2862187229f78c17988a16ff025bdb4cbd4b56514b198d9a216bdb2ec",
+        "normal-eight.ass": "c41cddf5ca8a6042334dcdebd9aeb11c48f3d8878a6529dd908b918323be0aaa",
+        "normal-one.ass": "b32c7c312bc0d53eb2072b0510f90d2a59eb766aa585a21d972a57ba06c7ad90",
+        "normal-two.ass": "ea02c3b4376fef1335da6711aaae0febd9eb94e796d8c47b51dd654c22fcccf3",
+        "positioned-5000-four-glyphs.ass": "9d603a13ff8ab9314961e44bc3d36cd631a6dfe92e74be6c4dd114d03695531d",
+        "positioned-5000-one-glyph.ass": "0cfcbdb3202fbe898a7f824c681b713fd269b1a3fd9fc8832829f26a03ebfabd",
+        "samples.json": "fa9c464a6cdf7f0273cf5af119a3584751511724dddce419d21df12dd5884dc8",
+        "samples.jsonl": "03b00c9b78443f7be274f8593b6b20b4d78563498a3b2a812736597f2f9e9a7a"
+      }
+    }
+  }
+}

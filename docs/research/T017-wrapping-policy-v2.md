@@ -210,6 +210,62 @@ typesetting events follows from a few representative measurements.
 
 ## Executable proposed arithmetic expectations
 
+### Completed optimized-width experiment (Core proposal still unapproved)
+
+Candidate `ae467c953b9cf937469fb118e48f3f8c909fcaac`,
+[Linux job118108262024](https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024),
+[original records](../../experiments/t017/results/ae467c9/width/T017-width-prepass.jsonl).
+The later sanitizer executable-discovery failure does not erase these completed
+measurements. These are debug-test timings, including selected independent full
+line checks, not optimized playback or production wrapping measurements.
+
+| Workload | Candidates / all | Returned glyphs | Seconds | Independent full-line checks | Result |
+|---|---:|---:|---:|---:|---|
+| Latin12 words | 78/78 | 2,616 | 0.041 | 78 | complete |
+| Arabic16 words | 136/136 | 6,176 | 0.083 | 136 | complete |
+| Devanagari12 words | 78/78 | 2,106 | 0.204 | 78 | complete |
+| Japanese36 ideographs | 666/666 | 8,436 | 0.249 | 666 | complete |
+| Latin204 words | 20,910/20,910 | 10,507,802 | 27.673 | 25 | complete |
+| Japanese225 ideographs | 25,425/25,425 | 1,923,825 | 7.429 | 29 | complete |
+
+Ordinary CJK preparation/shaping/extent costs were 6.290/93.826/2.575 ms;
+long CJK 275.678/6838.702/214.175 ms. Long Latin shaping took 26.301 s;
+preparation 366.104 ms and logical extent calculation 820.740 ms. Boundary
+shaping now dominates; rebuilding ASS and evaluation per candidate is unnecessary.
+No full LocalLayout is allocated for rejected candidates. The stored cost
+matrices occupied 1,248–406,800 logical bytes, checked within the experimental
+caller budget; these bytes do not represent total native scratch or process RSS.
+
+The separate release twelve-range CJK profile records parsing/evaluation/full
+shaping and repeated font-authentication costs in the original adjacent
+`optimized-initial/*-cjk-profile.stderr.txt` reports. That controlled experiment
+holds the rebuilt ASS harness constant while removing repeated authentication.
+It therefore distinguishes the expensive native/font work from the harness's
+small parsing/evaluation cost. Glyph/advance/offset identity is checked across
+all three implementations. The full boundary equivalence matrix additionally
+covers fallback, mixed styles, bidi, joining scripts, combining/ZWJ sequences,
+original source ranges and positive/fractional/negative spacing on all native
+platforms. Long searches verify selected boundaries, not all 46,335 long costs.
+
+**Limit recommendation for further review:** 32,000 candidates and 16,000,000
+returned glyphs cover every completed authored workload above. They are sensible
+pilot limits, not validated production defaults. The glyph counter currently
+checks after each completed candidate and does not count every fallback attempt,
+rejected native glyph or cluster-context reshape. A strict production native-work
+budget must count those calls and reserve/reject remaining work before publishing
+an event. Unicode conformance, generated-table hashes/size/license and a bounded
+raw-native-work counter are still missing. Consequently no exact C7 defaults or
+normative limit amendment is admitted here. Exceeding any approved caller limit
+must fail deterministically with no partial frame or greedy fallback.
+
+The additive search experiment already compares the DAG/DP proposal against
+exhaustive small nonmonotonic plans, including opposite ties, overwide atoms and
+mode1 scanning beyond a nonfitting end. It is not necessary to repeat complete
+plan enumeration or build a production wrapper to resolve this policy decision.
+Owner review is requested for the exact W2 semantics, backwards cost recurrence,
+Unicode15.1 generated-data choice and pilot budgets; implementation remains gated
+on that approval and the explicitly missing conformance/native-work evidence.
+
 Synthetic advances: Latin/space=1; CJK ideograph=2; punctuation=1;
 ascent8/descent2. No font pixel result is invented by these arithmetic examples.
 

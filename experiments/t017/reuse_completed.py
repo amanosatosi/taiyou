@@ -34,6 +34,8 @@ def validate(kind, rows, environment, measured):
         implementations = {"before", "after"} if kind == "debug" else {"earlier", "reviewed", "candidate"}
         if kind != "debug" and case == "adaptive-256-multiglyph":
             implementations |= {"candidate-adaptive-32MiB", "candidate-minimal-32MiB", "candidate-minimal-128MiB"}
+        if kind != "debug" and case.startswith("typesetting-500-"):
+            implementations |= {"earlier-4Msegments", "reviewed-4Msegments", "candidate-4Msegments"}
         slots = {(label, sample) for label in implementations for sample in range(3)}
         assert len(selected) == len(slots)
         assert {(r["implementation"], r["sample"]) for r in selected} == slots
@@ -45,15 +47,16 @@ def validate(kind, rows, environment, measured):
             else:
                 assert re.fullmatch(r"[0-9a-f]{64}", row["raw_sha256"])
         if kind != "debug":
-            assert all(r["commit"] == environment["versions"]["candidate" if r["implementation"].startswith("candidate") else r["implementation"]] for r in selected)
+            assert all(r["commit"] == environment["versions"][r["implementation"].split("-")[0]] for r in selected)
         assert all(re.fullmatch(r"[0-9a-f]{64}", r["script_sha256"]) for r in selected)
         assert len({r["script_sha256"] for r in selected}) == 1
-        if kind != "debug" and all(r["exit_code"] == 0 for r in selected if r["implementation"] == "reviewed"):
-            assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate"))
-        comparable = selected if kind == "debug" else [r for r in selected if r["implementation"] != "earlier" and r["exit_code"] == 0]
+        if kind != "debug":
+            for reviewed in [r for r in selected if r["implementation"].startswith("reviewed") and r["exit_code"] == 0]:
+                assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"])
+        comparable = selected if kind == "debug" else [r for r in selected if not r["implementation"].startswith("earlier") and r["exit_code"] == 0]
         assert len({r["raw_sha256"] for r in comparable}) <= 1
 
-def unchanged(measured):
+def unchanged(measured, kind):
     subprocess.run(["git", "fetch", "--no-tags", "origin", measured, REVIEWED], cwd=ROOT, check=True, capture_output=True)
     for sha in [measured, REVIEWED]:
         subprocess.run(["git", "cat-file", "-e", sha + "^{commit}"], cwd=ROOT, check=True)
@@ -62,6 +65,14 @@ def unchanged(measured):
     for entry in entries:
         status, path = entry.split("\t")
         changed.append(path)
+        # The sanitizer executor runs after performance sampling, in a separate
+        # target/prefix/environment. Its discovery fix cannot change these builds.
+        if path == "build-support/font-sanitizer.py":
+            continue
+        if kind == "debug" and path == "experiments/t017/optimized.py":
+            continue
+        if kind == "optimized" and path == "experiments/t017/measure.py":
+            continue
         if path.startswith(("docs/", "experiments/t017/results/")) or path in {"experiments/t017/reuse_completed.py", "experiments/t017/reuse_or_measure.py", "experiments/t017/README.md"}:
             continue
         # Only independently added tests, absent from the reviewed candidate.
@@ -83,7 +94,7 @@ def try_reuse(kind, folder):
         return False
     entry = index["sets"][kind]
     measured = entry["candidate"]
-    changed = unchanged(measured)
+    changed = unchanged(measured, kind)
     if changed is None:
         return False
     saved = (ROOT / entry["directory"]).resolve()

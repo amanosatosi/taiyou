@@ -7,17 +7,18 @@ T017. Candidate SHA and exact Actions jobs are recorded in the implementation PR
 
 ## Implemented policy
 
-The review correction replaces full-active-set layout retention with a bounded
-prepass. Classification evaluates placement and retains one flag per active
-event. Zero/single-eligible scenes bypass the native prepass and collision solver.
-For other scenes, only eligible events are shaped and locally laid out in the
-prepass; each publishes a compact descriptor and drops its full layout before
-the next event. Explicit positions never enter descriptors, collision sorting,
-obstacle search or intervals. The ordinary paint pass prepares/renders one event
-at a time, including full effects for explicit positions. There is no retained
-layout/history cache. Eligible native work is intentionally repeated in the
-two-pass case; actual calls, runtime and memory are measured in the additive
-review experiments, rather than claiming this tradeoff is free.
+The current [adaptive staging follow-up](T017-adaptive-staging.md) classifies
+placement from parsed operations, preserving evaluator semantics without fully
+evaluating text for classification. Zero/single-eligible scenes bypass the native
+prepass and collision solver. Other scenes prepare eligible events and publish
+compact descriptors, retaining a resource-bounded prefix of immutable local
+layouts for paint. Unretained locals are dropped and reconstructed for paint;
+retained locals are shaped once. Explicit events are prepared only for ordinary
+rendering and never enter descriptors, collision sorting, obstacle searches or
+intervals. Retention is confined to this frame, with no history/per-event cache.
+If optional storage causes a limit failure, discard the unpublished attempt and
+retry once with minimal staging. Measurements report retained/transient peaks,
+calls and replay rather than claiming the memory/performance tradeoff is free.
 
 The resolver uses the owner-approved [ADR-012](../decisions/012-core-collision-footprint.md)
 Core geometric effect footprint, distinct from immutable logical/ink/local

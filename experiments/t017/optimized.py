@@ -62,7 +62,6 @@ impl Drop for Report {fn drop(&mut self){report();}}
         "crates/taiyou-render/src/layout.rs": [("layout", 2)],
         "crates/taiyou-render/src/collision.rs": [("resolve_collisions", 4)],
         "crates/taiyou-render/src/geometry.rs": [("geometry", 6)],
-        "crates/taiyou-render/src/stroke.rs": [("rasterize_translated", 9)],
         "crates/taiyou-render/src/compose.rs": [("compose", 10)],
         "crates/taiyou-font/src/catalog.rs": [("check_blob_identity", 11)],
         "crates/taiyou-font/src/native.rs": [("outline_authenticated" if label == "candidate" else "outline", 5), ("rasterize_path", 7), ("stroke_rasterize_path", 8), ("shape_authenticated_with_ink" if label == "candidate" else "shape_raw", 13)],
@@ -97,18 +96,20 @@ impl Drop for Report {fn drop(&mut self){report();}}
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
+    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0 \{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
+    assert shadow_scopes == 1
     if label == "candidate":
         marker = "        let limits = &self.config.limits;"
         # First occurrence in render_staged; the public wrapper has no limits.
         assert code.count(marker) == 1
-        code = code.replace(marker, '        let retain = retain && std::env::var_os("TAIYOU_EXPERIMENT_MINIMAL").is_none();\n' + marker)
+        code = code.replace(marker, '        taiyou_types::t017_metrics::retain(0); // A retry has dropped all previous ownership; preserve only the recorded peak.\n        let retain = retain && std::env::var_os("TAIYOU_EXPERIMENT_MINIMAL").is_none();\n' + marker)
     path.write_text(code)
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
     cli_path = destination / "crates/taiyou-cli/src/render.rs"
     cli_original = cli_path.read_text()
     marker = "let config = RendererConfig::default();"
     assert cli_original.count(marker) == 1
-    cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();}')
+    cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();} if let Ok(segments) = std::env::var("TAIYOU_EXPERIMENT_SEGMENTS") {config.limits = config.limits.with_path_segments_per_frame(segments.parse().unwrap()).unwrap();}')
     cli_path.write_text(cli_code)
     modifications[str(cli_path.relative_to(destination))] = {"original": hashlib.sha256(cli_original.encode()).hexdigest(), "instrumented": hashlib.sha256(cli_code.encode()).hexdigest(), "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"}
     driver = r'''use std::{path::PathBuf,time::Instant};
@@ -178,6 +179,11 @@ for name, events in cases:
     script.write_text((header.replace("PlayResX: 160", "PlayResX: 1920").replace("PlayResY: 100", "PlayResY: 1080") if hd else header) + events)
     for sample in range(3):
         variants = [(label, binary, versions[label], dict(os.environ)) for label, binary in binaries.items()]
+        if name.startswith("typesetting-500-"):
+            # Preserve every default-limit failure, then independently measure
+            # the same workload/all versions with an explicit caller budget.
+            # Production defaults and the external comparison remain untouched.
+            variants += [(label + "-4Msegments", binary, versions[label], dict(os.environ, TAIYOU_EXPERIMENT_SEGMENTS="4000000")) for label, binary in binaries.items()]
         if name == "adaptive-256-multiglyph":
             for mib, minimal in [(32, False), (32, True), (128, True)]:
                 env = dict(os.environ, TAIYOU_EXPERIMENT_BYTES=str(mib*1024*1024))
@@ -199,7 +205,7 @@ for name, events in cases:
             assert match, result.stderr
             calls, ns, peaks = map(json.loads, match.groups())
             rss, user, system = resource.read_text().splitlines()[-1].split()
-            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest() if result.returncode == 0 else None, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "status": "completed-frame" if result.returncode == 0 else "renderer-error-no-frame", "error": result.stderr.decode() if result.returncode != 0 else None}
+            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "path_segments_per_frame": int(env.get("TAIYOU_EXPERIMENT_SEGMENTS",1000000)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest() if result.returncode == 0 else None, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "status": "completed-frame" if result.returncode == 0 else "renderer-error-no-frame", "error": result.stderr.decode() if result.returncode != 0 else None}
             records.append(record)
             with (out / "samples.jsonl").open("a") as stream:
                 stream.write(json.dumps(record) + "\n")
@@ -208,9 +214,8 @@ for name, events in cases:
                 assert not raw.exists(), "a failed frame must not publish raw output"
                 assert b"LimitExceeded" in result.stderr, "unexpected non-limit rendering failure"
     selected = [r for r in records if r["case"] == name]
-    reviewed_completed = all(r["exit_code"] == 0 for r in selected if r["implementation"] == "reviewed")
-    if reviewed_completed:
-        assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate")), "new candidate failure: " + name
-    successful = [r for r in selected if r["exit_code"] == 0 and (r["implementation"] == "reviewed" or r["implementation"].startswith("candidate"))]
+    for reviewed in [r for r in selected if r["implementation"].startswith("reviewed") and r["exit_code"] == 0]:
+        assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"]), "new candidate failure: " + name
+    successful = [r for r in selected if r["exit_code"] == 0 and (r["implementation"].startswith("reviewed") or r["implementation"].startswith("candidate"))]
     assert len({r["raw_sha256"] for r in successful}) <= 1, name
 (out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))

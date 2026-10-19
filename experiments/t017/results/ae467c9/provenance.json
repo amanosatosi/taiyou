@@ -1,0 +1,8 @@
+{
+  "candidate": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+  "source_job": "https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024",
+  "artifact_id": 12195041622,
+  "artifact_zip_sha256": "73f9b14d785b250465c7a797a864a0657fffdae3a31f9e7a1f6ba6ca80d892af",
+  "status": "48 completed debug samples, 126 completed release attempts (108 frames and 18 genuine default-limit failures), six completed width searches; later sanitizer discovery failed",
+  "scope": "Original artifact bytes, no executables/images extracted; original pre-F1 effects hash differs from both F1 implementations"
+}

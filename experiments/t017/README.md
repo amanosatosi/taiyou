@@ -51,6 +51,50 @@ The PR records actual runs/results/artifacts and any measurement failures.
 An unexecuted or incomplete sample remains explicitly unavailable. The full
 external comparator's genuine nonzero result and artifacts remain separate.
 
+## Adaptive follow-up measurements
+
+The owner authorized workspace snapshot isolation: remove only workspace-package
+artifacts between snapshot builds, preserving the verified native prefix and
+registry dependencies. Each build log must show the font crate compiled from
+that snapshot. The original stale-artifact and generated-driver failures remain
+under `results/6bb3a30/` and `results/6d1e242/`, respectively. Neither produced
+successful paired evidence. `results/2574e17-partial/` preserves 99 actual release
+samples and the first genuine default frame-segment failure; it is incomplete.
+
+`optimized.py` measures the earlier implementation, reviewed `027e58a` and the
+candidate with the same release profile, pinned font, native prefix and runner.
+It records three sequential samples per configuration: cold CLI wall/CPU time,
+peak process RSS, conservative reservation peaks, stage calls/timers, original
+scripts and raw RGBA hashes. These are cold-process measurements including font
+intake and PNG output, not warm playback FPS. Inclusive stage timers overlap;
+shadow timing covers the whole visible-shadow branch. Full/partial/minimal
+staging configurations use explicit caller budgets. The complete suite includes
+HD typesetting in addition to deliberately small staging stress scenes.
+
+The 500-event multiglyph scenes retain their genuine default-limit failures.
+Separate, identically configured 4,000,000-segment caller-budget samples determine
+whether these workloads complete with sufficient resources. This is not a
+production-default change. Failed calls keep their exit codes and error details,
+have no frame/hash, and never count as matching rendered outputs. Any newly
+failing candidate with a successful reviewed configuration fails the experiment.
+
+The width-only experiment is independently checked against full line shaping on
+all native platforms; timing runs only in the Linux lane. It shares original
+source ranges and actual boundary shaping, skips rejected-candidate ink extents,
+and records preparation, shaping and logical-extent costs separately. Polynomial
+search tests compare a reusable candidate DAG with exhaustive small nonmonotonic
+plans. This neither enables wrapping nor proves Unicode conformance.
+
+The owner also authorized evidence-preserving reuse in `reuse_completed.py`.
+Only complete, individually hashed original reports listed in `results/completed.json`
+can be reused after Git checks measured production/build/input code is unchanged.
+Complementary experiment-script changes do not invalidate the other experiment.
+Deleted tests and changes to preexisting tests are rejected. Every workload and
+sample must remain present; invalid, duplicate, failed-as-match or mismatched
+frame evidence is rejected. Reuse reports its original SHA/job/environment and
+current SHA explicitly. All ordinary correctness gates and the full external
+comparison continue to execute on the current candidate.
+
 All 48 smaller paired samples completed at `f473e81` in
 [job117845262915](https://github.com/amanosatosi/taiyou/actions/runs/39184889909/job/117845262915).
 `results/f473e81/` preserves the original artifact JSON bytes (ZIP SHA-256

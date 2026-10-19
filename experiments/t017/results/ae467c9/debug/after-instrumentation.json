@@ -1,0 +1,6 @@
+{
+  "sha": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+  "source_sha256": "061f3bd87fd3c04c9465ba803dee80874f4ed89cb542cb14a9b171f4e198997e",
+  "instrumented_sha256": "465779ddbd3677bbbca239c370745361f76d302112223161a4e222bbcacbffa5",
+  "changes": "measurement-only atomics, including aggregate retained plus current local ownership; no algorithm changes"
+}

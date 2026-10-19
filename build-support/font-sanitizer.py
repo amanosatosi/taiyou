@@ -45,12 +45,23 @@ run("cc", "-std=c11", "-Werror", "-fsyntax-only", "-I" + str(prefix / "include/f
 result = run("cargo", "test", "--locked", "-p", "taiyou-font", "--features", "native",
              "--no-run", "--message-format=json", env=environment, stdout=subprocess.PIPE, text=True)
 executables = []
+artifacts = []
+expected_targets = {("taiyou_font", "lib"), ("catalog", "test"),
+                    ("shaping", "test"), ("authenticated_outline", "test")}
 for line in result.stdout.splitlines():
     item = json.loads(line)
     if item.get("reason") == "compiler-artifact" and item.get("profile", {}).get("test") and item.get("executable"):
+        target = item["target"]
+        artifacts.append({"name": target["name"], "kind": target["kind"],
+                          "manifest_path": item["manifest_path"], "executable": item["executable"]})
         executables.append(item["executable"])
-if len(executables) != 3 or {Path(exe).name.split('-')[0] for exe in executables} != {"taiyou_font", "catalog", "shaping"}:
-    raise RuntimeError("expected exact font unit, catalog and shaping executables")
+print("FONT_SANITIZER_ARTIFACTS=" + json.dumps(artifacts), flush=True)
+actual_targets = {(item["name"], item["kind"][0]) for item in artifacts if len(item["kind"]) == 1}
+if (len(artifacts) != len(expected_targets) or actual_targets != expected_targets
+        or any(Path(item["manifest_path"]).resolve() != (root / "crates/taiyou-font/Cargo.toml").resolve()
+               or not Path(item["executable"]).resolve().is_relative_to(Path(environment["CARGO_TARGET_DIR"]).resolve())
+               for item in artifacts)):
+    raise RuntimeError("expected exact font unit, catalog, shaping and authenticated_outline executable targets; got " + json.dumps(artifacts))
 environment["LD_PRELOAD"] = ":".join(subprocess.check_output(["cc", "-print-file-name=" + name], text=True).strip() for name in ["libasan.so", "libubsan.so"])
 environment["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1"
 environment["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"
