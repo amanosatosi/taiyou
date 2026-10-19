@@ -45,7 +45,9 @@ fn available(limits: &Limits, held: u64) -> Result<Limits, RenderError> {
         .transient_bytes()
         .checked_sub(held)
         .filter(|n| *n > 0)
-        .ok_or_else(|| RenderError::transient_limit("renderer frame/intermediate reservation exceeded"))?;
+        .ok_or_else(|| {
+            RenderError::transient_limit("renderer frame/intermediate reservation exceeded")
+        })?;
     limits.clone().with_transient_bytes(n).map_err(convert)
 }
 #[cfg(feature = "native")]
@@ -341,7 +343,9 @@ impl Renderer {
         // and context without repeating preparation. Nothing from a failed
         // attempt is published; its ownership is dropped before a memory retry.
         if optional_used
-            && result.as_ref().is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
+            && result
+                .as_ref()
+                .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
         {
             return self.render_staged(track, fonts, request, false, &mut false);
         }

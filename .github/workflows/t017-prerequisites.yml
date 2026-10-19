@@ -29,3 +29,20 @@ jobs:
           name: T017-format-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/t017-format.patch
           retention-days: 7
+
+  unicode:
+    name: Unicode 15.1 data and isolated grapheme conformance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: python experiments/t017/unicode15_1/generate.py "$RUNNER_TEMP/t017-unicode"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T017-Unicode-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/t017-unicode/
+          retention-days: 7

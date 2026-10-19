@@ -278,7 +278,9 @@ pub fn geometry(
             .transient_bytes()
             .checked_sub(charge)
             .filter(|n| *n > 0)
-            .ok_or_else(|| geometry_limit().with_resource_failure(ResourceFailure::TransientMemory))?;
+            .ok_or_else(|| {
+                geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+            })?;
         let remaining_segments = limits
             .path_segments_per_frame()
             .checked_sub(total as u64)

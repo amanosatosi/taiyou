@@ -116,9 +116,7 @@ impl SourceMappedText {
             .and_then(|n| n.checked_mul(3))
             .and_then(|n| n.checked_add(256))
             .ok_or_else(limit)?;
-        if bytes > limits.text_bytes_per_event()
-            || bytes > u64::from(u32::MAX)
-        {
+        if bytes > limits.text_bytes_per_event() || bytes > u64::from(u32::MAX) {
             return Err(limit());
         }
         if cost > limits.transient_bytes() {

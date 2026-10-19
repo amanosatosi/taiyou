@@ -123,9 +123,7 @@ pub fn subtract_coverage(
     let length = width.checked_mul(height).ok_or_else(limited)?;
     let pixels = u64::try_from(length).map_err(|_| limited())?;
     let transient = pixels.checked_mul(3).ok_or_else(limited)?;
-    if pixels > limits.output_pixels()
-        || pixels > limits.output_bytes()
-    {
+    if pixels > limits.output_pixels() || pixels > limits.output_bytes() {
         return Err(limited());
     }
     if transient > limits.transient_bytes() {

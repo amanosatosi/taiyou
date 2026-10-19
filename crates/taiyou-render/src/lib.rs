@@ -21,6 +21,6 @@ pub use paint::{blend_pixel, mul255};
 #[cfg(feature = "native")]
 pub mod shaping {
     pub use taiyou_font::{
-        FontCatalogBuilder, FontContext, ShapeOptions, shape_event, shape_event_advances_experiment,
+        FontCatalogBuilder, FontContext, NativeWorkExperiment, ShapeOptions, shape_event, shape_event_advances_experiment,
     };
 }

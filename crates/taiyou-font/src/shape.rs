@@ -145,13 +145,13 @@ fn reserve<T>(v: &mut Vec<T>, count: usize, limits: &Limits) -> Result<(), FontE
         .map_err(|_| error(ErrorCode::AllocationFailed, "shaping allocation failed"))
 }
 fn preflight(text: &str, limits: &Limits) -> Result<(), FontError> {
-    if text.len() as u64 > limits.text_bytes_per_event()
-        || text.len() > u32::MAX as usize
-    {
+    if text.len() as u64 > limits.text_bytes_per_event() || text.len() > u32::MAX as usize {
         return Err(limited());
     }
-    let cost = (text.len() as u64).checked_mul(1024)
-        .and_then(|n| n.checked_add(4096)).ok_or_else(limited)?;
+    let cost = (text.len() as u64)
+        .checked_mul(1024)
+        .and_then(|n| n.checked_add(4096))
+        .ok_or_else(limited)?;
     if cost > limits.transient_bytes() {
         return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
@@ -469,7 +469,9 @@ fn shape_item(
                     .transient_bytes()
                     .checked_sub(retained)
                     .filter(|&n| n != 0)
-                    .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?,
+                    .ok_or_else(|| {
+                        limited().with_resource_failure(ResourceFailure::TransientMemory)
+                    })?,
             )
             .map_err(|_| limited())?;
         let raw = input.catalog.shape_raw(
