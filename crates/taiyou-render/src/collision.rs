@@ -77,7 +77,11 @@ pub fn resolve_collisions_with_stats(
     let count = events.iter().filter(|e| e.eligible).count();
     let reservation = (events.len() as u64)
         .checked_mul(3 * std::mem::size_of::<PlacedEvent>() as u64)
-        .and_then(|n| n.checked_add((count as u64).checked_mul(3 * (std::mem::size_of::<usize>() + std::mem::size_of::<(f64, f64)>()) as u64)?))
+        .and_then(|n| {
+            n.checked_add((count as u64).checked_mul(
+                3 * (std::mem::size_of::<usize>() + std::mem::size_of::<(f64, f64)>()) as u64,
+            )?)
+        })
         .ok_or_else(limited)?;
     if events.len() as u64 > limits.events() || reservation > limits.transient_bytes() {
         return Err(limited());
@@ -85,8 +89,17 @@ pub fn resolve_collisions_with_stats(
     let mut order = Vec::new();
     let mut result: Vec<PlacedEvent> = Vec::new();
     let mut intervals: Vec<(f64, f64)> = Vec::new();
-    let mut stats = CollisionStats { eligible: count as u64, reserved_bytes: reservation, ..Default::default() };
-    intervals.try_reserve_exact(count).map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "collision interval allocation failed"))?;
+    let mut stats = CollisionStats {
+        eligible: count as u64,
+        reserved_bytes: reservation,
+        ..Default::default()
+    };
+    intervals.try_reserve_exact(count).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "collision interval allocation failed",
+        )
+    })?;
     order.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
@@ -120,23 +133,23 @@ pub fn resolve_collisions_with_stats(
             let up = input.alignment.get() <= 3;
             intervals.clear();
             for prior in &result[layer_start..] {
-                    stats.obstacle_tests += 1;
-                    if !occupied(prior.bounds)
-                        || natural.x0() >= prior.bounds.x1()
-                        || natural.x1() <= prior.bounds.x0()
-                    {
-                        continue;
-                    }
-                    // Open forbidden interval of anchor Y values. Testing in
-                    // anchor coordinates makes exact edge contact noncolliding
-                    // without an epsilon, pixel rounding or accumulated deltas.
-                    let low = finite(prior.bounds.y0().get() - input.bounds.y1().get())?.get();
-                    let high = finite(prior.bounds.y1().get() - input.bounds.y0().get())?.get();
-                    if low >= high {
-                        return Err(limited());
-                    }
-                    intervals.push((low, high));
-                    stats.intervals += 1;
+                stats.obstacle_tests += 1;
+                if !occupied(prior.bounds)
+                    || natural.x0() >= prior.bounds.x1()
+                    || natural.x1() <= prior.bounds.x0()
+                {
+                    continue;
+                }
+                // Open forbidden interval of anchor Y values. Testing in
+                // anchor coordinates makes exact edge contact noncolliding
+                // without an epsilon, pixel rounding or accumulated deltas.
+                let low = finite(prior.bounds.y0().get() - input.bounds.y1().get())?.get();
+                let high = finite(prior.bounds.y1().get() - input.bounds.y0().get())?.get();
+                if low >= high {
+                    return Err(limited());
+                }
+                intervals.push((low, high));
+                stats.intervals += 1;
             }
             intervals.sort_unstable_by(|a, b| {
                 stats.sort_comparisons += 1;
@@ -169,13 +182,20 @@ pub fn resolve_collisions_with_stats(
         });
     }
     for input in events.iter().filter(|input| !input.eligible) {
-        result.push(PlacedEvent { id: input.id, anchor: input.anchor, bounds: translated(input.bounds, input.anchor)? });
+        result.push(PlacedEvent {
+            id: input.id,
+            anchor: input.anchor,
+            bounds: translated(input.bounds, input.anchor)?,
+        });
     }
     // Identity publication is distinct from collision order, including for the
     // older public API accepting ineligible inputs. Renderer inputs are eligible only.
     result.sort_unstable_by_key(|event| event.id);
     if result.windows(2).any(|p| p[0].id == p[1].id) {
-        return Err(RenderError::new(ErrorCode::InvalidArgument, "duplicate collision EventId"));
+        return Err(RenderError::new(
+            ErrorCode::InvalidArgument,
+            "duplicate collision EventId",
+        ));
     }
     Ok((result, stats))
 }

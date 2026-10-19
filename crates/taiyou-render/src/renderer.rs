@@ -121,17 +121,28 @@ fn push_operation(
     Ok(())
 }
 #[cfg(feature = "native")]
+struct Preparation<'a> {
+    fonts: &'a ValidatedFontCatalog,
+    track: &'a Track,
+    request: &'a RenderRequest,
+    config: &'a RendererConfig,
+}
+#[cfg(feature = "native")]
 fn prepare_local(
     ctx: &mut FontContext,
-    fonts: &ValidatedFontCatalog,
-    track: &Track,
     event: &Event,
-    request: &RenderRequest,
-    profile: Profile,
-    limits: &Limits,
+    preparation: &Preparation<'_>,
     held: u64,
     diagnostics: &mut DiagnosticBuffer,
 ) -> Result<(Arc<LocalLayout>, u64), RenderError> {
+    let Preparation {
+        fonts,
+        track,
+        request,
+        config,
+    } = *preparation;
+    let limits = &config.limits;
+    let profile = config.profile;
     let eval_charge = crate::evaluate::preflight(event)?;
     let (evaluated, report) = evaluate_with_policy(
         track,
@@ -147,8 +158,7 @@ fn prepare_local(
     // remain explicitly unsupported and are omitted in tolerant mode.
     for state in evaluated.runs() {
         if state.geometry().underline() || state.geometry().strikeout() {
-            let detail =
-                "underline and strikeout decorations require a later Core stage";
+            let detail = "underline and strikeout decorations require a later Core stage";
             if request.unsupported == UnsupportedPolicy::Strict {
                 return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
                     .with_context(Some(event.id()), Some(state.source())));
@@ -363,6 +373,12 @@ impl Renderer {
         }
         let mut ctx = FontContext::with_limits(available(limits, held)?)
             .map_err(crate::geometry::font_error)?;
+        let preparation = Preparation {
+            fonts: &fonts,
+            track: &track,
+            request,
+            config: &self.config,
+        };
         // Classification retains one byte per active event, never a full
         // evaluated/shaped layout. Explicit events never reach collision inputs.
         let flag_charge = bytes::<bool>(count)?;
@@ -370,12 +386,19 @@ impl Renderer {
         available(limits, held)?;
         let mut eligible = Vec::new();
         eligible.try_reserve_exact(count).map_err(|_| {
-            RenderError::new(ErrorCode::AllocationFailed, "placement classification allocation failed")
+            RenderError::new(
+                ErrorCode::AllocationFailed,
+                "placement classification allocation failed",
+            )
         })?;
         for event in &events {
             let (state, _) = evaluate_with_policy(
-                &track, event.id(), request.now, self.config.profile,
-                request.unsupported, &available(limits, held)?,
+                &track,
+                event.id(),
+                request.now,
+                self.config.profile,
+                request.unsupported,
+                &available(limits, held)?,
             )?;
             eligible.push(state.placement().collision_eligible());
         }
@@ -389,7 +412,10 @@ impl Renderer {
             available(limits, held)?;
             let mut inputs = Vec::new();
             inputs.try_reserve_exact(collision_count).map_err(|_| {
-                RenderError::new(ErrorCode::AllocationFailed, "collision descriptor allocation failed")
+                RenderError::new(
+                    ErrorCode::AllocationFailed,
+                    "collision descriptor allocation failed",
+                )
             })?;
             for (event, &collides) in events.iter().zip(&eligible) {
                 if !collides {
@@ -399,25 +425,35 @@ impl Renderer {
                 // Drop every local layout before preparing the next one.
                 // Diagnostics publish once in the ordinary rendering pass.
                 let (local, _) = prepare_local(
-                    &mut ctx, &fonts, &track, event, request, self.config.profile,
-                    limits, held, &mut DiagnosticBuffer::new(),
-                ).map_err(|e| {
+                    &mut ctx,
+                    event,
+                    &preparation,
+                    held,
+                    &mut DiagnosticBuffer::new(),
+                )
+                .map_err(|e| {
                     let id = e.event().or(Some(event.id()));
                     let span = e.span().or(Some(event.source()));
                     e.with_context(id, span)
                 })?;
                 let placement = local.shaped().placement();
                 inputs.push(CollisionInput {
-                    id: event.id(), layer: event.layer(), start: event.start(),
+                    id: event.id(),
+                    layer: event.layer(),
+                    start: event.start(),
                     alignment: placement.alignment(),
                     anchor: alignment_anchor(placement, track.script().play_res())?,
                     bounds: crate::collision_footprint::collision_footprint(
-                        &local, DeviceMapping::new(track.script().play_res(), request.viewport.content())?,
-                        track.script().scaled_border_shadow(), request.unsupported,
-                    )?, eligible: true,
+                        &local,
+                        DeviceMapping::new(track.script().play_res(), request.viewport.content())?,
+                        track.script().scaled_border_shadow(),
+                        request.unsupported,
+                    )?,
+                    eligible: true,
                 });
             }
-            let placed = resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
+            let placed =
+                resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
             held = add(held, bytes::<PlacedEvent>(collision_count)?)?;
             drop(inputs);
             held = held.checked_sub(input_charge).ok_or_else(limited)?;
@@ -430,15 +466,22 @@ impl Renderer {
         for event in events {
             let result = (|| {
                 let (local, local_charge) = prepare_local(
-                    &mut ctx, &fonts, &track, event, request, self.config.profile,
-                    limits, held, &mut diagnostics,
+                    &mut ctx,
+                    event,
+                    &preparation,
+                    held,
+                    &mut diagnostics,
                 )?;
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let anchor = if collision_count > 1 && state.collision_eligible() {
-                    placements.binary_search_by_key(&event.id(), |p| p.id)
-                        .ok().map(|i| placements[i].anchor)
-                        .ok_or_else(|| RenderError::new(ErrorCode::InternalError, "missing eligible placement"))?
+                    placements
+                        .binary_search_by_key(&event.id(), |p| p.id)
+                        .ok()
+                        .map(|i| placements[i].anchor)
+                        .ok_or_else(|| {
+                            RenderError::new(ErrorCode::InternalError, "missing eligible placement")
+                        })?
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
