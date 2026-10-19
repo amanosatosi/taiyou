@@ -14,6 +14,10 @@ import sys
 if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
     raise SystemExit("measurement is restricted to Linux GitHub Actions")
 root = Path(__file__).resolve().parents[2]
+from reuse_completed import self_test, try_reuse
+self_test()
+if try_reuse("debug", sys.argv[1]):
+    raise SystemExit(0)
 measured = "f473e8190c34cc74e6718187b8772efba69c7ba2"
 head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
 subprocess.run(["git", "fetch", "--no-tags", "origin", measured], cwd=root, check=True)

@@ -14,7 +14,8 @@ fn optimized_paired_experiments_on_actions() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     assert!(
         std::process::Command::new("python3")
-            .arg(root.join("experiments/t017/optimized.py"))
+            .arg(root.join("experiments/t017/reuse_completed.py"))
+            .arg("optimized")
             .arg(folder)
             .status()
             .unwrap()

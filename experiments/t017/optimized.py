@@ -130,7 +130,7 @@ let t=Instant::now(); let shaped=shape_event(&mut ctx,&fonts,&event,&Default::de
 for run in shaped.runs(){for glyph in run.glyphs(){identity.push_str(&format!("{}:{:?}:{:?};",glyph.glyph(),glyph.advance_x(),glyph.offset_x()));}}
 }
 eprintln!("T017_WRAP_PROFILE={{\"parse_ns\":{parse_ns},\"evaluation_ns\":{eval_ns},\"shape_ns\":{shape_ns}}}");
-println!("{identity}"); taiyou_types::t017_metrics::report();
+println!("{identity}"); taiyou_render::renderer::t017_metrics::report();
 }
 '''
     driver_path = destination / "crates/taiyou-cli/src/bin/t017-width-profile.rs"
