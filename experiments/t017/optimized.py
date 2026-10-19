@@ -40,10 +40,14 @@ def build(label, sha):
 static CALLS:[AtomicU64;14]=[const {AtomicU64::new(0)};14];
 static NS:[AtomicU64;14]=[const {AtomicU64::new(0)};14];
 static PEAK:[AtomicU64;2]=[const {AtomicU64::new(0)};2];
+static RETAINED:AtomicU64=AtomicU64::new(0);
 pub struct Guard(usize,Instant);
 pub fn guard(i:usize)->Guard {CALLS[i].fetch_add(1,Ordering::Relaxed);Guard(i,Instant::now())}
 impl Drop for Guard {fn drop(&mut self){NS[self.0].fetch_add(self.1.elapsed().as_nanos() as u64,Ordering::Relaxed);}}
 pub fn maximum(i:usize,n:u64){PEAK[i].fetch_max(n,Ordering::Relaxed);}
+pub fn retain(n:u64){RETAINED.store(n,Ordering::Relaxed);maximum(1,n);}
+pub fn release(n:u64){RETAINED.fetch_sub(n,Ordering::Relaxed);}
+pub fn local(n:u64){maximum(1,n+RETAINED.load(Ordering::Relaxed));}
 pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|n.load(Ordering::Relaxed)),NS.each_ref().map(|n|n.load(Ordering::Relaxed)),PEAK.each_ref().map(|n|n.load(Ordering::Relaxed)));}
 '''
     (destination / "crates/taiyou-types/src/t017_metrics.rs").write_text(metrics)
@@ -81,10 +85,13 @@ pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|
         code = code.replace(marker, "taiyou_types::t017_metrics::maximum(1,prepared.iter().map(|s|s.charge).sum());\n" + marker)
     else:
         marker = "Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))"
-        code = code.replace(marker, "taiyou_types::t017_metrics::maximum(1,stage_held-held);\n" + marker)
+        code = code.replace(marker, "taiyou_types::t017_metrics::local(stage_held-held);\n" + marker)
         if label == "candidate":
             marker = "retained_charge = next;"
-            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::maximum(1,next);")
+            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::retain(next);")
+            marker = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+            assert code.count(marker) == 1
+            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::release(saved.charge);")
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")

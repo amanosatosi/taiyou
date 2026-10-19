@@ -80,11 +80,9 @@ fn recovered_program_placement_matches_full_evaluator_and_explicit_frame_oracle(
                         &limits,
                     )
                     .unwrap();
-                    let local = taiyou_render::layout(
-                        &shaped,
-                        &LayoutConstraints::new(state.alignment()),
-                    )
-                    .unwrap();
+                    let local =
+                        taiyou_render::layout(&shaped, &LayoutConstraints::new(state.alignment()))
+                            .unwrap();
                     inputs.push(CollisionInput {
                         id: event.id(),
                         layer: event.layer(),
@@ -93,8 +91,11 @@ fn recovered_program_placement_matches_full_evaluator_and_explicit_frame_oracle(
                         anchor,
                         bounds: collision_footprint(
                             &local,
-                            DeviceMapping::new(track.script().play_res(), request.viewport.content())
-                                .unwrap(),
+                            DeviceMapping::new(
+                                track.script().play_res(),
+                                request.viewport.content(),
+                            )
+                            .unwrap(),
                             track.script().scaled_border_shadow(),
                             policy,
                         )
@@ -103,9 +104,11 @@ fn recovered_program_placement_matches_full_evaluator_and_explicit_frame_oracle(
                     });
                 }
             }
-            let actual = Renderer::new(Default::default())
-                .unwrap()
-                .render(track.clone(), fonts.clone(), &request);
+            let actual = Renderer::new(Default::default()).unwrap().render(
+                track.clone(),
+                fonts.clone(),
+                &request,
+            );
             if let Some(error) = failure {
                 assert_eq!(actual.unwrap_err().code(), error.code());
                 continue;

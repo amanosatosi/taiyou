@@ -288,7 +288,7 @@ fn boundary_widths_match_independent_full_line_shaping_and_report_costs() {
                     status = "experiment-time-budget";
                     break 'outer;
                 }
-                if candidates >= 32_000 || glyphs >= 8_000_000 {
+                if candidates >= 32_000 || glyphs >= 16_000_000 {
                     status = "experimental-work-limit";
                     break 'outer;
                 }
