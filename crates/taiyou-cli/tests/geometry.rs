@@ -11,7 +11,7 @@ fn f(v: f64) -> FiniteF64 {
 #[test]
 fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
     let output = {
-        let input = "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Angle\nStyle: Default,Source Sans 3,20,7,90\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Of{\\c&HFF0000&}f\\N{\\fscx150\\fscy200}é ";
+        let input = "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Angle\nStyle: Default,Source Sans 3,20,7,90\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Of{\\c&HFF0000&}f\\N{\\fscx150\\fscy200}é ";
         let options = Default::default();
         let parsed =
             taiyou_ass::parse_ass(input.as_bytes(), &options, &mut Default::default()).unwrap();
@@ -119,7 +119,7 @@ fn geometry_real_multiscript_fallback_font_identities_and_event_limits() {
     let limits = Limits::default()
         .with_transient_bytes(512 * 1024 * 1024)
         .unwrap();
-    let input = "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Aبक語";
+    let input = "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Aبक語";
     let options = Default::default();
     let parsed =
         taiyou_ass::parse_ass(input.as_bytes(), &options, &mut Default::default()).unwrap();

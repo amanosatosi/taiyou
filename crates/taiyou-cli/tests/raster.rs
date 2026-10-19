@@ -16,7 +16,7 @@ fn limits() -> Limits {
 }
 fn input(text: &str) -> String {
     format!(
-        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Outline\nStyle: Default,Source Sans 3,20,7,2\nStyle: Border,Source Sans 3,20,7,3\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
+        "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Outline\nStyle: Default,Source Sans 3,20,7,2\nStyle: Border,Source Sans 3,20,7,3\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
     )
 }
 fn geometry_for(text: &str) -> Arc<GeometryEvent> {
