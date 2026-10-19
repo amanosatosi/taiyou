@@ -8,8 +8,11 @@ events. There are no accepted images, fabricated captures or renderer results.
 [input receipts](inputs.sha256.json) pin exact independently authored script bytes.
 
 Review [ADR-014](../../docs/decisions/014-wrapping-engine-selection.md) before
-implementation. Tags are **not supported by the current public parser**. q-tag
-inputs are uniform within each event; this proposal does not invent mixed-q
+integration. The owner-directed follow-up implements typed warpmode0/1 parsing
+and event-level evaluation; automatic engines remain disabled. Actual executable
+tests are in crates/taiyou-cli/tests/warpmode.rs. q overrides are still unsupported;
+q-tag inputs here are future expectations, uniform within each event. This does
+not invent mixed-q
 precedence or retroactive escape decoding. q2 expectations preserve full style
 empty-line metrics and the current hard/soft/NBSP behavior, without asserting
 font-dependent pixels. Uniform q0/1/3 inputs expect a clear unavailable-engine
@@ -32,7 +35,8 @@ across reset/late tags. Add font-based same-engine seek/collision equivalence,
 mixed positioned events, tiny memory/native-work budgets and no-partial-frame
 failures after each engine is ready. Existing protected tests remain unchanged.
 
-All actual build/test/render execution is GitHub Actions only. This contract
-proposal's Actions checks exercise unchanged main code and protected comparison,
-not an implementation of these proposed selector expectations. A passing build
-does not turn this manifest into accepted runtime or historical evidence.
+All actual build/test/render execution is GitHub Actions only. The implementation
+tests exercise actual parsing/evaluation, invalid recovery, nested/literal
+nonexecution, hard-break provenance, automatic-engine rejection and pinned-font
+q2 pixel/seek equality. A passing build does not promote every manifest case,
+admit q overrides, automatic engines or establish historical evidence.

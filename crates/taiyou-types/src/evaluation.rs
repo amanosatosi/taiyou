@@ -342,6 +342,7 @@ impl EvaluatedRun {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedEvent {
+    wrap_mode: WrapMode,
     warp_mode: WarpMode,
     warp_mode_source: Option<SourceSpan>,
     terminal_style: Option<Style>,
@@ -362,6 +363,7 @@ impl EvaluatedEvent {
     ) -> Self {
         Self {
             terminal_style: None,
+            wrap_mode: WrapMode::new(2).expect("constant wrap"),
             warp_mode: WarpMode::XyStyle,
             warp_mode_source: None,
             id,
@@ -377,6 +379,13 @@ impl EvaluatedEvent {
     }
     pub const fn warp_mode(&self) -> WarpMode {
         self.warp_mode
+    }
+    pub const fn wrap_mode(&self) -> WrapMode {
+        self.wrap_mode
+    }
+    pub fn with_wrap_mode(mut self, mode: WrapMode) -> Self {
+        self.wrap_mode = mode;
+        self
     }
     pub const fn warp_mode_source(&self) -> Option<SourceSpan> {
         self.warp_mode_source

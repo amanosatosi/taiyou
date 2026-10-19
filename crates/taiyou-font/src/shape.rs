@@ -664,6 +664,49 @@ fn shape_item(
 pub fn shape(ctx: &mut FontContext, input: &ResolvedRun) -> Result<ShapedRun, FontError> {
     Ok(shape_item(ctx, input)?.0)
 }
+// Match xy's word context: ASCII spaces delimit words; NBSP does not. This is
+// confined to the new automatic path; existing q2 shaping stays unchanged.
+fn xy_word_items(
+    inputs: Vec<ResolvedRun>,
+    map: &Arc<SourceMappedText>,
+    limits: &Limits,
+) -> Result<Vec<ResolvedRun>, FontError> {
+    let mut words = Vec::new();
+    let mut start = 0;
+    for (at, ch) in map.text().char_indices() {
+        if matches!(ch, ' ' | '\n' | '\r' | '\u{2029}') {
+            if start < at {
+                reserve(&mut words, 1, limits)?;
+                words.push(start..at);
+            }
+            reserve(&mut words, 1, limits)?;
+            words.push(at..at + ch.len_utf8());
+            start = at + ch.len_utf8();
+        }
+    }
+    if start < map.text().len() {
+        reserve(&mut words, 1, limits)?;
+        words.push(start..map.text().len());
+    }
+    let mut result = Vec::new();
+    let mut cursor = 0;
+    for input in inputs {
+        while cursor < words.len() && words[cursor].end <= input.item.range.start {
+            cursor += 1;
+        }
+        for word in words[cursor..].iter().take_while(|w| w.start < input.item.range.end) {
+            let range = word.start.max(input.item.range.start)..word.end.min(input.item.range.end);
+            let mut part = input.clone();
+            part.decoded = map.decoded_span(range.start as u32..range.end as u32)?;
+            part.item.range = range;
+            part.item.context = word.start.max(input.item.context.start)..word.end.min(input.item.context.end);
+            reserve(&mut result, 1, limits)?;
+            result.push(part);
+        }
+    }
+    Ok(result)
+}
+
 pub fn shape_event(
     ctx: &mut FontContext,
     catalog: &ValidatedFontCatalog,
@@ -671,6 +714,9 @@ pub fn shape_event(
     options: &ShapeOptions,
     limits: &Limits,
 ) -> Result<ShapedEvent, FontError> {
+    if event.wrap_mode().get() != 2 && event.warp_mode() == WarpMode::Unicode {
+        return Err(error(ErrorCode::UnsupportedFeature, "warpmode1 automatic wrapping is not admitted"));
+    }
     let map = event.source_map().ok_or_else(|| {
         error(
             ErrorCode::InvalidArgument,
@@ -715,6 +761,11 @@ pub fn shape_event(
         previous_scale = Some(scale);
     }
     let (resolved, breaks) = resolve_mapped(catalog, map, &styles, options, limits)?;
+    let resolved = if event.wrap_mode().get() != 2 {
+        xy_word_items(resolved, map, limits)?
+    } else {
+        resolved
+    };
     let mut runs = Vec::new();
     let mut missing = Vec::new();
     let mut diagnostics = DiagnosticBuffer::new();

@@ -4,7 +4,7 @@
   "status": "contract-review-only-not-runtime-tests",
   "integration_base": "d5a545ac49aabbfc23e3895231d407da576e276f",
   "pr29_prerequisite_head": "3144993e31e52513e044f47a95518930e0a45a80",
-  "production_parser_enabled": false,
+  "production_parser_enabled": true,
   "automatic_engines_enabled": [],
   "accepted_visual_outputs": [],
   "captures": [],

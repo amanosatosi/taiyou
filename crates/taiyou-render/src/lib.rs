@@ -12,6 +12,7 @@ mod paint;
 pub mod raster;
 pub mod renderer;
 pub mod stroke;
+mod xy_wrap;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy};
 pub use layout::layout;

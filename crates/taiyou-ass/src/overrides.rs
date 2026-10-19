@@ -271,11 +271,30 @@ fn parse(
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    // pinterf's q path uses a decimal integer prefix. No digits means zero;
+    // empty/out-of-domain values restore Script Info's wrapping style.
+    if let Some(value) = raw.strip_prefix('q') {
+        let value = value.find('(').map_or(value, |at| {
+            value[at + 1..].split([',', ')']).next().unwrap_or("")
+        });
+        let value = value.trim_start_matches([' ', '\t', '\r', '\n']);
+        let negative = value.starts_with('-');
+        let digits = value.strip_prefix(['+', '-']).unwrap_or(value);
+        let mut number = 0_u32;
+        for digit in digits.bytes().take_while(u8::is_ascii_digit) {
+            number = number.saturating_mul(10).saturating_add(u32::from(digit - b'0'));
+        }
+        let mode = if value.is_empty() || number > 3 || (negative && number != 0) {
+            None
+        } else {
+            Some(WrapMode::new(number as u8).map_err(|_| invalid("invalid q style"))?)
+        };
+        return Ok(Some(OverrideOp::SetWrapMode { mode, source }));
+    }
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "warpmode",
-        "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a",
-        "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
+        "warpmode", "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c",
+        "1a", "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
         return Ok(None);

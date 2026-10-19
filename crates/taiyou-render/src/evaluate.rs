@@ -115,22 +115,8 @@ fn one(
     let mut changes = ChangeClass::default();
     let mut warp_mode = WarpMode::XyStyle;
     let mut warp_mode_source = None;
+    let mut wrap_mode = track.script().wrap();
     let mut runs = Vec::new();
-    // Resolve only typed standalone operations; never execute nested children.
-    // A required automatic engine cannot be replaced by tolerant hard wrapping.
-    if track.script().wrap().get() != 2 {
-        let selected = event.program().iter().rev().find_map(|op| match op {
-            TextOp::Override(OverrideOp::SetWarpMode { mode, source }) => Some((*mode, *source)),
-            _ => None,
-        });
-        let (mode, span) = selected.map_or((WarpMode::XyStyle, event.source()), |value| value);
-        let detail = match mode {
-            WarpMode::XyStyle => "warpmode0 automatic wrapping requires authenticated R001 admission",
-            WarpMode::Unicode => "warpmode1 automatic wrapping requires Unicode/native-work/C7 admission",
-        };
-        return Err(error(ErrorCode::UnsupportedFeature, detail)
-            .with_context(Some(event.id()), Some(span)));
-    }
     let source_map = event_map(track, event, limits)?;
     let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
@@ -158,7 +144,7 @@ fn one(
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
                 let text = match operation {
                     TextOp::NoBreakSpace => "\u{a0}",
-                    TextOp::SoftBreak if track.script().wrap().get() != 2 => " ",
+                    TextOp::SoftBreak if wrap_mode.get() != 2 => " ",
                     _ => "\n",
                 };
                 reserve(&mut runs)?;
@@ -180,6 +166,9 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
+                    OverrideOp::SetWrapMode { mode, .. } => {
+                        wrap_mode = mode.unwrap_or(track.script().wrap());
+                    }
                     OverrideOp::SetWarpMode { mode, source } => {
                         warp_mode = *mode;
                         warp_mode_source = Some(*source);
@@ -288,6 +277,11 @@ fn one(
             }
         }
     }
+    if warp_mode == WarpMode::Unicode && wrap_mode.get() != 2 {
+        return Err(error(ErrorCode::UnsupportedFeature,
+            "warpmode1 automatic wrapping requires Unicode/native-work/C7 admission")
+            .with_context(Some(event.id()), warp_mode_source.or(Some(event.source()))));
+    }
     let placement = Placement::new(&state, event.margins(), anchor);
     let evaluated = EvaluatedEvent::new(
         event.id(),
@@ -297,6 +291,7 @@ fn one(
         changes,
     )
     .with_terminal_style(state)
+    .with_wrap_mode(wrap_mode)
     .with_warp_mode(warp_mode, warp_mode_source);
     match source_map {
         Some(map) => evaluated.with_source_map(map),
@@ -309,11 +304,16 @@ fn event_map(
     limits: &Limits,
 ) -> Result<Option<Arc<SourceMappedText>>, RenderError> {
     let mut pieces = Vec::new();
+    let mut wrap_mode = track.script().wrap();
     pieces
         .try_reserve_exact(event.program().len())
         .map_err(|_| error(ErrorCode::AllocationFailed, "event map allocation failed"))?;
     for (i, operation) in event.program().iter().enumerate() {
         let piece = match operation {
+            TextOp::Override(OverrideOp::SetWrapMode { mode, .. }) => {
+                wrap_mode = mode.unwrap_or(track.script().wrap());
+                continue;
+            }
             TextOp::Text { source, .. } => TextSourcePiece::Literal(*source),
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
                 let Some(span) = event.operation_sources().and_then(|s| s[i]) else {
@@ -321,6 +321,7 @@ fn event_map(
                 };
                 match operation {
                     TextOp::HardBreak => TextSourcePiece::HardBreak(span),
+                    TextOp::SoftBreak if wrap_mode.get() == 2 => TextSourcePiece::SoftBreakLine(span),
                     TextOp::SoftBreak => TextSourcePiece::SoftBreak(span),
                     _ => TextSourcePiece::NoBreakSpace(span),
                 }
@@ -332,7 +333,7 @@ fn event_map(
     SourceMappedText::from_pieces(
         track.source_storage().clone(),
         &pieces,
-        track.script().wrap(),
+        WrapMode::new(0).map_err(convert)?,
         limits,
     )
     .map(|map| Some(Arc::new(map)))

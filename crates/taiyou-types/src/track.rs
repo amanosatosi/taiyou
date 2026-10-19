@@ -635,6 +635,10 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    SetWrapMode {
+        mode: Option<WrapMode>,
+        source: SourceSpan,
+    },
     SetWarpMode {
         mode: WarpMode,
         source: SourceSpan,
@@ -698,7 +702,8 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetWarpMode { source, .. }
+            Self::SetWrapMode { source, .. }
+            | Self::SetWarpMode { source, .. }
             | Self::SetFont { source, .. }
             | Self::SetSize { source, .. }
             | Self::SetWeight { source, .. }

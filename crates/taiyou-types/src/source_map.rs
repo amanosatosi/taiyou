@@ -12,12 +12,15 @@ pub enum TextSourcePiece {
     Literal(SourceSpan),
     HardBreak(SourceSpan),
     SoftBreak(SourceSpan),
+    /// A soft escape decoded while q2 was active, even if q changes later.
+    SoftBreakLine(SourceSpan),
     NoBreakSpace(SourceSpan),
 }
 impl TextSourcePiece {
     fn source(self) -> SourceSpan {
         match self {
-            Self::Literal(s) | Self::HardBreak(s) | Self::SoftBreak(s) | Self::NoBreakSpace(s) => s,
+            Self::Literal(s) | Self::HardBreak(s) | Self::SoftBreak(s)
+            | Self::SoftBreakLine(s) | Self::NoBreakSpace(s) => s,
         }
     }
     fn decoded(self, source: &str, wrap: WrapMode) -> Result<&str, FontError> {
@@ -29,6 +32,7 @@ impl TextSourcePiece {
             Self::Literal(_) => Ok(raw),
             Self::HardBreak(_) if raw == "\\N" => Ok("\n"),
             Self::SoftBreak(_) if raw == "\\n" => Ok(if wrap.get() == 2 { "\n" } else { " " }),
+            Self::SoftBreakLine(_) if raw == "\\n" => Ok("\n"),
             Self::NoBreakSpace(_) if raw == "\\h" => Ok("\u{a0}"),
             _ => Err(invalid("escape requires its exact original source bytes")),
         }

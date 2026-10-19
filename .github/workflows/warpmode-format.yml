@@ -1,5 +1,7 @@
 name: Warpmode formatting evidence
 on:
+  push:
+    branches: [task/T017-wrap-validation]
   pull_request:
     paths: ['crates/**', '.github/workflows/warpmode-format.yml']
   workflow_dispatch:
@@ -25,3 +27,27 @@ jobs:
           name: warpmode-format-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/warpmode-format.patch
           retention-days: 7
+  units:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: |
+          cargo +1.99.1 test --locked -p taiyou-render --lib
+          cargo +1.99.1 test --locked -p taiyou-cli --test warpmode --test automatic_wrapping
+  native:
+    if: github.event_name != 'pull_request'
+    needs: [formatting, units]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
