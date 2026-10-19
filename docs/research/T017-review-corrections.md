@@ -86,7 +86,52 @@ corrupt, mismatched and incomplete evidence fail closed. Historical and current
 wall times are different hosted-runner observations, not simultaneous paired
 performance claims. No original timeout or failed500-event record is overwritten.
 
-Actual final validation, raw measurements and remaining decisions will be linked
-here after the candidate's Actions jobs complete. Production automatic modes
-0/1/3 remain UnsupportedFeature. Legacy L01-L03 require authenticated xy captures
-and separate admission. No acknowledgment or merge is performed by an agent.
+## Completed measurements and remaining acceptance gates
+
+The [raw measurement report](../../experiments/t017/results/dc83cab/summary.md)
+contains every cold-process debug/release sample, environment, input/frame hash,
+CPU/RSS observation, logical reservation and native-work record. Its measured
+production source is dc83cab; later test/documentation changes do not relabel
+these measurements as newly executed. The source job completed the experiments
+but subsequently failed the new synthetic fixture's provenance check. The
+fixture was corrected, preserving ingestion validation. This distinction is
+recorded in the report and reuse metadata; that job is not sanitizer acceptance.
+
+Default500-event thin/thick failures now prepare444/238 events instead of
+888/476, with the same failing event441/235 and unchanged1M segment default.
+The explicit4M rows succeed, preserving exact current/reviewed RGBA and all
+staging variants. Full/partial/minimal256-event staging uses256/439/512 shaping
+calls and23,235,683/17,447,759/16,417,346 logical transient bytes. The original
+180-second5,000-event timeout remains incomplete evidence. A thin100-event cold
+wall-time outlier remains visible; CPU and renderer-stage evidence do not
+establish its cause. No universal speedup or playback-FPS claim is made.
+
+The isolated Unicode probe passes all1,187 original grapheme and10,274 original
+line cases under the latter corpus's declared numeric profile. A separate `%(`
+test distinguishes default pair rules. This is experimental Python conformance,
+not production Rust conformance or ASS/cluster-filtered integration admission.
+Original arithmetic/nonmonotonic/source/fallback equivalence tests remain intact.
+
+The raw-work probe exposes a spaced-CJK fallback workload with3,923,700 native
+attempts,1,758,299,100 cumulative context bytes and19,110,900 raw glyphs. Thus
+candidate/returned-glyph counts alone cannot justify C7. The report proposes
+explicit values for further caller-budget trials, **not production defaults**.
+Direct Arabic/Indic-only raw-budget trials, realistic CJK family/fallback
+configurations, preflight for candidate/storage work and excessive native glyph
+expansion, production table lookup/storage review and separate ASS-tailored/
+cluster-filtered integration remain incomplete. Native attempts/context/range
+bytes are preflighted in the experiment; raw glyphs are charged after return.
+
+Fresh final-head test/platform/sanitizer, warm/seek observations, full external
+comparison and independent oracle evidence are reported on [PR29](https://github.com/amanosatosi/taiyou/pull/29)
+with exact job links and candidate SHA. Successful current-policy frame hashes
+must agree across staging; the approved pre-F1 footprint difference is kept
+separate. Existing required checks and the four-target font sanitizer remain
+intact. Full comparator nonzero status and artifacts remain visible. Its eight
+existing font/inventory errors are reported separately from unsupported frames.
+
+Production automatic modes0/1/3 remain UnsupportedFeature. Legacy L01-L03 require
+authenticated xy captures and separate admission. Owner-approved ADR-013/C4 does
+not approve C7 or production activation. T017 remains a corrective checkpoint;
+the final exact-head ADR-011 acknowledgment and technical review are human gates.
+No acknowledgment or merge is performed by an agent.
