@@ -243,7 +243,7 @@ fn prior_layer_order_keeps_visible_default_shadows_and_fill_coverage() {
         .unwrap()
         .to_owned();
     let input = format!(
-        "{header}[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 1,0:00:00.10,0:00:01.00,Default,{{\\1c&HFF0000&}}H\nDialogue: -1,0:00:00.10,0:00:01.00,Default,{{\\1c&H0000FF&\\alpha&H7F&}}H"
+        "{header}[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\1c&HFF0000&}}H\nDialogue: -1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\1c&H0000FF&\\alpha&H7F&}}H"
     );
     for (input, front_blue) in [
         (&input, true),

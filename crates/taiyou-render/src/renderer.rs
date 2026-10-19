@@ -2,6 +2,8 @@
 #[cfg(feature = "native")]
 use crate::{compose, evaluate_with_policy, geometry::*, layout, raster::*};
 #[cfg(feature = "native")]
+use crate::collision::{CollisionInput, PlacedEvent, resolve_collisions};
+#[cfg(feature = "native")]
 use std::sync::Arc;
 use std::{cell::Cell, marker::PhantomData};
 #[cfg(feature = "native")]
@@ -45,6 +47,12 @@ struct GroupMasks {
     fill_paint: Rgba8,
     border_paint: Rgba8,
     shadow_paint: Rgba8,
+}
+#[cfg(feature = "native")]
+struct PreparedEvent<'a> {
+    event: &'a Event,
+    local: Arc<LocalLayout>,
+    charge: u64,
 }
 #[cfg(feature = "native")]
 fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
@@ -281,6 +289,15 @@ impl Renderer {
         }
         let mut ctx = FontContext::with_limits(available(limits, held)?)
             .map_err(crate::geometry::font_error)?;
+        let preparation_charge = bytes::<PreparedEvent<'_>>(count)?;
+        held = add(held, preparation_charge)?;
+        available(limits, held)?;
+        let mut prepared = Vec::new();
+        prepared.try_reserve_exact(count).map_err(|_| {
+            RenderError::new(ErrorCode::AllocationFailed, "local event staging allocation failed")
+        })?;
+        // Shape/layout every active event before deciding any placement. These
+        // immutable local artifacts do not depend on collision displacement.
         for event in events {
             let result = (|| {
                 let eval_charge = crate::evaluate::preflight(event)?;
@@ -348,23 +365,71 @@ impl Renderer {
                     bytes::<Line>(local.lines().len())?,
                 )?;
                 let stage_held = add(stage_held, layout_charge)?;
+                available(limits, stage_held)?;
+                Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
+            })();
+            let (local, charge) = result.map_err(|e: RenderError| {
+                let id = e.event().or(Some(event.id()));
+                let span = e.span().or(Some(event.source()));
+                e.with_context(id, span)
+            })?;
+            held = add(held, charge)?;
+            prepared.push(PreparedEvent { event, local, charge });
+        }
+        let input_charge = bytes::<CollisionInput>(count)?;
+        held = add(held, input_charge)?;
+        available(limits, held)?;
+        let mut collision_inputs = Vec::new();
+        collision_inputs.try_reserve_exact(count).map_err(|_| {
+            RenderError::new(ErrorCode::AllocationFailed, "collision input allocation failed")
+        })?;
+        for stage in &prepared {
+            let placement = stage.local.shaped().placement();
+            collision_inputs.push(CollisionInput {
+                id: stage.event.id(),
+                layer: stage.event.layer(),
+                start: stage.event.start(),
+                alignment: placement.alignment(),
+                anchor: alignment_anchor(placement, track.script().play_res())?,
+                bounds: stage.local.collision_bounds(),
+                eligible: placement.collision_eligible(),
+            });
+        }
+        let placements = resolve_collisions(
+            &collision_inputs,
+            self.config.profile,
+            &available(limits, held)?,
+        )?;
+        held = add(held, bytes::<PlacedEvent>(count)?)?;
+        drop(collision_inputs);
+        held = held.checked_sub(input_charge).ok_or_else(limited)?;
+        // Keep canonical paint order, independently of start-ordered collision.
+        for stage in prepared {
+            let event = stage.event;
+            let result = (|| {
+                let placement = placements
+                    .binary_search_by_key(&event.id(), |p| p.id)
+                    .ok()
+                    .map(|i| placements[i])
+                    .ok_or_else(|| RenderError::new(ErrorCode::InternalError, "missing collision placement"))?;
                 let remaining_segments = limits
                     .path_segments_per_frame()
                     .checked_sub(total_segments)
                     .filter(|n| *n > 0)
                     .ok_or_else(limited)?;
-                let geom_limits = available(limits, stage_held)?
+                let geom_limits = available(limits, held)?
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
                 let device =
                     DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
+                let origin = stage.local.shaped().placement().origin();
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
-                    local,
+                    stage.local,
                     GeometryPlacement {
-                        anchor: alignment_anchor(evaluated.placement(), track.script().play_res())?,
-                        origin: evaluated.placement().origin(),
+                        anchor: placement.anchor,
+                        origin,
                         device,
                     },
                     &geom_limits,
@@ -388,9 +453,7 @@ impl Renderer {
                     return Err(limited());
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.glyphs().len())?)?;
-                let mut event_charge = add(stage_held, geom_charge)?
-                    .checked_sub(held)
-                    .ok_or_else(limited)?;
+                let mut event_charge = geom_charge;
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -600,6 +663,7 @@ impl Renderer {
                 let span = e.span().or(Some(event.source()));
                 e.with_context(id, span)
             })?;
+            held = held.checked_sub(stage.charge).ok_or_else(limited)?;
         }
         compose(
             request.viewport.size(),
