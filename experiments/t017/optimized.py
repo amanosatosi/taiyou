@@ -1,0 +1,141 @@
+"""Additive Actions-only release experiment; original debug evidence is untouched."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import time
+
+assert os.environ.get("GITHUB_ACTIONS") == "true" and platform.system() == "Linux"
+root = Path(__file__).resolve().parents[2]
+out = Path(sys.argv[1]) / "T017-optimized"
+out.mkdir(parents=True, exist_ok=True)
+temp = Path(os.environ["RUNNER_TEMP"]) / "t017-optimized-build"
+temp.mkdir(exist_ok=True)
+head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+versions = {"earlier": "9eee96fe16989089d8fd3f65b1bb136455ffca7e", "reviewed": "027e58a52efdd870b99f49ab5f3bae6e952f8f59", "candidate": head}
+stages = ["evaluation", "shaping", "layout", "footprint", "collision", "outlines", "geometry", "raster", "stroke", "shadow", "composition", "authentication", "font_resolution", "native_shaping"]
+
+def inject(code, name, index):
+    pattern = r"((?:pub(?:\(crate\))? )?fn " + name + r"\([^{}]*?\)\s*(?:->[^{}]*?)?\{)"
+    code, count = re.subn(pattern, lambda m: m[0] + f"\nlet _measurement = taiyou_types::t017_metrics::guard({index});", code, count=1, flags=re.S)
+    assert count == 1, name
+    return code
+
+def build(label, sha):
+    subprocess.run(["git", "fetch", "--no-tags", "origin", sha], cwd=root, check=True, capture_output=True)
+    destination = temp / label
+    destination.mkdir()
+    archive = temp / (label + ".tar")
+    with archive.open("wb") as stream:
+        subprocess.run(["git", "archive", sha], cwd=root, stdout=stream, check=True)
+    with tarfile.open(archive) as source:
+        source.extractall(destination, filter="data")
+    metrics = '''use std::{sync::atomic::{AtomicU64,Ordering},time::Instant};
+static CALLS:[AtomicU64;14]=[const {AtomicU64::new(0)};14];
+static NS:[AtomicU64;14]=[const {AtomicU64::new(0)};14];
+static PEAK:[AtomicU64;2]=[const {AtomicU64::new(0)};2];
+pub struct Guard(usize,Instant);
+pub fn guard(i:usize)->Guard {CALLS[i].fetch_add(1,Ordering::Relaxed);Guard(i,Instant::now())}
+impl Drop for Guard {fn drop(&mut self){NS[self.0].fetch_add(self.1.elapsed().as_nanos() as u64,Ordering::Relaxed);}}
+pub fn maximum(i:usize,n:u64){PEAK[i].fetch_max(n,Ordering::Relaxed);}
+pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|n.load(Ordering::Relaxed)),NS.each_ref().map(|n|n.load(Ordering::Relaxed)),PEAK.each_ref().map(|n|n.load(Ordering::Relaxed)));}
+'''
+    (destination / "crates/taiyou-types/src/t017_metrics.rs").write_text(metrics)
+    types = destination / "crates/taiyou-types/src/lib.rs"
+    types.write_text(types.read_text() + "\npub mod t017_metrics;\n")
+    modifications = {}
+    mapping = {
+        "crates/taiyou-render/src/evaluate.rs": [("one", 0)],
+        "crates/taiyou-font/src/shape.rs": [("shape_event_impl" if label == "candidate" else "shape_event", 1), ("priorities", 12)],
+        "crates/taiyou-render/src/layout.rs": [("layout", 2)],
+        "crates/taiyou-render/src/collision.rs": [("resolve_collisions", 4)],
+        "crates/taiyou-render/src/geometry.rs": [("geometry", 6)],
+        "crates/taiyou-render/src/stroke.rs": [("rasterize_translated", 9)],
+        "crates/taiyou-render/src/compose.rs": [("compose", 10)],
+        "crates/taiyou-font/src/catalog.rs": [("check_blob_identity", 11)],
+        "crates/taiyou-font/src/native.rs": [("outline_authenticated" if label == "candidate" else "outline", 5), ("rasterize_path", 7), ("stroke_rasterize_path", 8), ("shape_authenticated_with_ink" if label == "candidate" else "shape_raw", 13)],
+    }
+    footprint = destination / "crates/taiyou-render/src/collision_footprint.rs"
+    if footprint.exists():
+        mapping[str(footprint.relative_to(destination))] = [("collision_footprint", 3)]
+    for relative, functions in mapping.items():
+        path = destination / relative
+        original = path.read_text()
+        code = original
+        for function, index in functions:
+            code = inject(code, function, index)
+        path.write_text(code)
+        modifications[relative] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
+    path = destination / "crates/taiyou-render/src/renderer.rs"
+    original = path.read_text()
+    marker = "fn available(limits: &Limits, held: u64) -> Result<Limits, RenderError> {"
+    code = original.replace(marker, marker + "\ntaiyou_types::t017_metrics::maximum(0,held);")
+    if label == "earlier":
+        marker = "let input_charge = bytes::<CollisionInput>(count)?;"
+        code = code.replace(marker, "taiyou_types::t017_metrics::maximum(1,prepared.iter().map(|s|s.charge).sum());\n" + marker)
+    else:
+        marker = "Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))"
+        code = code.replace(marker, "taiyou_types::t017_metrics::maximum(1,stage_held-held);\n" + marker)
+        if label == "candidate":
+            marker = "retained_charge = next;"
+            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::maximum(1,next);")
+    marker = ".with_diagnostics(diagnostics)"
+    assert code.count(marker) == 1
+    code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")
+    path.write_text(code)
+    modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
+    (out / (label + "-instrumentation.json")).write_text(json.dumps({"commit": sha, "files": modifications, "scope": "measurement-only timers/counters, inclusive nested stage times"}, indent=2))
+    with (out / (label + "-build.log")).open("w") as log:
+        subprocess.run(["cargo", "build", "--release", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
+    binary = temp / (label + "-taiyou")
+    shutil.copy2(temp / "target/release/taiyou", binary)
+    return binary
+
+binaries = {label: build(label, sha) for label, sha in versions.items()}
+font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
+pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
+assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
+header = "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,13,21,9\n[Events]\nFormat: Layer,Start,End,Style,Text\n"
+def row(text):
+    return "Dialogue: 0,0:00:00.00,0:00:02.00,Default," + text + "\n"
+cases = [("normal-one", row("ordinary subtitle")), ("normal-eight", row("ordinary subtitle") * 8)]
+cases += [(f"dense-{n}", row(r"{\fs1}H") * n) for n in [100, 500, 1000]]
+cases += [("mixed-2000", row(r"{\pos(-100,-100)\fs1}H") * 2000 + row("dialogue") * 2), ("positioned-5000", row(r"{\pos(-100,-100)\fs1}H") * 5000)]
+for n in [100, 500]:
+    for border, shadow in [(0.5, "&HFF&"), (3, "&H00&")]:
+        cases.append((f"typesetting-{n}-border-{border}", row(fr"{{\pos(-50,-50)\fs5\bord{border}\shad1.25\4a{shadow}}}Fansub typesetting") * (n-2) + row("dialogue") * 2))
+records = []
+budget = time.monotonic() + 12 * 60
+for name, events in cases:
+    script = out / (name + ".ass")
+    script.write_text(header + events)
+    for sample in range(3):
+        for label, binary in binaries.items():
+            if time.monotonic() > budget:
+                raise RuntimeError("bounded experiment exceeded 12 minutes; partial JSONL remains evidence")
+            stem = f"{name}-{label}-{sample}"
+            resource = out / (stem + ".resource.txt")
+            raw = out / (stem + ".rgba")
+            command = ["/usr/bin/time", "-f", "%M %U %S", "-o", str(resource), str(binary), "render", "--input", str(script), "--font", str(font), "--time-us", "750000", "--width", "160", "--height", "100", "--profile", "core-v1", "--output", str(out / (stem + ".png")), "--raw", str(raw)]
+            start = time.perf_counter_ns()
+            result = subprocess.run(command, capture_output=True, timeout=40)
+            elapsed = time.perf_counter_ns() - start
+            (out / (stem + ".stderr.txt")).write_bytes(result.stderr)
+            result.check_returncode()
+            match = re.search(rb"T017_PROFILE=(\[.*?\])\|(\[.*?\])\|(\[.*?\])", result.stderr)
+            assert match, result.stderr
+            calls, ns, peaks = map(json.loads, match.groups())
+            rss, user, system = resource.read_text().split()
+            record = {"case": name, "implementation": label, "commit": versions[label], "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest(), "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
+            records.append(record)
+            with (out / "samples.jsonl").open("a") as stream:
+                stream.write(json.dumps(record) + "\n")
+            print("T017_OPTIMIZED=" + json.dumps(record), flush=True)
+    assert len({r["raw_sha256"] for r in records if r["case"] == name and r["implementation"] in ["reviewed", "candidate"]}) == 1, name
+(out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))

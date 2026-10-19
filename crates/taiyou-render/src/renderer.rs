@@ -327,12 +327,23 @@ impl Renderer {
         request: &RenderRequest,
     ) -> Result<Frame, RenderError> {
         let mut optional_used = false;
-        let result = self.render_staged(track.clone(), fonts.clone(), request, true, &mut optional_used);
+        let result = self.render_staged(
+            track.clone(),
+            fonts.clone(),
+            request,
+            true,
+            &mut optional_used,
+        );
         // Optional retention must never turn a successful minimal render into a
         // limit failure. The failed attempt owns no published frame and is fully
         // dropped (including native contexts, diagnostics and masks) before retry.
         if optional_used
-            && result.as_ref().is_err_and(|e| matches!(e.code(), ErrorCode::LimitExceeded | ErrorCode::AllocationFailed))
+            && result.as_ref().is_err_and(|e| {
+                matches!(
+                    e.code(),
+                    ErrorCode::LimitExceeded | ErrorCode::AllocationFailed
+                )
+            })
         {
             return self.render_staged(track, fonts, request, false, &mut false);
         }
@@ -446,7 +457,10 @@ impl Renderer {
             held = add(held, prepared_charge)?;
             available(limits, held)?;
             prepared.try_reserve_exact(collision_count).map_err(|_| {
-                RenderError::new(ErrorCode::AllocationFailed, "prepared layout allocation failed")
+                RenderError::new(
+                    ErrorCode::AllocationFailed,
+                    "prepared layout allocation failed",
+                )
             })?;
         }
         let mut retained_charge = 0_u64;
@@ -472,18 +486,14 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let (local, charge) = prepare_local(
-                    &mut ctx,
-                    event,
-                    &preparation,
-                    held,
-                    &mut report,
-                )
-                .map_err(|e| {
-                    let id = e.event().or(Some(event.id()));
-                    let span = e.span().or(Some(event.source()));
-                    e.with_context(id, span)
-                })?;
+                let (local, charge) =
+                    prepare_local(&mut ctx, event, &preparation, held, &mut report).map_err(
+                        |e| {
+                            let id = e.event().or(Some(event.id()));
+                            let span = e.span().or(Some(event.source()));
+                            e.with_context(id, span)
+                        },
+                    )?;
                 let placement = local.shaped().placement();
                 inputs.push(CollisionInput {
                     id: event.id(),
@@ -501,7 +511,17 @@ impl Renderer {
                 });
                 if admitting {
                     let report = report.finish().map_err(convert)?;
-                    let report_charge = report.iter().try_fold(bytes::<Diagnostic>(report.len())?, |n, d| add(n, (d.detail().len() as u64).checked_mul(3).ok_or_else(limited)?))?;
+                    let report_charge =
+                        report
+                            .iter()
+                            .try_fold(bytes::<Diagnostic>(report.len())?, |n, d| {
+                                add(
+                                    n,
+                                    (d.detail().len() as u64)
+                                        .checked_mul(3)
+                                        .ok_or_else(limited)?,
+                                )
+                            })?;
                     let charge = add(charge, report_charge)?;
                     let next = add(retained_charge, charge)?;
                     if next <= retain_cap {
@@ -510,7 +530,15 @@ impl Renderer {
                         retained_charge = next;
                         #[cfg(test)]
                         RETAINED_CALLS.with(|n| n.set(n.get() + 1));
-                        prepared.push((event.id(), Some(PreparedLocal { id: event.id(), local, charge, diagnostics: report })));
+                        prepared.push((
+                            event.id(),
+                            Some(PreparedLocal {
+                                id: event.id(),
+                                local,
+                                charge,
+                                diagnostics: report,
+                            }),
+                        ));
                     } else {
                         admitting = false;
                     }
@@ -531,15 +559,23 @@ impl Renderer {
         // Ordinary paint order and full effects apply to explicit events too.
         for event in events {
             let result = (|| {
-                let (local, local_charge) = if let Ok(index) = prepared.binary_search_by_key(&event.id(), |p| p.0) {
-                    let saved = prepared[index].1.take().ok_or_else(|| RenderError::new(ErrorCode::InternalError, "prepared event already consumed"))?;
-                    debug_assert_eq!(saved.id, event.id());
-                    held = held.checked_sub(saved.charge).ok_or_else(limited)?;
-                    diagnostics.extend_finished(&saved.diagnostics).map_err(convert)?;
-                    (saved.local, saved.charge)
-                } else {
-                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
-                };
+                let (local, local_charge) =
+                    if let Ok(index) = prepared.binary_search_by_key(&event.id(), |p| p.0) {
+                        let saved = prepared[index].1.take().ok_or_else(|| {
+                            RenderError::new(
+                                ErrorCode::InternalError,
+                                "prepared event already consumed",
+                            )
+                        })?;
+                        debug_assert_eq!(saved.id, event.id());
+                        held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                        diagnostics
+                            .extend_finished(&saved.diagnostics)
+                            .map_err(convert)?;
+                        (saved.local, saved.charge)
+                    } else {
+                        prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                    };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let anchor = if collision_count > 1 && state.collision_eligible() {

@@ -486,7 +486,10 @@ impl FontContext {
                 glyphs.push(RawGlyph {
                     ink: {
                         let mut extents: hb::hb_glyph_extents_t = std::mem::zeroed();
-                        if collect_ink && hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents) != 0 {
+                        if collect_ink
+                            && hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents)
+                                != 0
+                        {
                             Some([
                                 extents.x_bearing,
                                 extents.y_bearing,

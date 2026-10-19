@@ -547,7 +547,13 @@ fn shape_item(
         let raw = if a as usize == input.item.range.start && b as usize == input.item.range.end {
             &candidates[selected].raw
         } else {
-            reshaped = input.catalog.shape_raw(ctx, face.id(), &request(input, a as usize..b as usize), limits, collect_ink)?;
+            reshaped = input.catalog.shape_raw(
+                ctx,
+                face.id(),
+                &request(input, a as usize..b as usize),
+                limits,
+                collect_ink,
+            )?;
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
@@ -825,7 +831,10 @@ fn empty_line_metrics(
                     language: options.language(),
                     ligatures: true,
                 };
-                previous = Some((face.id(), catalog.shape_raw(ctx, face.id(), &request, limits, true)?));
+                previous = Some((
+                    face.id(),
+                    catalog.shape_raw(ctx, face.id(), &request, limits, true)?,
+                ));
             }
             let raw = &previous
                 .as_ref()

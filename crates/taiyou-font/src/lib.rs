@@ -9,7 +9,9 @@ mod native;
 #[cfg(feature = "native")]
 mod shape;
 #[cfg(feature = "native")]
-pub use shape::{ResolvedRun, ShapeOptions, resolve_runs, shape, shape_event, shape_event_advances_experiment};
+pub use shape::{
+    ResolvedRun, ShapeOptions, resolve_runs, shape, shape_event, shape_event_advances_experiment,
+};
 pub mod source_map;
 #[cfg(feature = "native")]
 pub use catalog::{

@@ -39,8 +39,16 @@ impl ValidatedFontCatalog {
         glyph: u32,
         limits: &Limits,
     ) -> Result<GlyphOutline, FontError> {
-        let face = self.faces().iter().find(|face| face.blob().id() == font)
-            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent from validated catalog"))?;
+        let face = self
+            .faces()
+            .iter()
+            .find(|face| face.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
         context.outline_authenticated(face.blob(), glyph, limits)
     }
     pub(crate) fn shape_raw(
@@ -51,8 +59,16 @@ impl ValidatedFontCatalog {
         limits: &Limits,
         collect_ink: bool,
     ) -> Result<crate::shape::RawRun, FontError> {
-        let face = self.faces().iter().find(|face| face.blob().id() == font)
-            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent from validated catalog"))?;
+        let face = self
+            .faces()
+            .iter()
+            .find(|face| face.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
         context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink)
     }
 }
