@@ -128,14 +128,9 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
                     Profile::CoreV1,
                 )
                 .unwrap();
-                let shaped = shape_event(
-                    &mut ctx,
-                    &fonts,
-                    &evaluated,
-                    &Default::default(),
-                    &limits,
-                )
-                .unwrap();
+                let shaped =
+                    shape_event(&mut ctx, &fonts, &evaluated, &Default::default(), &limits)
+                        .unwrap();
                 let produced: usize = shaped.runs().iter().map(|r| r.glyphs().len()).sum();
                 candidates += 1;
                 glyphs += produced as u64;

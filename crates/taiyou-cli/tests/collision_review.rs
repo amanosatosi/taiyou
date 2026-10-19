@@ -231,8 +231,8 @@ fn before_after_measurements_on_native_linux_actions() {
         folder
     );
     std::io::stdout().write_all(record.as_bytes()).unwrap();
-    let script =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../experiments/t017/reuse_or_measure.py");
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../experiments/t017/reuse_or_measure.py");
     let result = std::process::Command::new("python")
         .arg(script)
         .arg(folder)
