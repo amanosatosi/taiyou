@@ -84,8 +84,11 @@ pub fn resolve_collisions_with_stats(
             )?)
         })
         .ok_or_else(limited)?;
-    if events.len() as u64 > limits.events() || reservation > limits.transient_bytes() {
+    if events.len() as u64 > limits.events() {
         return Err(limited());
+    }
+    if reservation > limits.transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut order = Vec::new();
     let mut result: Vec<PlacedEvent> = Vec::new();

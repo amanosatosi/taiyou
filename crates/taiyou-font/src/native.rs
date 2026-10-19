@@ -102,13 +102,14 @@ impl FontContext {
                     "outline native reservation overflow",
                 )
             })?;
-        if blob.bytes().len() as u64 > limits.font_bytes()
-            || native_charge > limits.transient_bytes()
-        {
+        if blob.bytes().len() as u64 > limits.font_bytes() {
             return Err(FontError::new(
                 ErrorCode::LimitExceeded,
                 "outline native reservation exceeded",
             ));
+        }
+        if native_charge > limits.transient_bytes() {
+            return Err(FontError::transient_limit("outline native reservation exceeded"));
         }
         let native_limits = self.limits.clone();
         self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
@@ -171,15 +172,14 @@ impl FontContext {
                                 .checked_sub(native_charge)
                                 .filter(|n| *n > 0)
                                 .ok_or_else(|| {
-                                    FontError::new(
-                                        ErrorCode::LimitExceeded,
+                                    FontError::transient_limit(
                                         "outline copy reservation exceeded",
                                     )
                                 })?,
                         )
-                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                        .map_err(|e| FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure()))?;
                     check_path_budget(capacity, &copy_limits)
-                        .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                        .map_err(|e| FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure()))?;
                 }
                 let mut state = OutlineCopy {
                     ops: Vec::new(),
@@ -231,7 +231,7 @@ impl FontContext {
                     }
                 }
                 let owned = Outline::new(state.ops, limits)
-                    .map_err(|e| FontError::new(e.code(), e.detail()))?;
+                    .map_err(|e| FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure()))?;
                 GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
             }
         })
@@ -314,7 +314,7 @@ impl FontContext {
             .and_then(|n| n.checked_add(4096))
             .ok_or_else(limited)?;
         if charge > limits.transient_bytes() || charge > self.limits.transient_bytes() {
-            return Err(limited());
+            return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let font_len = u32::try_from(blob.bytes().len()).map_err(|_| limited())?;
         let bytes = blob.shared_bytes();
@@ -778,7 +778,7 @@ impl RasterContext {
         FontContext::with_limits(limits)
             .map(|owner| Self { owner })
             .map_err(|e| {
-                let mut r = RenderError::new(e.code(), e.detail());
+                let mut r = RenderError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure());
                 if let Some(code) = e.native_code() {
                     r = r.with_native_code(code);
                 }
@@ -885,9 +885,11 @@ impl RasterContext {
             .ok_or_else(limit)?;
         if pixels > limits.output_pixels()
             || length as u64 > limits.output_bytes()
-            || charge > limits.transient_bytes()
         {
             return Err(limit());
+        }
+        if charge > limits.transient_bytes() {
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let mut points = Vec::new();
         let mut tags = Vec::new();
@@ -1185,7 +1187,7 @@ impl RasterContext {
             ..evidence.get()
         });
         if base_charge > limits.transient_bytes() {
-            return Err(limit());
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         contours
             .try_reserve_exact(contour_count)
@@ -1333,7 +1335,7 @@ impl RasterContext {
             ..evidence.get()
         });
         if export_charge > limits.transient_bytes() {
-            return Err(limit());
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let mut expanded_points = Vec::new();
         let mut expanded_tags = Vec::new();
@@ -1446,7 +1448,7 @@ impl RasterContext {
                 ..evidence.get()
             });
             if actual_export > limits.transient_bytes() {
-                return Err(limit());
+                return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
             }
             bounds = actual;
             width = actual_width;
@@ -1859,13 +1861,14 @@ impl FontContext {
         let cost = (byte_limit as u64)
             .checked_mul(12)
             .and_then(|n| n.checked_add(64 * 1024));
-        if byte_limit as u64 > self.limits.font_bytes()
-            || cost.is_none_or(|n| n > self.limits.transient_bytes())
-        {
+        if byte_limit as u64 > self.limits.font_bytes() || cost.is_none() {
             return Err(FontError::new(
                 ErrorCode::LimitExceeded,
                 "native intake reservation exceeded",
             ));
+        }
+        if cost.is_some_and(|n| n > self.limits.transient_bytes()) {
+            return Err(FontError::transient_limit("native intake reservation exceeded"));
         }
         Ok(())
     }

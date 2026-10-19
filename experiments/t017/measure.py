@@ -86,7 +86,10 @@ def snapshot(label, sha):
     shutil.copy2(temp / "target/debug/taiyou", binary)
     return binary
 
-executables = {label: snapshot(label, sha) for label, sha in [("before", base), ("after", head)]}
+from historical import historical, assert_workload, negative_tests
+negative_tests()
+history = historical("debug",out)
+executables = {"after": snapshot("after",head)}
 header = "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,BackColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,13,21,9\n[Events]\nFormat: Layer,Start,End,Style,Text\n"
 def row(text):
     return "Dialogue: 0,0:00:00.00,0:00:02.00,Default," + text + "\n"
@@ -116,9 +119,10 @@ sample_lock = threading.Lock()
 
 def measure_case(case):
     name, events = case
-    records = []
+    records = [r for r in history if r["case"] == name]
     script = out / (name + ".ass")
     script.write_text(header + events)
+    assert_workload(history,name,script.read_bytes())
     for sample in range(3):
         for label, binary in executables.items():
             stem = f"{name}-{label}-{sample}"
@@ -134,7 +138,7 @@ def measure_case(case):
             peak, local, shapes = map(int, match.groups())
             rss_kib, user, system = rss.read_text().split()
             raw_hash = hashlib.sha256((out / (stem + ".rgba")).read_bytes()).hexdigest()
-            record = {"case": name, "implementation": label, "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss_kib), "user_seconds": float(user), "system_seconds": float(system), "peak_requested_reservation_bytes": peak, "peak_retained_local_reservation_bytes": local, "shape_calls": shapes, "raw_sha256": raw_hash, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
+            record = {"case": name, "implementation": label, "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss_kib), "user_seconds": float(user), "system_seconds": float(system), "peak_requested_reservation_bytes": peak, "peak_retained_local_reservation_bytes": local, "shape_calls": shapes, "raw_sha256": raw_hash, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "evidence_origin": "newly-executed", "commit": head}
             records.append(record)
             with sample_lock:
                 with (out / "samples.jsonl").open("a") as samples:
@@ -153,3 +157,5 @@ with ThreadPoolExecutor(max_workers=2) as workers:
 (out / "samples.json").write_text(json.dumps(records, indent=2) + "\n")
 environment = {"base": base, "candidate": head, "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "font": pin, "profile": "debug, identical pinned native prefix, three atomic counters per process", "benchmark_case_workers": 2, "concurrency_semantics": "two cases concurrently, each case's three pairs sequential; other correctness tests may share the runner; do not compare wall times directly with the original sequential experiment", "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims", "limits": "unchanged CLI defaults"}
 (out / "environment.json").write_text(json.dumps(environment, indent=2) + "\n")
+from reuse_completed import validate
+validate("debug", records, environment, head)

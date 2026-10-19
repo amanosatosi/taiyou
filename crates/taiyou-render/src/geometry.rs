@@ -225,7 +225,9 @@ impl GeometryEvent {
 }
 #[cfg(feature = "native")]
 pub(crate) fn font_error(e: FontError) -> RenderError {
-    let mut result = RenderError::new(e.code(), e.detail()).with_context(e.event(), e.span());
+    let mut result = RenderError::new(e.code(), e.detail())
+        .with_resource_failure(e.resource_failure())
+        .with_context(e.event(), e.span());
     if let Some(code) = e.native_code() {
         result = result.with_native_code(code);
     }
@@ -243,8 +245,11 @@ pub fn geometry(
     let mut charge = (count as u64)
         .checked_mul(3 * std::mem::size_of::<GeometryGlyph>() as u64)
         .ok_or_else(geometry_limit)?;
-    if count as u64 > limits.glyphs_per_event() || charge > limits.transient_bytes() {
+    if count as u64 > limits.glyphs_per_event() {
         return Err(geometry_limit());
+    }
+    if charge > limits.transient_bytes() {
+        return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut glyphs = Vec::new();
     glyphs.try_reserve_exact(count).map_err(|_| {
@@ -273,7 +278,7 @@ pub fn geometry(
             .transient_bytes()
             .checked_sub(charge)
             .filter(|n| *n > 0)
-            .ok_or_else(geometry_limit)?;
+            .ok_or_else(|| geometry_limit().with_resource_failure(ResourceFailure::TransientMemory))?;
         let remaining_segments = limits
             .path_segments_per_frame()
             .checked_sub(total as u64)
@@ -302,11 +307,8 @@ pub fn geometry(
                     .ok_or_else(geometry_limit)?,
             )
             .ok_or_else(geometry_limit)?;
-        if charge
-            .checked_add(4096)
-            .is_none_or(|n| n > limits.transient_bytes())
-        {
-            return Err(geometry_limit());
+        if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
+            return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let size = state.shaping().font_size().get() / f64::from(outline.units_per_em());
         let additional = layout.local_scale();

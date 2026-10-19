@@ -38,8 +38,7 @@ pub fn compose(
     // Vec-to-Arc publication may temporarily retain the Vec while allocating the
     // final Arc. Charge that temporary pixel buffer against the transient cap.
     if bytes > limits.transient_bytes() {
-        return Err(RenderError::new(
-            ErrorCode::LimitExceeded,
+        return Err(RenderError::transient_limit(
             "composition transient byte limit exceeded",
         ));
     }

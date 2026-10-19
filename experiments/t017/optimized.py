@@ -154,8 +154,11 @@ println!("{identity}"); taiyou_render::renderer::t017_metrics::report();
     shutil.copy2(temp / "target/release/taiyou", binary)
     return binary
 
-binaries = {label: build(label, sha) for label, sha in versions.items()}
-assert len({hashlib.sha256((out / (label + "-cjk-shape-identity.txt")).read_bytes()).hexdigest() for label in versions}) == 1, "CJK glyph/advance/offset identity changed"
+from historical import historical, assert_workload, negative_tests
+negative_tests()
+history = historical("optimized",out)
+binaries = {"candidate": build("candidate",head)}
+assert len({hashlib.sha256((out / (("historical/" + label if label != "candidate" else label) + "-cjk-shape-identity.txt"))).read_bytes()).hexdigest() for label in versions}) == 1, "CJK glyph/advance/offset identity changed"
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
@@ -177,6 +180,8 @@ for name, events in cases:
     script = out / (name + ".ass")
     hd = name == "typesetting-hd-100"
     script.write_text((header.replace("PlayResX: 160", "PlayResX: 1920").replace("PlayResY: 100", "PlayResY: 1080") if hd else header) + events)
+    assert_workload(history,name,script.read_bytes())
+    records.extend(r for r in history if r["case"] == name)
     for sample in range(3):
         variants = [(label, binary, versions[label], dict(os.environ)) for label, binary in binaries.items()]
         if name.startswith("typesetting-500-"):
@@ -205,7 +210,7 @@ for name, events in cases:
             assert match, result.stderr
             calls, ns, peaks = map(json.loads, match.groups())
             rss, user, system = resource.read_text().splitlines()[-1].split()
-            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "path_segments_per_frame": int(env.get("TAIYOU_EXPERIMENT_SEGMENTS",1000000)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest() if result.returncode == 0 else None, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "status": "completed-frame" if result.returncode == 0 else "renderer-error-no-frame", "error": result.stderr.decode() if result.returncode != 0 else None}
+            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "path_segments_per_frame": int(env.get("TAIYOU_EXPERIMENT_SEGMENTS",1000000)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest() if result.returncode == 0 else None, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "status": "completed-frame" if result.returncode == 0 else "renderer-error-no-frame", "error": result.stderr.decode() if result.returncode != 0 else None, "evidence_origin": "newly-executed"}
             records.append(record)
             with (out / "samples.jsonl").open("a") as stream:
                 stream.write(json.dumps(record) + "\n")
@@ -218,4 +223,7 @@ for name, events in cases:
         assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"]), "new candidate failure: " + name
     successful = [r for r in selected if r["exit_code"] == 0 and (r["implementation"].startswith("reviewed") or r["implementation"].startswith("candidate"))]
     assert len({r["raw_sha256"] for r in successful}) <= 1, name
+(out / "samples.jsonl").write_text("".join(json.dumps(r)+"\n" for r in records))
 (out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))
+from reuse_completed import validate
+validate("optimized", records, json.loads((out / "environment.json").read_text()), head)

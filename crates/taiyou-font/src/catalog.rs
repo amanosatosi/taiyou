@@ -89,8 +89,7 @@ pub fn fold_family(name: &str, limits: &Limits) -> Result<String, FontError> {
         .and_then(|n| n.checked_add(128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "family fold length overflow"))?;
     if cost > limits.transient_bytes() {
-        return Err(error(
-            ErrorCode::LimitExceeded,
+        return Err(FontError::transient_limit(
             "family fold transient budget exceeded",
         ));
     }

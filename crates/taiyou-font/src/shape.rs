@@ -139,7 +139,7 @@ fn reserve<T>(v: &mut Vec<T>, count: usize, limits: &Limits) -> Result<(), FontE
         .and_then(|n| n.checked_add(1024))
         .ok_or_else(limited)?;
     if cost as u64 > limits.transient_bytes() {
-        return Err(limited());
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     v.try_reserve_exact(count)
         .map_err(|_| error(ErrorCode::AllocationFailed, "shaping allocation failed"))
@@ -147,12 +147,13 @@ fn reserve<T>(v: &mut Vec<T>, count: usize, limits: &Limits) -> Result<(), FontE
 fn preflight(text: &str, limits: &Limits) -> Result<(), FontError> {
     if text.len() as u64 > limits.text_bytes_per_event()
         || text.len() > u32::MAX as usize
-        || (text.len() as u64)
-            .checked_mul(1024)
-            .and_then(|n| n.checked_add(4096))
-            .is_none_or(|n| n > limits.transient_bytes())
     {
         return Err(limited());
+    }
+    let cost = (text.len() as u64).checked_mul(1024)
+        .and_then(|n| n.checked_add(4096)).ok_or_else(limited)?;
+    if cost > limits.transient_bytes() {
+        return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     Ok(())
 }
@@ -468,7 +469,7 @@ fn shape_item(
                     .transient_bytes()
                     .checked_sub(retained)
                     .filter(|&n| n != 0)
-                    .ok_or_else(limited)?,
+                    .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?,
             )
             .map_err(|_| limited())?;
         let raw = input.catalog.shape_raw(
@@ -486,7 +487,7 @@ fn shape_item(
             )
             .ok_or_else(limited)?;
         if retained > limits.transient_bytes() {
-            return Err(limited());
+            return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let candidate_points =
             boundaries(&raw, input.decoded.start(), input.decoded.end(), limits)?;

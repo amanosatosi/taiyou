@@ -6,7 +6,7 @@ fn error(code: ErrorCode, detail: &str) -> RenderError {
     RenderError::new(code, detail)
 }
 fn convert(e: ParseError) -> RenderError {
-    error(e.code(), e.detail())
+    error(e.code(), e.detail()).with_resource_failure(e.resource_failure())
 }
 fn reserve<T>(v: &mut Vec<T>) -> Result<(), RenderError> {
     v.try_reserve(1)
@@ -403,8 +403,7 @@ pub(crate) fn evaluate_event_with_policy(
         ));
     }
     if preflight(event)? > limits.transient_bytes() {
-        return Err(error(
-            ErrorCode::LimitExceeded,
+        return Err(RenderError::transient_limit(
             "evaluation transient budget exceeded",
         ));
     }
@@ -445,8 +444,7 @@ pub fn evaluate_active(
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation budget overflow"))?;
     }
     if cost > limits.transient_bytes() {
-        return Err(error(
-            ErrorCode::LimitExceeded,
+        return Err(RenderError::transient_limit(
             "evaluation transient budget exceeded",
         ));
     }

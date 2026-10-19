@@ -118,9 +118,11 @@ impl SourceMappedText {
             .ok_or_else(limit)?;
         if bytes > limits.text_bytes_per_event()
             || bytes > u64::from(u32::MAX)
-            || cost > limits.transient_bytes()
         {
             return Err(limit());
+        }
+        if cost > limits.transient_bytes() {
+            return Err(limit().with_resource_failure(crate::ResourceFailure::TransientMemory));
         }
         let mut text = String::new();
         text.try_reserve_exact(length).map_err(|_| allocation())?;
@@ -176,7 +178,7 @@ impl SourceMappedText {
             .and_then(|n| n.checked_add(128))
             .ok_or_else(limit)?;
         if cost > limits.transient_bytes() {
-            return Err(limit());
+            return Err(limit().with_resource_failure(crate::ResourceFailure::TransientMemory));
         }
         let mut spans = Vec::new();
         spans.try_reserve_exact(count).map_err(|_| allocation())?;

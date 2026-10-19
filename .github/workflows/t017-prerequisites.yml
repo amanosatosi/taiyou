@@ -1,0 +1,31 @@
+name: T017 prerequisite evidence
+on:
+  pull_request:
+    paths: ['crates/**', 'experiments/t017/**', '.github/workflows/t017-prerequisites.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: t017-prerequisites-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  formatting:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - name: Produce formatting evidence without building or changing the candidate
+        run: |
+          cargo +1.99.1 fmt --all
+          git diff --binary > "$RUNNER_TEMP/t017-format.patch"
+          test ! -s "$RUNNER_TEMP/t017-format.patch"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: T017-format-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/t017-format.patch
+          retention-days: 7

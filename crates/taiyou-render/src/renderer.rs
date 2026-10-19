@@ -14,6 +14,7 @@ pub use taiyou_types::*;
 std::thread_local! {
     static PREPARE_CALLS: Cell<usize> = const { Cell::new(0) };
     static RETAINED_CALLS: Cell<usize> = const { Cell::new(0) };
+    static PREPARATION_ATTEMPTS: Cell<usize> = const { Cell::new(0) };
 }
 
 #[cfg(feature = "native")]
@@ -24,7 +25,9 @@ fn limited() -> RenderError {
     )
 }
 fn convert(e: ParseError) -> RenderError {
-    RenderError::new(e.code(), e.detail()).with_context(e.event(), e.span())
+    RenderError::new(e.code(), e.detail())
+        .with_resource_failure(e.resource_failure())
+        .with_context(e.event(), e.span())
 }
 #[cfg(feature = "native")]
 fn add(a: u64, b: u64) -> Result<u64, RenderError> {
@@ -42,7 +45,7 @@ fn available(limits: &Limits, held: u64) -> Result<Limits, RenderError> {
         .transient_bytes()
         .checked_sub(held)
         .filter(|n| *n > 0)
-        .ok_or_else(limited)?;
+        .ok_or_else(|| RenderError::transient_limit("renderer frame/intermediate reservation exceeded"))?;
     limits.clone().with_transient_bytes(n).map_err(convert)
 }
 #[cfg(feature = "native")]
@@ -333,16 +336,12 @@ impl Renderer {
             true,
             &mut optional_used,
         );
-        // Optional retention must never turn a successful minimal render into a
-        // limit failure. The failed attempt owns no published frame and is fully
-        // dropped (including native contexts, diagnostics and masks) before retry.
+        // Only transient memory pressure can be relieved by dropping optional
+        // retention. Fixed count/extent/segment limits keep their original error
+        // and context without repeating preparation. Nothing from a failed
+        // attempt is published; its ownership is dropped before a memory retry.
         if optional_used
-            && result.as_ref().is_err_and(|e| {
-                matches!(
-                    e.code(),
-                    ErrorCode::LimitExceeded | ErrorCode::AllocationFailed
-                )
-            })
+            && result.as_ref().is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
         {
             return self.render_staged(track, fonts, request, false, &mut false);
         }
@@ -358,6 +357,8 @@ impl Renderer {
         retain: bool,
         optional_used: &mut bool,
     ) -> Result<Frame, RenderError> {
+        #[cfg(test)]
+        PREPARATION_ATTEMPTS.with(|n| n.set(n.get() + 1));
         let limits = &self.config.limits;
         let (_, length) = limits
             .check_output_size(request.viewport.size())
@@ -845,6 +846,7 @@ impl Renderer {
             })?;
         }
         drop(prepared);
+        *optional_used = false;
         held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
         available(limits, held)?;
         compose(
