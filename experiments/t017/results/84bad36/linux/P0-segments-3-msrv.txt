@@ -1,0 +1,3 @@
+toolchain=1.85.0-x86_64-unknown-linux-gnu
+border=3 event=235 default_prepares=238 default_attempts=1 expanded_prepares=500 expanded_attempts=1 rgba_bytes=64000
+original_error=RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(235)), span: Some(SourceSpan { start: 4230, end: 4248 }), native_code: None, detail: "native stroke extent/count/reservation limit: check=frame-segments input_ops=301 input_points=526 input_contours=25 output_points=1975 output_contours=25 radius_q6=192 input_bounds=Some(PixelRect { x0: 80, y0: 31, x1: 120, y1: 37 }) output_bounds=Some(PixelRect { x0: 77, y0: 28, x1: 123, y1: 40 }) exported_hull_q6=None remaining_segments=714 transient_available=118139702 base_reservation=2263180 export_reservation=0", resource: Other })

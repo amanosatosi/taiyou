@@ -122,9 +122,12 @@ expansion, production table lookup/storage review and separate ASS-tailored/
 cluster-filtered integration remain incomplete. Native attempts/context/range
 bytes are preflighted in the experiment; raw glyphs are charged after return.
 
-Fresh final-head test/platform/sanitizer, warm/seek observations, full external
-comparison and independent oracle evidence are reported on [PR29](https://github.com/amanosatosi/taiyou/pull/29)
-with exact job links and candidate SHA. Successful current-policy frame hashes
+The [completed corrective validation and warm/seek report](../../experiments/t017/results/84bad36/summary.md)
+records passing Linux/Windows/macOS, MSRV and four-target ASan/UBSan checks,
+P0 attempt/error evidence and32 exact fresh-versus-seeking frame comparisons.
+Final-head gates and full external comparison/oracle evidence are also reported
+on [PR29](https://github.com/amanosatosi/taiyou/pull/29) with exact job links and
+candidate SHA. Successful current-policy frame hashes
 must agree across staging; the approved pre-F1 footprint difference is kept
 separate. Existing required checks and the four-target font sanitizer remain
 intact. Full comparator nonzero status and artifacts remain visible. Its eight
