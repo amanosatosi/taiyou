@@ -147,6 +147,7 @@ if __name__ == "__main__":
     output.mkdir(parents=True,exist_ok=True)
     data = tables()
     encoded = (json.dumps({"unicode":"15.1.0","defaults":{"LB":"XX","GCB":"Other","EAW":"N","EP":"","GC":"Cn","InCB":"None"},"tables":data},separators=(",",":"))+"\n").encode()
+    assert encoded == (ROOT/"generated/properties.json").read_bytes(),"stored experimental tables differ from verified regeneration"
     (output/"properties.json").write_bytes(encoded)
     db = Lookup(data)
     failures = []
@@ -157,13 +158,17 @@ if __name__ == "__main__":
         if actual != expected:
             failures.append({"line":line,"actual":sorted(actual),"expected":sorted(expected)})
     from line_rules import line_breaks
+    # Independently expose the numeric-profile distinction. These authored
+    # expectations are separate from every unmodified upstream test record.
+    assert line_breaks([0x25,0x28],db) == {2}
+    assert line_breaks([0x25,0x28],db,number_test_tailoring=True) == {1,2}
     line_cases,line_failures = 0,[]
     for line,cps,expected in cases("LineBreakTest.txt"):
         actual = line_breaks(cps,db,number_test_tailoring=True)
         line_cases += 1
         if actual != expected:
             line_failures.append({"line":line,"actual":sorted(actual),"expected":sorted(expected)})
-    summary = {"unicode":"15.1.0","manifest_sha256":sha((ROOT/"manifest.json").read_bytes()),"generator_sha256":sha(Path(__file__).read_bytes()),"generated_bytes":len(encoded),"generated_sha256":sha(encoded),"ranges":{k:len(v) for k,v in data.items()},"grapheme_unmodified_cases":count,"grapheme_failures":failures,"line_unmodified_cases_imported":line_cases,"line_failures":line_failures,"line_algorithm_conformance":"experimental rule probe; admission pending review","ass_tailoring":"not applied to Unicode conformance","production_automatic_wrapping":"disabled"}
+    summary = {"unicode":"15.1.0","manifest_sha256":sha((ROOT/"manifest.json").read_bytes()),"generator_sha256":sha(Path(__file__).read_bytes()),"line_rules_sha256":sha((ROOT/"line_rules.py").read_bytes()),"generated_bytes":len(encoded),"generated_sha256":sha(encoded),"ranges":{k:len(v) for k,v in data.items()},"grapheme_unmodified_cases":count,"grapheme_failures":failures,"line_unmodified_cases_imported":line_cases,"line_failures":line_failures,"line_test_numeric_profile":"UAX14 section8.2 Example7 as required by original test header","line_algorithm_conformance":"experimental rule probe; admission pending review","ass_tailoring":"not applied to Unicode conformance","production_automatic_wrapping":"disabled"}
     (output/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
     print(json.dumps(summary),flush=True)
     assert not failures,"unmodified grapheme conformance failed"

@@ -1,0 +1,17 @@
+{
+  "candidate": "dc83cab0be5bbb86d1a994956f77a97a08e9716b",
+  "directory": "experiments/t017/results/dc83cab",
+  "source_job": "https://github.com/amanosatosi/taiyou/actions/runs/39300717499/job/118225559837",
+  "artifact_id": 12211923565,
+  "artifact_zip_sha256": "900ca05f2fab1886b59074227bb29b3e538875358cb82b6362b245706d0842d7",
+  "profile": "debug font API in warm test process, pre-registered pinned Latin/Arabic/Indic/CJK catalog; one complete measurement per case; environment CPU/compiler/native prefix from same job",
+  "files": {
+    "T017-raw-native-work.jsonl": "62f08cc45ef9a929689da8839e717df07206d78be821c7e8df32a5f98c1f28c5",
+    "T017-native-input-cjk-long.txt": "92e330953153471bf7c9abc71718bc201ac2cf60d5eeb4ab04d52dab688b2a0f",
+    "T017-native-input-latin-long.txt": "94352c1db9b1c4ee62b55b29fbd5e7d544f0c36268178a63b836119290c4c335",
+    "T017-native-input-mixed-bidi.txt": "7d5c1da07dc7171f1b34d611371399c8d77c07cdad6fac4634ba70a6834f7238",
+    "T017-native-input-pathological-combining.txt": "3147433ce327917d031297fae0adb698370ea43d9853a776aaab87ca06536db5",
+    "T017-review-measurements/environment.json": "8e32be92044094eabace05f3b0c7f2b1d3dcdb2d4e528ad08016091469641cfe"
+  },
+  "source_job_conclusion": "failure after completed raw-work and width assertions: new additive P0 fixture ingestion error; not sanitizer/platform acceptance"
+}

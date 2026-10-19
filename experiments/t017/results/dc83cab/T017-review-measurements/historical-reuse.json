@@ -1,0 +1,73 @@
+{
+  "status": "historical-samples-reused-candidate-must-execute",
+  "reviewed_manifest_commit": "f41261ddebc61b1ebb77e6175aba619f0d45a41e",
+  "entry": {
+    "candidate": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+    "directory": "experiments/t017/results/ae467c9/debug",
+    "source_job": "https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024",
+    "artifact_id": 12195041622,
+    "artifact_zip_sha256": "73f9b14d785b250465c7a797a864a0657fffdae3a31f9e7a1f6ba6ca80d892af",
+    "files": {
+      "after-build.log": "e7a34d20c944f1713d42e20fab82bfee38ade8f2a4a172fd3f255b2afec72459",
+      "after-instrumentation.json": "15fdf37e7cb241da5c7d53a019180b7990d405f84f971d43c80b9899313368a0",
+      "before-build.log": "40a1c78a7d66d98c3e2acb159026d565a09278017ac26506d664c41dcddc8f10",
+      "before-instrumentation.json": "7af40a5338cd6c7c28a148465216ec6aca80d1dbe0d5e43e88847945111c2e2a",
+      "dense-100.ass": "04752b5e30ce7a3827dc3081298db1280341bc65942670bc0a509d39e9ccf5d0",
+      "dense-1000.ass": "f187c0173e0c61aeffe96ec89da7a5e08e266b8d536232149c36128ecc421c81",
+      "dense-500.ass": "27194a533614b578275dedc33270e48c2f76b82de8e5fcefeb315102e6b0b962",
+      "environment.json": "8f0b271b693093ff2b7a628b2b2206dd3457b7fbaaf24827a62e2fc17feba7b5",
+      "larger-workloads-unavailable.json": "955abe59061d8211ddbdfd6a716d45d2363deb8e25adebbb74b712c45b92ac37",
+      "mixed-2000-one-glyph.ass": "a531c35fdbde164f372669af3b8905a11b3d0d9481abc432db8e08d7112ad903",
+      "mixed-2000-twenty-glyphs.ass": "96122be2862187229f78c17988a16ff025bdb4cbd4b56514b198d9a216bdb2ec",
+      "normal-eight.ass": "c41cddf5ca8a6042334dcdebd9aeb11c48f3d8878a6529dd908b918323be0aaa",
+      "normal-one.ass": "b32c7c312bc0d53eb2072b0510f90d2a59eb766aa585a21d972a57ba06c7ad90",
+      "normal-two.ass": "ea02c3b4376fef1335da6711aaae0febd9eb94e796d8c47b51dd654c22fcccf3",
+      "positioned-5000-four-glyphs.ass": "9d603a13ff8ab9314961e44bc3d36cd631a6dfe92e74be6c4dd114d03695531d",
+      "positioned-5000-one-glyph.ass": "0cfcbdb3202fbe898a7f824c681b713fd269b1a3fd9fc8832829f26a03ebfabd",
+      "samples.json": "fa9c464a6cdf7f0273cf5af119a3584751511724dddce419d21df12dd5884dc8",
+      "samples.jsonl": "03b00c9b78443f7be274f8593b6b20b4d78563498a3b2a812736597f2f9e9a7a"
+    }
+  },
+  "recorded_environment": {
+    "base": "9eee96fe16989089d8fd3f65b1bb136455ffca7e",
+    "candidate": "ae467c953b9cf937469fb118e48f3f8c909fcaac",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "runner_image": "20261012.334.1",
+    "cpuinfo": "processor\t: 0\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 1\nmodel name\t: AMD EPYC 7763 64-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3245.337\ncache size\t: 512 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 0\ncpu cores\t: 2\napicid\t\t: 0\ninitial apicid\t: 0\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 13\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 4890.85\nTLB size\t: 2560 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 1\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 1\nmodel name\t: AMD EPYC 7763 64-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3243.135\ncache size\t: 512 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 0\ncpu cores\t: 2\napicid\t\t: 1\ninitial apicid\t: 1\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 13\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 4890.85\nTLB size\t: 2560 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 2\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 1\nmodel name\t: AMD EPYC 7763 64-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3258.355\ncache size\t: 512 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 1\ncpu cores\t: 2\napicid\t\t: 2\ninitial apicid\t: 2\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 13\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 4890.85\nTLB size\t: 2560 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 3\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 1\nmodel name\t: AMD EPYC 7763 64-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3243.885\ncache size\t: 512 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 1\ncpu cores\t: 2\napicid\t\t: 3\ninitial apicid\t: 3\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 13\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 4890.85\nTLB size\t: 2560 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\n",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+    "font": {
+      "id": "latin",
+      "repository": "adobe-fonts/source-sans",
+      "commit": "ed1808970eb3c7301c9a523bee26473ba0bb62fa",
+      "path": "OTF/SourceSans3-Regular.otf",
+      "git_blob": "7a261d93d6bd4046f5e51a865b6957849b8e14b5",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "license": {
+        "spdx": "OFL-1.1",
+        "path": "LICENSE.md",
+        "git_blob": "88c07f795dfd5e1a149d73ae970db35c8d818659",
+        "size": 4579,
+        "sha256": "89ad2c4f66dd29127527493e729c31e731f111cf10faf5774c3db9275ed0c22c"
+      },
+      "sample": "office AV a\u0301",
+      "script": "Latn",
+      "language": "en",
+      "direction": "ltr",
+      "size": 334924,
+      "metadata": {
+        "version": "Version 3.052;hotconv 1.1.0;makeotfexe 2.6.0",
+        "family": "Source Sans 3",
+        "upem": 1000,
+        "glyphs": 2478,
+        "default_axes": {}
+      }
+    },
+    "profile": "debug, identical pinned native prefix, three atomic counters per process",
+    "benchmark_case_workers": 2,
+    "concurrency_semantics": "two cases concurrently, each case's three pairs sequential; other correctness tests may share the runner; do not compare wall times directly with the original sequential experiment",
+    "native_prefix": "/home/runner/work/_temp/taiyou-native-install/lib/pkgconfig",
+    "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims",
+    "limits": "unchanged CLI defaults"
+  },
+  "warning": "Historical CPU/OS/samples retained exactly; new samples are not same-run paired baseline measurements"
+}

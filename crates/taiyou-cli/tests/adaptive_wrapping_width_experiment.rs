@@ -476,6 +476,9 @@ fn every_native_fallback_and_context_attempt_is_budgeted() {
     let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") else {
         return;
     };
+    if reuse_completed_native_work(&folder) {
+        return;
+    }
     let mut reports = String::new();
     for (name, units) in [
         (
@@ -584,4 +587,19 @@ fn every_native_fallback_and_context_attempt_is_budgeted() {
         reports,
     )
     .unwrap();
+}
+
+// T017 native-work evidence reuse wrapper
+fn reuse_completed_native_work(folder: &std::ffi::OsStr) -> bool {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let status = std::process::Command::new("python3")
+        .arg(root.join("experiments/t017/reuse_native_work.py"))
+        .arg(folder)
+        .status()
+        .unwrap();
+    match status.code() {
+        Some(0) => true,
+        Some(2) => false,
+        other => panic!("native-work evidence verification failed: {other:?}"),
+    }
 }

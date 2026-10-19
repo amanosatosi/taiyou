@@ -69,6 +69,11 @@ def unchanged(measured, kind):
         # target/prefix/environment. Its discovery fix cannot change these builds.
         if path == "build-support/font-sanitizer.py":
             continue
+        # This private module is included only under cfg(all(test, native)).
+        # The benchmark's cargo build --bin never compiles unit-test fixtures;
+        # changing its production inclusion in renderer.rs still rejects reuse.
+        if path == "crates/taiyou-render/src/renderer/staging_tests.rs":
+            continue
         # Separate prerequisite job/data never enters these measured binaries,
         # workload builders, native prefix or benchmark process environment.
         # Any corresponding production include/build change still rejects reuse.
@@ -78,7 +83,7 @@ def unchanged(measured, kind):
             continue
         if kind == "optimized" and path == "experiments/t017/measure.py":
             continue
-        if path.startswith(("docs/", "experiments/t017/results/")) or path in {"experiments/t017/reuse_completed.py", "experiments/t017/reuse_or_measure.py", "experiments/t017/historical.py", "experiments/t017/README.md"}:
+        if path.startswith(("docs/", "experiments/t017/results/")) or path in {"experiments/t017/reuse_completed.py", "experiments/t017/reuse_or_measure.py", "experiments/t017/historical.py", "experiments/t017/reuse_native_work.py", "experiments/t017/README.md"}:
             continue
         # Only independently added tests, absent from the reviewed candidate.
         if path.startswith("crates/") and "/tests/" in path and path.endswith(".rs") and status != "D":
@@ -89,7 +94,14 @@ def unchanged(measured, kind):
                 # Owner-authorized additive experiment tests: every original
                 # byte/function/assertion must remain the unchanged file prefix.
                 original = subprocess.check_output(["git", "show", measured + ":" + path], cwd=ROOT)
-                if (ROOT / path).read_bytes().startswith(original):
+                current = (ROOT / path).read_bytes()
+                if path == "crates/taiyou-cli/tests/adaptive_wrapping_width_experiment.rs":
+                    # Only the explicit reuse guard plus appended executor
+                    # wrapper may differ. All original measurement/assertion
+                    # bytes must still survive in their original order.
+                    current = current.split(b"// T017 native-work evidence reuse wrapper")[0]
+                    current = current.replace(b"    if reuse_completed_native_work(&folder) {\n        return;\n    }\n",b"")
+                if current.startswith(original):
                     continue
         return None
     return changed

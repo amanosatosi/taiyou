@@ -217,7 +217,12 @@ fn effects_track(border: f64) -> Arc<Track> {
                         FiniteF64::new(((i % 10) * 16) as f64).unwrap(),
                         FiniteF64::new(((i / 10 % 10) * 10) as f64).unwrap(),
                     ),
-                    source: span,
+                    source: SourceSpan::new(
+                        &source,
+                        span.start() as usize,
+                        span.start() as usize,
+                    )
+                    .unwrap(),
                 }));
             }
             program.push(TextOp::Text {
@@ -323,6 +328,15 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
         eprintln!(
             "P0_SEGMENT border={border} event={event} default_prepares={prepares} attempts=1 expanded_prepares=500"
         );
+        report_p0(
+            &format!("segments-{border}"),
+            &format!(
+                "border={border} event={event} default_prepares={prepares} default_attempts=1 expanded_prepares={} expanded_attempts={} rgba_bytes={}\noriginal_error={original:?}\n",
+                PREPARE_CALLS.with(Cell::get),
+                PREPARATION_ATTEMPTS.with(Cell::get),
+                a.pixels().len()
+            ),
+        );
     }
 }
 
@@ -379,12 +393,14 @@ fn genuine_transient_pressure_retries_once_without_publishing_failed_attempt() {
     assert!(optional);
     assert_eq!(error.resource_failure(), ResourceFailure::TransientMemory);
     let mut renderer = Renderer::new(config(high)).unwrap();
+    let mut attempts = Vec::new();
     for _ in 0..2 {
         PREPARATION_ATTEMPTS.with(|n| n.set(0));
         let b = renderer
             .render(input.clone(), fonts.clone(), &request(750_000))
             .unwrap();
         assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 2);
+        attempts.push(PREPARATION_ATTEMPTS.with(Cell::get));
         assert_eq!(a.pixels(), b.pixels());
         assert_eq!(a.diagnostics(), b.diagnostics());
     }
@@ -415,6 +431,29 @@ fn genuine_transient_pressure_retries_once_without_publishing_failed_attempt() {
     eprintln!(
         "P0_MEMORY minimal_success_bytes={high} minimal_failure_bytes={low} retry_attempts=2"
     );
+    report_p0(
+        "memory",
+        &format!(
+            "minimal_success_bytes={high} minimal_failure_bytes={low} repeated_retry_attempts={attempts:?} rgba_bytes={}\nminimal_error={minimal_error:?}\n",
+            a.pixels().len()
+        ),
+    );
+}
+
+fn report_p0(name: &str, report: &str) {
+    if let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") {
+        let toolchain = std::env::var("RUSTUP_TOOLCHAIN").unwrap_or_default();
+        let suffix = if toolchain.starts_with("1.85.") {
+            "msrv"
+        } else {
+            "native"
+        };
+        std::fs::write(
+            std::path::PathBuf::from(folder).join(format!("P0-{name}-{suffix}.txt")),
+            format!("toolchain={toolchain}\n{report}"),
+        )
+        .unwrap();
+    }
 }
 
 #[test]

@@ -19,9 +19,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - run: |
-          python -m py_compile experiments/t017/measure.py experiments/t017/optimized.py experiments/t017/reuse_completed.py experiments/t017/historical.py
+          python -m py_compile experiments/t017/measure.py experiments/t017/optimized.py experiments/t017/reuse_completed.py experiments/t017/historical.py experiments/t017/reuse_native_work.py
           cd experiments/t017
           python -c 'from historical import negative_tests; from reuse_completed import self_test; negative_tests(); self_test()'
+          python reuse_native_work.py --self-test
   formatting:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
