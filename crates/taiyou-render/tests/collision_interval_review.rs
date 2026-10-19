@@ -160,7 +160,15 @@ fn scaling_worker() {
         stats.obstacle_tests,
         u64::from(count) * u64::from(count - 1) / 2
     );
-    let record = format!("T017_SOLVER_CHILD {elapsed} {} {} {} {} {} {}\n",stats.obstacle_tests,stats.intervals,stats.sort_comparisons,stats.interval_visits,stats.reserved_bytes,stats.allocated_vector_bytes);
+    let record = format!(
+        "T017_SOLVER_CHILD {elapsed} {} {} {} {} {} {}\n",
+        stats.obstacle_tests,
+        stats.intervals,
+        stats.sort_comparisons,
+        stats.interval_visits,
+        stats.reserved_bytes,
+        stats.allocated_vector_bytes
+    );
     std::io::stdout().write_all(record.as_bytes()).unwrap();
 }
 
