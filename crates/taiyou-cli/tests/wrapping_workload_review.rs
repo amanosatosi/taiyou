@@ -15,8 +15,14 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
     let Some(folder) = std::env::var_os("TAIYOU_RENDER_SAMPLE_DIR") else {
         return;
     };
-    let mut ctx = FontContext::with_limits(Limits::default()).unwrap();
-    let mut builder = FontCatalogBuilder::new(Limits::default());
+    // Match the existing multilingual shaping/layout fixture configuration:
+    // CJK font intake legitimately exceeds the default 128-MiB reservation.
+    // This experiment's explicit caller budget does not change production limits.
+    let limits = Limits::default()
+        .with_transient_bytes(512 * 1024 * 1024)
+        .unwrap();
+    let mut ctx = FontContext::with_limits(limits.clone()).unwrap();
+    let mut builder = FontCatalogBuilder::new(limits.clone());
     for (name, ext) in [
         ("latin", "otf"),
         ("arabic", "ttf"),
@@ -109,7 +115,7 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
                     &ParseOptions::new(
                         InputEncoding::Utf8,
                         Profile::CoreV1,
-                        Limits::default(),
+                        limits.clone(),
                         SyntaxPolicy::Strict,
                     ),
                     &mut TrackIngestor::new(),
@@ -127,7 +133,7 @@ fn candidate_search_workloads_are_bounded_and_reported_on_actions() {
                     &fonts,
                     &evaluated,
                     &Default::default(),
-                    &Limits::default(),
+                    &limits,
                 )
                 .unwrap();
                 let produced: usize = shaped.runs().iter().map(|r| r.glyphs().len()).sum();

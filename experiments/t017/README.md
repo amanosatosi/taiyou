@@ -46,3 +46,13 @@ the Linux 1.99.1 native recipe, avoiding repeated platform/MSRV benchmarking.
 The PR records actual runs/results/artifacts and any measurement failures.
 An unexecuted or incomplete sample remains explicitly unavailable. The full
 external comparator's genuine nonzero result and artifacts remain separate.
+
+All 48 smaller paired samples completed at `f473e81` in
+[job117845262915](https://github.com/amanosatosi/taiyou/actions/runs/39184889909/job/117845262915).
+`results/f473e81/` preserves the original artifact JSON bytes (ZIP SHA-256
+`2855e4129608e390f776ff6795273207b09ac520ef995faedd1fba768b8f636b`).
+`reuse_or_measure.py` avoids repeating this 18-minute supplemental experiment
+when Git proves only the named new review fixtures, documentation and evidence
+have changed. Any production/build/input/measurement change runs it again.
+Reuse publishes its original candidate/environment and explicit reuse provenance;
+it never claims new timings, skips correctness tests or controls the comparator.
