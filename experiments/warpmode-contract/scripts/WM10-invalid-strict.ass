@@ -1,0 +1,12 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 160
+PlayResY: 100
+WrapStyle: 2
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,Outline,Shadow,Alignment
+Style: Default,Source Sans 3,20,0,0,7
+Style: Alt,Source Sans 3,24,0,0,7
+[Events]
+Format: Layer,Start,End,Style,Text
+Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\warpmode1\warpmode2}A
