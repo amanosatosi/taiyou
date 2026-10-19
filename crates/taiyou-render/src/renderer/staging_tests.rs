@@ -262,6 +262,16 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 &mut false,
             )
             .unwrap_err();
+        let original = Renderer::new(Default::default())
+            .unwrap()
+            .render_staged(
+                input.clone(),
+                fonts.clone(),
+                &request(500_000),
+                true,
+                &mut false,
+            )
+            .unwrap_err();
         for _ in 0..2 {
             PREPARATION_ATTEMPTS.with(|n| n.set(0));
             PREPARE_CALLS.with(|n| n.set(0));
@@ -275,14 +285,14 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
             assert_eq!(error.resource_failure(), ResourceFailure::Other);
             assert_eq!(error.event(), Some(EventId::new(event)));
             assert_eq!(
-                (error.code(), error.event(), error.span(), error.detail()),
-                (
-                    minimal.code(),
-                    minimal.event(),
-                    minimal.span(),
-                    minimal.detail()
-                )
+                (error.code(), error.event(), error.span()),
+                (minimal.code(), minimal.event(), minimal.span())
             );
+            assert_eq!(
+                error, original,
+                "return the first attempt's complete original error"
+            );
+            assert!(error.detail().contains("check=frame-segments"));
         }
         let config = RendererConfig {
             limits: Limits::default()

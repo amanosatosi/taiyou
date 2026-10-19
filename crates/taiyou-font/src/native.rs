@@ -319,7 +319,12 @@ impl FontContext {
             })
             .and_then(|n| n.checked_add(4096))
             .ok_or_else(limited)?;
-        if charge > limits.transient_bytes() || charge > self.limits.transient_bytes() {
+        // The coordinator's FontContext cap is fixed before optional retention.
+        // A failure of that cap cannot be helped by releasing retained layouts.
+        if charge > self.limits.transient_bytes() {
+            return Err(limited());
+        }
+        if charge > limits.transient_bytes() {
             return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let font_len = u32::try_from(blob.bytes().len()).map_err(|_| limited())?;
@@ -1936,7 +1941,8 @@ impl FontContext {
             ));
         }
         if cost.is_some_and(|n| n > self.limits.transient_bytes()) {
-            return Err(FontError::transient_limit(
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
                 "native intake reservation exceeded",
             ));
         }

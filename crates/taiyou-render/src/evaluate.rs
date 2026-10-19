@@ -314,7 +314,7 @@ fn event_map(
         limits,
     )
     .map(|map| Some(Arc::new(map)))
-    .map_err(|e| error(e.code(), e.detail()))
+    .map_err(|e| error(e.code(), e.detail()).with_resource_failure(e.resource_failure()))
 }
 fn mapped_run(
     text: Arc<str>,
