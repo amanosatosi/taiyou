@@ -278,9 +278,11 @@ fn one(
         }
     }
     if warp_mode == WarpMode::Unicode && wrap_mode.get() != 2 {
-        return Err(error(ErrorCode::UnsupportedFeature,
-            "warpmode1 automatic wrapping requires Unicode/native-work/C7 admission")
-            .with_context(Some(event.id()), warp_mode_source.or(Some(event.source()))));
+        return Err(error(
+            ErrorCode::UnsupportedFeature,
+            "warpmode1 automatic wrapping requires Unicode/native-work/C7 admission",
+        )
+        .with_context(Some(event.id()), warp_mode_source.or(Some(event.source()))));
     }
     let placement = Placement::new(&state, event.margins(), anchor);
     let evaluated = EvaluatedEvent::new(
@@ -321,7 +323,9 @@ fn event_map(
                 };
                 match operation {
                     TextOp::HardBreak => TextSourcePiece::HardBreak(span),
-                    TextOp::SoftBreak if wrap_mode.get() == 2 => TextSourcePiece::SoftBreakLine(span),
+                    TextOp::SoftBreak if wrap_mode.get() == 2 => {
+                        TextSourcePiece::SoftBreakLine(span)
+                    }
                     TextOp::SoftBreak => TextSourcePiece::SoftBreak(span),
                     _ => TextSourcePiece::NoBreakSpace(span),
                 }

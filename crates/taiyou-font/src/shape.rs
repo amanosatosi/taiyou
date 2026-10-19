@@ -694,12 +694,16 @@ fn xy_word_items(
         while cursor < words.len() && words[cursor].end <= input.item.range.start {
             cursor += 1;
         }
-        for word in words[cursor..].iter().take_while(|w| w.start < input.item.range.end) {
+        for word in words[cursor..]
+            .iter()
+            .take_while(|w| w.start < input.item.range.end)
+        {
             let range = word.start.max(input.item.range.start)..word.end.min(input.item.range.end);
             let mut part = input.clone();
             part.decoded = map.decoded_span(range.start as u32..range.end as u32)?;
             part.item.range = range;
-            part.item.context = word.start.max(input.item.context.start)..word.end.min(input.item.context.end);
+            part.item.context =
+                word.start.max(input.item.context.start)..word.end.min(input.item.context.end);
             reserve(&mut result, 1, limits)?;
             result.push(part);
         }
@@ -715,7 +719,10 @@ pub fn shape_event(
     limits: &Limits,
 ) -> Result<ShapedEvent, FontError> {
     if event.wrap_mode().get() != 2 && event.warp_mode() == WarpMode::Unicode {
-        return Err(error(ErrorCode::UnsupportedFeature, "warpmode1 automatic wrapping is not admitted"));
+        return Err(error(
+            ErrorCode::UnsupportedFeature,
+            "warpmode1 automatic wrapping is not admitted",
+        ));
     }
     let map = event.source_map().ok_or_else(|| {
         error(

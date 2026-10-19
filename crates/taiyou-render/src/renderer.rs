@@ -345,8 +345,10 @@ impl Renderer {
                     let base = &track.styles()[event.style().index() as usize];
                     let margins = event.margins().inherit(base.margins());
                     let width = f64::from(track.script().play_res().width())
-                        - f64::from(margins.left()) - f64::from(margins.right());
-                    constraints = constraints.with_width(FiniteF64::new(width).map_err(convert)?)?;
+                        - f64::from(margins.left())
+                        - f64::from(margins.right());
+                    constraints =
+                        constraints.with_width(FiniteF64::new(width).map_err(convert)?)?;
                 }
                 let local = Arc::new(layout(&shaped, &constraints)?);
                 let layout_charge = add(

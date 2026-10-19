@@ -19,7 +19,10 @@ pub(crate) struct Span {
     pub visible_end: u32,
 }
 fn limit() -> RenderError {
-    RenderError::new(ErrorCode::LimitExceeded, "xy wrapping width/allocation overflow")
+    RenderError::new(
+        ErrorCode::LimitExceeded,
+        "xy wrapping width/allocation overflow",
+    )
 }
 fn add(a: i64, b: i64) -> Result<i64, RenderError> {
     a.checked_add(b).ok_or_else(limit)
@@ -32,16 +35,27 @@ pub(crate) fn width_units(advance: f64) -> Result<i64, RenderError> {
     }
     Ok((value as i64).div_euclid(8))
 }
-pub(crate) fn lines(words: &[Word], end: u32, mode: u8, available: i64) -> Result<Vec<Span>, RenderError> {
+pub(crate) fn lines(
+    words: &[Word],
+    end: u32,
+    mode: u8,
+    available: i64,
+) -> Result<Vec<Span>, RenderError> {
     let mut suffix = Vec::new();
     let count = words.len().checked_add(1).ok_or_else(limit)?;
     suffix.try_reserve_exact(count).map_err(|_| limit())?;
     suffix.resize(count, 0_i64);
     for i in (0..words.len()).rev() {
-        suffix[i] = if words[i].hard { 0 } else { add(words[i].width, suffix[i + 1])? };
+        suffix[i] = if words[i].hard {
+            0
+        } else {
+            add(words[i].width, suffix[i + 1])?
+        };
     }
     let mut result = Vec::new();
-    result.try_reserve_exact(words.len().max(1)).map_err(|_| limit())?;
+    result
+        .try_reserve_exact(words.len().max(1))
+        .map_err(|_| limit())?;
     let mut cursor = 0;
     while cursor < words.len() {
         let begin = cursor;
@@ -52,14 +66,19 @@ pub(crate) fn lines(words: &[Word], end: u32, mode: u8, available: i64) -> Resul
             let target = full / denominator;
             let (mut accumulated, mut last) = (0_i64, 0_i64);
             for word in &words[cursor..] {
-                if accumulated >= target { break; }
+                if accumulated >= target {
+                    break;
+                }
                 last = word.width;
                 let next = add(accumulated, last)?;
                 if next.checked_abs().ok_or_else(limit)? < available {
                     accumulated = next;
                 }
             }
-            if mode == 3 && accumulated < full && add(full.checked_sub(accumulated).ok_or_else(limit)?, last)? < available {
+            if mode == 3
+                && accumulated < full
+                && add(full.checked_sub(accumulated).ok_or_else(limit)?, last)? < available
+            {
                 accumulated = accumulated.checked_sub(last).ok_or_else(limit)?;
             }
             capacity = accumulated;
@@ -86,17 +105,41 @@ pub(crate) fn lines(words: &[Word], end: u32, mode: u8, available: i64) -> Resul
                 break;
             }
         }
-        let line_end = if hard { words[cursor].start } else { words.get(cursor).map_or(end, |w| w.start) };
+        let line_end = if hard {
+            words[cursor].start
+        } else {
+            words.get(cursor).map_or(end, |w| w.start)
+        };
         let (mut left, mut right) = (begin, cursor);
-        while left < right && words[left].space { left += 1; }
-        while left < right && words[right - 1].space { right -= 1; }
+        while left < right && words[left].space {
+            left += 1;
+        }
+        while left < right && words[right - 1].space {
+            right -= 1;
+        }
         let visible_start = words.get(left).map_or(line_end, |w| w.start).min(line_end);
-        let visible_end = if left == right { visible_start } else { words[right - 1].end };
-        result.push(Span { start: words[begin].start, end: line_end, visible_start, visible_end });
-        if hard { cursor += 1; }
+        let visible_end = if left == right {
+            visible_start
+        } else {
+            words[right - 1].end
+        };
+        result.push(Span {
+            start: words[begin].start,
+            end: line_end,
+            visible_start,
+            visible_end,
+        });
+        if hard {
+            cursor += 1;
+        }
     }
     if result.is_empty() {
-        result.push(Span { start: 0, end, visible_start: 0, visible_end: 0 });
+        result.push(Span {
+            start: 0,
+            end,
+            visible_start: 0,
+            visible_end: 0,
+        });
     }
     Ok(result)
 }
@@ -105,14 +148,28 @@ pub(crate) fn lines(words: &[Word], end: u32, mode: u8, available: i64) -> Resul
 mod tests {
     use super::*;
     fn words(widths: &[i64]) -> Vec<Word> {
-        widths.iter().enumerate().map(|(i, &width)| Word {
-            start: i as u32, end: i as u32 + 1, width, space: i % 2 == 1, hard: false,
-        }).collect()
+        widths
+            .iter()
+            .enumerate()
+            .map(|(i, &width)| Word {
+                start: i as u32,
+                end: i as u32 + 1,
+                width,
+                space: i % 2 == 1,
+                hard: false,
+            })
+            .collect()
     }
     #[test]
     fn smart_alternative_and_greedy_have_source_policy_decisions() {
         let input = words(&[40, 10, 40, 10, 40]);
-        let decisions = |q| lines(&input, 5, q, 100).unwrap().iter().map(|l| (l.visible_start, l.visible_end)).collect::<Vec<_>>();
+        let decisions = |q| {
+            lines(&input, 5, q, 100)
+                .unwrap()
+                .iter()
+                .map(|l| (l.visible_start, l.visible_end))
+                .collect::<Vec<_>>()
+        };
         assert_eq!(decisions(0), [(0, 3), (4, 5)]);
         assert_eq!(decisions(1), [(0, 3), (4, 5)]);
         assert_eq!(decisions(2), [(0, 5)]);

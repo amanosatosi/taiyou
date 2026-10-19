@@ -335,17 +335,22 @@ impl LocalLayout {
         if local_scale.0.get() < 0.0
             || local_scale.1.get() < 0.0
             || lines.is_empty()
-            || (!automatic && lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)?)
+            || (!automatic
+                && lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)?)
         {
             return Err(invalid());
         }
         let mut end = 0;
         let mut decoded_start = 0;
         for (i, line) in lines.iter().enumerate() {
-            let decoded_end = if automatic { line.decoded.end() } else { input
-                .breaks()
-                .get(i)
-                .map_or(input.source_map().text().len() as u32, |b| b.start()) };
+            let decoded_end = if automatic {
+                line.decoded.end()
+            } else {
+                input
+                    .breaks()
+                    .get(i)
+                    .map_or(input.source_map().text().len() as u32, |b| b.start())
+            };
             if !line.decoded.belongs_to(input.source_map())
                 || line.glyphs.start != end
                 || line.glyphs.end > glyphs.len()
@@ -362,13 +367,18 @@ impl LocalLayout {
                 return Err(invalid());
             }
             if automatic {
-                let at = input.breaks().binary_search_by_key(&decoded_end, |b| b.start()).ok();
+                let at = input
+                    .breaks()
+                    .binary_search_by_key(&decoded_end, |b| b.start())
+                    .ok();
                 decoded_start = at.map_or(decoded_end, |j| input.breaks()[j].end());
             } else if let Some(b) = input.breaks().get(i) {
                 decoded_start = b.end();
             }
         }
-        if end != glyphs.len() || (automatic && decoded_start as usize != input.source_map().text().len()) {
+        if end != glyphs.len()
+            || (automatic && decoded_start as usize != input.source_map().text().len())
+        {
             return Err(invalid());
         }
         for g in glyphs.iter() {

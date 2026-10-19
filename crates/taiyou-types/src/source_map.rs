@@ -19,8 +19,11 @@ pub enum TextSourcePiece {
 impl TextSourcePiece {
     fn source(self) -> SourceSpan {
         match self {
-            Self::Literal(s) | Self::HardBreak(s) | Self::SoftBreak(s)
-            | Self::SoftBreakLine(s) | Self::NoBreakSpace(s) => s,
+            Self::Literal(s)
+            | Self::HardBreak(s)
+            | Self::SoftBreak(s)
+            | Self::SoftBreakLine(s)
+            | Self::NoBreakSpace(s) => s,
         }
     }
     fn decoded(self, source: &str, wrap: WrapMode) -> Result<&str, FontError> {
