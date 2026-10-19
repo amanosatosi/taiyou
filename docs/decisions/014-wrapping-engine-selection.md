@@ -1,13 +1,17 @@
 # ADR-014 — Proposed event-level wrapping-engine selection
 
-Status: **proposed contract amendment; separate owner review required**.
+Status: **selector implementation authorized; final contract/implementation review pending**.
+The owner's follow-up instruction to actually implement warpmode0/1 authorizes
+typed parsing and event-level selection on this separate branch. This does not
+authorize activating either automatic engine, accepting C7 defaults or merging.
 Date: 2026-10-20. Task branch: `task/T017-warpmode-contract`.
 Trusted integration base: `d5a545ac49aabbfc23e3895231d407da576e276f`.
 Prerequisite: PR29, reviewed head `3144993e31e52513e044f47a95518930e0a45a80`,
 accepted by the owner as a **partial T017 collision/backend checkpoint** subject
 to its exact human baseline acknowledgment. It was still open with no issue
 acknowledgment comment at inspection. This branch neither merges nor modifies it.
-Reconcile this proposal against its actual accepted merge before implementation.
+Reconcile this independent selector implementation against its actual accepted
+merge before integration; do not replace PR29's collision/backend changes.
 
 ## Request and scope
 
@@ -21,8 +25,13 @@ codepage behavior, stateful placement or a different raster backend.
 This proposal changes C4 and ADR-013's previous **exclusive** Core automatic
 wrapping selection; the approved Unicode algorithm remains valid. Numeric
 tailoring, backwards recursive binary64 comparison and deterministic ties are
-unchanged. No parser/evaluator/renderer/CLI code, public IR, runtime dependency,
-production limit, protected fixture or support classification changes here.
+unchanged. The follow-up implements SetWarpMode with a finite WarpMode enum,
+exact source spans and immutable EvaluatedEvent selection/source getters. q2
+uses the existing pipeline without changing style or paint runs. Automatic
+requests fail before source-map allocation, shaping or fallback under either
+unsupported policy. No runtime dependency, production limit, protected fixture
+or support classification changes here. New executable tests cover the actual
+parser/evaluator and native q2 pixels; proposed cases below remain proposals.
 Proposed inputs/expectations are in [the fixture manifest](../../experiments/warpmode-contract/cases.json),
 not accepted output images or actual xy captures. No fixture is promoted to a
 protected suite by this document or its future parser tests.
@@ -119,9 +128,11 @@ Existing unsupported tags elsewhere retain their own policy and errors; engine
 selection is not permission to ignore them. q2 invokes an already supported
 shared path, not fallback, even while both automatic engines are gated.
 
-This strict/tolerant structural-failure rule requires explicit review. Current
-tolerant handling of unsupported features is not silently changed by this
-proposal. Parser recognition, selector evaluation, engine admission and renderer
+The owner-directed implementation now returns UnsupportedFeature for required
+non2 automatic wrapping in both policies; previous tolerant unwrapped output
+is deliberately rejected, rather than presented as the selected engine. Other
+tolerant operations retain their behavior. Final contract review remains pending.
+Parser recognition, selector evaluation, engine admission and renderer
 activation are distinct milestones; recognizing1 must not advertise a working
 automatic engine.
 
@@ -174,10 +185,10 @@ R001's proposals and future authenticated xy suite remain separate and unmodifie
 ## Admission sequence and review request
 
 1. Human acknowledgment and integration of PR29; keep its acceptance partial.
-2. Review this selector/reset/grammar/failure amendment and reconcile C4/ADR-013
-   against that accepted merge. No dependent parser/evaluator implementation
-   before the contract review required by AGENTS.md.
-3. Add typed bounded tag recognition/selection and actual parser/source-span/
+2. Review this owner-directed selector/reset/grammar/failure implementation and
+   reconcile C4/ADR-013 against that accepted merge. Do not integrate before
+   the separately requested contract/implementation review.
+3. Verify typed bounded recognition/selection and actual parser/source-span/
    strict/recovery/nesting tests, preserving q's separate admission boundary.
 4. Satisfy and review each automatic engine's own evidence/resource gates before
    activating it. Complete Core Unicode integration only under explicitly

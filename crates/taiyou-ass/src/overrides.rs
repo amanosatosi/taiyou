@@ -273,6 +273,7 @@ fn parse(
 ) -> Result<Option<OverrideOp>, ParseError> {
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
+        "warpmode",
         "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c", "1a", "2a",
         "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
@@ -294,6 +295,14 @@ fn parse(
         return Ok(None);
     }
     let op = match name {
+        "warpmode" => OverrideOp::SetWarpMode {
+            mode: match value {
+                "0" => WarpMode::XyStyle,
+                "1" => WarpMode::Unicode,
+                _ => return Err(invalid("warpmode requires the single digit 0 or 1")),
+            },
+            source,
+        },
         "fn" => {
             if value.is_empty() {
                 return Err(invalid("empty font override"));

@@ -113,11 +113,28 @@ fn one(
     let mut state = base.clone();
     let mut anchor = Anchor::Default;
     let mut changes = ChangeClass::default();
+    let mut warp_mode = WarpMode::XyStyle;
+    let mut warp_mode_source = None;
     let mut runs = Vec::new();
+    // Resolve only typed standalone operations; never execute nested children.
+    // A required automatic engine cannot be replaced by tolerant hard wrapping.
+    if track.script().wrap().get() != 2 {
+        let selected = event.program().iter().rev().find_map(|op| match op {
+            TextOp::Override(OverrideOp::SetWarpMode { mode, source }) => Some((*mode, *source)),
+            _ => None,
+        });
+        let (mode, span) = selected.map_or((WarpMode::XyStyle, event.source()), |value| value);
+        let detail = match mode {
+            WarpMode::XyStyle => "warpmode0 automatic wrapping requires authenticated R001 admission",
+            WarpMode::Unicode => "warpmode1 automatic wrapping requires Unicode/native-work/C7 admission",
+        };
+        return Err(error(ErrorCode::UnsupportedFeature, detail)
+            .with_context(Some(event.id()), Some(span)));
+    }
     let source_map = event_map(track, event, limits)?;
     let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
-    if !event.effect().is_empty() || track.script().wrap().get() != 2 {
+    if !event.effect().is_empty() {
         unsupported(
             event,
             event.source(),
@@ -163,6 +180,10 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
+                    OverrideOp::SetWarpMode { mode, source } => {
+                        warp_mode = *mode;
+                        warp_mode_source = Some(*source);
+                    }
                     OverrideOp::SetFont { family, .. } => {
                         let font = FontRequest::new(
                             family.clone(),
@@ -275,7 +296,8 @@ fn one(
         placement,
         changes,
     )
-    .with_terminal_style(state);
+    .with_terminal_style(state)
+    .with_warp_mode(warp_mode, warp_mode_source);
     match source_map {
         Some(map) => evaluated.with_source_map(map),
         None => Ok(evaluated),
