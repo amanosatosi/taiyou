@@ -5,7 +5,6 @@ Owner authorization: T017 review follow-up, 2026-10-20. Not comparison policy.
 import hashlib
 import json
 from pathlib import Path
-import shutil
 import subprocess
 from reuse_completed import ROOT, validate
 
@@ -19,12 +18,13 @@ def checked(data, expected):
     assert digest(data) == expected, "historical evidence hash mismatch"
 
 def historical(kind, destination):
-    index_bytes = (ROOT / INDEX).read_bytes()
     # The reviewed commit fixes the manifest itself, not just self-authenticated
     # candidate-controlled hashes. Fetch that one small Git object if necessary.
     subprocess.run(["git", "fetch", "--no-tags", "origin", TRUSTED], cwd=ROOT, check=True, capture_output=True)
     original = subprocess.check_output(["git", "show", TRUSTED+":"+INDEX], cwd=ROOT)
-    assert index_bytes.replace(b"\r\n",b"\n") == original.replace(b"\r\n",b"\n"), "reviewed evidence index changed"
+    # Read the index itself from the reviewed Git object. The mutable completed
+    # index may subsequently advance to newly verified candidate measurements;
+    # it is deliberately not an authority for these historical rows.
     entry = json.loads(original)["sets"][kind]
     saved = (ROOT / entry["directory"]).resolve()
     assert saved.is_relative_to((ROOT / "experiments/t017/results").resolve())

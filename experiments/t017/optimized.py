@@ -158,7 +158,8 @@ from historical import historical, assert_workload, negative_tests
 negative_tests()
 history = historical("optimized",out)
 binaries = {"candidate": build("candidate",head)}
-assert len({hashlib.sha256((out / (("historical/" + label if label != "candidate" else label) + "-cjk-shape-identity.txt"))).read_bytes()).hexdigest() for label in versions}) == 1, "CJK glyph/advance/offset identity changed"
+profiles = [out / (("historical/" + label if label != "candidate" else label) + "-cjk-shape-identity.txt") for label in versions]
+assert len({hashlib.sha256(path.read_bytes()).hexdigest() for path in profiles}) == 1, "CJK glyph/advance/offset identity changed"
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
