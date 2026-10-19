@@ -11,8 +11,8 @@ fn catalog() -> Arc<ValidatedFontCatalog> {
     builder.snapshot(&mut CatalogIngestor::new()).unwrap()
 }
 fn track(count: u32, positioned: u32) -> Arc<Track> {
-    let source: Arc<str> = Arc::from("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH");
-    let span = SourceSpan::new(&source, 0, source.len()).unwrap();
+    let text = "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH";
+    let source: Arc<str> = Arc::from(text.repeat((count + positioned) as usize));
     let style = Style::core_default()
         .with_font(FontRequest::new(
             Arc::from("Source Sans 3"),
@@ -27,8 +27,10 @@ fn track(count: u32, positioned: u32) -> Arc<Track> {
         .with_shadow(FiniteF64::new(1.25).unwrap());
     let events: Vec<_> = (0..count + positioned)
         .map(|id| {
+            let start = id as usize * text.len();
+            let span = SourceSpan::new(&source, start, start + text.len()).unwrap();
             let mut program = vec![TextOp::Text {
-                text: source.clone(),
+                text: Arc::from(text),
                 source: span,
             }];
             if id >= count {
@@ -39,7 +41,7 @@ fn track(count: u32, positioned: u32) -> Arc<Track> {
                             FiniteF64::new(-100.0).unwrap(),
                             FiniteF64::new(-100.0).unwrap(),
                         ),
-                        source: SourceSpan::new(&source, 0, 0).unwrap(),
+                        source: SourceSpan::new(&source, start, start).unwrap(),
                     }),
                 );
             }
