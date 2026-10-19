@@ -453,6 +453,7 @@ fn request<'a>(input: &'a ResolvedRun, range: Range<usize>) -> NativeRequest<'a>
 fn shape_item(
     ctx: &mut FontContext,
     input: &ResolvedRun,
+    collect_ink: bool,
 ) -> Result<(ShapedRun, Vec<MissingCluster>), FontError> {
     let limits = &input.limits;
     let order = priorities(&input.catalog, &input.style, limits)?;
@@ -470,10 +471,12 @@ fn shape_item(
                     .ok_or_else(limited)?,
             )
             .map_err(|_| limited())?;
-        let raw = ctx.shape_raw(
-            input.catalog.faces()[index].blob(),
+        let raw = input.catalog.shape_raw(
+            ctx,
+            input.catalog.faces()[index].blob().id(),
             &request(input, input.item.range.clone()),
             &remaining,
+            collect_ink,
         )?;
         retained = retained
             .checked_add(
@@ -544,7 +547,7 @@ fn shape_item(
         let raw = if a as usize == input.item.range.start && b as usize == input.item.range.end {
             &candidates[selected].raw
         } else {
-            reshaped = ctx.shape_raw(face, &request(input, a as usize..b as usize), limits)?;
+            reshaped = input.catalog.shape_raw(ctx, face.id(), &request(input, a as usize..b as usize), limits, collect_ink)?;
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
@@ -662,7 +665,7 @@ fn shape_item(
     ))
 }
 pub fn shape(ctx: &mut FontContext, input: &ResolvedRun) -> Result<ShapedRun, FontError> {
-    Ok(shape_item(ctx, input)?.0)
+    Ok(shape_item(ctx, input, true)?.0)
 }
 pub fn shape_event(
     ctx: &mut FontContext,
@@ -670,6 +673,31 @@ pub fn shape_event(
     event: &EvaluatedEvent,
     options: &ShapeOptions,
     limits: &Limits,
+) -> Result<ShapedEvent, FontError> {
+    shape_event_impl(ctx, catalog, event, options, limits, true)
+}
+
+/// W2 experiment only: identical boundary shaping, fallback, clusters and
+/// advances, without native ink extraction. Unknown ink deliberately prevents
+/// publishing this artifact through ordinary layout/rendering. No wrapping
+/// selection or production automatic mode is enabled by this API.
+pub fn shape_event_advances_experiment(
+    ctx: &mut FontContext,
+    catalog: &ValidatedFontCatalog,
+    event: &EvaluatedEvent,
+    options: &ShapeOptions,
+    limits: &Limits,
+) -> Result<ShapedEvent, FontError> {
+    shape_event_impl(ctx, catalog, event, options, limits, false)
+}
+
+fn shape_event_impl(
+    ctx: &mut FontContext,
+    catalog: &ValidatedFontCatalog,
+    event: &EvaluatedEvent,
+    options: &ShapeOptions,
+    limits: &Limits,
+    collect_ink: bool,
 ) -> Result<ShapedEvent, FontError> {
     let map = event.source_map().ok_or_else(|| {
         error(
@@ -720,7 +748,7 @@ pub fn shape_event(
     let mut diagnostics = DiagnosticBuffer::new();
     let mut count = 0_u64;
     for input in &resolved {
-        let (run, absent) = shape_item(ctx, input)?;
+        let (run, absent) = shape_item(ctx, input, collect_ink)?;
         count = count
             .checked_add(run.glyphs().len() as u64)
             .ok_or_else(limited)?;
@@ -797,7 +825,7 @@ fn empty_line_metrics(
                     language: options.language(),
                     ligatures: true,
                 };
-                previous = Some((face.id(), ctx.shape_raw(face, &request, limits)?));
+                previous = Some((face.id(), catalog.shape_raw(ctx, face.id(), &request, limits, true)?));
             }
             let raw = &previous
                 .as_ref()

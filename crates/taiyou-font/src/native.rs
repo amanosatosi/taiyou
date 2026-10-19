@@ -82,6 +82,17 @@ impl FontContext {
     ) -> Result<GlyphOutline, FontError> {
         self.check_bytes(blob.bytes())?;
         crate::catalog::check_blob_identity(blob)?;
+        self.outline_authenticated(blob, glyph, limits)
+    }
+
+    /// Only the catalog module may supply an immutable, authenticated blob.
+    pub(crate) fn outline_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        self.check_bytes(blob.bytes())?;
         let native_charge = (blob.bytes().len() as u64)
             .checked_mul(12)
             .and_then(|n| n.checked_add(64 * 1024))
@@ -225,6 +236,7 @@ impl FontContext {
             }
         })
     }
+    #[cfg(test)]
     pub(crate) fn shape_raw(
         &mut self,
         blob: &FontBlob,
@@ -233,6 +245,27 @@ impl FontContext {
     ) -> Result<RawRun, FontError> {
         self.check_bytes(blob.bytes())?;
         crate::catalog::check_blob_identity(blob)?;
+        self.shape_authenticated(blob, request, limits)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn shape_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        request: &NativeRequest<'_>,
+        limits: &Limits,
+    ) -> Result<RawRun, FontError> {
+        self.shape_authenticated_with_ink(blob, request, limits, true)
+    }
+
+    pub(crate) fn shape_authenticated_with_ink(
+        &mut self,
+        blob: &FontBlob,
+        request: &NativeRequest<'_>,
+        limits: &Limits,
+        collect_ink: bool,
+    ) -> Result<RawRun, FontError> {
+        self.check_bytes(blob.bytes())?;
         let invalid = || {
             FontError::new(
                 ErrorCode::InvalidArgument,
@@ -453,7 +486,7 @@ impl FontContext {
                 glyphs.push(RawGlyph {
                     ink: {
                         let mut extents: hb::hb_glyph_extents_t = std::mem::zeroed();
-                        if hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents) != 0 {
+                        if collect_ink && hb::hb_font_get_glyph_extents(font.raw, g.codepoint, &mut extents) != 0 {
                             Some([
                                 extents.x_bearing,
                                 extents.y_bearing,

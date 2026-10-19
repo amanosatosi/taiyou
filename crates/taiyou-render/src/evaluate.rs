@@ -377,6 +377,25 @@ pub fn evaluate_with_policy(
         .iter()
         .find(|e| e.id() == id)
         .ok_or_else(|| error(ErrorCode::InvalidArgument, "event ID not found"))?;
+    evaluate_event_with_policy(track, event, now, profile, policy, limits)
+}
+
+/// Coordinator-only entry: the event reference comes from this immutable track.
+/// Keep the public ID lookup at the public boundary, not in each rendering stage.
+pub(crate) fn evaluate_event_with_policy(
+    track: &Track,
+    event: &Event,
+    now: TimeUs,
+    profile: Profile,
+    policy: UnsupportedPolicy,
+    limits: &Limits,
+) -> Result<(EvaluatedEvent, Arc<[Diagnostic]>), RenderError> {
+    if profile != Profile::CoreV1 {
+        return Err(error(
+            ErrorCode::UnsupportedFeature,
+            "Legacy evaluation requires research gates",
+        ));
+    }
     if !event.is_active(now) {
         return Err(error(
             ErrorCode::InvalidArgument,
@@ -392,6 +411,44 @@ pub fn evaluate_with_policy(
     let mut diagnostics = DiagnosticBuffer::new();
     let result = one(track, event, policy, &mut diagnostics, limits)?;
     Ok((result, diagnostics.finish().map_err(convert)?.into()))
+}
+
+/// Structural placement analysis of the parsed program, not subtitle text.
+/// `one` starts at Default; only SetPosition writes the anchor. Style resets,
+/// recovery literals and unsupported operations never write it. Full evaluation
+/// still runs before rendering and enforces policy/errors independently.
+pub(crate) fn collision_eligible(event: &Event) -> bool {
+    !event.program().iter().any(|operation| {
+        matches!(operation, TextOp::Override(OverrideOp::SetPosition { .. }))
+    })
+}
+
+#[cfg(test)]
+mod placement_analysis_tests {
+    use super::*;
+    #[test]
+    fn parsed_operations_match_full_evaluation_in_both_policies() {
+        let source: Arc<str> = Arc::from("literal \\pos(1,2) recovery");
+        let span = SourceSpan::new(&source, 0, source.len()).unwrap();
+        let operations = [
+            TextOp::Text { text: source.clone(), source: span },
+            TextOp::Override(OverrideOp::SetPosition { point: ScriptPoint::new(FiniteF64::ZERO, FiniteF64::ZERO), source: span }),
+            TextOp::Override(OverrideOp::ResetStyle { name: None, source: span }),
+            TextOp::Override(OverrideOp::ResetStyle { name: Some(Arc::from("Default")), source: span }),
+            TextOp::Unsupported { name: Arc::from("malformed/recovered tag"), source: span },
+            TextOp::Override(OverrideOp::SetAlignment { alignment: Alignment::new(7).unwrap(), source: span }),
+        ];
+        for a in &operations { for b in &operations { for c in &operations {
+            let event = Event::new(EventId::new(0), TimeUs::from_micros(0), TimeUs::from_micros(2), StyleId::new(0), span).with_program(Arc::from([a.clone(), b.clone(), c.clone()]));
+            let track = TrackIngestor::new().ingest(source.clone(), ScriptInfo::core_default(), Arc::from([Style::core_default()]), Arc::from([event]), &Limits::default()).unwrap();
+            let event = &track.events()[0];
+            for policy in [UnsupportedPolicy::Strict, UnsupportedPolicy::Tolerant] {
+                if let Ok((state, _)) = evaluate_event_with_policy(&track, event, TimeUs::from_micros(1), Profile::CoreV1, policy, &Limits::default()) {
+                    assert_eq!(collision_eligible(event), state.placement().collision_eligible());
+                }
+            }
+        } } }
+    }
 }
 pub fn evaluate_active(
     track: &Track,

@@ -2,13 +2,21 @@
 #[cfg(feature = "native")]
 use crate::collision::{CollisionInput, PlacedEvent, resolve_collisions};
 #[cfg(feature = "native")]
-use crate::{compose, evaluate_with_policy, geometry::*, layout, raster::*};
+use crate::{compose, geometry::*, layout, raster::*};
 #[cfg(feature = "native")]
 use std::sync::Arc;
 use std::{cell::Cell, marker::PhantomData};
 #[cfg(feature = "native")]
 pub use taiyou_font::{FontCatalogBuilder, FontContext, ValidatedFontCatalog};
 pub use taiyou_types::*;
+
+#[cfg(all(test, feature = "native"))]
+mod staging_tests;
+#[cfg(all(test, feature = "native"))]
+std::thread_local! {
+    static PREPARE_CALLS: Cell<usize> = const { Cell::new(0) };
+    static RETAINED_CALLS: Cell<usize> = const { Cell::new(0) };
+}
 
 #[cfg(feature = "native")]
 fn limited() -> RenderError {
@@ -128,6 +136,13 @@ struct Preparation<'a> {
     config: &'a RendererConfig,
 }
 #[cfg(feature = "native")]
+struct PreparedLocal {
+    id: EventId,
+    local: Arc<LocalLayout>,
+    charge: u64,
+    diagnostics: Vec<Diagnostic>,
+}
+#[cfg(feature = "native")]
 fn prepare_local(
     ctx: &mut FontContext,
     event: &Event,
@@ -135,6 +150,8 @@ fn prepare_local(
     held: u64,
     diagnostics: &mut DiagnosticBuffer,
 ) -> Result<(Arc<LocalLayout>, u64), RenderError> {
+    #[cfg(test)]
+    PREPARE_CALLS.with(|n| n.set(n.get() + 1));
     let Preparation {
         fonts,
         track,
@@ -144,9 +161,9 @@ fn prepare_local(
     let limits = &config.limits;
     let profile = config.profile;
     let eval_charge = crate::evaluate::preflight(event)?;
-    let (evaluated, report) = evaluate_with_policy(
+    let (evaluated, report) = crate::evaluate::evaluate_event_with_policy(
         track,
-        event.id(),
+        event,
         request.now,
         profile,
         request.unsupported,
@@ -309,6 +326,28 @@ impl Renderer {
         fonts: Arc<ValidatedFontCatalog>,
         request: &RenderRequest,
     ) -> Result<Frame, RenderError> {
+        let mut optional_used = false;
+        let result = self.render_staged(track.clone(), fonts.clone(), request, true, &mut optional_used);
+        // Optional retention must never turn a successful minimal render into a
+        // limit failure. The failed attempt owns no published frame and is fully
+        // dropped (including native contexts, diagnostics and masks) before retry.
+        if optional_used
+            && result.as_ref().is_err_and(|e| matches!(e.code(), ErrorCode::LimitExceeded | ErrorCode::AllocationFailed))
+        {
+            return self.render_staged(track, fonts, request, false, &mut false);
+        }
+        result
+    }
+
+    #[cfg(feature = "native")]
+    fn render_staged(
+        &mut self,
+        track: Arc<Track>,
+        fonts: Arc<ValidatedFontCatalog>,
+        request: &RenderRequest,
+        retain: bool,
+        optional_used: &mut bool,
+    ) -> Result<Frame, RenderError> {
         let limits = &self.config.limits;
         let (_, length) = limits
             .check_output_size(request.viewport.size())
@@ -379,8 +418,8 @@ impl Renderer {
             request,
             config: &self.config,
         };
-        // Classification retains one byte per active event, never a full
-        // evaluated/shaped layout. Explicit events never reach collision inputs.
+        // Parsed operations determine eligibility without allocating evaluated
+        // text or resolving fonts. Explicit events never reach collision inputs.
         let flag_charge = bytes::<bool>(count)?;
         held = add(held, flag_charge)?;
         available(limits, held)?;
@@ -392,17 +431,26 @@ impl Renderer {
             )
         })?;
         for event in &events {
-            let (state, _) = evaluate_with_policy(
-                &track,
-                event.id(),
-                request.now,
-                self.config.profile,
-                request.unsupported,
-                &available(limits, held)?,
-            )?;
-            eligible.push(state.placement().collision_eligible());
+            eligible.push(crate::evaluate::collision_eligible(event));
         }
         let collision_count = eligible.iter().filter(|&&value| value).count();
+        let mut prepared = Vec::<(EventId, Option<PreparedLocal>)>::new();
+        let mut prepared_charge = 0;
+        // Admission is a deterministic fraction of the caller's remaining
+        // budget, not host RAM. Keep a stable prefix of eligible paint order;
+        // no eviction policy or frame-history cache is involved.
+        let retain_cap = available(limits, held)?.transient_bytes() / 4;
+        if retain && collision_count > 1 {
+            *optional_used = true;
+            prepared_charge = bytes::<(EventId, Option<PreparedLocal>)>(collision_count)?;
+            held = add(held, prepared_charge)?;
+            available(limits, held)?;
+            prepared.try_reserve_exact(collision_count).map_err(|_| {
+                RenderError::new(ErrorCode::AllocationFailed, "prepared layout allocation failed")
+            })?;
+        }
+        let mut retained_charge = 0_u64;
+        let mut admitting = retain;
         // Zero/single-eligible scenes need neither a native prepass nor a solver.
         let placements = if collision_count <= 1 {
             Vec::new()
@@ -421,15 +469,15 @@ impl Renderer {
                 if !collides {
                     continue;
                 }
-                // A bounded native prepass publishes only compact descriptors.
-                // Drop every local layout before preparing the next one.
-                // Diagnostics publish once in the ordinary rendering pass.
-                let (local, _) = prepare_local(
+                // Publish compact descriptors; optionally retain the exact
+                // immutable local result and its diagnostics for the paint pass.
+                let mut report = DiagnosticBuffer::new();
+                let (local, charge) = prepare_local(
                     &mut ctx,
                     event,
                     &preparation,
                     held,
-                    &mut DiagnosticBuffer::new(),
+                    &mut report,
                 )
                 .map_err(|e| {
                     let id = e.event().or(Some(event.id()));
@@ -451,6 +499,22 @@ impl Renderer {
                     )?,
                     eligible: true,
                 });
+                if admitting {
+                    let report = report.finish().map_err(convert)?;
+                    let report_charge = report.iter().try_fold(bytes::<Diagnostic>(report.len())?, |n, d| add(n, (d.detail().len() as u64).checked_mul(3).ok_or_else(limited)?))?;
+                    let charge = add(charge, report_charge)?;
+                    let next = add(retained_charge, charge)?;
+                    if next <= retain_cap {
+                        held = add(held, charge)?;
+                        available(limits, held)?;
+                        retained_charge = next;
+                        #[cfg(test)]
+                        RETAINED_CALLS.with(|n| n.set(n.get() + 1));
+                        prepared.push((event.id(), Some(PreparedLocal { id: event.id(), local, charge, diagnostics: report })));
+                    } else {
+                        admitting = false;
+                    }
+                }
             }
             let placed =
                 resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
@@ -461,12 +525,21 @@ impl Renderer {
         };
         drop(eligible);
         held = held.checked_sub(flag_charge).ok_or_else(limited)?;
+        // IDs are unique. Sorted slots permit O(log N) lookup and O(1) take
+        // without moving other entries, independently of layer/paint ordering.
+        prepared.sort_unstable_by_key(|p| p.0);
         // Ordinary paint order and full effects apply to explicit events too.
-        // At most one full local layout is retained in either pass.
         for event in events {
             let result = (|| {
-                let (local, local_charge) =
-                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?;
+                let (local, local_charge) = if let Ok(index) = prepared.binary_search_by_key(&event.id(), |p| p.0) {
+                    let saved = prepared[index].1.take().ok_or_else(|| RenderError::new(ErrorCode::InternalError, "prepared event already consumed"))?;
+                    debug_assert_eq!(saved.id, event.id());
+                    held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                    diagnostics.extend_finished(&saved.diagnostics).map_err(convert)?;
+                    (saved.local, saved.charge)
+                } else {
+                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let anchor = if collision_count > 1 && state.collision_eligible() {
@@ -733,6 +806,9 @@ impl Renderer {
                 e.with_context(id, span)
             })?;
         }
+        drop(prepared);
+        held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
+        available(limits, held)?;
         compose(
             request.viewport.size(),
             &operations,

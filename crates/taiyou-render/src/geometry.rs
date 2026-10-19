@@ -284,8 +284,8 @@ pub fn geometry(
             .with_transient_bytes(remaining)
             .and_then(|l| l.with_path_segments_per_frame(remaining_segments))
             .map_err(|_| geometry_limit())?;
-        let outline = context
-            .outline(blob, glyph.glyph(), &intake_limits)
+        let outline = catalog
+            .outline(context, blob.id(), glyph.glyph(), &intake_limits)
             .map_err(font_error)?;
         total = total
             .checked_add(outline.outline().ops().len())
