@@ -295,7 +295,7 @@ fn boundary_widths_match_independent_full_line_shaping_and_report_costs() {
                 let t = Instant::now();
                 let input = event(
                     source.clone(),
-                    start_offset..ends[last - 1],
+                    starts[first]..ends[last - 1],
                     &[style(family)],
                     &limits,
                 );
@@ -385,7 +385,12 @@ fn every_native_fallback_and_context_attempt_is_budgeted() {
         false,
     ));
     let text: Arc<str> = Arc::from("office 日本語 مرحبا नमस्ते a\u{301}");
-    let input = event(text.clone(), 0..text.len(), std::slice::from_ref(&style), &limits);
+    let input = event(
+        text.clone(),
+        0..text.len(),
+        std::slice::from_ref(&style),
+        &limits,
+    );
     let unlimited = Work {
         calls: u64::MAX,
         context_bytes: u64::MAX,
@@ -506,7 +511,11 @@ fn every_native_fallback_and_context_attempt_is_budgeted() {
             ends.push(offset);
             offset += 1;
         }
-        std::fs::write(PathBuf::from(&folder).join(format!("T017-native-input-{name}.txt")), source.as_bytes()).unwrap();
+        std::fs::write(
+            PathBuf::from(&folder).join(format!("T017-native-input-{name}.txt")),
+            source.as_bytes(),
+        )
+        .unwrap();
         ctx.begin_native_work_experiment(unlimited);
         let start = Instant::now();
         let (mut preparation_ns, mut native_ns, mut measurement_ns) = (0u128, 0u128, 0u128);
