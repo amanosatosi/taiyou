@@ -207,13 +207,7 @@ fn actual_automatic_lines_margins_overwide_words_and_seeks_render() {
         };
         let one = render(&single);
         let two = render(&pair);
-        let occupied = |frame: &Frame| {
-            frame
-                .pixels()
-                .chunks_exact(4)
-                .filter(|p| p[3] != 0)
-                .count()
-        };
+        let occupied = |frame: &Frame| frame.pixels().chunks_exact(4).filter(|p| p[3] != 0).count();
         assert!(occupied(&two) > occupied(&one), "q{q} collision placement");
         assert_eq!(two.pixels(), render(&pair).pixels());
     }
