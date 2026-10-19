@@ -69,11 +69,16 @@ def unchanged(measured, kind):
         # target/prefix/environment. Its discovery fix cannot change these builds.
         if path == "build-support/font-sanitizer.py":
             continue
+        # Separate prerequisite job/data never enters these measured binaries,
+        # workload builders, native prefix or benchmark process environment.
+        # Any corresponding production include/build change still rejects reuse.
+        if path == ".github/workflows/t017-prerequisites.yml" or path.startswith("experiments/t017/unicode15_1/"):
+            continue
         if kind == "debug" and path == "experiments/t017/optimized.py":
             continue
         if kind == "optimized" and path == "experiments/t017/measure.py":
             continue
-        if path.startswith(("docs/", "experiments/t017/results/")) or path in {"experiments/t017/reuse_completed.py", "experiments/t017/reuse_or_measure.py", "experiments/t017/README.md"}:
+        if path.startswith(("docs/", "experiments/t017/results/")) or path in {"experiments/t017/reuse_completed.py", "experiments/t017/reuse_or_measure.py", "experiments/t017/historical.py", "experiments/t017/README.md"}:
             continue
         # Only independently added tests, absent from the reviewed candidate.
         if path.startswith("crates/") and "/tests/" in path and path.endswith(".rs") and status != "D":

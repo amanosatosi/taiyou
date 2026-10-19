@@ -24,8 +24,12 @@ Zero/one eligible events have no collision prepass. Slots are sorted by EventId,
 looked up in logarithmic time and taken without moving other slots.
 
 Optional retention cannot change a successful minimal frame into LimitExceeded:
-if an attempt using optional storage hits a limit or allocation failure, drop
-the entire unpublished attempt and retry once with minimal staging. No output
+retry only a typed transient-memory failure while optional ownership exists.
+Checked transient reservations carry internal resource provenance through font
+and render errors; fallible allocation failures carry memory provenance too.
+Fixed count/extent/segment limits and the initial font-context cap do not qualify.
+No diagnostic text is parsed for this decision. Drop the entire unpublished
+attempt and retry once with minimal staging only for qualifying pressure. No output
 lease, diagnostics, masks, native context or retained layout survives the failed
 attempt. Genuine minimal failures remain failures. This is bounded frame-local
 staging, not a cache, eviction framework or memory-observation heuristic.

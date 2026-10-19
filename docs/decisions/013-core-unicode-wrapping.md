@@ -81,6 +81,19 @@ separate gate, not acceptance of this proposed behavior by an agent.
 
 ## Mandatory implementation prerequisites
 
+### Proposed Unicode numeric profile clarification
+
+The unmodified Unicode15.1 LineBreakTest header explicitly selects UAX14
+section8.2 Example7 numeric tailoring, rather than the default LB25 pair
+approximation. The isolated prerequisite probe tests that exact declared profile
+and keeps the default pair path separate. Propose the same numeric profile for
+Core W2, together with LB1's default SA/CJ resolution. For example `%(` has no
+interior break under default pair rules, but has one under the upstream test
+profile when no following number exists. This is a concrete additional
+clarification for final owner confirmation; it is not silently applied to C4,
+production wrapping or ASS-specific tailoring. Generated properties and passing
+unmodified test cases do not decide this Core policy on the owner's behalf.
+
 * Vendor/hash Unicode15.1 UAX14 revision51 and UAX29 revision43 properties and
   matching unmodified conformance inputs; record license/provenance/table size.
   No new runtime dependency is proposed. Host Unicode tables are not accepted.

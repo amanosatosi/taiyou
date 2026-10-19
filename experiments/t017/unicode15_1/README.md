@@ -37,3 +37,10 @@ Production admission still requires generated Rust storage/lookup review,
 separate ASS-tailored/cluster-filtered integration fixtures, bounded native work
 and a reviewed C7 policy, and final ADR-013 confirmation. The Python probe is
 research tooling, not a new runtime implementation.
+
+The upstream LineBreakTest header explicitly selects the numeric-expression
+rules in UAX14 section8.2 Example7. The probe therefore requests that profile
+explicitly; its default pair-rule path remains separate. Neither profile silently
+selects the eventual Core numeric policy. Final ADR-013 confirmation must identify
+the numeric profile as well as the recursive binary64 comparator. Unicode
+conformance here never includes ASS space/group or shaping-cluster filters.
