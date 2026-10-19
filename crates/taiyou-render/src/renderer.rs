@@ -449,7 +449,7 @@ impl Renderer {
         // Admission is a deterministic fraction of the caller's remaining
         // budget, not host RAM. Keep a stable prefix of eligible paint order;
         // no eviction policy or frame-history cache is involved.
-        let retain_cap = available(limits, held)?.transient_bytes() / 4;
+        let retain_cap = available(limits, held)?.transient_bytes() / 8;
         if retain && collision_count > 1 {
             *optional_used = true;
             prepared_charge = bytes::<(EventId, Option<PreparedLocal>)>(collision_count)?;

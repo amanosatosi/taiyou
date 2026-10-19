@@ -21,9 +21,9 @@ head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True
 versions = {"earlier": "9eee96fe16989089d8fd3f65b1bb136455ffca7e", "reviewed": "027e58a52efdd870b99f49ab5f3bae6e952f8f59", "candidate": head}
 stages = ["evaluation", "shaping", "layout", "footprint", "collision", "outlines", "geometry", "raster", "stroke", "shadow", "composition", "authentication", "font_resolution", "native_shaping"]
 
-def inject(code, name, index):
+def inject(code, name, index, statement=None):
     pattern = r"((?:pub(?:\(crate\))? )?fn " + name + r"\([^{}]*?\)\s*(?:->[^{}]*?)?\{)"
-    code, count = re.subn(pattern, lambda m: m[0] + f"\nlet _measurement = taiyou_types::t017_metrics::guard({index});", code, count=1, flags=re.S)
+    code, count = re.subn(pattern, lambda m: m[0] + "\n" + (statement or f"let _measurement = taiyou_types::t017_metrics::guard({index});"), code, count=1, flags=re.S)
     assert count == 1, name
     return code
 
@@ -49,6 +49,8 @@ pub fn retain(n:u64){RETAINED.store(n,Ordering::Relaxed);maximum(1,n);}
 pub fn release(n:u64){RETAINED.fetch_sub(n,Ordering::Relaxed);}
 pub fn local(n:u64){maximum(1,n+RETAINED.load(Ordering::Relaxed));}
 pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|n.load(Ordering::Relaxed)),NS.each_ref().map(|n|n.load(Ordering::Relaxed)),PEAK.each_ref().map(|n|n.load(Ordering::Relaxed)));}
+pub struct Report;
+impl Drop for Report {fn drop(&mut self){report();}}
 '''
     (destination / "crates/taiyou-types/src/t017_metrics.rs").write_text(metrics)
     types = destination / "crates/taiyou-types/src/lib.rs"
@@ -94,7 +96,7 @@ pub fn report(){eprintln!("T017_PROFILE={:?}|{:?}|{:?}",CALLS.each_ref().map(|n|
             code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::release(saved.charge);")
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
-    code = code.replace(marker, marker + ".inspect(|_| taiyou_types::t017_metrics::report())")
+    code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
     if label == "candidate":
         marker = "        let limits = &self.config.limits;"
         # First occurrence in render_staged; the public wrapper has no limits.
@@ -167,11 +169,13 @@ for n in [100, 500]:
     for border, shadow in [(0.5, "&HFF&"), (3, "&H00&")]:
         typesetting = "".join(row(fr"{{\pos({(i % 10) * 16},{(i // 10 % 10) * 10})\fs5\bord{border}\shad1.25\4a{shadow}}}Fansub typesetting") for i in range(n-2))
         cases.append((f"typesetting-{n}-border-{border}", typesetting + row("dialogue") * 2))
+cases.append(("typesetting-hd-100", "".join(row(fr"{{\pos({(i % 10) * 192},{(i // 10) * 100})\fs32\bord2\shad2\4a&H00&}}Fansub typesetting") for i in range(98)) + row("ordinary dialogue") * 2))
 records = []
 budget = time.monotonic() + 12 * 60
 for name, events in cases:
     script = out / (name + ".ass")
-    script.write_text(header + events)
+    hd = name == "typesetting-hd-100"
+    script.write_text((header.replace("PlayResX: 160", "PlayResX: 1920").replace("PlayResY: 100", "PlayResY: 1080") if hd else header) + events)
     for sample in range(3):
         variants = [(label, binary, versions[label], dict(os.environ)) for label, binary in binaries.items()]
         if name == "adaptive-256-multiglyph":
@@ -186,20 +190,27 @@ for name, events in cases:
             stem = f"{name}-{label}-{sample}"
             resource = out / (stem + ".resource.txt")
             raw = out / (stem + ".rgba")
-            command = ["/usr/bin/time", "-f", "%M %U %S", "-o", str(resource), str(binary), "render", "--input", str(script), "--font", str(font), "--time-us", "750000", "--width", "160", "--height", "100", "--profile", "core-v1", "--output", str(out / (stem + ".png")), "--raw", str(raw)]
+            command = ["/usr/bin/time", "-f", "%M %U %S", "-o", str(resource), str(binary), "render", "--input", str(script), "--font", str(font), "--time-us", "750000", "--width", "1920" if hd else "160", "--height", "1080" if hd else "100", "--profile", "core-v1", "--output", str(out / (stem + ".png")), "--raw", str(raw)]
             start = time.perf_counter_ns()
             result = subprocess.run(command, capture_output=True, timeout=40, env=env)
             elapsed = time.perf_counter_ns() - start
             (out / (stem + ".stderr.txt")).write_bytes(result.stderr)
-            result.check_returncode()
             match = re.search(rb"T017_PROFILE=(\[.*?\])\|(\[.*?\])\|(\[.*?\])", result.stderr)
             assert match, result.stderr
             calls, ns, peaks = map(json.loads, match.groups())
-            rss, user, system = resource.read_text().split()
-            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest(), "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode}
+            rss, user, system = resource.read_text().splitlines()[-1].split()
+            record = {"case": name, "implementation": label, "commit": commit, "transient_limit_bytes": int(env.get("TAIYOU_EXPERIMENT_BYTES",128*1024*1024)), "sample": sample, "elapsed_ns": elapsed, "peak_rss_kib": int(rss), "user_seconds": float(user), "system_seconds": float(system), "stage_calls": dict(zip(stages, calls)), "inclusive_stage_ns": dict(zip(stages, ns)), "peak_reservation_bytes": peaks[0], "peak_local_reservation_bytes": peaks[1], "raw_sha256": hashlib.sha256(raw.read_bytes()).hexdigest() if result.returncode == 0 else None, "script_sha256": hashlib.sha256(script.read_bytes()).hexdigest(), "exit_code": result.returncode, "status": "completed-frame" if result.returncode == 0 else "renderer-error-no-frame", "error": result.stderr.decode() if result.returncode != 0 else None}
             records.append(record)
             with (out / "samples.jsonl").open("a") as stream:
                 stream.write(json.dumps(record) + "\n")
             print("T017_OPTIMIZED=" + json.dumps(record), flush=True)
-    assert len({r["raw_sha256"] for r in records if r["case"] == name and (r["implementation"] == "reviewed" or r["implementation"].startswith("candidate"))}) == 1, name
+            if result.returncode != 0:
+                assert not raw.exists(), "a failed frame must not publish raw output"
+                assert b"LimitExceeded" in result.stderr, "unexpected non-limit rendering failure"
+    selected = [r for r in records if r["case"] == name]
+    reviewed_completed = all(r["exit_code"] == 0 for r in selected if r["implementation"] == "reviewed")
+    if reviewed_completed:
+        assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate")), "new candidate failure: " + name
+    successful = [r for r in selected if r["exit_code"] == 0 and (r["implementation"] == "reviewed" or r["implementation"].startswith("candidate"))]
+    assert len({r["raw_sha256"] for r in successful}) <= 1, name
 (out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))

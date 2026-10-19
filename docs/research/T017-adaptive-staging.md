@@ -14,7 +14,7 @@ strict/tolerant policy. Renderer event references avoid repeating the public
 linear EventId lookup.
 
 For two or more eligible events, retain a stable prefix of prepared immutable
-layouts up to one quarter of the initial remaining transient budget. Account
+layouts up to one eighth of the initial remaining transient budget. Account
 the slot array, transitive local ownership and saved diagnostics separately.
 Unretained events retain only collision descriptors and are reconstructed during
 painting. Explicit events never enter this preparation or collision indexing.
@@ -27,6 +27,15 @@ the entire unpublished attempt and retry once with minimal staging. No output
 lease, diagnostics, masks, native context or retained layout survives the failed
 attempt. Genuine minimal failures remain failures. This is bounded frame-local
 staging, not a cache, eviction framework or memory-observation heuristic.
+
+The initial one-quarter trial is preserved as partial evidence at candidate
+`2574e17e1c60ef106e3785947f327c6c0f75313b`: a 32 MiB, 256-event/32-glyph
+effects scene replayed after admission, producing 640 shaping calls versus
+512 for minimal staging. The smaller admission fraction leaves more native
+scratch headroom. A new 32 MiB test requires successful partial reuse with fewer
+preparations than minimal staging, preventing a replay from masquerading as
+successful partial retention. Whole-frame retry still protects arbitrary tiny
+caller budgets.
 
 ## Font authentication and experimental widths
 

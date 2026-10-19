@@ -105,6 +105,10 @@ fn adaptive_full_partial_minimal_and_limit_results_agree() {
             (Ok(a), Ok(b)) => {
                 succeeded = true;
                 partial |= retained > 0 && retained < count as usize;
+                if mib == 32 {
+                    assert!(retained > 0 && retained < count as usize);
+                    assert!(PREPARE_CALLS.with(Cell::get) < 2 * count as usize + 4);
+                }
                 assert_eq!(a.pixels(), b.pixels(), "budget {mib}");
                 assert_eq!(a.diagnostics(), b.diagnostics());
                 if mib == 128 {

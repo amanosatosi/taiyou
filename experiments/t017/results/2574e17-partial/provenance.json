@@ -1,0 +1,10 @@
+{
+  "candidate": "2574e17e1c60ef106e3785947f327c6c0f75313b",
+  "job": "https://github.com/amanosatosi/taiyou/actions/runs/39265443091/job/118103794622",
+  "artifact_id": 12192562398,
+  "artifact_zip_sha256": "c047eea7c57d9892cf4c5922537aec933f256a8f1237d433ab3caf2c5fd2e9c3",
+  "status": "99 completed release samples; experiment incomplete, not reusable as a complete dataset",
+  "stop": "earlier snapshot reached the genuine frame-segment limit at typesetting-500-border-0.5, event441; remaining834 versus1964 output stroker points",
+  "finding": "one-quarter retention at32MiB replayed the256-event preparation:640 shaping calls versus512 minimal and256 sufficient-memory calls",
+  "scope": "original JSONL, CJK profiles, instrumentation identities and failure detail; no invented remaining samples or completed frame for the failed case"
+}

@@ -18,7 +18,7 @@ REVIEWED = "027e58a52efdd870b99f49ab5f3bae6e952f8f59"
 EARLIER = "9eee96fe16989089d8fd3f65b1bb136455ffca7e"
 FONT = "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6"
 DEBUG_CASES = {"normal-one", "normal-two", "normal-eight", "positioned-5000-one-glyph", "mixed-2000-one-glyph", "dense-100", "dense-500", "dense-1000"}
-RELEASE_CASES = {"normal-one", "normal-eight", "dense-100", "dense-500", "dense-1000", "mixed-2000", "positioned-5000", "adaptive-256-multiglyph"} | {f"typesetting-{n}-border-{b}" for n in [100, 500] for b in [0.5, 3]}
+RELEASE_CASES = {"normal-one", "normal-eight", "dense-100", "dense-500", "dense-1000", "mixed-2000", "positioned-5000", "adaptive-256-multiglyph", "typesetting-hd-100"} | {f"typesetting-{n}-border-{b}" for n in [100, 500] for b in [0.5, 3]}
 
 def validate(kind, rows, environment, measured):
     assert re.fullmatch(r"[0-9a-f]{40}", measured)
@@ -37,13 +37,21 @@ def validate(kind, rows, environment, measured):
         slots = {(label, sample) for label in implementations for sample in range(3)}
         assert len(selected) == len(slots)
         assert {(r["implementation"], r["sample"]) for r in selected} == slots
-        assert all(r["exit_code"] == 0 and r["elapsed_ns"] > 0 and r["peak_rss_kib"] > 0 for r in selected)
+        assert all(r["elapsed_ns"] > 0 and r["peak_rss_kib"] > 0 for r in selected)
+        for row in selected:
+            if row["exit_code"] != 0:
+                assert kind != "debug" and row["status"] == "renderer-error-no-frame"
+                assert row["raw_sha256"] is None and "LimitExceeded" in row["error"]
+            else:
+                assert re.fullmatch(r"[0-9a-f]{64}", row["raw_sha256"])
         if kind != "debug":
             assert all(r["commit"] == environment["versions"]["candidate" if r["implementation"].startswith("candidate") else r["implementation"]] for r in selected)
-        assert all(re.fullmatch(r"[0-9a-f]{64}", r[key]) for r in selected for key in ["script_sha256", "raw_sha256"])
+        assert all(re.fullmatch(r"[0-9a-f]{64}", r["script_sha256"]) for r in selected)
         assert len({r["script_sha256"] for r in selected}) == 1
-        comparable = selected if kind == "debug" else [r for r in selected if r["implementation"] != "earlier"]
-        assert len({r["raw_sha256"] for r in comparable}) == 1
+        if kind != "debug" and all(r["exit_code"] == 0 for r in selected if r["implementation"] == "reviewed"):
+            assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate"))
+        comparable = selected if kind == "debug" else [r for r in selected if r["implementation"] != "earlier" and r["exit_code"] == 0]
+        assert len({r["raw_sha256"] for r in comparable}) <= 1
 
 def unchanged(measured):
     subprocess.run(["git", "fetch", "--no-tags", "origin", measured, REVIEWED], cwd=ROOT, check=True, capture_output=True)
