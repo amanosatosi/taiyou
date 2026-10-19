@@ -208,9 +208,7 @@ before allocation. Per-call memoization may avoid repeated shape work but is
 charged and released in that call. No acceptance claim for arbitrary 1-MiB
 typesetting events follows from a few representative measurements.
 
-## Executable proposed arithmetic expectations
-
-### Completed optimized-width experiment (Core proposal still unapproved)
+## Completed optimized-width experiment (Core proposal still unapproved)
 
 Candidate `ae467c953b9cf937469fb118e48f3f8c909fcaac`,
 [Linux job118108262024](https://github.com/amanosatosi/taiyou/actions/runs/39266748578/job/118108262024),
@@ -265,6 +263,8 @@ plan enumeration or build a production wrapper to resolve this policy decision.
 Owner review is requested for the exact W2 semantics, backwards cost recurrence,
 Unicode15.1 generated-data choice and pilot budgets; implementation remains gated
 on that approval and the explicitly missing conformance/native-work evidence.
+
+## Executable proposed arithmetic expectations
 
 Synthetic advances: Latin/space=1; CJK ideograph=2; punctuation=1;
 ascent8/descent2. No font pixel result is invented by these arithmetic examples.

@@ -10,7 +10,9 @@ use taiyou_render::{
 
 #[test]
 fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
-    let source = include_str!("../../../experiments/t017/results/ae467c9/optimized-initial/adaptive-256-multiglyph.ass");
+    let source = include_str!(
+        "../../../experiments/t017/results/ae467c9/optimized-initial/adaptive-256-multiglyph.ass"
+    );
     let limits = Limits::default();
     let parsed = taiyou_ass::parse_ass(
         source.as_bytes(),
@@ -47,11 +49,8 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         &limits,
     )
     .unwrap();
-    let local = taiyou_render::layout(
-        &shaped,
-        &LayoutConstraints::new(Alignment::new(7).unwrap()),
-    )
-    .unwrap();
+    let local = taiyou_render::layout(&shaped, &LayoutConstraints::new(Alignment::new(7).unwrap()))
+        .unwrap();
     // Unit mapping, no rotation/scale, visible fill/outline/shadow, Q6-exact
     // radius .5 and offset (1.25,1.25). Independently union the analytic hulls;
     // do not call the effect-bounds implementation to establish this expectation.
@@ -69,8 +68,8 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
                 ScriptBounds::new(
                     ink.x0().get() + x - 0.5,
                     ink.y0().get() + y - 0.5,
-                    ink.x1().get() + x + 1.75,
-                    ink.y1().get() + y + 1.75,
+                    ink.x1().get() + x + 0.5 + 1.25,
+                    ink.y1().get() + y + 0.5 + 1.25,
                 )
                 .unwrap(),
             )
@@ -165,5 +164,8 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
     assert_eq!(actual.pixels(), f1.pixels());
     assert_eq!(actual.diagnostics(), f1.diagnostics());
     assert_ne!(actual.pixels(), old_anchors.pixels());
-    println!("T017_F1_ANCHORS: base={base:?} approved={expected:?} second_y={} events=256", placements[1].anchor.y().get());
+    println!(
+        "T017_F1_ANCHORS: base={base:?} approved={expected:?} second_y={} events=256",
+        placements[1].anchor.y().get()
+    );
 }
