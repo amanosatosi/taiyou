@@ -12,7 +12,8 @@ fn parsed(text: &str, q: u8, event_margin: u32) -> ParsedTrack {
 fn q_prefix_parameters_resets_and_soft_escapes_follow_source_order() {
     for (tag, expected) in [(r"\q0", 0), (r"\q1", 1), (r"\q2", 2), (r"\q3", 3),
         (r"\q", 2), (r"\q4", 2), (r"\q-1", 2), (r"\qjunk", 0),
-        (r"\q1.5", 1), (r"\q+3tail", 3), (r"\q(2)", 2), (r"\q999999999999999999", 2)] {
+        (r"\q1.5", 1), (r"\q+3tail", 3), (r"\q(2)", 2), (r"\q1()", 1), (r"\q(,3)", 3),
+        (r"\q999999999999999999", 2)] {
         let track = parsed(&format!("{{{tag}}}A"), 2, 0);
         let e = taiyou_render::evaluate(track.track(), EventId::new(0), TimeUs::from_micros(1), Profile::CoreV1).unwrap();
         assert_eq!(e.wrap_mode().get(), expected, "{tag}");

@@ -275,7 +275,9 @@ fn parse(
     // empty/out-of-domain values restore Script Info's wrapping style.
     if let Some(value) = raw.strip_prefix('q') {
         let value = value.find('(').map_or(value, |at| {
-            value[at + 1..].split([',', ')']).next().unwrap_or("")
+            value[at + 1..].split(')').next().unwrap_or("").split(',')
+                .map(|p| p.trim_matches([' ', '\t', '\r', '\n']))
+                .find(|p| !p.is_empty()).unwrap_or(&value[..at])
         });
         let value = value.trim_start_matches([' ', '\t', '\r', '\n']);
         let negative = value.starts_with('-');
