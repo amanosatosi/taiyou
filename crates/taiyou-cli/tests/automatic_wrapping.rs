@@ -84,6 +84,8 @@ fn actual_automatic_lines_margins_overwide_words_and_seeks_render() {
         (1, "AA AA AA", 0, vec!["AA AA", "AA"]),
         (2, "AA AA AA", 0, vec!["AA AA AA"]),
         (3, "AA AA AA", 0, vec!["AA", "AA AA"]),
+        (0, r"AA\N\NBB\N", 0, vec!["AA", "", "BB"]),
+        (1, "  AA  ", 0, vec!["AA"]),
         (1, "AA AA AA", 25, vec!["AA", "AA", "AA"]),
         (1, r"AA\nBB\NCC\hDD", 25, vec!["AA", "BB", "CC\u{a0}DD"]),
         (

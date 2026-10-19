@@ -1,4 +1,4 @@
-//! Core hard-line layout in local script space. No wrapping or event placement.
+//! Core local layout: explicit breaks or source-derived xy word wrapping.
 use std::sync::Arc;
 use taiyou_types::*;
 pub use taiyou_types::{LayoutConstraints, LocalLayout};
@@ -214,7 +214,7 @@ pub fn layout(
     {
         return Err(error(
             ErrorCode::UnsupportedFeature,
-            "layout supports CoreV1 hard-break WrapStyle 2",
+            "layout profile or evaluated wrapping policy mismatch",
         ));
     }
     let limits = constraints.limits();

@@ -9,23 +9,21 @@ enable production wrapping, establish C7 defaults or admit LegacyXyV1.
 ADR-012/F1 remains separately accepted. The final exact-head ADR-011 baseline
 acknowledgment remains a separate human decision.
 
-## Proposed selector amendment — separate review pending
+## Explicit Unicode opt-in amendment
 
-The algorithm below was owner-approved in PR29 at
-`3144993e31e52513e044f47a95518930e0a45a80`. That PR remains a partial
-collision/backend checkpoint, not full T017 acceptance. This file is carried
-from that reviewed revision because trusted main does not yet contain ADR-013.
-Integrate PR29 with its human acknowledgment first; reconcile this amendment
-against the actual merge without changing its approved algorithm or F1 policy.
+The approved algorithm below is the `\warpmode1` engine. Missing `\warpmode`
+or explicit0 selects the separate source-derived xy-style word engine, as
+requested by the owner and recorded in [ADR-014](014-wrapping-engine-selection.md).
+The q0/1/2/3 axis stays independent; q2 shares the existing hard-break path.
+This changes selection, not the approved Unicode algorithm, numeric profile,
+binary64 recurrence or gates. Mode1 automatic wrapping remains unavailable
+pending its outstanding prerequisites and C7 limit review; mode0 never silently
+stands in for a requested mode1.
 
-[ADR-014](014-wrapping-engine-selection.md) proposes changing only selection:
-ADR-013 automatic wrapping becomes the explicit Core `\\warpmode1` engine;
-missing `\\warpmode` or `\\warpmode0` selects the separate xy-style intent.
-The q0/1/2/3 choice is independent of engine selection. q2 uses the existing
-hard-break path under either selector. This amendment is **proposed**, not
-self-approved, and admits neither automatic engine or C7 defaults. Until review,
-the approved PR29 contract remains the authority; the proposal is not runtime
-support. Preserve all binary64, Unicode numeric-profile and resource gates below.
+This file was carried from reviewed PR29 revision
+`3144993e31e52513e044f47a95518930e0a45a80` because main did not yet contain it.
+Reconcile after PR29's human-acknowledged merge; preserve F1 and its partial
+checkpoint status. No full T017 or LegacyXyV1 admission is implied.
 
 ## Decision
 

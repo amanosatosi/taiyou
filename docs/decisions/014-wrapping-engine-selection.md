@@ -1,205 +1,96 @@
-# ADR-014 — Proposed event-level wrapping-engine selection
+# ADR-014 — Event-level wrapping-engine selection
 
-Status: **selector implementation authorized; final contract/implementation review pending**.
-The owner's follow-up instruction to actually implement warpmode0/1 authorizes
-typed parsing and event-level selection on this separate branch. This does not
-authorize activating either automatic engine, accepting C7 defaults or merging.
-Date: 2026-10-20. Task branch: `task/T017-warpmode-contract`.
-Trusted integration base: `d5a545ac49aabbfc23e3895231d407da576e276f`.
-Prerequisite: PR29, reviewed head `3144993e31e52513e044f47a95518930e0a45a80`,
-accepted by the owner as a **partial T017 collision/backend checkpoint** subject
-to its exact human baseline acknowledgment. It was still open with no issue
-acknowledgment comment at inspection. This branch neither merges nor modifies it.
-Reconcile this independent selector implementation against its actual accepted
-merge before integration; do not replace PR29's collision/backend changes.
+Status: **owner-directed implementation; final integration/review pending**.
+The owner explicitly requested working source-derived mode0 automatic wrapping,
+rather than a selector-only feature. PR29's human-acknowledged merge remains the
+integration prerequisite; this branch does not modify or merge PR29.
 
-## Request and scope
+## Selection and scope
 
-The owner requests a Taiyou-specific override spelled exactly `\warpmode`, with
-default0 selecting xy-VSFilter-style wrapping intent and explicit1 opting into
-the approved ADR-013 Unicode algorithm. The existing `\q`/WrapStyle axis stays
-independent. This is an explicit extension, not an upstream xy tag or automatic
-profile switch. The engine choice does not admit LegacyXyV1 rules, GDI metrics,
-codepage behavior, stateful placement or a different raster backend.
+The Taiyou extension `\warpmode` selects one immutable engine for the entire
+event: absent or0 selects pinterf xy-style word wrapping;1 selects the separately
+gated ADR-013 Unicode algorithm. The last valid standalone parsed selector wins,
+including a tag after text. Style resets, breaks and paint changes do not reset
+it. Nested children of unsupported operations never execute. Literal text
+cannot select an engine.
 
-This proposal changes C4 and ADR-013's previous **exclusive** Core automatic
-wrapping selection; the approved Unicode algorithm remains valid. Numeric
-tailoring, backwards recursive binary64 comparison and deterministic ties are
-unchanged. The follow-up implements SetWarpMode with a finite WarpMode enum,
-exact source spans and immutable EvaluatedEvent selection/source getters. q2
-uses the existing pipeline without changing style or paint runs. Automatic
-requests fail before source-map allocation, shaping or fallback under either
-unsupported policy. No runtime dependency, production limit, protected fixture
-or support classification changes here. New executable tests cover the actual
-parser/evaluator and native q2 pixels; proposed cases below remain proposals.
-Proposed inputs/expectations are in [the fixture manifest](../../experiments/warpmode-contract/cases.json),
-not accepted output images or actual xy captures. No fixture is promoted to a
-protected suite by this document or its future parser tests.
+The complete parameter is ASCII0 or1 with optional ASCII space/tab. Invalid
+parameters fail strict parsing; recovery diagnoses and retains the earlier
+selection. This finite grammar is a Taiyou extension, not an xy tag.
+Every operation retains its original source span; default0 has no invented span.
 
-## Proposed selector contract
+The independent q axis starts with Script Info WrapStyle. Supported q operations
+follow the local pinterf decimal-prefix conversion: an empty or out-of-range
+parameter restores the script default; a nonempty nondigit prefix converts to0.
+Parenthesized nonempty parameters precede a command suffix. Style reset does not
+reset q. Decode each text fragment under the q state at that source position:
+`\N` is mandatory; `\n` is a space in0/1/3 and a newline in2; `\h` is NBSP.
+The final q state selects the event's line policy. Thus a later q does not
+retroactively reinterpret an already decoded soft break.
 
-1. The tag name is case-sensitive ASCII `warpmode`. Its complete parameter is
-   the single ASCII digit0 or1, allowing only ASCII space/tab around that digit.
-   There is no empty reset, sign, decimal/exponent, suffix, locale conversion,
-   nonfinite value, clamping or prefix acceptance. Thus2,10,-1,1.0,NaN and an
-   empty parameter are invalid;1foo is not a valid1. An unknown different tag,
-   such as `\warpmodes1` or `\WarpMode1`, follows existing unknown-tag policy.
-   Preserve Core's supported-name disambiguation: an alphabetic extension of the
-   name is unknown, except recognized nonfinite numeric spellings, which are
-   malformed parameters. A numeric-leading suffix such as1foo is a malformed
-   complete parameter, never a valid1 prefix. Review this deliberately finite
-   grammar before adding a typed operation.
-2. Start each event with selector0. Resolve **the last valid standalone parsed
-   operation** in original event source order. A valid late selector applies to
-   every paragraph, including earlier text. Do not split shaping/paint runs just
-   because the selector appeared in another override block. Resolve once before
-   paragraph preparation and collision layout; never rescan raw substrings.
-3. Bare `\r` and valid named resets change style under the existing contract
-   but leave the selector unchanged. So do font/paint changes, hard/soft breaks,
-   blank paragraphs and event layers. A new event starts at0; no history or
-   previous-event selector is retained. No style/header default for warpmode is
-   introduced. Explicit `\warpmode0` is the way to return to the default engine.
-4. Animation/transforms do not animate this event-level selector. A candidate
-   selector inside an unsupported/nested operation is not standalone and never
-   executes. Preserve existing outer-operation strict/tolerant behavior; do not
-   extract its children. Literal text outside an override block cannot select an
-   engine. Malformed-block recovery remains the existing Core parser policy;
-   do not change it merely to recognize this extension.
-5. Strict malformed supported parameters return InvalidScript at the original
-   operation span. Recovery emits the existing bounded malformed-record
-   diagnostic and preserves the preceding valid selector; an invalid later tag
-   is not implicit0. Preserve every operation's original span, including losing
-   selectors. The winner has its exact source span; default0 records absence,
-   not a fabricated source range. Typed host operations must validate0/1 and
-   source ownership through the normal immutable Track ingestion boundary.
+## Mode0 implementation
 
-These are proposed new **Core extension** rules. In particular last-wins and
-reset persistence are not asserted as historical xy behavior. Legacy parsing
-and any recognition of this extension in LegacyXyV1 require separate admission;
-using the Core Unicode engine must never silently switch the whole profile.
+Use ASCII-space/nonspace groups, not Unicode break opportunities. q1 uses the
+available width; q2 invokes the unchanged explicit-break layout; q0 derives the
+remaining hard-line width target and q3 applies the additional final-word
+adjustment documented in the source below. Accept an overwide first group,
+consume only whole groups, and trim leading/trailing ASCII-space words after
+fitting. Preserve consumed source ranges even when their glyphs are trimmed.
 
-## Two independent axes
+Available width is PlayResX minus inherited event left/right margins, using the
+original event style for inheritance. Border widths are not subtracted.
+HarfBuzz supplies word advances with existing fallback, cluster ownership and
+style scaling. The policy uses checked eighth-script-unit widths derived from
+those advances. Words retain their own shaping context; no word is split at an
+automatic line boundary. Visual run ordering follows the resulting lines.
+Core empty-line metrics and q2 behavior remain authoritative.
 
-| q style | Selected0: xy-style intent | Selected1: ADR-013 Unicode |
-|---|---|---|
-|0|R001-L03 source-observed xy smart/top-biased policy; capture/metrics gate|Approved recursive binary64 mode0, wider-earlier tie|
-|1|R001-L02 source-observed whitespace-group policy; capture/metrics gate|Approved furthest-fitting-end mode1, no monotonic-width assumption|
-|2|Existing Core hard-break path; no automatic engine invoked|The same hard-break path; no automatic engine invoked|
-|3|R001-L03 source-observed xy alternative balancing; capture/metrics gate|Approved recursive binary64 mode3, narrower-earlier tie|
+This implements the requested wrapping policy with Taiyou's font backend.
+Different font metrics and shaping can change the resulting line breaks.
+It is not a claim of GDI metric equivalence, authenticated xy capture agreement,
+pixel compatibility or admission of any LegacyXyV1 capability.
 
-Missing selector always means0; it never changes a supplied q style. Missing q
-retains the script WrapStyle, including Core's existing default2. Selection does
-not map q0 to q1, swap q0/q3, turn q2 into automatic wrapping or change q reset,
-escape or precedence rules. `\N` remains mandatory; q2 preserves the existing
-soft-break behavior, full style metrics for empty lines and nonbreaking `\h`.
+Mode1 automatic wrapping continues to return UnsupportedFeature in both policies,
+without mode0 fallback or partial output, until ADR-013's conformance, native-work,
+preflight and separately reviewed C7 limits are satisfied. q2 uses the shared
+hard-break path for both selectors. No new limit defaults or dependency are added.
 
-Actual main and PR29 **do not implement `\q` overrides**: the supported parser
-name list omits q, the evaluator takes script WrapStyle and rejects non2. This
-proposal must not pretend otherwise. It defines the engine axis, not a rewrite
-of q evaluation. Repeated/mid-text q changes need a precise separately reviewed
-evaluation rule before enabling those configurations. In the local xy source,
-ParseString interprets soft breaks while successive text fragments are parsed;
-a late q operation cannot be casually applied retroactively to those fragments.
-Uniform-q fixtures below avoid inventing that unresolved behavior. Script-level
-q0/1/2/3 and uniform tag equivalents need independent admission tests.
+## Local source evidence
 
-## Verification gates and failure semantics
-
-There is no production engine capability registry in this change. Both automatic
-engines remain disabled. Selector0 needs authenticated R001-L01–L03 captures,
-identified real pinterf binary/font/Windows environment, measured word/line
-metrics, exact break/tie examples and human admission. The local source is the
-only xy implementation reference, not a rendering oracle. Selector1 needs every
-ADR-013 gate: pinned Unicode15.1 UAX14rev51 complete Regex-Number/LB13 profile and
-UAX29rev43 data/license/storage review, unmodified conformance separately from
-ASS/grapheme/shaping-cluster filters, full boundary-specific shaping/fallback/
-bidi/provenance, all raw native-work accounting and preflight, approved C7
-candidate/native/storage limits, deterministic finite DP and integration tests.
-The32000/16M pilot limits are not production defaults. No default changes here.
-
-Proposed failure rule: resolve the final selector and q requirement before
-checking the selected engine's admission. If q0/1/3 requires an unavailable
-engine, return typed UnsupportedFeature under **both** strict and tolerant
-rendering. Do not try the other engine, use a guessed unwrapped layout, skip an
-event or publish a partial frame/diagnostic list. The winner's span (or genuine
-default/header provenance) identifies the failure. No inactive event forces a
-gate failure; existing no-active-event clear-frame behavior remains intact.
-Existing unsupported tags elsewhere retain their own policy and errors; engine
-selection is not permission to ignore them. q2 invokes an already supported
-shared path, not fallback, even while both automatic engines are gated.
-
-The owner-directed implementation now returns UnsupportedFeature for required
-non2 automatic wrapping in both policies; previous tolerant unwrapped output
-is deliberately rejected, rather than presented as the selected engine. Other
-tolerant operations retain their behavior. Final contract review remains pending.
-Parser recognition, selector evaluation, engine admission and renderer
-activation are distinct milestones; recognizing1 must not advertise a working
-automatic engine.
-
-## Stage, resource and provenance obligations
-
-Preserve parsed operation ordering and ownership. Evaluate selection without
-font lookup or shaping, then freeze it for the whole event. Preserve source maps
-through consumed delimiters, mandatory/blank lines, style seams, fallback and
-bidi clusters. Measure candidates under actual line-boundary shaping; neither
-engine can substitute additive character widths. Never borrow the other engine's
-candidate costs, legal boundaries, metrics or failed search state.
-
-Whole-event engine selection and q style enter local-layout policy identity.
-Boundary-shape reuse additionally includes actual range/context/font/fallback
-and original source identity, as already required by K2. Changing selector may
-change breaks, line baselines and collision footprints, so rebuild complete
-active-set placement; it does not authorize reshaping an unchanged glyph merely
-for event translation. Preserve immutable outputs and approved F1 after-layout
-footprints when PR29 is integrated. No pixel padding, history cache or T019
-framework is added. There is one engine per event, even across multiple paragraphs.
-
-Use checked caller-budget accounting and deterministic preflight before native
-work/allocation; no worker-count-dependent failures, nonfinite scoring, silent
-greedy fallback or partially published frame. Record engine/policy revision, q,
-winning-source provenance and resource configuration in future stage evidence.
-No new bounds are accepted here. Engine selection must not increase repeated
-evaluation/shaping of the already reviewed collision/backend pipeline.
-
-## Source evidence and limits
-
-Inspected the read-only local pinterf pfmod3.2.0.810-labelled tree from the local
-reference map. The24 entry-point fingerprint check passed. RTS.cpp SHA-256 is
+Read-only local pinterf pfmod3.2.0.810-labelled source, from LOCAL_REFERENCES:
+RTS.cpp SHA-256
 `dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`;
-STS.cpp is `59f431e3ac36d99e2b694cdab106a530edaf7bbc8c85410f91647d3ff4578895`.
-The supplied archive's equivalence to the locked upstream commit is unverified.
-No source was refetched, copied or translated into a Taiyou implementation.
+STS.cpp SHA-256
+`59f431e3ac36d99e2b694cdab106a530edaf7bbc8c85410f91647d3ff4578895`.
+Archive equivalence to the locked upstream commit remains unverified.
+No GPL code is copied into Taiyou and no source tree is modified.
 
-| Local RTS.cpp function/range | Finding | Evidence status |
-|---|---|---|
-|CSubtitle::GetWrapWidth1421–1450|Distinct0/3 width heuristic,1 unchanged width,2 no auto constraint|Source-observed; not capture/metric acceptance|
-|CSubtitle::GetNextLine1453–1503|Whitespace/nonwhitespace groups and overwide-first-group behavior|Source-observed; exact line decisions pending|
-|CRenderedTextSubtitle::ParseString1966–2020|N/n/h treatment uses current subtitle wrap state while decoding text fragments|Source-observed; mixed-q behavior needs explicit fixtures|
-|CRenderedTextSubtitle::ParseSSATag2612–2625|q writes separate subtitle wrap state; r writes style|Source-observed; not authority for the new Taiyou selector|
-|CRenderedTextSubtitle::GetSubtitle2872–2949|Initialize wrap from script, process override/text fragments in source order|Source-observed; render/binary identity unverified|
+| RTS.cpp function / lines | Observed policy |
+|---|---|
+| CText::GetTextInfo 698–724 | Width conversion and eighth-pixel storage |
+| CLine::Compact 1171–1210 | Trim edge whitespace after fitting |
+| CSubtitle::GetFullLineWidth 1409–1419 | Width through the next hard break |
+| CSubtitle::GetWrapWidth 1421–1450 | q0 target, q1 width, q2 unbounded, q3 adjustment |
+| CSubtitle::GetNextLine 1453–1503 | Whitespace groups, overwide first group |
+| CSubtitle::MakeLines 1537–1563 | Available width and margins |
+| CRenderedTextSubtitle::ParseString 1966–2020 | N/n/h decoding and space grouping |
+| CRenderedTextSubtitle::ParseSSATag 2047–2215, 2612–2625 | Parameter ordering, q conversion, style-only reset |
+| CRenderedTextSubtitle::GetSubtitle 2872–2991 | Script q initialization, source-order evaluation, margins |
 
-No authentic xy capture, exact break result or pixel-compatibility claim is made.
-Libass remains the independent protected suite and cannot establish xy behavior.
-R001's proposals and future authenticated xy suite remain separate and unmodified.
+Source observations establish policy, not visual capture evidence. R001 proposals,
+authenticated xy capture requirements and the independent protected libass suite
+are unchanged.
 
-## Admission sequence and review request
+## Verification and integration
 
-1. Human acknowledgment and integration of PR29; keep its acceptance partial.
-2. Review this owner-directed selector/reset/grammar/failure implementation and
-   reconcile C4/ADR-013 against that accepted merge. Do not integrate before
-   the separately requested contract/implementation review.
-3. Verify typed bounded recognition/selection and actual parser/source-span/
-   strict/recovery/nesting tests, preserving q's separate admission boundary.
-4. Satisfy and review each automatic engine's own evidence/resource gates before
-   activating it. Complete Core Unicode integration only under explicitly
-   accepted C7 limits; do not await or fabricate xy evidence for Unicode testing.
-5. Run applicable units/native/sanitizer/platform checks and full immutable
-   external comparison on implementation candidates, preserving genuine exit
-   status/artifacts. New independent fixtures remain additive. Record exact
-   per-engine supported/blocked status; no full-T017 completion claim.
+Executable tests are `crates/taiyou-cli/tests/automatic_wrapping.rs`,
+`crates/taiyou-cli/tests/warpmode.rs` and the private xy_wrap unit tests.
+They cover q decisions, escapes, overwide words, margins, source ordering,
+malformed q conversion, selector/reset behavior and fresh/repeated/seek equality.
+Native execution occurs only on Actions. Test results are reported separately
+from source findings; no proposed fixture becomes a trusted reference image.
 
-Owner decision requested: accept the finite parameter grammar, last-valid
-event-wide selection (including late tags), reset persistence, uniform-q
-independence, q2 shared path, and no-fallback UnsupportedFeature behavior above,
-or amend their exact fixture expectations. This is separate from C7 defaults,
-engine activation, baseline acknowledgment or merge approval.
+Reconcile the renderer adapter with PR29's accepted collision/backend stages
+after its merge, preserving F1, complete-active-set placement, adaptive retention
+and diagnostics. Run the full required validation on that integrated candidate.
+This is not completion of mode1 or full T017.
