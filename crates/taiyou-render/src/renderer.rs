@@ -138,6 +138,7 @@ struct PreparedLocal {
     id: EventId,
     local: Arc<LocalLayout>,
     charge: u64,
+    local_charge: u64,
     diagnostics: Vec<Diagnostic>,
 }
 #[cfg(feature = "native")]
@@ -484,7 +485,7 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let (local, charge) =
+                let (local, local_charge) =
                     prepare_local(&mut ctx, event, &preparation, held, &mut report).map_err(
                         |e| {
                             let id = e.event().or(Some(event.id()));
@@ -520,7 +521,7 @@ impl Renderer {
                                         .ok_or_else(limited)?,
                                 )
                             })?;
-                    let charge = add(charge, report_charge)?;
+                    let charge = add(local_charge, report_charge)?;
                     let next = add(retained_charge, charge)?;
                     if next <= retain_cap {
                         held = add(held, charge)?;
@@ -534,6 +535,7 @@ impl Renderer {
                                 id: event.id(),
                                 local,
                                 charge,
+                                local_charge,
                                 diagnostics: report,
                             }),
                         ));
@@ -570,7 +572,9 @@ impl Renderer {
                         diagnostics
                             .extend_finished(&saved.diagnostics)
                             .map_err(convert)?;
-                        (saved.local, saved.charge)
+                        // The saved report Vec drops here; the frame's bounded
+                        // diagnostic reservation owns the merged records now.
+                        (saved.local, saved.local_charge)
                     } else {
                         prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
                     };
