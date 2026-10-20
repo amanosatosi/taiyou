@@ -187,14 +187,14 @@ fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
 
 #[test]
 fn overrides_unknown_drawing_and_animated_tags_remain_ordered_unsupported() {
-    let parsed = parse(r"{\mystery42(1,2)\t(0,100,\fs40)\p1}A");
+    let parsed = parse(r"{\mystery42(1,2)\move(0,0,1,1)\p1}A");
     let ops = parsed.track().events()[0].program();
     assert_eq!(ops.len(), 4);
     assert!(
         matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "mystery42" && source.slice(parsed.track().source()) == Some(r"\mystery42(1,2)"))
     );
     assert!(
-        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "t" && source.slice(parsed.track().source()) == Some(r"\t(0,100,\fs40)"))
+        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "move" && source.slice(parsed.track().source()) == Some(r"\move(0,0,1,1)"))
     );
     assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "p1"));
     assert_eq!(

@@ -253,7 +253,7 @@ fn renderer_slice_position_breaks_fallback_and_clipping() {
 fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
     let fonts = catalog(false);
     let mut r = renderer(limits());
-    for text in ["{\\t(\\blur2)}H", "{\\move(1,2,3,4)}H", "{\\k20}H"] {
+    for text in ["{\\kf20}H", "{\\move(1,2,3,4)}H", "{\\k20}H"] {
         let t = track(&dialogue(text));
         let e = r
             .render(t.clone(), fonts.clone(), &request(500_000))

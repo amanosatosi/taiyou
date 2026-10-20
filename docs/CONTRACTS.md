@@ -92,7 +92,23 @@ Evaluation retains one complete source map and checked decoded run ranges when e
 
 `ChangeClass` is an optimization hint with independent shape/layout/geometry/effect/paint/placement/clip flags; actual cache reuse compares full keys. It is never permission to omit a key field. Static results can be retained across all timestamps in their active interval. Animated values are evaluated each request, but equal normalized values reuse artifacts. Do not key every stage by time.
 
-Core `\t(t1,t2,accel,...)` uses `p=clamp((local-t1)/(t2-t1),0,1)^accel`; accel must be finite positive; omitted interval is event duration and omitted accel is 1. For `t2<=t1`, Core switches at t2. Capture the current property value when encountering that transform during the ordered evaluation, interpolate to its target, and then continue with later operations. Only enumerated animatable numeric properties are interpolated; integer channels round once to nearest with ties away, then clamp. R001 supplies legacy differences and tests before enabling them.
+Owner-authorized T018 ASS transform amendment: `\t` uses pinterf `CalcAnimation`
+(RTS.cpp 2647–2683, 2856–2871), not the former planned Core interpolation.
+Local time and duration are integer milliseconds. Zero/omitted end means event
+end; omitted start/acceleration are 0/1. Before start keep current, inside the
+interval compute `(1-p)*current+p*target`, `p=pow((t-start)/(end-start),accel)`;
+at/after end use target. The before-start test precedes the end test, including
+reversed intervals. Differences below 0.0001 use target directly. Preserve raw
+signed targets until field clamps. Color interpolation uses each native shifted
+channel followed by integer truncation/masking; transparency is truncated before
+opacity inversion. Nonfinite evaluation fails without partial output. Finite
+zero/negative acceleration follows xy rather than a new positive-only grammar.
+Children execute in source order against current state. Font family, bold,
+italic, alignment, positioning, reset and q are immediate, not interpolated;
+Taiyou warpmode is likewise an immediate event selector. Flat bounded transform
+delimiters retain disjoint header/child/tail source spans. Nested transforms
+update xy's shared animation parameters; leaving them does not restore prior
+parameters. No LegacyXyV1 admission or pixel-identity claim follows.
 
 ## C4. Font resolution, shaping and layout
 

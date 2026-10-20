@@ -656,6 +656,21 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    /// Flat, bounded transform delimiters. Children retain their own source spans.
+    BeginTransform {
+        start_ms: i32,
+        end_ms: i32,
+        accel: FiniteF64,
+        source: SourceSpan,
+    },
+    EndTransform { source: SourceSpan },
+    /// Raw numeric targets used inside ASS transforms, before field-specific clamps.
+    TransformNumber {
+        property: TransformProperty,
+        value: Option<FiniteF64>,
+        relative: bool,
+        source: SourceSpan,
+    },
     SetBlur {
         value: Option<FiniteF64>,
         source: SourceSpan,
@@ -731,7 +746,10 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetBlur { source, .. }
+            Self::BeginTransform { source, .. }
+            | Self::EndTransform { source }
+            | Self::TransformNumber { source, .. }
+            | Self::SetBlur { source, .. }
             | Self::SetBe { source, .. }
             | Self::SetWrapMode { source, .. }
             | Self::SetWarpMode { source, .. }
@@ -766,6 +784,16 @@ impl OverrideOp {
             Err(invalid("override parameter outside Core bounds"))
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransformProperty {
+    Size,
+    ScaleX,
+    ScaleY,
+    Spacing,
+    Border,
+    Shadow,
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
@@ -990,11 +1018,23 @@ impl TrackIngestor {
             }
             validate_event_provenance(event, &source)?;
             let mut text_end = event.source.start();
+            let mut transforms = 0_u32;
             for operation in event.program.iter() {
                 let (text, span) = match operation {
                     TextOp::Text { text, source } => (Some(text), *source),
                     TextOp::Override(op) => {
                         op.validate()?;
+                        match op {
+                            OverrideOp::BeginTransform { .. } => {
+                                transforms = transforms.checked_add(1).ok_or_else(|| limit("transform depth overflow"))?;
+                                if transforms > limits.tag_nesting() { return Err(limit("transform nesting limit exceeded")); }
+                            }
+                            OverrideOp::EndTransform { .. } => {
+                                transforms = transforms.checked_sub(1).ok_or_else(|| invalid("unmatched transform end"))?;
+                            }
+                            OverrideOp::TransformNumber { .. } if transforms == 0 => return Err(invalid("transform target outside transform")),
+                            _ => (),
+                        }
                         (None, op.source())
                     }
                     TextOp::Unsupported { source, .. } => (None, *source),
@@ -1016,6 +1056,7 @@ impl TrackIngestor {
                     .checked_add(length)
                     .ok_or_else(|| limit("text byte count overflow"))?;
             }
+            if transforms != 0 { return Err(invalid("unclosed transform")); }
             if text_bytes > limits.text_bytes_per_event {
                 return Err(limit("event text byte limit exceeded"));
             }

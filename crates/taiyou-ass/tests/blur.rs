@@ -48,9 +48,24 @@ fn typed_real_values_prefixes_parentheses_and_resets_keep_source_order() {
     );
 }
 #[test]
-fn animated_blur_remains_a_single_unsupported_transform() {
-    let track = parsed(r"\t(0,100,\blur4\be2)");
-    let ops = track.track().events()[0].program();
-    assert_eq!(ops.len(), 2);
-    assert!(matches!(&ops[0], TextOp::Unsupported { name, .. } if name.as_ref() == "t"));
+fn animated_blur_forms_keep_outer_and_embedded_provenance() {
+    for (tags, start, end, acceleration) in [
+        (r"\t(\blur4\be2)", 0, 0, 1.0),
+        (r"\t(2,\blur4\be2)", 0, 0, 2.0),
+        (r"\t(10,100,\blur4\be2)", 10, 100, 1.0),
+        (r"\t(10,100,2,\blur4\be2)", 10, 100, 2.0),
+    ] {
+        let track = parsed(tags);
+        let ops = track.track().events()[0].program();
+        assert_eq!(ops.len(), 5);
+        let TextOp::Override(OverrideOp::BeginTransform { start_ms, end_ms, accel, source }) = &ops[0] else { panic!("missing typed transform") };
+        assert_eq!((*start_ms, *end_ms, accel.get()), (start, end, acceleration));
+        assert_eq!(source.slice(track.track().source()), Some(tags.split_once(r"\blur").unwrap().0));
+        for (i, expected) in [(1, r"\blur4"), (2, r"\be2")] {
+            let TextOp::Override(op) = &ops[i] else { panic!("missing child") };
+            assert_eq!(op.source().slice(track.track().source()), Some(expected));
+        }
+        assert!(matches!(&ops[3], TextOp::Override(OverrideOp::EndTransform { source }) if source.slice(track.track().source()) == Some(")")));
+        assert!(track.diagnostics().is_empty());
+    }
 }

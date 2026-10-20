@@ -207,6 +207,7 @@ pub enum ClipSpec {
 /// keys or previous-frame dirty state. All T007 operations are time-invariant.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ChangeClass {
+    temporal: bool,
     shape: bool,
     layout: bool,
     geometry: bool,
@@ -220,6 +221,7 @@ impl ChangeClass {
         let shape = ShapeStyle::from_style(a) != ShapeStyle::from_style(b);
         let scale = a.scale_x() != b.scale_x() || a.scale_y() != b.scale_y();
         Self {
+            temporal: false,
             shape,
             layout: shape || scale,
             geometry: shape || GeometryStyle::from_style(a) != GeometryStyle::from_style(b),
@@ -233,8 +235,13 @@ impl ChangeClass {
         self.placement = true;
         self
     }
+    pub fn with_animation(mut self) -> Self {
+        self.temporal = true;
+        self
+    }
     pub fn union(self, b: Self) -> Self {
         Self {
+            temporal: self.temporal || b.temporal,
             shape: self.shape || b.shape,
             layout: self.layout || b.layout,
             geometry: self.geometry || b.geometry,
@@ -266,7 +273,7 @@ impl ChangeClass {
         self.clip
     }
     pub const fn is_static(self) -> bool {
-        true
+        !self.temporal
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
