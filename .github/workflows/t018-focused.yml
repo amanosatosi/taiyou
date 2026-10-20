@@ -1,7 +1,7 @@
 name: T018 scalar blur focused checks
 on:
   push:
-    branches: [task/T018-ass-blur]
+    branches: [task/T018-ass-blur, task/T018-negative-blur-validation]
   workflow_dispatch:
 permissions:
   contents: read
