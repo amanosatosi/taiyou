@@ -167,8 +167,15 @@ fn one(
                 let before = state.clone();
                 match op {
                     OverrideOp::SetBlur { value, .. } => {
+                        // Preserve the raw target in the operation for future
+                        // animation; xy clamps only after CalcAnimation.
+                        let target = value.unwrap_or(base.blur());
                         state = state
-                            .with_blur(value.unwrap_or(base.blur()))
+                            .with_blur(if target.get() < 0.0 {
+                                FiniteF64::ZERO
+                            } else {
+                                target
+                            })
                             .map_err(convert)?;
                     }
                     OverrideOp::SetBe { value, .. } => {

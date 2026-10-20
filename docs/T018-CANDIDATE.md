@@ -23,7 +23,10 @@ copied/translated, linked or vendored. Existing source-license policy remains.
 ## Implemented behavior
 
 Suffix numeric prefix parsing, omitted-value original-style restoration,
-negative Gaussian clamp, source ordering and style resets. BE retains its signed
+raw finite signed Gaussian targets, source ordering and style resets. Static
+evaluation clamps negative Gaussian to zero after reading the target, leaving
+the typed operation intact for future animation. Style.blur remains nonnegative.
+BE retains its signed
 real state; nonpositive BE does not enable an edge filter. Nonfinite strengths
 are rejected by the existing parser recovery policy. `\t` remains unsupported;
 tolerant rendering may show the existing exploratory static state only.

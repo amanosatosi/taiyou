@@ -31,7 +31,7 @@ fn typed_real_values_prefixes_parentheses_and_resets_keep_source_order() {
         );
     };
     blur(0, Some(1.5));
-    blur(2, Some(0.0));
+    blur(2, Some(-5.0));
     blur(3, None);
     blur(5, None);
     blur(6, Some(2.0));

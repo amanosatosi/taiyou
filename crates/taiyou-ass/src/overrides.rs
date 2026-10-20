@@ -280,8 +280,7 @@ fn parse(
             let value = if suffix.is_empty() {
                 None
             } else {
-                let n = blur_number(suffix)?;
-                Some(FiniteF64::new(if gaussian { n.max(0.0) } else { n })?)
+                Some(FiniteF64::new(blur_number(suffix)?)?)
             };
             return Ok(Some(if gaussian {
                 OverrideOp::SetBlur { value, source }

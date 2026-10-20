@@ -1,6 +1,52 @@
 use std::sync::Arc;
 use taiyou_types::*;
 #[test]
+fn signed_blur_target_is_valid_but_static_style_clamps_to_zero() {
+    let negative = FiniteF64::new(-5.0).unwrap();
+    let span = SourceSpan::new("A", 0, 0).unwrap();
+    let op = OverrideOp::SetBlur {
+        value: Some(negative),
+        source: span,
+    };
+    op.validate().unwrap();
+    assert!(Style::core_default().with_blur(negative).is_err());
+    let event = Event::new(
+        EventId::new(0),
+        TimeUs::from_micros(0),
+        TimeUs::from_micros(2),
+        StyleId::new(0),
+        SourceSpan::new("A", 0, 1).unwrap(),
+    )
+    .with_program(Arc::from([
+        TextOp::Override(op),
+        TextOp::Text {
+            text: Arc::from("A"),
+            source: SourceSpan::new("A", 0, 1).unwrap(),
+        },
+    ]));
+    let style = Style::core_default()
+        .with_blur(FiniteF64::new(2.0).unwrap())
+        .unwrap();
+    let track = TrackIngestor::new()
+        .ingest(
+            Arc::from("A"),
+            ScriptInfo::core_default(),
+            Arc::from([style]),
+            Arc::from([event]),
+            &Limits::default(),
+        )
+        .unwrap();
+    let evaluated = taiyou_render::evaluate(
+        &track,
+        EventId::new(0),
+        TimeUs::from_micros(1),
+        Profile::CoreV1,
+    )
+    .unwrap();
+    assert_eq!(evaluated.runs()[0].effects().blur(), FiniteF64::ZERO);
+}
+
+#[test]
 fn blur_empty_restores_original_style_after_named_reset_and_keeps_fractional_be() {
     let n = |v| FiniteF64::new(v).unwrap();
     let base = Style::core_default()

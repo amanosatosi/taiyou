@@ -47,6 +47,7 @@ fn real_blur_threshold_zero_negative_reset_and_source_order() {
         r"\blur0",
         r"\be0",
         r"\blur-3",
+        r"\blur-5",
         r"\blur0.333332",
         r"\blur3\blur",
         r"\be3\be",

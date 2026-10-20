@@ -752,9 +752,6 @@ impl OverrideOp {
     }
     pub fn validate(&self) -> Result<(), ParseError> {
         let valid = match self {
-            Self::SetBlur {
-                value: Some(value), ..
-            } => value.get() >= 0.0,
             Self::SetFont { family, .. } => !family.is_empty(),
             Self::SetSize { size, .. } => size.get() > 0.0,
             Self::SetScale { factor, .. } => factor.get() >= 0.0,
