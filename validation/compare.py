@@ -192,9 +192,10 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                           diagnostics=strict_diagnostic, stage="pixel-comparison" if metrics else "render",
                           tolerant_attempt=strict_unsupported, exit_code=strict_code)
     except images.ImageDecodeError as error:
-        record.update(status="INFRA_ERROR", diagnostic_code="InvalidImage", diagnostics=str(error))
+        record.update(status="INFRA_ERROR", observed_result="INFRA_ERROR",
+                      diagnostic_code="InvalidImage", diagnostics=str(error))
     except (OSError, ValueError, KeyError, InventoryError) as error:
-        record.update(status="INFRA_ERROR", diagnostics=str(error))
+        record.update(status="INFRA_ERROR", observed_result="INFRA_ERROR", diagnostics=str(error))
     return record
 
 

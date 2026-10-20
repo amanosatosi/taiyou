@@ -338,7 +338,8 @@ class FullReportInvariantTests(unittest.TestCase):
             case["profile_records"] = {"CoreV1": {"support": "UNSUPPORTED"}}
         self.records = [
             {"case": "test-0000.png", "frame": "test-0000.png", "profile": "CoreV1", "kind": "regression",
-             "status": "INFRA_ERROR", "exit_code": 30, "stage": "render", "metrics": None, "feature": "synthetic"},
+             "status": "INFRA_ERROR", "observed_result": "INFRA_ERROR", "exit_code": 30,
+             "stage": "render", "metrics": None, "feature": "synthetic"},
             {"case": "probe.ass", "frame": None, "profile": "CoreV1", "kind": "crash", "status": "PASS_EXACT",
              "exit_code": 0, "stage": "parser-safety-probe", "safety_only": True, "metrics": None}]
 
@@ -360,7 +361,8 @@ class FullReportInvariantTests(unittest.TestCase):
             raw.write_bytes(bytes([255, 0, 0, 255]))
             images.write_png(png, 1, 1, bytes([255, 0, 0, 255]))
             records = copy.deepcopy(self.records)
-            records[0].update(status="PASS_EXACT", exit_code=0, stage="pixel-comparison",
+            records[0].update(status="PASS_EXACT", observed_result="PASS_EXACT", exit_code=0,
+                              stage="pixel-comparison",
                               metrics=images.compare(images.read_png(png), images.raw_rgba(raw, 1, 1)),
                               raw_sha256=digest(raw.read_bytes()), png_sha256=digest(png.read_bytes()))
             return records
