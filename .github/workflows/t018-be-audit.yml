@@ -53,6 +53,7 @@ jobs:
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
         run: |
           cargo +1.99.1 test --locked -p taiyou-cli --features native --test ass_compatibility --test blur --test transforms --test drawings --test line_compaction --test automatic_wrapping --test renderer_effect_regressions --test geometry --test layout_pipeline
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test adaptive_wrapping_width_experiment
           cargo +1.99.1 test --locked -p taiyou-font --features native --test shaping
           cargo +1.99.1 test --locked -p taiyou-render --features native --test layout_fixed_font
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684

@@ -63,6 +63,9 @@ fn event(
 // Logical extent only. No PositionedGlyph, ink bounds or LocalLayout allocation.
 // Independent full layout below verifies the arithmetic and visual-run ordering.
 fn width(input: &ShapedEvent) -> f64 {
+    width_range(input, 0..input.source_map().text().len() as u32)
+}
+fn width_range(input: &ShapedEvent, visible: std::ops::Range<u32>) -> f64 {
     assert!(input.breaks().is_empty());
     let mut order: Vec<_> = (0..input.runs().len()).collect();
     let max = order
@@ -95,6 +98,9 @@ fn width(input: &ShapedEvent) -> f64 {
     for i in order {
         let run = &input.runs()[i];
         for (i, glyph) in run.glyphs().iter().enumerate() {
+            if glyph.cluster().end() <= visible.start || glyph.cluster().start() >= visible.end {
+                continue;
+            }
             let at = glyph.cluster().start();
             let state = input
                 .evaluated()
@@ -157,7 +163,16 @@ fn same_advances(a: &ShapedEvent, b: &ShapedEvent, limits: &Limits) {
         &LayoutConstraints::new(a.placement().alignment()).with_limits(limits.clone()),
     )
     .unwrap();
-    assert_eq!(local.logical_bounds().width(), width(b));
+    // The advances-only API still measures every original glyph. q2 layout
+    // separately compacts ordinary edge-space words before alignment.
+    assert_eq!(width(a), width(b));
+    let text = b.source_map().text();
+    let start = text.len() - text.trim_start_matches(' ').len();
+    let end = text.trim_end_matches(' ').len().max(start);
+    assert_eq!(
+        local.logical_bounds().width(),
+        width_range(b, start as u32..end as u32)
+    );
 }
 
 #[test]
