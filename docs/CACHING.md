@@ -28,7 +28,7 @@ Every key includes a stage schema/policy revision and profile when semantics dif
 | Transformed geometry | outline identity, full mapping including origin/3D parameters, size, viewport scaling, profile | Q6 contours with integer translation factored out only when equivalent |
 | Fill raster | transformed geometry key, fill rule, coverage grouping identity, fractional x/y phase, raster backend/version/settings | A8 local mask |
 | Border | base transformed geometry or base outline as selected by stroke policy, x/y widths in that space, joins/caps, stroke policy, phase, group union policy | expanded/outline mask; no paint color |
-| Effects | source mask identities, group policy, exact be count, Gaussian coefficients/support, pass selection/order, fractional shadow offset | filtered A8 mask and support bounds |
+| Effects | source mask identities, group policy, exact real BE strength and resolved passes/fractional coefficients, Gaussian coefficients/support, target scale, pass selection/order, fractional shadow offset, effect policy revision | filtered A8 mask and support bounds |
 | Clip | rectangle/path commands, inverse flag, clip mapping, viewport bounds for inverse, raster revision/phase | resolved clip mask/rect; not clipped source coverage |
 | Paint plan | paint values/stops, alpha, paint space/map, karaoke boundary and cluster partition, color policy | solid parameters initially; no RGBA mask copy |
 | Frame plan | ordered DrawOps, all placements/clips/paints/passes, viewport, profile | tile indices and structural changed-state; one previous plan retained within quota |

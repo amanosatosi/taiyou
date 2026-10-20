@@ -73,3 +73,11 @@ blur in three CLI tests. All their error/output/filesystem assertions remain.
 
 Actions evidence, frozen blur-case deltas and final complete comparison are
 reported in the PR. No performance claim, changed reference or tolerance.
+
+Focused implementation run: [39431029173](https://github.com/amanosatosi/taiyou/actions/runs/39431029173),
+implementation `c88535f31e8706730f575cb851586785013d6a91`. Parser/evaluation,
+five scalar mask tests and three actual ASS render tests passed, including
+outline/body selection, shadows, frame edges, failure recovery and seeks.
+All 14 frozen blur cases were compared: no exact matches, all unsupported,
+no infrastructure failures, regressions or crashes. These are supplemental
+results; the PR records the final complete corpus run separately.

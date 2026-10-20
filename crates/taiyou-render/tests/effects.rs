@@ -100,9 +100,8 @@ fn support_pass_dimension_and_transient_limits_fail_before_filtering() {
 
 #[test]
 fn be_preserves_reference_small_padding_and_unfiltered_allocation_ring() {
-    let source = Arc::new(
-        Mask::new(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([255])).unwrap(),
-    );
+    let source =
+        Arc::new(Mask::new(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([255])).unwrap());
     let one = apply_effects(&source, &spec(0.0, 1.0), &Limits::default()).unwrap();
     assert_eq!(one.bounds(), PixelRect::new(-1, -1, 2, 2).unwrap());
     assert_eq!(one.data(), &[0, 0, 0, 0, 63, 0, 0, 0, 0]);
