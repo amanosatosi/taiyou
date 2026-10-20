@@ -234,7 +234,12 @@ pub fn layout(
         n.checked_add(r.glyphs().len()).ok_or_else(limited)
     })?;
     let lines = plan.as_ref().map_or_else(
-        || input.breaks().len().checked_add(1).ok_or_else(limited),
+        || {
+            let terminal_break = input.breaks().last().is_some_and(|b| {
+                b.end() as usize == input.source_map().text().len()
+            });
+            input.breaks().len().checked_add(usize::from(!terminal_break)).ok_or_else(limited)
+        },
         |p| Ok(p.len()),
     )?;
     let bytes = count
@@ -448,6 +453,14 @@ pub fn layout(
                 min = min.min(pen_x);
                 max = max.max(pen_x);
             }
+        }
+        // GetNextLine halves the integer eighth-pixel metrics only when
+        // the next word is itself a hard break. Compacted spaces are not an
+        // empty line. MakeLines creates no extra line after a terminal break.
+        if start == end && input.breaks().binary_search_by_key(&end, |b| b.start()).is_ok() {
+            let half = |v: f64| finite(((v * 8.0).trunc() * 0.5).floor() / 8.0);
+            ascent = half(ascent)?.get();
+            descent = half(descent)?.get();
         }
         finite(ascent)?;
         finite(descent)?;

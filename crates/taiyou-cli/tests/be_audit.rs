@@ -21,7 +21,11 @@ fn save(root: &Path, name: &str, mask: &Mask, metadata: &mut String) {
         }
     }
     let nonzero: u64 = histogram[1..].iter().sum();
-    let sum: u64 = histogram.iter().enumerate().map(|(v, n)| v as u64 * n).sum();
+    let sum: u64 = histogram
+        .iter()
+        .enumerate()
+        .map(|(v, n)| v as u64 * n)
+        .sum();
     metadata.push_str(&format!(
         "{{\"name\":\"{name}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"stride\":{},\"nonzero\":{nonzero},\"sum\":{sum},\"histogram\":{histogram:?}}}\n",
         b.x0(),

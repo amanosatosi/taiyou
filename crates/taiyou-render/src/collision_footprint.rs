@@ -142,8 +142,7 @@ pub fn collision_footprint(
             None
         };
         let shadow = if state.paint().shadow().a() == 0
-            || (state.effects().shadow_x().get() == 0.0
-                && state.effects().shadow_y().get() == 0.0)
+            || (state.effects().shadow_x().get() == 0.0 && state.effects().shadow_y().get() == 0.0)
         {
             None
         } else {

@@ -83,11 +83,11 @@ fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
             )
             .unwrap()
         };
-        assert_eq!(output.lines().len(), 5);
+        assert_eq!(output.lines().len(), 4);
         assert!(output.lines()[0].glyph_range().is_empty());
         assert!(output.lines()[2].glyph_range().is_empty());
-        assert!(output.lines()[4].glyph_range().is_empty());
-        assert_eq!(output.lines()[4].ascent().get(), 40.0);
+        assert!(!output.lines()[3].glyph_range().is_empty());
+        assert_eq!(output.shaped().empty_lines().last().unwrap().metrics.ascent().get(), 40.0);
         let ligature = output
             .glyphs()
             .iter()

@@ -88,16 +88,20 @@ fn layout_fixed_font_real_empty_lines_and_owned_lifetime() {
         let s = shaped(&mut context, &catalog, "\nA\n\nB\n");
         layout(&s, &constraints()).unwrap()
     };
-    assert_eq!(layout.lines().len(), 5);
+    assert_eq!(layout.lines().len(), 4);
     let descent = 326.0 * (20.0 / 1000.0);
     let height = 20.0 + descent;
+    let mut top = 0.0;
     for (i, line) in layout.lines().iter().enumerate() {
-        assert_eq!(line.ascent().get(), 20.0);
-        assert_eq!(line.descent().get(), descent);
-        assert!((line.baseline().y().get() - (20.0 + i as f64 * height)).abs() < 1e-12);
+        let (a,d) = if i % 2 == 0 { (10.0, (descent * 4.0).floor() / 8.0) } else { (20.0, descent) };
+        assert_eq!(line.ascent().get(), a);
+        assert_eq!(line.descent().get(), d);
+        assert!((line.baseline().y().get() - (top + a)).abs() < 1e-12);
+        top += a + d;
     }
-    assert!((layout.logical_bounds().height() - 5.0 * height).abs() < 1e-12);
-    for i in [0, 2, 4] {
+    assert!((layout.logical_bounds().height() - top).abs() < 1e-12);
+    assert!(top < 4.0 * height);
+    for i in [0, 2] {
         assert_eq!(layout.lines()[i].ink_bounds(), None);
         assert!(layout.lines()[i].glyph_range().is_empty());
     }
