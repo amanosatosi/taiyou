@@ -87,7 +87,7 @@ fn embedded_single_multiple_localized_aliases_and_seek_match_explicit_font_pixel
             assert_eq!(parsed.embedded_fonts().len(), if multiple { 2 } else { 1 });
             let mut renderer = Renderer::new(RendererConfig::default()).unwrap();
             for now in [1_000_000, 0, 1_500_000, 1_000_000] {
-                let mut request = request.clone();
+                let mut request = request;
                 request.now = TimeUs::from_micros(now);
                 let actual = renderer.render_parsed(&parsed, empty(), &request).unwrap();
                 assert_eq!(actual.pixels(), expected.pixels());

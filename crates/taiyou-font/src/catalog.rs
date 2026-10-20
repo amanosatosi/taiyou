@@ -187,6 +187,24 @@ impl FontCatalogBuilder {
         };
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
+        // Preflight every fold and the publication overlap before allocating
+        // the alias array. Use the same expansion bound as fold_family.
+        let alias_peak = metadata.aliases.iter().try_fold(0_u64, |sum, name| {
+            (name.len() as u64)
+                .checked_mul(6)
+                .and_then(|n| n.checked_add(128 + 3 * std::mem::size_of::<String>() as u64))
+                .and_then(|n| sum.checked_add(n))
+                .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog aliases overflow"))
+        })?;
+        if intake_cost
+            .checked_add(alias_peak)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(error(
+                ErrorCode::LimitExceeded,
+                "catalog aliases transient budget exceeded",
+            ));
+        }
         let mut aliases = Vec::new();
         aliases
             .try_reserve_exact(metadata.aliases.len())
