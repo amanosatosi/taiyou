@@ -35,7 +35,7 @@ partially nested commands. Excess parameter counts execute no children.
 | Font family, bold, italic | Immediate assignment, no invented numeric interpolation |
 | Alignment, position, reset, q | Immediate existing ASS control operation |
 | p, pbo | Immediate drawing state, not interpolated |
-| Taiyou warpmode | Immediate event selector; Unicode engine remains gated |
+| Taiyou warpmode | Standalone extension only; nested selection remains unsupported |
 | Unsupported embedded tags | Existing strict error / tolerant diagnostic; no invented animation |
 
 Flat transform header/child/tail operations preserve original nonoverlapping

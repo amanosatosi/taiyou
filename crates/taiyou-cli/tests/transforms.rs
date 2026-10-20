@@ -177,7 +177,7 @@ fn supported_numeric_paint_and_immediate_tags_follow_xy_order() {
     assert_eq!(r.geometry().scale_x().get(), 1.5);
     assert_eq!(r.geometry().scale_y().get(), 0.75);
     assert_eq!(r.paint().primary().channels(), [127, 127, 255, 128]);
-    let e = at(r"\t(\fnOther\b1\i1\an7\q1\warpmode0)", 0);
+    let e = at(r"\t(\fnOther\b1\i1\an7\q1)", 0);
     assert_eq!(e.runs()[0].shaping().font().family(), "Other");
     assert_eq!(e.runs()[0].shaping().font().weight(), 700);
     assert!(e.runs()[0].shaping().font().italic());

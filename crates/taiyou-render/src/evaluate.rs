@@ -463,8 +463,18 @@ fn one(
                         wrap_mode = mode.unwrap_or(track.script().wrap());
                     }
                     OverrideOp::SetWarpMode { mode, source } => {
-                        warp_mode = *mode;
-                        warp_mode_source = Some(*source);
+                        if animation.depth != 0 {
+                            unsupported(
+                                event,
+                                *source,
+                                policy,
+                                d,
+                                "warpmode remains a standalone Taiyou selector",
+                            )?;
+                        } else {
+                            warp_mode = *mode;
+                            warp_mode_source = Some(*source);
+                        }
                     }
                     OverrideOp::SetFont { family, .. } => {
                         let font = FontRequest::new(

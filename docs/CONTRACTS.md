@@ -105,7 +105,8 @@ opacity inversion. Nonfinite evaluation fails without partial output. Finite
 zero/negative acceleration follows xy rather than a new positive-only grammar.
 Children execute in source order against current state. Font family, bold,
 italic, alignment, positioning, reset and q are immediate, not interpolated;
-Taiyou warpmode is likewise an immediate event selector. Flat bounded transform
+Taiyou warpmode remains a standalone event selector, unsupported inside transforms
+in accordance with its existing extension contract. Flat bounded transform
 delimiters retain disjoint header/child/tail source spans. Nested transforms
 update xy's shared animation parameters; leaving them does not restore prior
 parameters. No LegacyXyV1 admission or pixel-identity claim follows.
