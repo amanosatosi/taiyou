@@ -1983,8 +1983,7 @@ impl FontContext {
                     // whose platform encoding names a legacy glyph charset.
                     // Full and PostScript names are aliases, never substitutes
                     // for the preferred family or independent fake faces.
-                    if !matches!(name.name, 1 | 4 | 6 | 16 | 21)
-                        || !matches!(name.platform, 0 | 3)
+                    if !matches!(name.name, 1 | 4 | 6 | 16 | 21) || !matches!(name.platform, 0 | 3)
                     {
                         continue;
                     }
