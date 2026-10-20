@@ -251,12 +251,8 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
             "at least one explicit --font or ASS embedded font is required",
         ));
     }
-    let parsed = taiyou_ass::parse_ass(
-        &source,
-        &options,
-        &mut TrackIngestor::new(),
-    )
-    .map_err(parse_error)?;
+    let parsed =
+        taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new()).map_err(parse_error)?;
     let mut context = FontContext::with_limits(limits.clone()).map_err(font_error)?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {

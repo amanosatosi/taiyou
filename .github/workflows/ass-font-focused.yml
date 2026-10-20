@@ -19,7 +19,8 @@ jobs:
           git diff --binary > "$RUNNER_TEMP/ass-font-format.patch"
           cargo +1.99.1 test --locked -p taiyou-ass -p taiyou-types
           python validation/test_compare.py
-          test ! -s "$RUNNER_TEMP/ass-font-format.patch"
+          # The existing Fast gate enforces formatting. This supplemental job
+          # also publishes the runner-generated patch for local application.
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

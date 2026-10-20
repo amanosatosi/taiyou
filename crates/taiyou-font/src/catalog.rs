@@ -376,6 +376,33 @@ fn select_family_aliases(
 mod tests {
     use super::*;
     #[test]
+    fn alias_membership_preserves_weight_italic_and_ordinal_ties() {
+        let records: Vec<_> = [(300, false), (500, true), (500, false), (500, false)]
+            .into_iter()
+            .enumerate()
+            .map(|(index, (weight, italic))| {
+                FontRecord::from_unverified(
+                    FontBlob::from_unverified(FontId::new([index as u8; 32], 0), Arc::from([1])),
+                    Arc::from("Primary"),
+                    Arc::from("primary"),
+                    weight,
+                    italic,
+                )
+                .unwrap()
+            })
+            .collect();
+        let aliases: Vec<Arc<[String]>> = (0..4)
+            .map(|_| Arc::from([String::from("別名"), String::from("alternate")]))
+            .collect();
+        for family in ["別名", "ALTERNATE"] {
+            for (weight, italic, ordinal) in [(400, true, 1), (500, false, 2), (500, true, 1)] {
+                let request = FontRequest::new(Arc::from(family), weight, italic, false);
+                let result = select_family_aliases(&records, Some(&aliases), &request, &Limits::default()).unwrap();
+                assert_eq!(result.sha256(), &[ordinal; 32]);
+            }
+        }
+    }
+    #[test]
     fn catalog_ties_follow_weight_then_italic_then_registration_order_synthetic() {
         // Synthetic descriptors only reach the private selector. No native
         // validation marker, fixture feature or unchecked runtime constructor.
