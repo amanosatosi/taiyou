@@ -19,7 +19,12 @@ fn impulse() -> Arc<Mask> {
 #[test]
 fn threshold_zero_identity_and_source_immutability() {
     let mask = impulse();
-    for (blur, be) in [(0.0, 0.0), (0.333332, 0.0), (f64::from(0.333333_f32), 0.0), (0.0, -2.0)] {
+    for (blur, be) in [
+        (0.0, 0.0),
+        (0.333332, 0.0),
+        (f64::from(0.333333_f32), 0.0),
+        (0.0, -2.0),
+    ] {
         let output = apply_effects(&mask, &spec(blur, be), &Limits::default()).unwrap();
         assert!(Arc::ptr_eq(&mask, &output));
     }
@@ -91,4 +96,17 @@ fn support_pass_dimension_and_transient_limits_fail_before_filtering() {
         );
     }
     assert_eq!(source.data()[12], 255);
+}
+
+#[test]
+fn be_preserves_reference_small_padding_and_unfiltered_allocation_ring() {
+    let source = Arc::new(
+        Mask::new(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([255])).unwrap(),
+    );
+    let one = apply_effects(&source, &spec(0.0, 1.0), &Limits::default()).unwrap();
+    assert_eq!(one.bounds(), PixelRect::new(-1, -1, 2, 2).unwrap());
+    assert_eq!(one.data(), &[0, 0, 0, 0, 63, 0, 0, 0, 0]);
+    assert_eq!(spec(0.0, 4.0).support(), [1, 1]);
+    assert_eq!(spec(0.0, 16.0).support(), [2, 2]);
+    assert_eq!(source.data(), &[255]);
 }

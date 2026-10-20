@@ -18,7 +18,7 @@ fn blur_empty_restores_original_style_after_named_reset_and_keeps_fractional_be(
         TimeUs::from_micros(0),
         TimeUs::from_micros(2),
         StyleId::new(0),
-        span,
+        SourceSpan::new("ABCD", 0, 4).unwrap(),
     )
     .with_program(Arc::from([
         TextOp::Override(OverrideOp::ResetStyle {
@@ -31,11 +31,11 @@ fn blur_empty_restores_original_style_after_named_reset_and_keeps_fractional_be(
         },
         TextOp::Override(OverrideOp::SetBlur {
             value: None,
-            source: span,
+            source: SourceSpan::new("ABCD", 1, 1).unwrap(),
         }),
         TextOp::Override(OverrideOp::SetBe {
             value: None,
-            source: span,
+            source: SourceSpan::new("ABCD", 1, 1).unwrap(),
         }),
         TextOp::Text {
             text: Arc::from("B"),
@@ -43,11 +43,11 @@ fn blur_empty_restores_original_style_after_named_reset_and_keeps_fractional_be(
         },
         TextOp::Override(OverrideOp::SetBlur {
             value: Some(n(0.0)),
-            source: span,
+            source: SourceSpan::new("ABCD", 2, 2).unwrap(),
         }),
         TextOp::Override(OverrideOp::SetBe {
             value: Some(n(0.25)),
-            source: span,
+            source: SourceSpan::new("ABCD", 2, 2).unwrap(),
         }),
         TextOp::Text {
             text: Arc::from("C"),
@@ -55,7 +55,7 @@ fn blur_empty_restores_original_style_after_named_reset_and_keeps_fractional_be(
         },
         TextOp::Override(OverrideOp::ResetStyle {
             name: None,
-            source: span,
+            source: SourceSpan::new("ABCD", 3, 3).unwrap(),
         }),
         TextOp::Text {
             text: Arc::from("D"),

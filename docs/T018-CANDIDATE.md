@@ -66,8 +66,10 @@ do not establish end-to-end pixel identity. No LegacyXyV1 capability is promoted
 Additive tests cover real mask impulse values, threshold, integer/fractional BE,
 combined ordering, immutable source, checked limits, original-style resets,
 rendered glyphs/outlines/shadows, frame edges and fresh/repeated/backward seeks.
-The sole existing test edit is owner-authorized recognition of typed BE in the
-anisotropic unsupported-tag test; all four anisotropic assertions remain.
+Existing test edits are owner-authorized recognition of typed BE in the
+anisotropic unsupported-tag test (all four anisotropic assertions remain), and
+replacement of obsolete static-blur failure triggers by unsupported animated
+blur in three CLI tests. All their error/output/filesystem assertions remain.
 
 Actions evidence, frozen blur-case deltas and final complete comparison are
 reported in the PR. No performance claim, changed reference or tolerance.

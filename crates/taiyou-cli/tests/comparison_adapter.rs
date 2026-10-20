@@ -54,7 +54,7 @@ fn typed_adapter_preserves_t014_pixels_and_error_identity() {
         &unsupported,
         std::fs::read_to_string(&source)
             .unwrap()
-            .replace("Taiyou", "{\\blur2}Taiyou"),
+            .replace("Taiyou", "{\\t(\\blur2)}Taiyou"),
     )
     .unwrap();
     let rejected = command(
