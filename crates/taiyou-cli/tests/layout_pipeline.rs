@@ -166,7 +166,13 @@ fn layout_pipeline_empty_and_break_only_events_have_real_metrics() {
         assert!(l.logical_bounds().height() > 0.0);
         assert_eq!(
             l.lines()[0].ascent().get(),
-            if text.contains("40") { 30.125 } else if text.contains("\\N") { 7.5 } else { 15.125 }
+            if text.contains("40") {
+                30.125
+            } else if text.contains("\\N") {
+                7.5
+            } else {
+                15.125
+            }
         );
     }
 }

@@ -523,10 +523,7 @@ impl FontContext {
             }
             // Keep ownership explicit until after the last native read.
             let _ = font.face.raw;
-            Ok(RawRun {
-                glyphs,
-                upem,
-            })
+            Ok(RawRun { glyphs, upem })
         }
     }
 }
@@ -719,7 +716,13 @@ unsafe extern "C" {
     fn FT_Get_Sfnt_Name_Count(face: ft::FT_Face) -> u32;
     fn FT_Get_Sfnt_Name(face: ft::FT_Face, index: u32, name: *mut SfntName) -> ft::FT_Error;
     fn FT_Get_Sfnt_Table(face: ft::FT_Face, tag: i32) -> *mut std::ffi::c_void;
-    fn FT_Load_Sfnt_Table(face: ft::FT_Face, tag: ft::FT_ULong, offset: ft::FT_Long, buffer: *mut ft::FT_Byte, length: *mut ft::FT_ULong) -> ft::FT_Error;
+    fn FT_Load_Sfnt_Table(
+        face: ft::FT_Face,
+        tag: ft::FT_ULong,
+        offset: ft::FT_Long,
+        buffer: *mut ft::FT_Byte,
+        length: *mut ft::FT_ULong,
+    ) -> ft::FT_Error;
 }
 fn native_error(code: ft::FT_Error, detail: &str) -> FontError {
     FontError::new(ErrorCode::NativeFailure, detail).with_native_code(i64::from(code))
@@ -2107,13 +2110,28 @@ impl FontContext {
                 // OS/2 Windows metrics bytes; no native TT_OS2 layout assumption.
                 let mut table = [0_u8; 78];
                 let mut length = table.len() as ft::FT_ULong;
-                let valid_win = FT_Load_Sfnt_Table(face.raw, u32::from_be_bytes(*b"OS/2") as ft::FT_ULong, 0, table.as_mut_ptr(), &mut length) == 0 && length == 78;
+                let valid_win = FT_Load_Sfnt_Table(
+                    face.raw,
+                    u32::from_be_bytes(*b"OS/2") as ft::FT_ULong,
+                    0,
+                    table.as_mut_ptr(),
+                    &mut length,
+                ) == 0
+                    && length == 78;
                 let (ascent, descent) = if valid_win {
-                    (u16::from_be_bytes([table[74], table[75]]), u16::from_be_bytes([table[76], table[77]]))
+                    (
+                        u16::from_be_bytes([table[74], table[75]]),
+                        u16::from_be_bytes([table[76], table[77]]),
+                    )
                 } else {
                     // Non-SFNT faces retain their validated native cell metrics.
                     // This fallback is not a claim about GDI's font mapper.
-                    (u16::try_from((*face.raw).ascender).map_err(|_| native_error(0, "invalid cell ascent"))?, u16::try_from(-i32::from((*face.raw).descender)).map_err(|_| native_error(0, "invalid cell descent"))?)
+                    (
+                        u16::try_from((*face.raw).ascender)
+                            .map_err(|_| native_error(0, "invalid cell ascent"))?,
+                        u16::try_from(-i32::from((*face.raw).descender))
+                            .map_err(|_| native_error(0, "invalid cell descent"))?,
+                    )
                 };
                 let upem = (*face.raw).units_per_EM;
                 if upem == 0 || u32::from(ascent) + u32::from(descent) == 0 {

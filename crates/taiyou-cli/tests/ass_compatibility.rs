@@ -128,7 +128,13 @@ fn ordinary_font_cell_size_matches_independent_gdi_metrics_and_baseline() {
     let fonts = fonts();
     let id = fonts.faces()[0].blob().id();
     assert_eq!(fonts.ass_cell_metrics(id).unwrap(), (1000, 1000, 326));
-    assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(30.0).unwrap()).unwrap().get(), 1448.0 / 64000.0);
+    assert_eq!(
+        fonts
+            .ass_font_scale(id, FiniteF64::new(30.0).unwrap())
+            .unwrap()
+            .get(),
+        1448.0 / 64000.0
+    );
     let layout = local(&source("0", "", "Ag"), &fonts);
     let line = &layout.lines()[0];
     assert_eq!(line.ascent().get(), 22.625);
@@ -138,4 +144,8 @@ fn ordinary_font_cell_size_matches_independent_gdi_metrics_and_baseline() {
     let ink = layout.ink_bounds().unwrap();
     assert!(ink.y0().get() < line.baseline().y().get());
     assert!(ink.y1().get() > line.baseline().y().get());
+    for size in [0.0, -1.0] {
+        assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(size).unwrap()).unwrap_err().code(), ErrorCode::InvalidArgument);
+    }
+    assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(f64::MAX).unwrap()).unwrap_err().code(), ErrorCode::LimitExceeded);
 }

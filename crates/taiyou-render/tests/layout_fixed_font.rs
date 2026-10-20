@@ -187,15 +187,26 @@ fn layout_fixed_font_maximal_metrics_include_all_fallback_faces() {
     let s = shaped(&mut ctx, &catalog, "A日本語कि");
     let l = layout(&s, &constraints()).unwrap();
     assert!(s.missing().is_empty());
-    let inputs = std::fs::read_to_string(PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv")).unwrap();
+    let inputs = std::fs::read_to_string(
+        PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv"),
+    )
+    .unwrap();
     let mut maxima = [0.0_f64; 2];
     for font in ["latin", "cjk", "indic"] {
         let prefix = format!("font:{font}");
-        let line = inputs.lines().find(|l| l.split_whitespace().next() == Some(prefix.as_str())).unwrap();
-        let values: Vec<f64> = line.split_whitespace().skip(1).map(|s| s.parse().unwrap()).collect();
+        let line = inputs
+            .lines()
+            .find(|l| l.split_whitespace().next() == Some(prefix.as_str()))
+            .unwrap();
+        let values: Vec<f64> = line
+            .split_whitespace()
+            .skip(1)
+            .map(|s| s.parse().unwrap())
+            .collect();
         let em = (1280.0 * values[0] / (values[1] + values[2]) + 0.5).floor();
         for axis in 0..2 {
-            let value = (((values[axis+1] * em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
+            let value =
+                (((values[axis + 1] * em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
             maxima[axis] = maxima[axis].max(value);
         }
     }

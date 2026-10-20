@@ -174,7 +174,13 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
         );
         let id = catalog.faces()[0].blob().id();
         assert_eq!(catalog.ass_cell_metrics(id).unwrap(), (1000, 970, 230));
-        assert_eq!(catalog.ass_font_scale(id, FiniteF64::new(100.0).unwrap()).unwrap().get(), 5333.0 / 64000.0);
+        assert_eq!(
+            catalog
+                .ass_font_scale(id, FiniteF64::new(100.0).unwrap())
+                .unwrap()
+                .get(),
+            5333.0 / 64000.0
+        );
         assert_eq!(local.lines()[0].ascent().get(), 80.875);
         assert_eq!(local.lines()[0].descent().get(), 19.125);
         for (i, line) in local.lines().iter().enumerate() {
@@ -209,6 +215,7 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
         );
         let groups = coverage_groups(geometry.clone(), &limits).unwrap();
         let mut fills = Vec::new();
+        let mut unit_control = Vec::new();
         let mut doubles = Vec::new();
         for (i, group) in groups.iter().enumerate() {
             let member = group.policy().members().start;
@@ -227,19 +234,42 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
                 state.effects().be().get()
             ));
             if ms == 500 {
-                let scale = catalog.ass_font_scale(catalog.faces()[0].blob().id(), FiniteF64::new(100.0).unwrap()).unwrap().get() * 64.0;
+                let scale = catalog
+                    .ass_font_scale(
+                        catalog.faces()[0].blob().id(),
+                        FiniteF64::new(100.0).unwrap(),
+                    )
+                    .unwrap()
+                    .get()
+                    * 64.0;
                 let mut points = Vec::new();
-                let mut point = |p: FontPoint, kind: u8| points.push(format!("[{},{},{kind}]", (p.x().get()*scale).round() as i64, (-p.y().get()*scale).round() as i64));
+                let mut point = |p: FontPoint, kind: u8| {
+                    points.push(format!(
+                        "[{},{},{kind}]",
+                        (p.x().get() * scale).round() as i64,
+                        (-p.y().get() * scale).round() as i64
+                    ))
+                };
                 for op in geometry.glyphs()[member].outline.outline().ops() {
                     match *op {
-                        PathOp::MoveTo(p) => point(p,6),
-                        PathOp::LineTo(p) => point(p,2),
-                        PathOp::CubicTo(a,b,c) => { point(a,4); point(b,4); point(c,4); },
-                        PathOp::QuadTo(a,b) => { point(a,3); point(b,3); },
-                        PathOp::Close => {},
+                        PathOp::MoveTo(p) => point(p, 6),
+                        PathOp::LineTo(p) => point(p, 2),
+                        PathOp::CubicTo(a, b, c) => {
+                            point(a, 4);
+                            point(b, 4);
+                            point(c, 4);
+                        }
+                        PathOp::QuadTo(a, b) => {
+                            point(a, 3);
+                            point(b, 3);
+                        }
+                        PathOp::Close => {}
                     }
                 }
-                outlines.push_str(&format!("{{\"group\":{i},\"points\":[{}]}}\n", points.join(",")));
+                outlines.push_str(&format!(
+                    "{{\"group\":{i},\"points\":[{}]}}\n",
+                    points.join(",")
+                ));
             }
             assert_eq!(state.effects().border_x().get(), 0.0);
             assert_eq!(state.effects().shadow_x().get(), 0.0);
@@ -248,6 +278,15 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
                 group,
             )
             .unwrap();
+            // Counterfactual only: demonstrate whether unit conversion ALONE
+            // can explain the residual. It does not reconstruct xy geometry,
+            // sampling, bounds or phase and must never become a renderer shim.
+            let quantized: Vec<u8> = raw.data().iter().map(|&v| ((u32::from(v) * 64 + 127) / 255) as u8).collect();
+            let quantized = Arc::new(Mask::new(raw.bounds(), raw.stride(), quantized.into()).unwrap());
+            let control = apply_effects(&quantized, &BlurSpec::new(FiniteF64::ZERO, state.effects().be(), [1.0,1.0], &limits).unwrap(), &limits).unwrap();
+            let alpha: Vec<u8> = control.data().iter().map(|&v| ((u32::from(v)*255+32)>>6).min(255) as u8).collect();
+            let control = Arc::new(Mask::new(control.bounds(), control.stride(), alpha.into()).unwrap());
+            unit_control.push(draw(event.id(),i,2,control));
             save(&root, &format!("{ms}-g{i}-before"), &raw, &mut metadata);
             for pass in [1, 2, 4, 8, 16] {
                 let filtered = apply_effects(
@@ -320,6 +359,8 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
         );
         std::fs::write(root.join(format!("{ms}-single-fill.rgba")), one.pixels()).unwrap();
         std::fs::write(root.join(format!("{ms}-actual.rgba")), actual.pixels()).unwrap();
+        let control = compose(Size::new(800,600), &unit_control, &limits, &mut OutputBudget::new(&limits)).unwrap();
+        std::fs::write(root.join(format!("{ms}-units-only-control.rgba")), control.pixels()).unwrap();
     }
     std::fs::write(root.join("masks.jsonl"), metadata).unwrap();
     std::fs::write(root.join("lines.tsv"), line_info).unwrap();

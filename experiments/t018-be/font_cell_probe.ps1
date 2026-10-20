@@ -25,7 +25,7 @@ public static class CellProbe {
   [DllImport("gdi32.dll")] static extern bool BeginPath(IntPtr dc);
   [DllImport("gdi32.dll")] static extern bool EndPath(IntPtr dc);
   [DllImport("gdi32.dll",CharSet=CharSet.Unicode)] static extern bool TextOutW(IntPtr dc,int x,int y,string text,int count);
-  [DllImport("gdi32.dll")] static extern int GetPath(IntPtr dc,Point[] points,byte[] types,int count);
+  [DllImport("gdi32.dll")] static extern int GetPath(IntPtr dc,[Out] Point[] points,[Out] byte[] types,int count);
   public static object[] Run(byte[] bytes,string family,int[] heights) {
     uint count=0; var resource=AddFontMemResourceEx(bytes,(uint)bytes.Length,IntPtr.Zero,ref count);
     if(resource==IntPtr.Zero || count!=1) throw new Exception("font resource identity/count");
@@ -41,6 +41,8 @@ public static class CellProbe {
           if(!BeginPath(dc)||!TextOutW(dc,0,0,text,text.Length)||!EndPath(dc)) throw new Exception("path");
           int n=GetPath(dc,null,null,0); if(n<=0||n>10000) throw new Exception("path count");
           var points=new Point[n]; var types=new byte[n]; if(GetPath(dc,points,types,n)!=n) throw new Exception("path read");
+          bool written=false; for(int i=0;i<n;i++) written|=points[i].x!=0||points[i].y!=0;
+          if(!written) throw new Exception("empty native path output");
           var path=new List<int[]>(); for(int i=0;i<n;i++) path.Add(new[]{points[i].x,points[i].y,(int)types[i]});
           result.Add(new {family,height,text,metrics,path});
         }

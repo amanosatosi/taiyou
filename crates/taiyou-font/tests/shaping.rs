@@ -145,25 +145,25 @@ fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
             "{id}"
         );
     }
-    assert_eq!(
-        run.metrics().ascent().get(),
-        ascent
-    );
-    assert_eq!(
-        run.metrics().descent().get(),
-        descent
-    );
-    assert_eq!(
-        run.metrics().line_gap().get(),
-        0.0
-    );
+    assert_eq!(run.metrics().ascent().get(), ascent);
+    assert_eq!(run.metrics().descent().get(), descent);
+    assert_eq!(run.metrics().line_gap().get(), 0.0);
 }
-fn cell_reference(id: &str, size: f64) -> (f64,f64,f64,f64) {
-    let path = PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv");
+fn cell_reference(id: &str, size: f64) -> (f64, f64, f64, f64) {
+    let path =
+        PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv");
     let contents = std::fs::read_to_string(path).unwrap();
-    let input = contents.lines().find(|l| l.split_whitespace().next() == Some(format!("case:{id}").as_str())).unwrap();
-    let values: Vec<f64> = input.split_whitespace().skip(1).map(|s| s.parse().unwrap()).collect();
-    let native_em = (((size * 64.0 + 0.5).floor() * values[0] / (values[1]+values[2])) + 0.5).floor();
+    let input = contents
+        .lines()
+        .find(|l| l.split_whitespace().next() == Some(format!("case:{id}").as_str()))
+        .unwrap();
+    let values: Vec<f64> = input
+        .split_whitespace()
+        .skip(1)
+        .map(|s| s.parse().unwrap())
+        .collect();
+    let native_em =
+        (((size * 64.0 + 0.5).floor() * values[0] / (values[1] + values[2])) + 0.5).floor();
     let scale = native_em / (64.0 * values[0]);
     let metric = |v: f64| (((v * native_em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
     let ascent = metric(values[1]);

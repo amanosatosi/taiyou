@@ -557,10 +557,18 @@ fn shape_item(
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
-        let scale = input.catalog.ass_font_scale(face.id(), input.style.font_size())?.get();
-        let baseline_offset = input.catalog.ass_baseline_offset(face.id(), input.style.font_size())?;
+        let scale = input
+            .catalog
+            .ass_font_scale(face.id(), input.style.font_size())?
+            .get();
+        let baseline_offset = input
+            .catalog
+            .ass_baseline_offset(face.id(), input.style.font_size())?;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
-            return Err(error(ErrorCode::NativeFailure, "font UPEM changed after validation"));
+            return Err(error(
+                ErrorCode::NativeFailure,
+                "font UPEM changed after validation",
+            ));
         }
         let finite = |v| FiniteF64::new(v).map_err(|_| limited());
         reserve(&mut face_metrics, 1, limits)?;
@@ -571,7 +579,9 @@ fn shape_item(
                     .len()
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
-            metrics: input.catalog.ass_line_metrics(face.id(), input.style.font_size())?,
+            metrics: input
+                .catalog
+                .ass_line_metrics(face.id(), input.style.font_size())?,
         });
         if glyphs
             .len()
@@ -897,7 +907,10 @@ fn empty_line_metrics(
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing font metrics"))?
                 .1;
             if u32::from(catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
-                return Err(error(ErrorCode::NativeFailure, "font UPEM changed after validation"));
+                return Err(error(
+                    ErrorCode::NativeFailure,
+                    "font UPEM changed after validation",
+                ));
             }
             let metrics = catalog.ass_line_metrics(face.id(), style.font_size())?;
             reserve(&mut result, 1, limits)?;
