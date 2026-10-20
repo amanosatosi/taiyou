@@ -128,9 +128,8 @@ fn embedded_bytes_cannot_bypass_native_validation_or_combined_catalog_limit() {
         PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap()).with_file_name("alias-bold.otf"),
     )
     .unwrap();
-    let combined = parse(
-        &(source("Source Sans 3") + "[Fonts]\nfontname: bold.otf\n" + &encode(&bold) + "\n"),
-    );
+    let combined =
+        parse(&(source("Source Sans 3") + "[Fonts]\nfontname: bold.otf\n" + &encode(&bold) + "\n"));
     let mut context = FontContext::new().unwrap();
     let mut builder = FontCatalogBuilder::new(Limits::default());
     builder.register(&mut context, &font, 0).unwrap();

@@ -354,7 +354,7 @@ fn select_family_aliases(
         .enumerate()
         .filter(|(index, record)| {
             record.folded_family() == folded
-                || aliases.is_some_and(|names| names[*index].iter().any(|name| *name == folded))
+                || aliases.is_some_and(|names| names[*index].contains(&folded))
         })
         .min_by_key(|(index, record)| {
             (
@@ -397,7 +397,9 @@ mod tests {
         for family in ["別名", "ALTERNATE"] {
             for (weight, italic, ordinal) in [(400, true, 1), (500, false, 2), (500, true, 1)] {
                 let request = FontRequest::new(Arc::from(family), weight, italic, false);
-                let result = select_family_aliases(&records, Some(&aliases), &request, &Limits::default()).unwrap();
+                let result =
+                    select_family_aliases(&records, Some(&aliases), &request, &Limits::default())
+                        .unwrap();
                 assert_eq!(result.sha256(), &[ordinal; 32]);
             }
         }
