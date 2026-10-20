@@ -234,20 +234,45 @@ fn one(
             "event effects or non-hard-break wrapping remain unsupported",
         )?;
     }
-    for operation in event.program() {
+    let mut consumed = 0;
+    for (index, operation) in event.program().iter().enumerate() {
+        if index < consumed { continue; }
+        if drawing_mode > 0 && matches!(operation,TextOp::Text { .. } | TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace) {
+            // ParsePolygon receives original drawing bytes, not ParseString's
+            // decoded escapes. A source gap or override ends the polygon word.
+            let map = source_map.as_ref().ok_or_else(|| error(ErrorCode::InvalidArgument,"drawing word requires original source mapping"))?;
+            let mut raw_start = None;
+            let mut raw_end = 0;
+            let mut length = 0_u32;
+            let mut next = index;
+            while let Some(op) = event.program().get(next) {
+                let bytes = match op {
+                    TextOp::Text { text, .. } => text.len(),
+                    TextOp::HardBreak | TextOp::SoftBreak => 1,
+                    TextOp::NoBreakSpace => 2,
+                    _ => break,
+                };
+                let span = match op { TextOp::Text { source, .. } => Some(*source), _ => event.operation_sources().and_then(|s|s[next]) }.ok_or_else(|| error(ErrorCode::InvalidArgument,"drawing escape lacks original source"))?;
+                if raw_start.is_some() && span.start()!=raw_end { break; }
+                raw_start.get_or_insert(span.start()); raw_end=span.end();
+                length=length.checked_add(u32::try_from(bytes).map_err(|_|error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?).ok_or_else(||error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?;
+                next+=1;
+            }
+            let end=decoded_end.checked_add(length).ok_or_else(||error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?;
+            let text=map.text().get(decoded_end as usize..end as usize).ok_or_else(||error(ErrorCode::InvalidArgument,"drawing decoded range mismatch"))?;
+            let span=SourceSpan::new(track.source(),raw_start.ok_or_else(||error(ErrorCode::InvalidArgument,"missing drawing source"))? as usize,raw_end as usize).map_err(convert)?;
+            let raw=span.slice(track.source()).ok_or_else(||error(ErrorCode::InvalidArgument,"drawing source range mismatch"))?;
+            let drawing=crate::drawing::parse(raw,drawing_mode,drawing_baseline,limits)?;
+            reserve(&mut runs)?;
+            runs.push(mapped_run(Arc::from(text),span,&state,&source_map,&mut decoded_end)?.with_drawing(drawing));
+            consumed=next;
+            continue;
+        }
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                let mut run =
+                let run =
                     mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?;
-                if drawing_mode > 0 {
-                    run = run.with_drawing(crate::drawing::parse(
-                        text,
-                        drawing_mode,
-                        drawing_baseline,
-                        limits,
-                    )?);
-                }
                 runs.push(run);
             }
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
@@ -505,10 +530,7 @@ fn one(
                     }
                 }
                 changes = changes.union(ChangeClass::between_styles(&before, &state));
-                if matches!(
-                    op,
-                    OverrideOp::SetFont { .. } | OverrideOp::ResetStyle { .. }
-                ) {
+                if matches!(op, OverrideOp::SetFont { .. } | OverrideOp::ResetStyle { .. } | OverrideOp::RestoreOriginal { field: OriginalField::Font, .. }) {
                     validate_style(&state, event, op.source(), policy, d)?;
                 }
             }

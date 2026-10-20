@@ -91,7 +91,7 @@ pub fn parse(text: &str, scale: u32, baseline: i32, limits: &Limits) -> Result<A
         }
     }
     let (width,height) = bounds.map_or((0.0,0.0), |(x,y,a,b)| ((a-x).max(0.0),(b-y).max(0.0)));
-    let descent = (64.0 * factor * f64::from(baseline)).trunc() / 64.0;
+    let descent = if valid { (64.0 * factor * f64::from(baseline)).trunc() / 64.0 } else { 0.0 };
     let ascent = height - descent;
     let font = |p:Point| FontPoint::new(p.0, ascent - p.1);
     let mut open = false;

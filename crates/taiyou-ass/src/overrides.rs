@@ -213,7 +213,7 @@ fn block(
         // The xy tag reader stops a transform argument at the first closing
         // parenthesis, not the matching one. Remaining backslash tags belong
         // to the enclosing list and are evaluated without this transform.
-        if remaining.starts_with("t(") {
+        if !unstructured && remaining.contains('(') {
             if let Some(close) = remaining.find(')') {
                 cursor = cursor.min(start + 1 + close + 1);
             }
@@ -251,6 +251,10 @@ fn block(
             }
             continue;
         }
+        // A transform containing a parenthesized command can leave unmatched
+        // ')' characters on the following numeric/hex command. xy's native
+        // suffix conversion ignores them; literal font/reset names do not.
+        let raw = if !unstructured && !raw.contains('(') { raw.trim_end_matches(')') } else { raw };
         if !parents.is_empty() {
             let suffix = decode::trim(raw.split_once('(').map_or(raw, |(s, _)| s));
             if (suffix.starts_with('b') && !suffix.starts_with("blur") && !suffix.starts_with("bord") && !suffix.starts_with("be")) || (suffix.starts_with('i') && !suffix.starts_with("iclip")) {

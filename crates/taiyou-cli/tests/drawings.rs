@@ -26,6 +26,11 @@ fn drawing_commands_metrics_scales_baseline_and_malformed_tails() {
     assert!(e.runs()[0].drawing().is_some());
     assert!(e.runs()[1].drawing().is_none());
     assert_eq!(e.runs()[0].decoded().unwrap().original_ranges(&limits).unwrap()[0].slice(p.track().source()),Some("m 0 0 l 20 0 20 20 0 20"));
+    let p = parse(r"{\p1}m 0 0 l 20 0\N l 20 20 0 20{\p0}Ag");
+    let e = taiyou_render::evaluate(p.track(),p.track().events()[0].id(),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
+    let polygon = drawing::parse(r"m 0 0 l 20 0\N l 20 20 0 20",1,0,&limits).unwrap();
+    assert_eq!(e.runs()[0].drawing().unwrap(),&polygon);
+    assert_eq!(e.runs()[0].text(),"m 0 0 l 20 0\n l 20 20 0 20");
 }
 
 #[test]

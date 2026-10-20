@@ -386,14 +386,10 @@ fn resolve_mapped(
             }
             let mut item = item.clone();
             item.range = start..end;
-            for drawing in drawings {
-                if drawing.end() as usize <= start {
-                    item.context.start = item.context.start.max(drawing.end() as usize);
-                }
-                if drawing.start() as usize >= end {
-                    item.context.end = item.context.end.min(drawing.start() as usize);
-                }
-            }
+            let left = drawings.partition_point(|d| d.end() as usize <= start);
+            if left > 0 { item.context.start = item.context.start.max(drawings[left-1].end() as usize); }
+            let right = drawings.partition_point(|d| (d.start() as usize) < end);
+            if let Some(drawing) = drawings.get(right) { item.context.end=item.context.end.min(drawing.start() as usize); }
             reserve(&mut result, 1, limits)?;
             result.push(ResolvedRun {
                 catalog: catalog.clone(),
