@@ -131,10 +131,19 @@ fn layout_fixed_font_space_advance_and_real_ink_are_separate() {
         .runs()
         .iter()
         .flat_map(|r| r.glyphs())
+        .filter(|g| g.cluster().text() == "\u{a0}")
         .map(|g| g.advance_x().get())
         .sum::<f64>();
     assert_eq!(l.lines()[0].advance().get(), advance);
     assert!(advance > 0.0);
+    assert_eq!(s.source_map().text(), "   \u{a0}");
+    assert!(
+        s.runs()
+            .iter()
+            .flat_map(|r| r.glyphs())
+            .any(|g| g.cluster().text() == " ")
+    );
+    assert!(l.glyphs().iter().all(|g| g.cluster().text() == "\u{a0}"));
     assert_eq!(l.ink_bounds(), None);
     let s = shaped(&mut ctx, &catalog, "Aj\u{301}");
     let l = layout(&s, &constraints()).unwrap();
@@ -160,14 +169,19 @@ fn layout_fixed_font_mixed_bidi_and_trailing_whitespace_l1() {
     for text in ["سلام abc ", "abc سلام "] {
         let s = shaped(&mut ctx, &catalog, text);
         let l = layout(&s, &constraints()).unwrap();
+        assert_eq!(s.source_map().text(), text);
+        let trailing = text.len() as u32 - 1;
+        assert!(
+            s.runs()
+                .iter()
+                .flat_map(|r| r.glyphs())
+                .any(|g| g.cluster().start() == trailing)
+        );
+        assert!(l.glyphs().iter().all(|g| g.cluster().start() != trailing));
         if text.starts_with('س') {
-            assert_eq!(l.glyphs()[0].cluster().start(), text.len() as u32 - 1);
-            assert_eq!(l.glyphs()[1].cluster().text(), "a");
+            assert_eq!(l.glyphs()[0].cluster().text(), "a");
         } else {
-            assert_eq!(
-                l.glyphs().last().unwrap().cluster().start(),
-                text.len() as u32 - 1
-            );
+            assert_eq!(l.glyphs()[0].cluster().text(), "a");
         }
         for r in 0..s.runs().len() {
             let native: Vec<_> = l
@@ -176,7 +190,16 @@ fn layout_fixed_font_mixed_bidi_and_trailing_whitespace_l1() {
                 .filter(|g| g.run_index() == r)
                 .map(|g| g.glyph_index())
                 .collect();
-            assert_eq!(native, (0..s.runs()[r].glyphs().len()).collect::<Vec<_>>());
+            assert_eq!(
+                native,
+                s.runs()[r]
+                    .glyphs()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, g)| g.cluster().start() != trailing)
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>()
+            );
         }
         assert_eq!(l, layout(&s, &constraints()).unwrap());
     }

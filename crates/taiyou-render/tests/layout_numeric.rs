@@ -230,7 +230,7 @@ fn layout_numeric_break_only_and_zero_text_have_actual_empty_metrics() {
     }
 }
 #[test]
-fn layout_numeric_spaces_include_advances_but_no_ink() {
+fn layout_numeric_compacts_ascii_edge_but_preserves_nbsp_advance_and_source() {
     let mut a = g(1, 0..1, 3.0);
     a.ink = GlyphInk::Empty;
     let mut b = g(2, 1..3, 4.0);
@@ -244,11 +244,15 @@ fn layout_numeric_spaces_include_advances_but_no_ink() {
     let l = layout(&e, &constraints(7)).unwrap();
     assert_eq!(
         l.logical_bounds(),
-        ScriptBounds::new(0.0, 0.0, 7.0, 10.0).unwrap()
+        ScriptBounds::new(0.0, 0.0, 4.0, 10.0).unwrap()
     );
     assert_eq!(l.ink_bounds(), None);
     assert_eq!(l.collision_bounds(), l.logical_bounds());
-    assert_eq!(l.glyphs()[1].position().x().get(), 3.0);
+    assert_eq!(e.source_map().text(), " \u{a0}");
+    assert_eq!(e.runs()[0].glyphs().len(), 2);
+    assert_eq!(l.glyphs().len(), 1);
+    assert_eq!(l.glyphs()[0].cluster().text(), "\u{a0}");
+    assert_eq!(l.glyphs()[0].position().x().get(), 0.0);
 }
 #[test]
 fn layout_numeric_negative_offsets_and_mark_ink_are_distinct_from_logical_box() {
