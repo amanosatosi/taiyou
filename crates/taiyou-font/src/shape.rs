@@ -306,7 +306,7 @@ fn priorities(
         ));
     }
     let family = fold_family(style.font().family(), limits)?;
-    if !catalog.faces().iter().any(|f| f.folded_family() == family) {
+    if !(0..catalog.faces().len()).any(|index| catalog.matches_family(index, &family)) {
         return Err(error(
             ErrorCode::FontUnavailable,
             "requested family is absent from validated catalog",
@@ -317,7 +317,7 @@ fn priorities(
     indices.extend(0..catalog.faces().len());
     indices.sort_unstable_by_key(|&i| {
         let face = &catalog.faces()[i];
-        let same = face.folded_family() == family;
+        let same = catalog.matches_family(i, &family);
         (
             !same,
             if same {
