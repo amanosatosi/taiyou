@@ -107,8 +107,9 @@ impl Drop for Report {fn drop(&mut self){report();}}
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
     cli_path = destination / "crates/taiyou-cli/src/render.rs"
     cli_original = cli_path.read_text()
-    marker = "let config = RendererConfig::default();"
-    assert cli_original.count(marker) == 1
+    markers = ("let config = RendererConfig::default();", "let mut config = RendererConfig::default();")
+    assert sum(cli_original.count(value) for value in markers) == 1
+    marker = next(value for value in markers if value in cli_original)
     cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();} if let Ok(segments) = std::env::var("TAIYOU_EXPERIMENT_SEGMENTS") {config.limits = config.limits.with_path_segments_per_frame(segments.parse().unwrap()).unwrap();}')
     cli_path.write_text(cli_code)
     modifications[str(cli_path.relative_to(destination))] = {"original": hashlib.sha256(cli_original.encode()).hexdigest(), "instrumented": hashlib.sha256(cli_code.encode()).hexdigest(), "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"}

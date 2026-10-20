@@ -48,6 +48,19 @@ jobs:
         run: |
           cargo +1.99.1 test --locked -p taiyou-render --features native --test effects --test evaluate_blur
           cargo +1.99.1 test --locked -p taiyou-cli --features native --test blur
+      - name: Supplemental exact-target font ASan and UBSan
+        # Keep this independent of the historical T017 benchmark executor.
+        # The required native matrix and its sanitizer path remain unchanged.
+        env:
+          RUSTUP_TOOLCHAIN: 1.99.1
+          PKG_CONFIG: pkgconf
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: python build-support/font-sanitizer.py
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests
