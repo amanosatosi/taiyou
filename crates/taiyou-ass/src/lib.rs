@@ -2,6 +2,7 @@
 
 mod decode;
 mod events;
+mod fonts;
 mod overrides;
 mod sections;
 mod styles;
@@ -89,13 +90,40 @@ pub fn parse_ass(
     let mut style_indices = BTreeMap::<Arc<str>, usize>::new();
     let mut pending = Vec::new();
     let mut ordinal = 0_u64;
+    let mut fonts = fonts::Fonts::default();
     for line in sections::lines(source) {
         let text = line.text.trim_start_matches([' ', '\t']);
+        let span = SourceSpan::new(source, line.start, line.start + line.text.len())?;
+        if section == sections::Section::Fonts {
+            // '[' is a valid encoded character. Only real ASS section headers
+            // terminate attachment data, as in the pinterf reader.
+            let header = [
+                "[Script Info]",
+                "[V4+ Styles]",
+                "[V4 Styles]",
+                "[Events]",
+                "[Fonts]",
+                "[Graphics]",
+            ]
+            .iter()
+            .any(|name| text.trim_end().eq_ignore_ascii_case(name));
+            if !header {
+                fonts.line(text, source, span, &mut ctx)?;
+                continue;
+            }
+            fonts.finish(source, &mut ctx)?;
+        }
         if text.is_empty() || text.starts_with(';') {
             continue;
         }
-        let span = SourceSpan::new(source, line.start, line.start + line.text.len())?;
         if text.starts_with('[') {
+            if text.trim_end().eq_ignore_ascii_case("[V4 Styles]") {
+                // Never synthesize ASS defaults and misreport missing fonts
+                // for the separate, unimplemented SSA V4 style mapping.
+                return Err(
+                    unsupported("SSA V4 styles are not implemented").with_context(None, Some(span))
+                );
+            }
             match sections::section(text) {
                 Ok(value) => {
                     section = value;
@@ -190,6 +218,7 @@ pub fn parse_ass(
                 }
             }
             sections::Section::Ignored => (),
+            sections::Section::Fonts => (), // handled before record parsing
             _ if key.eq_ignore_ascii_case("comment") => (),
             _ => ctx.report(
                 DiagnosticCode::UnsupportedFeature,
@@ -199,6 +228,7 @@ pub fn parse_ass(
             )?,
         }
     }
+    fonts.finish(source, &mut ctx)?;
     let script = header.finish()?;
     if !style_indices.contains_key("Default") {
         ctx.report(
@@ -242,5 +272,6 @@ pub fn parse_ass(
         events.into(),
         options.limits(),
     )?;
-    ParsedTrack::new(track, ctx.diagnostics)
+    ParsedTrack::new(track, ctx.diagnostics)?
+        .with_embedded_fonts(fonts.into_records(), options.limits())
 }

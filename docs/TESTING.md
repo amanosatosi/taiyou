@@ -164,6 +164,16 @@ Use cargo-fuzz/libFuzzer in dedicated Linux jobs; archive minimized seeds and ad
 
 Font fixtures cover Latin ligatures/kerning, Arabic joining, mixed RTL/LTR with punctuation, combining marks, Indic reordering, CJK fallback, missing glyphs, spaces/empty lines, repeated same-family fonts, collection face indices, variable axes where supported and malformed fonts. Fonts have explicit hashes/licenses. No assumption that an “Arial” request yields the same font on all systems. Native font parser vulnerabilities remain dependencies to track.
 
+The T008 ASS font follow-up adds alias and embedded-font tests without replacing
+existing font fixtures. The comparator may execute a script containing `[Fonts]`
+without an external `--font`; only the renderer decodes and validates those bytes.
+That admission is not a successful result or an external font substitution.
+Missing corpus/host fonts and native-invalid font bytes remain infrastructure
+errors. A typed unsupported SSA V4 style mapping remains unsupported, including
+in exploratory tolerant execution; do not synthesize ASS defaults and mislabel
+that missing feature as absent-font infrastructure. Report actual rendering and
+metrics separately from strict/tolerant feature support.
+
 ## V8. Performance and KFX
 
 T029 creates corpus manifests for authorized real-world KFX and independently generated stress scripts: thousands of short events, shared glyphs with changing paint, rotation/scale, animated clips, karaoke sweeps, large blur and dense overlap. Do not redistribute copyrighted subtitle/font assets without permission. Record operation counts, render dimensions, frame sampling and supported features so work is comparable.

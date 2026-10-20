@@ -1737,6 +1737,7 @@ impl Drop for Face<'_> {
 }
 pub(crate) struct Metadata {
     pub family: String,
+    pub aliases: Vec<String>,
     pub weight: u16,
     pub italic: bool,
     pub glyphs: u32,
@@ -1904,22 +1905,47 @@ impl FontContext {
             _bytes: bytes,
         })
     }
+    fn probe_face_count(&self, bytes: Arc<[u8]>) -> Result<u32, FontError> {
+        let probe = self.open(bytes, -1)?;
+        // SAFETY: live initialized probe returned by FreeType.
+        let count = unsafe { (*probe.raw).num_faces };
+        u32::try_from(count)
+            .ok()
+            .filter(|&count| count > 0)
+            .ok_or_else(|| {
+                FontError::new(
+                    ErrorCode::NativeFailure,
+                    "invalid native collection face count",
+                )
+            })
+    }
+    /// Probe an in-memory font resource without publishing a native handle.
+    /// Every reported face still requires ordinary catalog validation.
+    pub fn face_count(&mut self, bytes: Arc<[u8]>) -> Result<u32, FontError> {
+        self.check_bytes(&bytes)?;
+        let count = self.probe_face_count(bytes)?;
+        // Higher FreeType index bits select named instances, not TTC faces.
+        if count > 0x1_0000 {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "collection face count exceeds supported native index range",
+            ));
+        }
+        Ok(count)
+    }
     fn with_face<T>(
         &mut self,
         bytes: Arc<[u8]>,
         index: u32,
         read: impl FnOnce(&Face<'_>) -> Result<T, FontError>,
     ) -> Result<T, FontError> {
-        let probe = self.open(bytes.clone(), -1)?;
-        // SAFETY: live initialized probe returned by FreeType.
-        let count = unsafe { (*probe.raw).num_faces };
-        if index > 0xffff || !u32::try_from(count).is_ok_and(|count| index < count) {
+        let count = self.probe_face_count(bytes.clone())?;
+        if index > 0xffff || index >= count {
             return Err(FontError::new(
                 ErrorCode::InvalidArgument,
                 "collection face index out of range or named-instance selector",
             ));
         }
-        drop(probe);
         let face = self.open(bytes, ft::FT_Long::from(index as u16))?;
         read(&face)
     }
@@ -1963,6 +1989,8 @@ impl FontContext {
                     ));
                 }
                 let mut best: Option<((u8, u8, u16), String)> = None;
+                let mut aliases = Vec::new();
+                let mut name_bytes = 0_usize;
                 for i in 0..count {
                     let mut name = SfntName {
                         platform: 0,
@@ -1976,9 +2004,11 @@ impl FontContext {
                     if code != 0 {
                         return Err(native_error(code, "FT_Get_Sfnt_Name failed"));
                     }
-                    if !matches!(name.name, 1 | 16)
-                        || !(name.platform == 0
-                            || name.platform == 3 && matches!(name.encoding, 0 | 1 | 10))
+                    // Microsoft name strings are UTF-16BE even in older fonts
+                    // whose platform encoding names a legacy glyph charset.
+                    // Full and PostScript names are aliases, never substitutes
+                    // for the preferred family or independent fake faces.
+                    if !matches!(name.name, 1 | 4 | 6 | 16 | 21) || !matches!(name.platform, 0 | 3)
                     {
                         continue;
                     }
@@ -2010,12 +2040,34 @@ impl FontContext {
                     if family.is_empty() {
                         continue;
                     }
+                    if !aliases.contains(&family) {
+                        // Name records may reference overlapping storage. Bound
+                        // aggregate decoded metadata, not just each record.
+                        name_bytes = name_bytes.checked_add(family.len()).ok_or_else(|| {
+                            FontError::new(ErrorCode::LimitExceeded, "font alias size overflow")
+                        })?;
+                        if name_bytes > byte_limit.saturating_mul(3) {
+                            return Err(FontError::new(
+                                ErrorCode::LimitExceeded,
+                                "font alias budget exceeded",
+                            ));
+                        }
+                        aliases.try_reserve(1).map_err(|_| {
+                            FontError::new(
+                                ErrorCode::AllocationFailed,
+                                "font alias allocation failed",
+                            )
+                        })?;
+                        aliases.push(family.clone());
+                    }
                     let rank = (
                         u8::from(name.name != 16),
                         u8::from(name.language != 0x409),
                         name.language,
                     );
-                    if best.as_ref().is_none_or(|(old, _)| rank < *old) {
+                    if matches!(name.name, 1 | 16)
+                        && best.as_ref().is_none_or(|(old, _)| rank < *old)
+                    {
                         best = Some((rank, family));
                     }
                 }
@@ -2036,6 +2088,9 @@ impl FontContext {
                         })?
                         .to_owned()
                 };
+                if aliases.is_empty() {
+                    aliases.push(family.clone());
+                }
                 let os2 = FT_Get_Sfnt_Table(face.raw, 2);
                 let weight = if os2.is_null() {
                     if (*face.raw).style_flags & ft::FT_STYLE_FLAG_BOLD != 0 {
@@ -2051,6 +2106,7 @@ impl FontContext {
                 })?;
                 Ok(Metadata {
                     family,
+                    aliases,
                     weight,
                     italic: (*face.raw).style_flags & ft::FT_STYLE_FLAG_ITALIC != 0,
                     glyphs,

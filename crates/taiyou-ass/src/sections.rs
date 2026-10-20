@@ -7,6 +7,7 @@ pub(crate) enum Section {
     Script,
     Styles,
     Events,
+    Fonts,
     Ignored,
 }
 pub(crate) fn section(text: &str) -> Result<Section, ParseError> {
@@ -21,6 +22,8 @@ pub(crate) fn section(text: &str) -> Result<Section, ParseError> {
         Section::Styles
     } else if name.eq_ignore_ascii_case("Events") {
         Section::Events
+    } else if name.eq_ignore_ascii_case("Fonts") {
+        Section::Fonts
     } else {
         Section::Ignored
     })

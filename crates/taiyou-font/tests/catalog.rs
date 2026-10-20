@@ -9,6 +9,95 @@ fn request(family: &str, weight: u16, italic: bool) -> FontRequest {
     FontRequest::new(Arc::from(family), weight, italic, false)
 }
 #[test]
+fn catalog_resource_face_count_preserves_shared_bytes_order_and_limits() {
+    let collection: Arc<[u8]> = fixture("TAIYOU_TEST_COLLECTION").into();
+    let limits = Limits::default()
+        .with_font_bytes(collection.len() as u64)
+        .unwrap();
+    let mut context = FontContext::with_limits(limits.clone()).unwrap();
+    let count = context.face_count(collection.clone()).unwrap();
+    assert_eq!(count, 2);
+    let mut builder = FontCatalogBuilder::new(limits.clone());
+    for index in 0..count {
+        builder.register(&mut context, &collection, index).unwrap();
+    }
+    let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    assert_eq!(catalog.faces().len(), 2);
+    assert_eq!(builder.registered_bytes(), collection.len() as u64);
+    for (index, face) in catalog.faces().iter().enumerate() {
+        assert_eq!(face.blob().id().face_index(), index as u32);
+    }
+    assert!(Arc::ptr_eq(
+        &catalog.faces()[0].blob().shared_bytes(),
+        &catalog.faces()[1].blob().shared_bytes()
+    ));
+    assert_eq!(
+        context
+            .face_count(fixture("TAIYOU_TEST_FONT").into())
+            .unwrap(),
+        1
+    );
+    let mut limited =
+        FontContext::with_limits(limits.with_font_bytes(collection.len() as u64 - 1).unwrap())
+            .unwrap();
+    assert_eq!(
+        limited.face_count(collection.clone()).unwrap_err().code(),
+        ErrorCode::LimitExceeded
+    );
+    let mut limited =
+        FontContext::with_limits(Limits::default().with_transient_bytes(1).unwrap()).unwrap();
+    assert_eq!(
+        limited.face_count(collection).unwrap_err().code(),
+        ErrorCode::LimitExceeded
+    );
+    assert_eq!(
+        context
+            .face_count(Arc::from([0xA5; 16]))
+            .unwrap_err()
+            .code(),
+        ErrorCode::NativeFailure
+    );
+}
+#[test]
+fn catalog_localized_and_typographic_aliases_share_validated_face_and_selection() {
+    let directory = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
+    let regular = std::fs::read(directory.with_file_name("alias-regular.otf")).unwrap();
+    let bold = std::fs::read(directory.with_file_name("alias-bold.otf")).unwrap();
+    let mut context = FontContext::new().unwrap();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let a = builder.register(&mut context, &regular, 0).unwrap();
+    let b = builder.register(&mut context, &bold, 0).unwrap();
+    for _ in 0..2 {
+        let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+        assert_eq!(catalog.faces().len(), 2);
+        for family in [
+            "たいよう 別名",
+            "TAIYOU ALIAS FAMILY",
+            "Taiyou Typographic Family",
+            "TaiyouPostScriptAlias",
+            "Taiyou Legacy Encoding Alias",
+        ] {
+            for (weight, expected) in [(400, a), (700, b)] {
+                assert_eq!(
+                    resolve_family(
+                        &catalog,
+                        &request(family, weight, false),
+                        &Limits::default()
+                    )
+                    .unwrap(),
+                    expected
+                );
+            }
+        }
+        assert_eq!(builder.register(&mut context, &regular, 0).unwrap(), a);
+        assert_eq!(catalog.faces()[0].blob().bytes(), regular);
+        assert_eq!(
+            builder.registered_bytes(),
+            (regular.len() + bold.len()) as u64
+        );
+    }
+}
+#[test]
 fn catalog_identity_dedup_order_and_owned_lifetime() {
     fn shared<T: Send + Sync>() {}
     shared::<ValidatedFontCatalog>();

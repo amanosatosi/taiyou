@@ -19,3 +19,18 @@ collection.save(directory / "collection.otc", shareTables=True)
 for font in collection.fonts:
     font.close()
 print("FONT_FIXTURES=" + json.dumps({"source_commit":"ed1808970eb3c7301c9a523bee26473ba0bb62fa", "license":"OFL-1.1", "generator":"fonttools 4.60.2 TTCollection; unchanged input fonts; recalcTimestamp=False; shareTables=True", "sha256":{name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ["font.otf","bold.otf","collection.otc"]}}), flush=True)
+
+# Additive, independently authored name-table fixtures. Original font fixtures
+# above remain byte-identical. These are font metadata tests, never goldens.
+for source, output in [("font.otf", "alias-regular.otf"), ("bold.otf", "alias-bold.otf")]:
+    font = TTFont(directory / source, recalcTimestamp=False)
+    for name_id, text, language in [(1, "Taiyou Alias Family", 0x409),
+                                    (1, "たいよう 別名", 0x411),
+                                    (16, "Taiyou Typographic Family", 0x409)]:
+        font["name"].setName(text, name_id, 3, 1, language)
+    font["name"].setName("TaiyouPostScriptAlias", 6, 3, 1, 0x409)
+    font["name"].setName("Taiyou Legacy Encoding Alias".encode("utf-16-be"), 1, 3, 2, 0x411)
+    font.save(directory / output)
+    font.close()
+print("ALIAS_FIXTURES=" + json.dumps({name: hashlib.sha256((directory/name).read_bytes()).hexdigest()
+                                      for name in ["alias-regular.otf", "alias-bold.otf"]}), flush=True)

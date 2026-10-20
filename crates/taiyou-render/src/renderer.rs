@@ -271,6 +271,8 @@ pub fn alignment_anchor(placement: &Placement, play_res: Size) -> Result<ScriptP
 pub struct Renderer {
     config: RendererConfig,
     output: OutputBudget,
+    #[cfg(feature = "native")]
+    attachment_catalogs: CatalogIngestor,
     _not_sync: PhantomData<Cell<()>>,
 }
 impl Renderer {
@@ -285,6 +287,8 @@ impl Renderer {
         Ok(Self {
             config,
             output,
+            #[cfg(feature = "native")]
+            attachment_catalogs: CatalogIngestor::new(),
             _not_sync: PhantomData,
         })
     }
@@ -320,6 +324,42 @@ impl Renderer {
                 }
             }
         }
+        // ASS attachment names are metadata. Only validated font bytes enter
+        // the same explicit, ordered catalog as host-supplied faces.
+        let fonts = if parsed.embedded_fonts().is_empty() {
+            fonts
+        } else {
+            let mut context = FontContext::with_limits(self.config.limits.clone())
+                .map_err(crate::geometry::font_error)?;
+            let mut builder = FontCatalogBuilder::new(self.config.limits.clone());
+            for face in fonts.faces() {
+                builder
+                    .register(
+                        &mut context,
+                        face.blob().bytes(),
+                        face.blob().id().face_index(),
+                    )
+                    .map_err(crate::geometry::font_error)?;
+            }
+            for attachment in parsed.embedded_fonts() {
+                let attachment_error = |e| {
+                    crate::geometry::font_error(e).with_context(None, Some(attachment.source()))
+                };
+                let count = context
+                    .face_count(attachment.shared_bytes())
+                    .map_err(attachment_error)?;
+                // Resource order, then ascending face index; register shares
+                // one digest-backed byte blob and charges it only once.
+                for index in 0..count {
+                    builder
+                        .register(&mut context, attachment.bytes(), index)
+                        .map_err(attachment_error)?;
+                }
+            }
+            builder
+                .snapshot(&mut self.attachment_catalogs)
+                .map_err(crate::geometry::font_error)?
+        };
         let frame = self.render(parsed.track().clone(), fonts, request)?;
         let mut report = DiagnosticBuffer::new();
         report

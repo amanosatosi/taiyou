@@ -22,6 +22,9 @@ fn error(code: ErrorCode, detail: &str) -> FontError {
 #[derive(Clone, Debug)]
 pub struct ValidatedFontCatalog {
     inner: Arc<FontCatalog>,
+    // Folded SFNT family/typographic-family names, in native record order.
+    // One entry per validated face; aliases never mint another FontId.
+    aliases: Arc<[Arc<[String]>]>,
 }
 impl ValidatedFontCatalog {
     pub fn revision(&self) -> CatalogRevision {
@@ -29,6 +32,12 @@ impl ValidatedFontCatalog {
     }
     pub fn faces(&self) -> &[FontRecord] {
         self.inner.faces()
+    }
+    pub(crate) fn matches_family(&self, index: usize, folded: &str) -> bool {
+        self.faces()[index].folded_family() == folded
+            || self.aliases[index]
+                .iter()
+                .any(|alias| alias.as_str() == folded)
     }
     /// Extract through the immutable catalog's authentication proof. Arbitrary
     /// public FontBlob inputs still use FontContext::outline and reauthenticate.
@@ -101,6 +110,7 @@ pub struct FontCatalogBuilder {
     blobs: Vec<([u8; 32], Arc<[u8]>)>,
     bytes: u64,
     names: u64,
+    aliases: Vec<Arc<[String]>>,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -110,6 +120,7 @@ impl FontCatalogBuilder {
             blobs: Vec::new(),
             bytes: 0,
             names: 0,
+            aliases: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -182,11 +193,57 @@ impl FontCatalogBuilder {
         };
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
+        // Preflight every fold and the publication overlap before allocating
+        // the alias array. Use the same expansion bound as fold_family.
+        let alias_peak = metadata.aliases.iter().try_fold(0_u64, |sum, name| {
+            (name.len() as u64)
+                .checked_mul(6)
+                .and_then(|n| n.checked_add(128 + 3 * std::mem::size_of::<String>() as u64))
+                .and_then(|n| sum.checked_add(n))
+                .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog aliases overflow"))
+        })?;
+        if intake_cost
+            .checked_add(alias_peak)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(error(
+                ErrorCode::LimitExceeded,
+                "catalog aliases transient budget exceeded",
+            ));
+        }
+        let mut aliases = Vec::new();
+        aliases
+            .try_reserve_exact(metadata.aliases.len())
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "catalog aliases allocation failed",
+                )
+            })?;
+        let mut alias_cost = 0_u64;
+        for alias in metadata.aliases {
+            let alias = fold_family(&alias, &self.limits)?;
+            alias_cost = alias_cost
+                .checked_add(alias.len() as u64)
+                .and_then(|n| n.checked_add(3 * std::mem::size_of::<String>() as u64))
+                .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog aliases overflow"))?;
+            aliases.push(alias);
+        }
         let names = self
             .names
             .checked_add(metadata.family.len() as u64)
             .and_then(|n| n.checked_add(folded.len() as u64))
+            .and_then(|n| n.checked_add(alias_cost))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;
+        if intake_cost
+            .checked_add(alias_cost)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(error(
+                ErrorCode::LimitExceeded,
+                "catalog aliases transient budget exceeded",
+            ));
+        }
         let record = FontRecord::from_unverified(
             FontBlob::from_unverified(id, data.clone()),
             Arc::from(metadata.family),
@@ -197,6 +254,12 @@ impl FontCatalogBuilder {
         self.records
             .try_reserve(1)
             .map_err(|_| error(ErrorCode::AllocationFailed, "catalog allocation failed"))?;
+        self.aliases.try_reserve(1).map_err(|_| {
+            error(
+                ErrorCode::AllocationFailed,
+                "catalog aliases allocation failed",
+            )
+        })?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -207,6 +270,7 @@ impl FontCatalogBuilder {
             self.blobs.push((hash, data));
         }
         self.records.push(record);
+        self.aliases.push(aliases.into());
         self.bytes = new_total;
         self.names = names;
         Ok(id)
@@ -225,10 +289,19 @@ impl FontCatalogBuilder {
             )
         })?;
         records.extend(self.records.iter().cloned());
+        let mut aliases = Vec::new();
+        aliases.try_reserve_exact(self.aliases.len()).map_err(|_| {
+            error(
+                ErrorCode::AllocationFailed,
+                "catalog aliases snapshot allocation failed",
+            )
+        })?;
+        aliases.extend(self.aliases.iter().cloned());
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
             inner: ingestion.publish_unverified(records.into())?,
+            aliases: aliases.into(),
         }))
     }
 }
@@ -277,10 +350,19 @@ pub fn resolve_family(
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
-    select_family(catalog.faces(), request, limits)
+    select_family_aliases(catalog.faces(), Some(&catalog.aliases), request, limits)
 }
+#[cfg(test)]
 fn select_family(
     records: &[FontRecord],
+    request: &FontRequest,
+    limits: &Limits,
+) -> Result<FontId, FontError> {
+    select_family_aliases(records, None, request, limits)
+}
+fn select_family_aliases(
+    records: &[FontRecord],
+    aliases: Option<&[Arc<[String]>]>,
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
@@ -294,7 +376,10 @@ fn select_family(
     records
         .iter()
         .enumerate()
-        .filter(|(_, record)| record.folded_family() == folded)
+        .filter(|(index, record)| {
+            record.folded_family() == folded
+                || aliases.is_some_and(|names| names[*index].contains(&folded))
+        })
         .min_by_key(|(index, record)| {
             (
                 record.weight().abs_diff(request.weight()),
@@ -314,6 +399,35 @@ fn select_family(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn alias_membership_preserves_weight_italic_and_ordinal_ties() {
+        let records: Vec<_> = [(300, false), (500, true), (500, false), (500, false)]
+            .into_iter()
+            .enumerate()
+            .map(|(index, (weight, italic))| {
+                FontRecord::from_unverified(
+                    FontBlob::from_unverified(FontId::new([index as u8; 32], 0), Arc::from([1])),
+                    Arc::from("Primary"),
+                    Arc::from("primary"),
+                    weight,
+                    italic,
+                )
+                .unwrap()
+            })
+            .collect();
+        let aliases: Vec<Arc<[String]>> = (0..4)
+            .map(|_| Arc::from([String::from("別名"), String::from("alternate")]))
+            .collect();
+        for family in ["別名", "ALTERNATE"] {
+            for (weight, italic, ordinal) in [(400, true, 1), (500, false, 2), (500, true, 1)] {
+                let request = FontRequest::new(Arc::from(family), weight, italic, false);
+                let result =
+                    select_family_aliases(&records, Some(&aliases), &request, &Limits::default())
+                        .unwrap();
+                assert_eq!(result.sha256(), &[ordinal; 32]);
+            }
+        }
+    }
     #[test]
     fn catalog_ties_follow_weight_then_italic_then_registration_order_synthetic() {
         // Synthetic descriptors only reach the private selector. No native

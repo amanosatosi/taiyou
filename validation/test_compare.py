@@ -149,6 +149,23 @@ class ImageTests(unittest.TestCase):
 
 
 class AccountingTests(unittest.TestCase):
+    def test_embedded_fonts_reach_renderer_without_external_substitution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "test.ass").write_text("[Fonts]\nfontname: ../../ignored.ttf\n!!!!\n")
+            images.write_png(root / "test-0000.png", 1, 1, bytes([0, 0, 0, 0]))
+            case = {"id": "test-0000.png", "kind": "regression", "source": "test.ass", "fonts": [], "scale": "1",
+                    "profile_records": {"CoreV1": {"support": "UNSUPPORTED"}},
+                    "frames": [{"expected": "test-0000.png", "timestamp_ms": 0, "reference_size": [1, 1]}]}
+            assets = {p: {"path": p} for p in ("test.ass", "test-0000.png")}
+            with patch.object(compare, "execute", return_value=(31, "native validation rejected bytes")) as execute:
+                record = compare.run_case(case, root, root / "renderer", root / "probe", root, assets, 0)
+            self.assertEqual(execute.call_count, 1)
+            self.assertNotIn("--font", execute.call_args.args[0])
+            self.assertEqual(record["stage"], "render")
+            self.assertEqual(record["exit_code"], 31)
+            self.assertEqual(record["status"], "INFRA_ERROR")
+
     def setUp(self):
         self.inventory = load(Path(__file__).with_name("inventory.json"))
         self.policy = load(Path(__file__).with_name("policy.json"))

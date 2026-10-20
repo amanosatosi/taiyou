@@ -91,12 +91,6 @@ impl Arguments {
                 "only explicit core-v1 is available",
             ));
         }
-        if fonts.is_empty() {
-            return Err(RenderError::new(
-                ErrorCode::FontUnavailable,
-                "at least one explicit --font is required",
-            ));
-        }
         let policy_value = match values.get("--unsupported") {
             Some(s) => s
                 .to_str()
@@ -242,12 +236,23 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     // Retain the actual input handles until publication, including Windows
     // sharing protection against hard links, short names and other aliases.
     let mut inputs = Vec::new();
-    let parsed = taiyou_ass::parse_ass(
-        &read_limited(&args.input, limits.input_bytes(), &mut inputs)?,
-        &options,
-        &mut TrackIngestor::new(),
-    )
-    .map_err(parse_error)?;
+    let source = read_limited(&args.input, limits.input_bytes(), &mut inputs)?;
+    // Preserve the explicit-font CLI's missing-font error for inputs without
+    // attachments, even when their encoding is invalid. This is admission only:
+    // the ASS parser and native catalog still validate all attachment content.
+    let has_attachments = source
+        .strip_prefix(b"\xef\xbb\xbf")
+        .unwrap_or(&source)
+        .split(|b| matches!(b, b'\r' | b'\n'))
+        .any(|line| line.trim_ascii().eq_ignore_ascii_case(b"[Fonts]"));
+    if args.fonts.is_empty() && !has_attachments {
+        return Err(RenderError::new(
+            ErrorCode::FontUnavailable,
+            "at least one explicit --font or ASS embedded font is required",
+        ));
+    }
+    let parsed =
+        taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new()).map_err(parse_error)?;
     let mut context = FontContext::with_limits(limits.clone()).map_err(font_error)?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {
