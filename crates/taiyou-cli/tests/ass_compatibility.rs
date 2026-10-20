@@ -145,7 +145,19 @@ fn ordinary_font_cell_size_matches_independent_gdi_metrics_and_baseline() {
     assert!(ink.y0().get() < line.baseline().y().get());
     assert!(ink.y1().get() > line.baseline().y().get());
     for size in [0.0, -1.0] {
-        assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(size).unwrap()).unwrap_err().code(), ErrorCode::InvalidArgument);
+        assert_eq!(
+            fonts
+                .ass_font_scale(id, FiniteF64::new(size).unwrap())
+                .unwrap_err()
+                .code(),
+            ErrorCode::InvalidArgument
+        );
     }
-    assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(f64::MAX).unwrap()).unwrap_err().code(), ErrorCode::LimitExceeded);
+    assert_eq!(
+        fonts
+            .ass_font_scale(id, FiniteF64::new(f64::MAX).unwrap())
+            .unwrap_err()
+            .code(),
+        ErrorCode::LimitExceeded
+    );
 }

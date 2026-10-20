@@ -58,6 +58,11 @@ jobs:
           path: ${{ runner.temp }}/taiyou-libass-tests
           key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
       - run: python validation/acquire.py
+      - name: Independent size-dependent outline observations
+        run: |
+          mkdir -p "$TAIYOU_BE_AUDIT_OUTPUT"
+          cc -std=c11 -Wall -Wextra -Werror -I"$RUNNER_TEMP/taiyou-native-install/include/freetype2" experiments/t018-be/outline-probe.c -L"$RUNNER_TEMP/taiyou-native-install/lib" -lfreetype -lm -o "$RUNNER_TEMP/t018-outline-probe"
+          "$RUNNER_TEMP/t018-outline-probe" "$TAIYOU_CORPUS/regression/.fonts/Aileron-Regular.otf" > "$TAIYOU_BE_AUDIT_OUTPUT/freetype-scaled-outlines.json"
       - name: Reproduce exactly the four frozen BE frames
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig

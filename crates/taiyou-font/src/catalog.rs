@@ -45,7 +45,10 @@ impl ValidatedFontCatalog {
     /// Positive GDI cell-height sizing at xy's 64-unit font construction scale.
     pub fn ass_font_scale(&self, font: FontId, size: FiniteF64) -> Result<FiniteF64, FontError> {
         if size.get() <= 0.0 {
-            return Err(error(ErrorCode::InvalidArgument, "ASS cell height must be positive"));
+            return Err(error(
+                ErrorCode::InvalidArgument,
+                "ASS cell height must be positive",
+            ));
         }
         let (upem, ascent, descent) = self.ass_cell_metrics(font)?;
         let height = (size.get() * 64.0 + 0.5).floor();

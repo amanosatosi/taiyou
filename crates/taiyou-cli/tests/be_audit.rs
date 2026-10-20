@@ -281,12 +281,27 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
             // Counterfactual only: demonstrate whether unit conversion ALONE
             // can explain the residual. It does not reconstruct xy geometry,
             // sampling, bounds or phase and must never become a renderer shim.
-            let quantized: Vec<u8> = raw.data().iter().map(|&v| ((u32::from(v) * 64 + 127) / 255) as u8).collect();
-            let quantized = Arc::new(Mask::new(raw.bounds(), raw.stride(), quantized.into()).unwrap());
-            let control = apply_effects(&quantized, &BlurSpec::new(FiniteF64::ZERO, state.effects().be(), [1.0,1.0], &limits).unwrap(), &limits).unwrap();
-            let alpha: Vec<u8> = control.data().iter().map(|&v| ((u32::from(v)*255+32)>>6).min(255) as u8).collect();
-            let control = Arc::new(Mask::new(control.bounds(), control.stride(), alpha.into()).unwrap());
-            unit_control.push(draw(event.id(),i,2,control));
+            let quantized: Vec<u8> = raw
+                .data()
+                .iter()
+                .map(|&v| ((u32::from(v) * 64 + 127) / 255) as u8)
+                .collect();
+            let quantized =
+                Arc::new(Mask::new(raw.bounds(), raw.stride(), quantized.into()).unwrap());
+            let control = apply_effects(
+                &quantized,
+                &BlurSpec::new(FiniteF64::ZERO, state.effects().be(), [1.0, 1.0], &limits).unwrap(),
+                &limits,
+            )
+            .unwrap();
+            let alpha: Vec<u8> = control
+                .data()
+                .iter()
+                .map(|&v| ((u32::from(v) * 255 + 32) >> 6).min(255) as u8)
+                .collect();
+            let control =
+                Arc::new(Mask::new(control.bounds(), control.stride(), alpha.into()).unwrap());
+            unit_control.push(draw(event.id(), i, 2, control));
             save(&root, &format!("{ms}-g{i}-before"), &raw, &mut metadata);
             for pass in [1, 2, 4, 8, 16] {
                 let filtered = apply_effects(
@@ -359,8 +374,18 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
         );
         std::fs::write(root.join(format!("{ms}-single-fill.rgba")), one.pixels()).unwrap();
         std::fs::write(root.join(format!("{ms}-actual.rgba")), actual.pixels()).unwrap();
-        let control = compose(Size::new(800,600), &unit_control, &limits, &mut OutputBudget::new(&limits)).unwrap();
-        std::fs::write(root.join(format!("{ms}-units-only-control.rgba")), control.pixels()).unwrap();
+        let control = compose(
+            Size::new(800, 600),
+            &unit_control,
+            &limits,
+            &mut OutputBudget::new(&limits),
+        )
+        .unwrap();
+        std::fs::write(
+            root.join(format!("{ms}-units-only-control.rgba")),
+            control.pixels(),
+        )
+        .unwrap();
     }
     std::fs::write(root.join("masks.jsonl"), metadata).unwrap();
     std::fs::write(root.join("lines.tsv"), line_info).unwrap();
