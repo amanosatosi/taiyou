@@ -332,11 +332,15 @@ impl LocalLayout {
             )
         };
         let automatic = input.evaluated().wrap_mode().get() != 2;
+        let terminal_break = input.breaks().last().is_some_and(|b| {
+            b.end() as usize == input.source_map().text().len()
+        });
+        let hard_lines = input.breaks().len().checked_add(usize::from(!terminal_break)).ok_or_else(invalid)?;
         if local_scale.0.get() < 0.0
             || local_scale.1.get() < 0.0
             || lines.is_empty()
             || (!automatic
-                && lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)?)
+                && lines.len() != hard_lines)
         {
             return Err(invalid());
         }

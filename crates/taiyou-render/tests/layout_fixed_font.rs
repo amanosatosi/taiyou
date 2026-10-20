@@ -93,7 +93,11 @@ fn layout_fixed_font_real_empty_lines_and_owned_lifetime() {
     let height = 20.0 + descent;
     let mut top = 0.0;
     for (i, line) in layout.lines().iter().enumerate() {
-        let (a,d) = if i % 2 == 0 { (10.0, (descent * 4.0).floor() / 8.0) } else { (20.0, descent) };
+        let (a, d) = if i % 2 == 0 {
+            (10.0, (descent * 4.0).floor() / 8.0)
+        } else {
+            (20.0, descent)
+        };
         assert_eq!(line.ascent().get(), a);
         assert_eq!(line.descent().get(), d);
         assert!((line.baseline().y().get() - (top + a)).abs() < 1e-12);

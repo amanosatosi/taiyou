@@ -6,6 +6,21 @@ on:
 permissions:
   contents: read
 jobs:
+  cell_metrics:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python validation/acquire.py
+      - shell: pwsh
+        run: ./experiments/t018-be/font_cell_probe.ps1
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: t018-cell-metrics-${{ github.sha }}
+          path: ${{ runner.temp }}/t018-gdi-cell-probe.json
   diagnose:
     runs-on: ubuntu-24.04
     timeout-minutes: 35

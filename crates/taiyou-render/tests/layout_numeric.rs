@@ -216,7 +216,14 @@ fn layout_numeric_break_only_and_zero_text_have_actual_empty_metrics() {
     ] {
         let e = event(text, vec![], &empty, Style::core_default());
         let l = layout(&e, &constraints(7)).unwrap();
-        assert_eq!(l.lines().len(), if text.ends_with('\n') { empty.len() - 1 } else { empty.len() });
+        assert_eq!(
+            l.lines().len(),
+            if text.ends_with('\n') {
+                empty.len() - 1
+            } else {
+                empty.len()
+            }
+        );
         assert_eq!(l.logical_bounds().height(), height);
         assert!(l.glyphs().is_empty());
         assert_eq!(l.ink_bounds(), None);
