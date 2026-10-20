@@ -57,7 +57,7 @@ All active-set work is rebuilt for every requested timestamp.
 | Historical persistent allocation L08 | Blocked | Resolve conflict with C1/C4 deterministic seeking through separate contract review; never enable implicitly |
 | Core geometric effect footprint | F1 owner-approved, implemented for review | ADR-012/C4/CACHING amendment, numeric and fixed-font verification, final technical review and exact-head protected-change acknowledgment |
 
-R001/R002 remain research checkpoints: no Legacy rule, capture or golden image
+No historical pixel-parity claim is made here: no authenticated capture or golden image
 is promoted. Different border widths now affect Core collision through ADR-012;
 this checkpoint makes no historical claim about collision displacement.
 No blur/BE, cache framework, new font metrics or parser behavior is implemented.

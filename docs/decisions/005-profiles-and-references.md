@@ -33,4 +33,4 @@ New authoritative evidence justifies a new profile revision or separately scoped
 
 ## Implementation gate
 
-Tasks: T005/T015/R001. See [contract and evidence](../COMPATIBILITY.md). No unmeasured performance claim accompanies this decision.
+Tasks: T005/T015. See [contract and evidence](../COMPATIBILITY.md). No unmeasured performance claim accompanies this decision.

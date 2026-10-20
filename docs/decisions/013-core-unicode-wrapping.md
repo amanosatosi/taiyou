@@ -73,7 +73,7 @@ the explicitly specified separate multiplication. No production wrapper exists.
 ## Authorized C4 amendment
 
 The owner authorized replacing C4's sentence “T017 introduces other wrap modes
-only after R001 rules” with the following text, preserving the rest of the
+only after the standard xy behavior is source-verified” with the following text, preserving the rest of the
 WrapStyle2/line-metrics/box-separation paragraph:
 
 > CoreV1 automatic WrapStyle0/1/3 follows ADR-013 and W2's pinned Unicode15.1

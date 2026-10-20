@@ -86,7 +86,7 @@ No GPL code is copied into Taiyou and no source tree is modified.
 | CRenderedTextSubtitle::ParseSSATag 2047–2215, 2612–2625 | Cached parameter order (conflict above), q conversion, style-only reset |
 | CRenderedTextSubtitle::GetSubtitle 2872–2991 | Script q initialization, source-order evaluation, margins |
 
-Source observations establish policy, not visual capture evidence. R001 proposals,
+Source observations establish semantics, not visual capture evidence. Historical source notes,
 authenticated xy capture requirements and the independent protected libass suite
 are unchanged.
 

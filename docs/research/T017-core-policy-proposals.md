@@ -6,8 +6,7 @@ pending revision; [W2](T017-wrapping-policy-v2.md) supersedes it as a proposal.
 Neither W1 nor W2 is implemented or approved. Applies only to CoreV1.
 Reviewed implementation: `9eee96fe16989089d8fd3f65b1bb136455ffca7e`.
 The two decisions below become separate ADRs and explicit C4 amendments only
-after human owner approval and architecture review. They do not admit any
-R001/R002 Legacy rule. ADR-011 baseline acknowledgment is a separate final step
+after human owner approval and architecture review. They do not imply historical pixel identity. ADR-011 baseline acknowledgment is a separate final step
 for the exact protected-change candidate, not a substitute for this decision.
 
 ## Proposal F1 — Core geometric effect footprint
@@ -83,9 +82,7 @@ No existing expected asset is changed to establish these fixtures.
 
 ## Proposal W1 — Deterministic Core automatic wrapping
 
-R001 L01 describes escapes; L02/L03 describe source grouping and a GDI-dependent
-width heuristic. They have no approved capture/metrics/tie evidence. Therefore
-the following is an explicit new Core policy, **not xy emulation**.
+Historical pinterf source defines standard escapes/grouping/wrapping separately. The following is an explicit `\\warpmode1` Core extension policy, **not xy emulation**.
 
 1. Available width is PlayResX minus inherited left/right margins. Nonpositive
    width returns InvalidArgument for automatic modes. Explicit positioning does
@@ -159,7 +156,7 @@ parser state. Test ties with unequal font metrics and zero-width glyphs; compare
 repeated requests and worker-independent plans. The synthetic expectations above
 are proposed arithmetic oracles, not invented font widths or golden images.
 
-Legacy admission separately requires authenticated pinterf outputs for R001
+Historical pixel-parity claims may additionally use authenticated pinterf outputs for
 L01–L03 on the original proposals, pinned fonts/GDI metrics, narrow widths that
 distinguish modes0/3, fractional spacing, long words, whitespace, bidi and
 context-sensitive boundaries. Record binary/font/Windows/locale/pipeline/input/

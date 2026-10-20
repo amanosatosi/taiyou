@@ -38,6 +38,6 @@ Reserve only known rnd spellings before matching r. This is incomplete for futur
 
 ## Migration and review gates
 
-The owner decision authorizes PR 8 to tokenize against the final post-section style-name table and add executable regressions for every row above, forward style definitions, duplicate definitions, strict/tolerant syntax diagnostics and retained unknown spans/order. Keep legacy nesting/recovery research in R001 and evaluation in T007. Integrate this policy PR before PR 8 only after the applicable protected review requirements are met. No owner acceptance is represented as independent review.
+The owner decision authorizes PR 8 to tokenize against the final post-section style-name table and add executable regressions for every row above, forward style definitions, duplicate definitions, strict/tolerant syntax diagnostics and retained unknown spans/order. Keep historical nesting/recovery source-backed and evaluation in T007. Integrate this policy PR before PR 8 only after the applicable protected review requirements are met. No owner acceptance is represented as independent review.
 
 Independent PR 8 repairs may proceed now: enforce the existing text-byte-derived operation cap for every host-created TextOp variant before iteration/publication, and document that C2's unit escape variants carry event-level rather than individual source spans. Those repairs do not resolve or approve the reset grammar decision.
