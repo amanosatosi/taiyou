@@ -656,8 +656,14 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
-    SetDrawingMode { scale: u32, source: SourceSpan },
-    SetDrawingBaseline { offset: i32, source: SourceSpan },
+    SetDrawingMode {
+        scale: u32,
+        source: SourceSpan,
+    },
+    SetDrawingBaseline {
+        offset: i32,
+        source: SourceSpan,
+    },
     /// Flat, bounded transform delimiters. Children retain their own source spans.
     BeginTransform {
         start_ms: i32,

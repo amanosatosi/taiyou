@@ -299,8 +299,9 @@ fn transform(
     raw: &str,
     base: usize,
 ) -> Result<Option<(TransformParameters, &str, usize)>, ParseError> {
+    let empty = || Some(((0, 0, FiniteF64::ONE), &raw[raw.len()..], base + raw.len()));
     let Some(open) = raw.find('(') else {
-        return Ok(None);
+        return Ok(empty());
     };
     // xy's parameter reader ends at the first ')', including malformed partial
     // blocks; the child reader receives precisely that substring.
@@ -317,20 +318,20 @@ fn transform(
         .filter(|s| !s.is_empty())
     {
         if count == 4 {
-            return Ok(None);
+            return Ok(empty());
         }
         values[count] = value;
         count += 1;
     }
     if child < content.len() {
         if count == 4 {
-            return Ok(None);
+            return Ok(empty());
         }
         values[count] = &content[child..];
         count += 1;
     }
     if count == 0 {
-        return Ok(None);
+        return Ok(empty());
     }
     let integer = |s: &str, decimal: bool| -> Result<i32, ParseError> {
         let n = if decimal {

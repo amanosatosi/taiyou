@@ -108,14 +108,12 @@ pub fn coverage_groups(
 ) -> Result<Vec<CoverageGroup>, RenderError> {
     group_budget(event.items().len(), limits)?;
     let mut groups = Vec::new();
-    groups
-        .try_reserve_exact(event.items().len())
-        .map_err(|_| {
-            RenderError::new(
-                ErrorCode::AllocationFailed,
-                "coverage groups allocation failed",
-            )
-        })?;
+    groups.try_reserve_exact(event.items().len()).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "coverage groups allocation failed",
+        )
+    })?;
     let state =
         |i: usize| &event.layout().shaped().evaluated().runs()[event.items()[i].association];
     let mut start = 0;

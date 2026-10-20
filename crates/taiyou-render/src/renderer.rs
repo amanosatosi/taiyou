@@ -685,7 +685,11 @@ impl Renderer {
                     },
                     &geom_limits,
                 )?);
-                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?.checked_add(bytes::<crate::geometry::GeometryItem>(placed.items().len())?).ok_or_else(limited)?;
+                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?
+                    .checked_add(bytes::<crate::geometry::GeometryItem>(
+                        placed.items().len(),
+                    )?)
+                    .ok_or_else(limited)?;
                 geom_charge = add(
                     geom_charge,
                     bytes::<GeometryInstance>(placed.items().len())?,

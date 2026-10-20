@@ -71,7 +71,8 @@ pub fn parse(text: &str, scale: u32, baseline: i32, limits: &Limits) -> Result<A
             continue;
         }
         let start = raw.len();
-        if raw.is_empty() && ch != 'm' { continue; }
+        if raw.is_empty() && !matches!(ch, 'm'|'n') { continue; }
+        if ch == 'p' && raw.len() < 3 { continue; }
         while let Some(p) = point(&mut parameters, factor)? {
             push(&mut raw, (ch as u8,p), limits)?;
         }

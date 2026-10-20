@@ -46,7 +46,11 @@ impl Viewport {
                 "invalid viewport/content rectangle",
             ));
         }
-        Ok(Self { size, content, original: None })
+        Ok(Self {
+            size,
+            content,
+            original: None,
+        })
     }
     pub fn full(size: Size) -> Result<Self, RenderError> {
         let narrow = |n| {
@@ -66,14 +70,25 @@ impl Viewport {
     }
     /// Original video dimensions are separate from a host's oversampled output.
     pub fn with_original_size(mut self, original: Size) -> Result<Self, RenderError> {
-        if original.is_empty() || original.width() > i32::MAX as u32 || original.height() > i32::MAX as u32 {
-            return Err(RenderError::new(ErrorCode::InvalidArgument, "invalid original video dimensions"));
+        if original.is_empty()
+            || original.width() > i32::MAX as u32
+            || original.height() > i32::MAX as u32
+        {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "invalid original video dimensions",
+            ));
         }
         self.original = Some(original);
         Ok(self)
     }
-    pub fn target_scale(self) -> [f64;2] {
-        self.original.map_or([1.0,1.0], |s| [f64::from(self.content.width())/f64::from(s.width()), f64::from(self.content.height())/f64::from(s.height())])
+    pub fn target_scale(self) -> [f64; 2] {
+        self.original.map_or([1.0, 1.0], |s| {
+            [
+                f64::from(self.content.width()) / f64::from(s.width()),
+                f64::from(self.content.height()) / f64::from(s.height()),
+            ]
+        })
     }
 }
 #[derive(Clone, Copy, Debug)]

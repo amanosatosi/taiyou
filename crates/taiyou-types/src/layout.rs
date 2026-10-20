@@ -275,8 +275,13 @@ impl PositionedGlyph {
     pub const fn run_index(&self) -> usize {
         self.run
     }
-    pub fn as_drawing(mut self) -> Self { self.drawing = true; self }
-    pub const fn is_drawing(&self) -> bool { self.drawing }
+    pub fn as_drawing(mut self) -> Self {
+        self.drawing = true;
+        self
+    }
+    pub const fn is_drawing(&self) -> bool {
+        self.drawing
+    }
     pub const fn glyph_index(&self) -> usize {
         self.glyph
     }
@@ -396,9 +401,13 @@ impl LocalLayout {
         for g in glyphs.iter() {
             let run = input.runs().get(g.run).ok_or_else(invalid)?;
             let actual = if g.drawing {
-                if run.drawing().is_none() || g.glyph != 0 { return Err(invalid()); }
+                if run.drawing().is_none() || g.glyph != 0 {
+                    return Err(invalid());
+                }
                 run.decoded()
-            } else { run.glyphs().get(g.glyph).ok_or_else(invalid)?.cluster() };
+            } else {
+                run.glyphs().get(g.glyph).ok_or_else(invalid)?.cluster()
+            };
             let association = input
                 .evaluated()
                 .runs()

@@ -65,8 +65,13 @@ pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
         .and_then(|n| {
             event.program().iter().try_fold(n, |n, op| {
                 let bytes = match op {
-                    TextOp::Override(OverrideOp::SetDrawingMode { scale, .. }) => { drawing_mode = *scale; 0 },
-                    TextOp::Text { text, .. } if drawing_mode > 0 => (text.len() as u64).checked_mul(256)?,
+                    TextOp::Override(OverrideOp::SetDrawingMode { scale, .. }) => {
+                        drawing_mode = *scale;
+                        0
+                    }
+                    TextOp::Text { text, .. } if drawing_mode > 0 => {
+                        (text.len() as u64).checked_mul(256)?
+                    }
                     TextOp::Text { text, .. } => text.len() as u64,
                     TextOp::NoBreakSpace => 2,
                     TextOp::HardBreak | TextOp::SoftBreak => 1,
@@ -229,15 +234,15 @@ fn one(
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                let mut run = mapped_run(
-                    text.clone(),
-                    *source,
-                    &state,
-                    &source_map,
-                    &mut decoded_end,
-                )?;
+                let mut run =
+                    mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?;
                 if drawing_mode > 0 {
-                    run = run.with_drawing(crate::drawing::parse(text, drawing_mode, drawing_baseline, limits)?);
+                    run = run.with_drawing(crate::drawing::parse(
+                        text,
+                        drawing_mode,
+                        drawing_baseline,
+                        limits,
+                    )?);
                 }
                 runs.push(run);
             }
@@ -266,8 +271,12 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
-                    OverrideOp::SetDrawingMode { scale, .. } => { drawing_mode = *scale; }
-                    OverrideOp::SetDrawingBaseline { offset, .. } => { drawing_baseline = *offset; }
+                    OverrideOp::SetDrawingMode { scale, .. } => {
+                        drawing_mode = *scale;
+                    }
+                    OverrideOp::SetDrawingBaseline { offset, .. } => {
+                        drawing_baseline = *offset;
+                    }
                     OverrideOp::BeginTransform {
                         start_ms,
                         end_ms,
@@ -654,7 +663,9 @@ pub fn requires_font(event: &Event) -> bool {
         match op {
             TextOp::Override(OverrideOp::SetDrawingMode { scale, .. }) => mode = *scale,
             TextOp::Text { text, .. } if mode == 0 && !text.is_empty() => return true,
-            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace if mode == 0 => return true,
+            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace if mode == 0 => {
+                return true;
+            }
             _ => (),
         }
     }

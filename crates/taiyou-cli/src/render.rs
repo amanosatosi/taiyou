@@ -231,7 +231,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let mut config = RendererConfig::default();
     if let Some(radius) = args.filter_radius {
         if args.original.is_none() { return Err(invalid("explicit comparison filter budget requires original video dimensions")); }
-        config.limits = config.limits.with_filter_radius(radius).map_err(parse_error)?;
+        config.limits = config.limits.with_filter_radius(radius);
     }
     let limits = &config.limits;
     let request = RenderRequest {

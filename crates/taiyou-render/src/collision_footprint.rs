@@ -84,10 +84,17 @@ pub fn collision_footprint(
         let run = &local.shaped().runs()[positioned.run_index()];
         let glyph_ink = if let Some(drawing) = run.drawing() {
             match drawing.outline.bounds() {
-                Some(b) => GlyphInk::Bounds(ScriptBounds::new(b.min().x().get(), -b.max().y().get(), b.max().x().get(), -b.min().y().get())?),
+                Some(b) => GlyphInk::Bounds(ScriptBounds::new(
+                    b.min().x().get(),
+                    -b.max().y().get(),
+                    b.max().x().get(),
+                    -b.min().y().get(),
+                )?),
                 None => GlyphInk::Empty,
             }
-        } else { run.glyphs()[positioned.glyph_index()].ink() };
+        } else {
+            run.glyphs()[positioned.glyph_index()].ink()
+        };
         let ink = match glyph_ink {
             GlyphInk::Bounds(bounds) => bounds,
             GlyphInk::Empty => continue,

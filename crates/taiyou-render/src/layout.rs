@@ -135,8 +135,15 @@ fn xy_plan(
     points.push(0_u32);
     points.push(text.len() as u32);
     for (at, ch) in text.char_indices() {
-        let run_index = input.evaluated().runs().partition_point(|r| r.decoded().is_some_and(|d| d.end() <= at as u32));
-        let in_drawing = input.evaluated().runs().get(run_index).is_some_and(|r| r.drawing().is_some());
+        let run_index = input
+            .evaluated()
+            .runs()
+            .partition_point(|r| r.decoded().is_some_and(|d| d.end() <= at as u32));
+        let in_drawing = input
+            .evaluated()
+            .runs()
+            .get(run_index)
+            .is_some_and(|r| r.drawing().is_some());
         if ch == ' ' && !in_drawing {
             points.push(at as u32);
             points.push(at as u32 + 1);
@@ -162,7 +169,10 @@ fn xy_plan(
     widths.resize(points.len(), 0.0_f64);
     for run in input.runs() {
         if let Some(drawing) = run.drawing() {
-            let i = points.partition_point(|&p| p <= run.decoded().start()).checked_sub(1).ok_or_else(limited)?;
+            let i = points
+                .partition_point(|&p| p <= run.decoded().start())
+                .checked_sub(1)
+                .ok_or_else(limited)?;
             let state = &input.evaluated().runs()[association(input, run.decoded().start())?];
             let scale = state.geometry().scale_x().get() * constraints.scale_x().get();
             widths[i] += drawing.width.get() * scale;
@@ -239,7 +249,8 @@ pub fn layout(
         None
     };
     let count = input.runs().iter().try_fold(0_usize, |n, r| {
-        n.checked_add(r.glyphs().len() + usize::from(r.drawing().is_some())).ok_or_else(limited)
+        n.checked_add(r.glyphs().len() + usize::from(r.drawing().is_some()))
+            .ok_or_else(limited)
     })?;
     let lines = plan.as_ref().map_or_else(
         || {
@@ -394,16 +405,41 @@ pub fn layout(
                 let state = &input.evaluated().runs()[a];
                 let sx = state.geometry().scale_x().get() * constraints.scale_x().get();
                 let sy = state.geometry().scale_y().get() * constraints.scale_y().get();
-                let metric = |v:f64| ((v * 64.0).trunc() + 4.0).div_euclid(8.0) / 8.0;
-                let da = metric(drawing.ascent.get()*sy);
-                let dd = metric(drawing.descent.get()*sy);
-                ascent = ascent.max(da-pen_y); descent = descent.max(dd+pen_y);
-                let y = pen_y + drawing.ascent.get()*sy - da;
-                let ink = drawing.outline.bounds().map(|b| ScriptBounds::new(b.min().x().get()*sx, -b.max().y().get()*sy, b.max().x().get()*sx, -b.min().y().get()*sy)).transpose()?.map(|b| b.translated(pen_x, y)).transpose()?;
-                if let Some(b) = ink { check(b, limits)?; }
-                drafts.push(DraftGlyph { run:r, glyph:0, association:a, x:pen_x, y, ink });
-                pen_x += metric(drawing.width.get()*sx);
-                finite(pen_x)?; min = min.min(pen_x); max = max.max(pen_x);
+                let metric = |v: f64| ((v * 64.0).trunc() + 4.0).div_euclid(8.0) / 8.0;
+                let da = metric(drawing.ascent.get() * sy);
+                let dd = metric(drawing.descent.get() * sy);
+                ascent = ascent.max(da - pen_y);
+                descent = descent.max(dd + pen_y);
+                let y = pen_y + drawing.ascent.get() * sy - da;
+                let ink = drawing
+                    .outline
+                    .bounds()
+                    .map(|b| {
+                        ScriptBounds::new(
+                            b.min().x().get() * sx,
+                            -b.max().y().get() * sy,
+                            b.max().x().get() * sx,
+                            -b.min().y().get() * sy,
+                        )
+                    })
+                    .transpose()?
+                    .map(|b| b.translated(pen_x, y))
+                    .transpose()?;
+                if let Some(b) = ink {
+                    check(b, limits)?;
+                }
+                drafts.push(DraftGlyph {
+                    run: r,
+                    glyph: 0,
+                    association: a,
+                    x: pen_x,
+                    y,
+                    ink,
+                });
+                pen_x += metric(drawing.width.get() * sx);
+                finite(pen_x)?;
+                min = min.min(pen_x);
+                max = max.max(pen_x);
                 continue;
             }
             if run.glyphs().is_empty() {
@@ -556,15 +592,17 @@ pub fn layout(
                 include(&mut line_ink, b)?;
             }
             let run = &input.runs()[g.run];
-            let cluster = if run.drawing().is_some() { run.decoded() } else { run.glyphs()[g.glyph].cluster() };
-            let item = PositionedGlyph::new(
-                g.run,
-                g.glyph,
-                p,
-                cluster.clone(),
-                g.association,
-            );
-            positioned.push(if run.drawing().is_some() { item.as_drawing() } else { item });
+            let cluster = if run.drawing().is_some() {
+                run.decoded()
+            } else {
+                run.glyphs()[g.glyph].cluster()
+            };
+            let item = PositionedGlyph::new(g.run, g.glyph, p, cluster.clone(), g.association);
+            positioned.push(if run.drawing().is_some() {
+                item.as_drawing()
+            } else {
+                item
+            });
         }
         if let Some(b) = line_ink {
             include(&mut ink, b)?;

@@ -182,11 +182,18 @@ impl ShapedRun {
         &self.glyphs
     }
     pub fn with_drawing(mut self, drawing: Arc<AssDrawing>) -> Result<Self, FontError> {
-        if !self.glyphs.is_empty() { return Err(FontError::new(ErrorCode::InvalidArgument, "drawing run contains font glyphs")); }
+        if !self.glyphs.is_empty() {
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "drawing run contains font glyphs",
+            ));
+        }
         self.drawing = Some(drawing);
         Ok(self)
     }
-    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> { self.drawing.as_ref() }
+    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> {
+        self.drawing.as_ref()
+    }
     pub fn with_face_metrics(mut self, metrics: Arc<[FaceMetrics]>) -> Result<Self, FontError> {
         if metrics.is_empty() || metrics[0].metrics != self.metrics {
             return Err(FontError::new(

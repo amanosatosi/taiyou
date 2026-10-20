@@ -18,9 +18,9 @@ fn drawing_commands_metrics_scales_baseline_and_malformed_tails() {
     let paths = drawing::parse("m 0 0 l 10 0 n 20 0 l 20 10 m 30 0 b 31 10 39 10 40 0 m 50 0 s 55 10 60 10 65 0 p 70 -10 c",1,0,&limits).unwrap();
     assert!(paths.outline.ops().iter().filter(|p| matches!(p,PathOp::CubicTo(..))).count() >= 4);
     assert!(drawing::parse("m 0 0 l 1 1 bad tail",1,0,&limits).is_ok());
-    assert_eq!(drawing::parse("m 1e100 0",1,0,&limits).unwrap_err().code(),ErrorCode::LimitExceeded);
+    assert_eq!(drawing::parse("m 1e100 0",1,0,&limits).err().unwrap().code(),ErrorCode::LimitExceeded);
     let small = limits.clone().with_path_segments_per_frame(2).unwrap();
-    assert_eq!(drawing::parse("m 0 0 l 10 0 10 10",1,0,&small).unwrap_err().code(),ErrorCode::LimitExceeded);
+    assert_eq!(drawing::parse("m 0 0 l 10 0 10 10",1,0,&small).err().unwrap().code(),ErrorCode::LimitExceeded);
     let p = parse(r"{\p1}m 0 0 l 20 0 20 20 0 20{\p0}Ag");
     let e = taiyou_render::evaluate(p.track(),p.track().events()[0].id(),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
     assert!(e.runs()[0].drawing().is_some());
@@ -34,11 +34,11 @@ fn explicit_oversampling_budget_preserves_default_and_enforces_512() {
     let blur = FiniteF64::new(32.0).unwrap();
     let default = Limits::default();
     assert_eq!(default.filter_radius(),256);
-    assert_eq!(BlurSpec::new(FiniteF64::new(200.0).unwrap(),FiniteF64::ZERO,[1.0,1.0],&default).unwrap_err().code(),ErrorCode::LimitExceeded);
-    assert_eq!(BlurSpec::new(blur,FiniteF64::ZERO,[8.0,1.0],&default).unwrap_err().code(),ErrorCode::LimitExceeded);
-    let adapter = default.clone().with_filter_radius(512).unwrap();
+    assert_eq!(BlurSpec::new(FiniteF64::new(200.0).unwrap(),FiniteF64::ZERO,[1.0,1.0],&default).err().unwrap().code(),ErrorCode::LimitExceeded);
+    assert_eq!(BlurSpec::new(blur,FiniteF64::ZERO,[8.0,1.0],&default).err().unwrap().code(),ErrorCode::LimitExceeded);
+    let adapter = default.clone().with_filter_radius(512);
     assert!(BlurSpec::new(blur,FiniteF64::ZERO,[8.0,1.0],&adapter).is_ok());
-    assert_eq!(BlurSpec::new(FiniteF64::new(64.0).unwrap(),FiniteF64::ZERO,[8.0,1.0],&adapter).unwrap_err().code(),ErrorCode::LimitExceeded);
+    assert_eq!(BlurSpec::new(FiniteF64::new(64.0).unwrap(),FiniteF64::ZERO,[8.0,1.0],&adapter).err().unwrap().code(),ErrorCode::LimitExceeded);
     assert_eq!(adapter.transient_bytes(),default.transient_bytes());
     let viewport = Viewport::full(Size::new(1280,100)).unwrap().with_original_size(Size::new(160,100)).unwrap();
     assert_eq!(viewport.target_scale(),[8.0,1.0]);

@@ -328,7 +328,9 @@ impl EvaluatedRun {
         self.drawing = Some(drawing);
         self
     }
-    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> { self.drawing.as_ref() }
+    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> {
+        self.drawing.as_ref()
+    }
     pub fn with_decoded(mut self, decoded: DecodedSpan) -> Result<Self, RenderError> {
         if decoded.text() != self.text.as_ref() {
             return Err(RenderError::new(

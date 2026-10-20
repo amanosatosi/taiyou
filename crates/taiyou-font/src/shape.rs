@@ -346,9 +346,16 @@ fn resolve_mapped(
     if !drawings.is_empty() {
         reserve(&mut analysis, map.text().len(), limits)?;
         analysis.extend_from_slice(map.text().as_bytes());
-        for span in drawings { analysis[span.start() as usize..span.end() as usize].fill(b' '); }
+        for span in drawings {
+            analysis[span.start() as usize..span.end() as usize].fill(b' ');
+        }
     }
-    let text = if analysis.is_empty() { map.text() } else { std::str::from_utf8(&analysis).map_err(|_|error(ErrorCode::InvalidArgument,"invalid drawing analysis"))? };
+    let text = if analysis.is_empty() {
+        map.text()
+    } else {
+        std::str::from_utf8(&analysis)
+            .map_err(|_| error(ErrorCode::InvalidArgument, "invalid drawing analysis"))?
+    };
     let (items, breaks) = itemize(text, options, limits)?;
     let mut result = Vec::new();
     let mut item_cursor = 0;
@@ -380,8 +387,12 @@ fn resolve_mapped(
             let mut item = item.clone();
             item.range = start..end;
             for drawing in drawings {
-                if drawing.end() as usize <= start { item.context.start = item.context.start.max(drawing.end() as usize); }
-                if drawing.start() as usize >= end { item.context.end = item.context.end.min(drawing.start() as usize); }
+                if drawing.end() as usize <= start {
+                    item.context.start = item.context.start.max(drawing.end() as usize);
+                }
+                if drawing.start() as usize >= end {
+                    item.context.end = item.context.end.min(drawing.start() as usize);
+                }
             }
             reserve(&mut result, 1, limits)?;
             result.push(ResolvedRun {
@@ -861,16 +872,31 @@ fn shape_event_impl(
     for evaluated in event.runs().iter().filter(|r| r.drawing().is_some()) {
         let drawing = evaluated.drawing().ok_or_else(limited)?;
         let span = evaluated.decoded().ok_or_else(limited)?;
-        if span.is_empty() { continue; }
+        if span.is_empty() {
+            continue;
+        }
         count = count.checked_add(1).ok_or_else(limited)?;
-        if count > limits.glyphs_per_event() { return Err(limited()); }
+        if count > limits.glyphs_per_event() {
+            return Err(limited());
+        }
         let metrics = RunMetrics::new(
-            FiniteF64::new(drawing.ascent.get().max(0.0)).map_err(|_|limited())?,
-            FiniteF64::new(drawing.descent.get().max(0.0)).map_err(|_|limited())?,
-            FiniteF64::ZERO, 1,
+            FiniteF64::new(drawing.ascent.get().max(0.0)).map_err(|_| limited())?,
+            FiniteF64::new(drawing.descent.get().max(0.0)).map_err(|_| limited())?,
+            FiniteF64::ZERO,
+            1,
         )?;
         reserve(&mut runs, 1, limits)?;
-        runs.push(ShapedRun::new(Arc::from([]), metrics, span.clone(), 0, u32::from_be_bytes(*b"Zyyy"), Arc::from("und"))?.with_drawing(drawing.clone())?);
+        runs.push(
+            ShapedRun::new(
+                Arc::from([]),
+                metrics,
+                span.clone(),
+                0,
+                u32::from_be_bytes(*b"Zyyy"),
+                Arc::from("und"),
+            )?
+            .with_drawing(drawing.clone())?,
+        );
     }
     runs.sort_unstable_by_key(|r| r.decoded().start());
     let empty_lines = empty_line_metrics(ctx, catalog, event, map, &breaks, options, limits)?;

@@ -28,6 +28,12 @@ fn at(tags: &str, local_ms: i64) -> EvaluatedEvent {
 }
 #[test]
 fn transform_timing_acceleration_signed_targets_and_source_order() {
+    assert_eq!(at(r"\blur4\t(,\blur0)", 1000).runs()[0].effects().blur().get(),2.0);
+    assert_eq!(at(r"\blur4\t(0,500,\blur0", 250).runs()[0].effects().blur().get(),2.0);
+    assert_eq!(at(r"\blur4\t(0,1,2,3,\blur0)", 1000).runs()[0].effects().blur().get(),4.0);
+    let immediate = at(r"\t(\pos(10,20)\blur6)",0);
+    assert_eq!(immediate.placement().anchor(),Anchor::Explicit(ScriptPoint::new(FiniteF64::new(10.0).unwrap(),FiniteF64::new(20.0).unwrap())));
+    assert_eq!(immediate.runs()[0].effects().blur().get(),6.0); // first ')' ended t before blur
     for (ms, expected) in [(0, 4.0), (100, 4.0), (600, 2.0), (1100, 0.0), (1999, 0.0)] {
         let e = at(r"\blur4\t(100,1100,\blur0)", ms);
         assert_eq!(e.runs()[0].effects().blur().get(), expected);
