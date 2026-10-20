@@ -84,3 +84,9 @@ outline/body selection, shadows, frame edges, failure recovery and seeks.
 All 14 frozen blur cases were compared: no exact matches, all unsupported,
 no infrastructure failures, regressions or crashes. These are supplemental
 results; the PR records the final complete corpus run separately.
+
+The subsequent [four-frame BE audit](T018-BE-AUDIT.md) distinguishes rendered
+pixel mismatches from the frozen inventory label. It records the actual masks,
+independent integer-equation checks, measured upstream metric/layout/shadow
+contributions and the unresolved xy coverage/overlay prerequisite. The four
+static BE frames are not pixel-compatible and remain open before acceptance.
