@@ -62,7 +62,7 @@ flowchart LR
 | font: catalog, native, shape | Font snapshots, metrics, positioned glyph runs, outlines | types, FreeType, HarfBuzz, Unicode libraries | T008/T009; host fonts and later providers |
 | render: layout, collision | Relative line boxes; placed events | types, font outputs | T010/T017; ruby/curves remain later stages |
 | render: geometry, drawing | Color-free paths and transformed contours | types, font | T011/T021/T023; glyph deformation seam |
-| render: raster, stroke | A8 fill/expanded masks per coverage group | geometry, types, font raster adapter | T012/T016/R002; backend-private algorithm |
+| render: raster, stroke | A8 fill/expanded masks per coverage group | geometry, types, font raster adapter | T012/T016; backend-private algorithm |
 | render: effects, clip | Filtered A8 masks, clip coverage | types, raster | T018/T021; finite-support filter chain |
 | render: paint | Color at pixel/sample and coordinate mapping | types | T013; gradients/image fills later |
 | render: compose | RGBA8 tiles and final buffer | masks, paint, types | T013/T025; future isolated groups |
@@ -116,4 +116,4 @@ These are design seams, not implemented features or a runtime plugin interface. 
 
 ## A7. Main risks and gates
 
-R001 establishes version-specific legacy semantics; R002 compares FreeType coverage/stroke against pinned xy evidence; R003 sets cost thresholds; R004 freezes complex transform ordering. Native packaging, GDI versus FreeType metrics, font fallback, overlapping translucent glyphs, fractional placement and blur support are major compatibility risks. No single engine is authoritative for all of these. See [ADRs](decisions/README.md), [compatibility](COMPATIBILITY.md) and the [roadmap](ROADMAP.md).
+Version-specific ASS semantics come directly from pinterf/xy-VSFilter source with focused regression coverage; R003 sets cost thresholds; R004 handles only complex transform questions that remain ambiguous after source inspection. Native packaging, GDI versus FreeType metrics, font fallback, overlapping translucent glyphs, fractional placement and blur support are major compatibility risks. No single engine is authoritative for all of these. See [ADRs](decisions/README.md), [compatibility](COMPATIBILITY.md) and the [roadmap](ROADMAP.md).

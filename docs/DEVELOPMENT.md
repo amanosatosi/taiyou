@@ -23,7 +23,7 @@ Keep hosted-runner timing as performance smoke only. If controlled hardware for 
 
 ## D1. Roles and merge ownership
 
-**Astra:** owns contracts/ADRs, R001–R004 decisions, cross-profile behavior, high-risk native/FFI/concurrency reviews and difficult performance analysis. **Sol 6.1:** implements scoped stage modules and integration with explicit acceptance criteria. **Luna 6:** implements deterministic parsing helpers, value types, scalar arithmetic, manifests and narrowly scoped tests where no architectural decision is required. These are task assignments, not claims that a model's output is inherently correct.
+**Astra:** owns contracts/ADRs, R003/R004 narrow research when actually needed, cross-profile behavior, high-risk native/FFI/concurrency reviews and difficult performance analysis. **Sol 6.1:** implements scoped stage modules and integration with explicit acceptance criteria. **Luna 6:** implements deterministic parsing helpers, value types, scalar arithmetic, manifests and narrowly scoped tests where no architectural decision is required. These are task assignments, not claims that a model's output is inherently correct.
 
 T005 validation governance follows owner-authorized [ADR-011](decisions/011-solo-maintainer-validation.md): the sole human maintainer accepts baseline/infrastructure changes and exact implementation candidates. Independent multi-maintainer validation is optional; ordinary CI is not described as independently trusted. Agents must not post human baseline acknowledgments or self-merge protected proposals.
 

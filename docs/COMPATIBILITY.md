@@ -4,9 +4,9 @@
 
 The main xy authority is exclusively **pinterf/xy-VSFilter**, with a recorded Windows build/font/locale/render configuration. Read the supplied [local pinterf source](C:/taiyou-time/refrences/xy-VSFilter-3.2.0.810/README.md) first; [the local reference map](LOCAL_REFERENCES.md) distinguishes its archive identity from the earlier locked upstream revision. A local archive must not silently replace that oracle without revision verification/review. Source behavior plus reproducible captures adjudicate rules. Guliverkli2 source is now locally available as separately named historical evidence; an exact reference build/captures are still required. Neither is interchangeable with libass or another VSFilter fork.
 
-Order of decision: explicit Taiyou contract/profile rule with approved evidence; pinned xy behavior for an unresolved LegacyXyV1 rule; a separate original-VSFilter profile proposal if history disagrees; otherwise bounded research. libass is an independent cross-platform comparison oracle and engineering source, not an automatic fallback for missing xy evidence. Format manuals clarify syntax, but cannot prove historical raster pixels. Mangetsu/libassmod is future extension evidence only.
+Order of decision: verified pinterf/xy-VSFilter source behavior for ordinary ASS/SSA semantics; explicit Taiyou extension contracts only where intentionally different; narrow targeted investigation only when the reference source is genuinely ambiguous. libass is an independent cross-platform comparison oracle and engineering source, not a fallback authority for xy behavior. Format manuals clarify syntax but cannot prove historical raster pixels. Mangetsu/libassmod is future extension evidence only.
 
-`CoreV1` has the exact development rules in [contracts](CONTRACTS.md). It enables the vertical slice without pretending to emulate undocumented quirks. `LegacyXyV1` is the release-oriented profile, admitted family by family by R001/R002/R004. Unsupported rules produce diagnostics or strict failure. There is no automatic profile switching based on content and no arbitrary collection of user-visible quirk toggles in v1. Semantic changes bump a profile policy revision and retain fixtures.
+`CoreV1` is Taiyou's current implementation profile. A Core behavior proven incompatible with ordinary ASS semantics must be corrected to historical xy behavior unless an intentional Taiyou extension explicitly owns the difference. `LegacyXyV1` remains representable for compatibility bookkeeping, but no research-task admission is required before implementing source-established behavior. Unsupported rules produce diagnostics or strict failure.
 
 ## B2. Documented disagreements
 
@@ -14,16 +14,16 @@ The upstream [differences document](https://github.com/libass/libass/wiki/Differ
 
 | Area | Reported disagreement | Taiyou disposition |
 |---|---|---|
-| Borders under transforms | VSFilter preserves border widths through transforms; libass differs | Legacy stroke after transform; R002 verifies exact xy behavior |
-| Automatic wrapping | libass balances lines differently from VSFilter | R001 freezes xy wrap fixtures; Core starts with hard breaks |
+| Borders under transforms | VSFilter preserves border widths through transforms; libass differs | Follow verified xy transform/stroke behavior when implemented |
+| Automatic wrapping | libass balances lines differently from VSFilter | Follow verified xy wrapping for standard mode; `\warpmode1` is the separate Taiyou Unicode extension |
 | Missing SBAS header | libass has FFmpeg-generated-file exceptions | Explicit profile parsing rule, no accidental heuristic |
-| Style Encoding / `\fe` | Font-selection constraints differ | R001/T026; no locale-derived guesses |
+| Style Encoding / `\fe` | Font-selection constraints differ | T026; no locale-derived guesses |
 | Windows font/bidi environment | Same VSFilter can vary by Windows/region | Capture environment; bound claims to it |
 | HTML-like tags | VSFilter parses some that libass does not | Unsupported initially, visible in inventory |
 | Banner/Scroll fadeaway fields | libass omits some legacy effect fields | Deferred unsupported cases, not silently passed |
 | Nested parentheses | Historical variants disagree | Tokenization fixtures per profile, no universal recursive parser |
 
-This table deliberately distinguishes reported differences from verified pinned-output differences. The initial verified-difference registry is empty because no oracle was run. R001 adds source locations and captures before promoting any row to verified.
+This table deliberately distinguishes contextual reports from Taiyou's own source-verified behavior and pixel evidence. Source inspection can establish semantics; pixel identity still requires comparison evidence.
 
 ## B3. Review and support registry
 
@@ -35,4 +35,4 @@ An intentional difference proposal includes original script/fonts, captured refe
 
 ## B4. Unresolved boundaries
 
-GDI versus FreeType outlines/metrics, blur arithmetic, overlapping translucent runs, ligatures crossing paint boundaries, fractional rotation, legacy YCbCr conversion, vertical fonts, unusual codepages and malformed-tag precedence are not solved by this blueprint. R001/R002/R004 are bounded gates. V1 output is encoded RGB overlay; historical video-space color conversion is a host adapter/research task and must remain an explicit compatibility limitation. `.asa` and exact Mangetsu identity/specification need authoritative material before syntax contracts.
+GDI versus FreeType outline/span raster differences, overlapping translucent runs, ligatures crossing paint boundaries, fractional rotation, legacy YCbCr conversion, vertical fonts, unusual codepages and some malformed-tag precedence remain unresolved. R004 remains a narrow investigation only where transform source behavior is genuinely ambiguous. V1 output is encoded RGB overlay; historical video-space color conversion is a host adapter/research task and must remain an explicit compatibility limitation. `.asa` and exact Mangetsu identity/specification need authoritative material before syntax contracts.

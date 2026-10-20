@@ -28,7 +28,7 @@
       "repository": "https://github.com/pinterf/xy-VSFilter",
       "commit": "25cf3e8433b3a83a5489e47a2c335516492bb815",
       "role": "main-xy-behavioral-reference",
-      "corpus_inventory": "pending-R001"
+      "corpus_inventory": "source-reference-pinned"
     }
   ],
   "original_vsfilter": {

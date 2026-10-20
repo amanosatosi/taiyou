@@ -10,7 +10,7 @@ P2 ends with a CLI rendering a fixed-font, UTF-8 ASS event with hard breaks, sta
 
 P5 is the minimum usable release gate: Windows/Linux/macOS headless builds; bundled/host-explicit fonts; ASS v4+ and common SSA v4 styles/events; shaping/fallback/bidi with pinned-font fixtures; wrapping/alignment/collision; colors/alpha/reset; borders/shadows; blur/be; position/move/fade/basic transforms; rectangular/vector clip and drawing; k/K/kf/ko karaoke; cache correctness; stable C ABI candidate; deterministic 1/2/4/8-worker output on each supported target. A manifest enumerates exact supported forms, parameter ranges and profiles. Unsupported legacy effects, codepages, vertical fonts or syntax cannot be hidden by a “supports ASS” label.
 
-Before release every declared supported fixture passes its approved oracle, no previously passing fixture regresses, all corpus cases are accounted for, and there are no unexplained safety failures. LegacyXyV1 release claims require R001/R002/R004 evidence for each claimed family. If original VSFilter evidence remains unavailable, state that limitation. An explicitly scoped preview may ship CoreV1 earlier; it is not the initial compatibility release.
+Before release every declared supported fixture passes its approved oracle, no previously passing fixture regresses, all corpus cases are accounted for, and there are no unexplained safety failures. Historical compatibility claims require source-backed behavior plus the applicable frozen-reference or authenticated capture evidence; R004 is used only for unresolved transform questions. If original VSFilter evidence remains unavailable, state that limitation. An explicitly scoped preview may ship CoreV1 earlier; it is not the initial compatibility release.
 
 ## G3. Performance
 
