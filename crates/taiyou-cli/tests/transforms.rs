@@ -28,12 +28,36 @@ fn at(tags: &str, local_ms: i64) -> EvaluatedEvent {
 }
 #[test]
 fn transform_timing_acceleration_signed_targets_and_source_order() {
-    assert_eq!(at(r"\blur4\t(,\blur0)", 1000).runs()[0].effects().blur().get(),2.0);
-    assert_eq!(at(r"\blur4\t(0,500,\blur0", 250).runs()[0].effects().blur().get(),2.0);
-    assert_eq!(at(r"\blur4\t(0,1,2,3,\blur0)", 1000).runs()[0].effects().blur().get(),4.0);
-    let immediate = at(r"\t(\pos(10,20)\blur6)",0);
-    assert_eq!(immediate.placement().anchor(),Anchor::Explicit(ScriptPoint::new(FiniteF64::new(10.0).unwrap(),FiniteF64::new(20.0).unwrap())));
-    assert_eq!(immediate.runs()[0].effects().blur().get(),6.0); // first ')' ended t before blur
+    assert_eq!(
+        at(r"\blur4\t(,\blur0)", 1000).runs()[0]
+            .effects()
+            .blur()
+            .get(),
+        2.0
+    );
+    assert_eq!(
+        at(r"\blur4\t(0,500,\blur0", 250).runs()[0]
+            .effects()
+            .blur()
+            .get(),
+        2.0
+    );
+    assert_eq!(
+        at(r"\blur4\t(0,1,2,3,\blur0)", 1000).runs()[0]
+            .effects()
+            .blur()
+            .get(),
+        4.0
+    );
+    let immediate = at(r"\t(\pos(10,20)\blur6)", 0);
+    assert_eq!(
+        immediate.placement().anchor(),
+        Anchor::Explicit(ScriptPoint::new(
+            FiniteF64::new(10.0).unwrap(),
+            FiniteF64::new(20.0).unwrap()
+        ))
+    );
+    assert_eq!(immediate.runs()[0].effects().blur().get(), 6.0); // first ')' ended t before blur
     for (ms, expected) in [(0, 4.0), (100, 4.0), (600, 2.0), (1100, 0.0), (1999, 0.0)] {
         let e = at(r"\blur4\t(100,1100,\blur0)", ms);
         assert_eq!(e.runs()[0].effects().blur().get(), expected);
@@ -95,22 +119,52 @@ fn transform_timing_acceleration_signed_targets_and_source_order() {
 }
 #[test]
 fn supported_numeric_paint_and_immediate_tags_follow_xy_order() {
-    let restored = at(r"\fnOther\b1\i1\1c&H0000FF&\alpha&H80&\t(\fn0\b2\i2\1c\alpha)",500);
-    let original = at("",500);
-    assert_eq!(restored.runs()[0].shaping(),original.runs()[0].shaping());
-    assert_eq!(restored.runs()[0].paint(),original.runs()[0].paint());
-    assert_eq!(at(r"\t(\b500)",0).runs()[0].shaping().font().weight(),500);
-    let first = at(r"\pos(10,20)\an7\t(\pos(30,40)\an9)",1000);
-    assert_eq!(first.placement().anchor(),Anchor::Explicit(ScriptPoint::new(FiniteF64::new(10.0).unwrap(),FiniteF64::new(20.0).unwrap())));
-    assert_eq!(first.placement().alignment().get(),7); // first event alignment wins, including after t
-    for tags in [r"\pos(10,20)\pos(30,40)",r"\pos(10,20)\t(\pos(30,40))",r"\t(\pos(10,20))\pos(30,40)"] {
-        assert_eq!(at(tags,1000).placement().anchor(),first.placement().anchor());
+    let restored = at(
+        r"\fnOther\b1\i1\1c&H0000FF&\alpha&H80&\t(\fn0\b2\i2\1c\alpha)",
+        500,
+    );
+    let original = at("", 500);
+    assert_eq!(restored.runs()[0].shaping(), original.runs()[0].shaping());
+    assert_eq!(restored.runs()[0].paint(), original.runs()[0].paint());
+    assert_eq!(at(r"\t(\b500)", 0).runs()[0].shaping().font().weight(), 500);
+    let first = at(r"\pos(10,20)\an7\t(\pos(30,40)\an9)", 1000);
+    assert_eq!(
+        first.placement().anchor(),
+        Anchor::Explicit(ScriptPoint::new(
+            FiniteF64::new(10.0).unwrap(),
+            FiniteF64::new(20.0).unwrap()
+        ))
+    );
+    assert_eq!(first.placement().alignment().get(), 7); // first event alignment wins, including after t
+    for tags in [
+        r"\pos(10,20)\pos(30,40)",
+        r"\pos(10,20)\t(\pos(30,40))",
+        r"\t(\pos(10,20))\pos(30,40)",
+    ] {
+        assert_eq!(
+            at(tags, 1000).placement().anchor(),
+            first.placement().anchor()
+        );
     }
-    assert_eq!(at(r"\an7\an9",0).placement().alignment().get(),7);
-    assert_eq!(at(r"\an7\t(\an9)",0).placement().alignment().get(),7);
-    assert_eq!(at(r"\an7\r",0).placement().alignment().get(),7);
-    assert!((at(r"\t(\fscx100.001)",1000).runs()[0].geometry().scale_x().get()-1.000005).abs()<1e-12);
-    assert_eq!(at(r"\blur4\t(\blur4.00005)",0).runs()[0].effects().blur().get(),4.00005);
+    assert_eq!(at(r"\an7\an9", 0).placement().alignment().get(), 7);
+    assert_eq!(at(r"\an7\t(\an9)", 0).placement().alignment().get(), 7);
+    assert_eq!(at(r"\an7\r", 0).placement().alignment().get(), 7);
+    assert!(
+        (at(r"\t(\fscx100.001)", 1000).runs()[0]
+            .geometry()
+            .scale_x()
+            .get()
+            - 1.000005)
+            .abs()
+            < 1e-12
+    );
+    assert_eq!(
+        at(r"\blur4\t(\blur4.00005)", 0).runs()[0]
+            .effects()
+            .blur()
+            .get(),
+        4.00005
+    );
     let e = at(
         r"\bord2\shad2\t(\bord6\shad6\fs50\fscx200\fscy50\fsp2\1c&HFF0000&\2c&H00FF00&\3c&H0000FF&\4c&HFFFFFF&\alpha&HFF&)",
         1000,

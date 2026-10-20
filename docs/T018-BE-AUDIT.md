@@ -1,6 +1,6 @@
 # T018 BE review: input geometry and coverage prerequisite
 
-This is a corrective review record, not a new rendering policy or an assertion
+Historical audit checkpoint: the sections below describe production at f70ec7e/8d748ec. See the appended production-correction section for the current branch. This is a corrective review record, not a new rendering policy or an assertion
 that the four BE images pass. All four frozen `be.ass` frames render in strict
 mode with exit 0 and **differ at pixel comparison**. Their frozen inventory label
 does not explain or excuse these differences. No production filter, font metric,
@@ -162,3 +162,60 @@ The final PR report records exact-head normal platform/MSRV/sanitizer and one
 complete external comparison. No expected PNG, frozen asset, inventory label,
 tolerance, comparator algorithm, error mapping or acceptance policy is modified.
 PR32 remains unmerged and these four compatibility failures remain open.
+
+## Production corrections preserved in 508e676
+
+The owner subsequently authorized corrections and directly affected fixture updates.
+They are production changes, not the historical diagnostic controls above.
+Zero ASS shadow depth suppresses the shadow before Q6 offset conversion;
+nonzero tiny depths retain the existing coincident-mask behavior. Empty hard
+lines use xy's integer eighth-pixel half metrics, and terminal hard breaks create
+no synthetic final line. Font sizes use positive GDI cell-height semantics with
+validated OS/2 WinAscent/WinDescent and UPEM, native metric rounding, and the
+separate baseline offset. No hardcoded Aileron scale is used.
+
+| Frozen frame | Original | Zero shadow | Empty lines | Cell metrics/baseline |
+|---|---:|---:|---:|---:|
+| be-0500 | 25098 | 25100 | 23691 | 8750 |
+| be-1500 | 30200 | 30197 | 28496 | 13959 |
+| be-2500 | 32679 | 32679 | 30779 | 15595 |
+| be-3500 | 33214 | 33213 | 31293 | 15985 |
+
+Counts are differing pixels, not passes. None is exact. Current alpha-positive
+counts are 10069/11903/13450/13829 versus expected 11799/14606/15236/15389.
+Current bounds are [147,171,652,490] for the first two frames and
+[146,170,653,491] for the last two. Expected bounds remain those above.
+RGBA16 alpha MAEs are 37.02674/69.18494/74.63869/105.11835.
+
+Source/focused verification:
+[shadow](https://github.com/amanosatosi/taiyou/actions/runs/39449616009/job/118720631177),
+[empty lines](https://github.com/amanosatosi/taiyou/actions/runs/39451286135/job/118726459867),
+[cell metrics](https://github.com/amanosatosi/taiyou/actions/runs/39453257977/job/118733361977),
+[residual outline probe](https://github.com/amanosatosi/taiyou/actions/runs/39454956765/job/118739279799).
+The last source revision is 508e6760afb9539e0274df0266626de4422c04ce.
+Artifacts preserve original frames, histograms, pre/post-BE masks and source/font
+identities. No reference pixels, timestamps, inventory labels or tolerances changed.
+
+Remaining dependency: RTS.cpp CText::CreatePath 644–695 obtains GDI paths.
+Corrected Windows GetPath probes and independent pinned FreeType probes show
+1/64-pixel control-coordinate differences even with scaled hinted and unhinted
+FreeType loads: 5/13 dot points, 4/12 plus points, 14/21 pilcrow points differ.
+This is not fixed by an assumed rounding direction or a simple em/cell ratio.
+Rasterizer.cpp PathData::AlignLeftTop 3058–3094, ScanLineData::_EvaluateBezier
+3112–3187, _EvaluateLine 3215–3252, ScanConvert 3254–3362 and Rasterize 788–882
+then produce an eighth-grid 0–64 overlay with source-specific dimensions/offsets,
+whereas Taiyou's existing native rasterizer produces analytical A8 coverage with
+tight bounds. FillAlphaMashBody_c 2330 onward converts xy coverage by
+`(coverage*paint_alpha+32)>>6`.
+
+A separately labeled A8-to-64 diagnostic control remains nonexact:
+9102/12395/13561/13676 differing pixels. It is not a production conversion and
+is not evidence that quantization reproduces xy geometry. Correct BE1/2/4/8/16
+calculations for identical bytes/rectangles do not establish raster equivalence.
+A replacement GDI-compatible outline/scan converter is a distinct missing
+backend prerequisite; no deformed BE kernel or fixture-specific correction is
+accepted here. These source/probe findings are not an authenticated xy capture.
+
+The owner has now also included [ordered transforms and drawing words](T018-TRANSFORMS-DRAWINGS.md)
+in PR32. Their strict pixel-comparison results are separate from this static-BE
+progression and do not admit LegacyXyV1 raster behavior.

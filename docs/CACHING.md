@@ -68,3 +68,5 @@ No “dirty everything” flag replaces this table. No “only repaint” heuris
 5. Eviction/admission occurs at this barrier. Downstream jobs receive Arcs directly.
 
 One renderer has one in-flight frame. This intentionally avoids a general concurrent map/single-flight framework initially. Read-only hit snapshots can be shared with workers if measurements justify it; sharding and locks require evidence of a bottleneck. Tests use identical misses across hundreds of events, tiny capacities, retained frames, forced eviction, failed producers and worker counts 1/2/4/8.
+
+T018 policy identity: ShapeStyle::metric_policy() is 2 for validated positive-cell-height font sizing, eighth-pixel line metrics and native baseline rounding. This differs from the former em-sized policy 1. Transform evaluation is request-local and temporal; drawing geometry retains its original source owner. Explicit output/original-video target scale belongs in effect-stage identities, independently of PlayRes/SBAS. No T019 cache is implemented here.

@@ -126,12 +126,18 @@ impl Arguments {
             time: number(get("--time-us")?)?,
             width: number(get("--width")?)?,
             height: number(get("--height")?)?,
-            original: match (values.get("--original-width"), values.get("--original-height")) {
-                (None,None) => None,
-                (Some(w),Some(h)) => Some(Size::new(number(w)?,number(h)?)),
+            original: match (
+                values.get("--original-width"),
+                values.get("--original-height"),
+            ) {
+                (None, None) => None,
+                (Some(w), Some(h)) => Some(Size::new(number(w)?, number(h)?)),
                 _ => return Err(invalid("both original video dimensions are required")),
             },
-            filter_radius: values.get("--filter-radius").map(|n| number(n)).transpose()?,
+            filter_radius: values
+                .get("--filter-radius")
+                .map(|n| number(n))
+                .transpose()?,
             output,
             raw,
             policy,
@@ -230,15 +236,21 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let args = Arguments::parse(args)?;
     let mut config = RendererConfig::default();
     if let Some(radius) = args.filter_radius {
-        if args.original.is_none() { return Err(invalid("explicit comparison filter budget requires original video dimensions")); }
+        if args.original.is_none() {
+            return Err(invalid(
+                "explicit comparison filter budget requires original video dimensions",
+            ));
+        }
         config.limits = config.limits.with_filter_radius(radius);
     }
     let limits = &config.limits;
     let request = RenderRequest {
         now: TimeUs::from_micros(args.time),
         viewport: match args.original {
-            Some(original) => Viewport::full(Size::new(args.width,args.height))?.with_original_size(original)?,
-            None => Viewport::full(Size::new(args.width,args.height))?,
+            Some(original) => {
+                Viewport::full(Size::new(args.width, args.height))?.with_original_size(original)?
+            }
+            None => Viewport::full(Size::new(args.width, args.height))?,
         },
         unsupported: args.policy,
     };
@@ -264,7 +276,13 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         .split(|b| matches!(b, b'\r' | b'\n'))
         .any(|line| line.trim_ascii().eq_ignore_ascii_case(b"[Fonts]"));
     let parsed = taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new());
-    if args.fonts.is_empty() && !has_attachments && !parsed.as_ref().is_ok_and(|p| !p.track().events().is_empty() && !p.track().events().iter().any(taiyou_render::requires_font)) {
+    if args.fonts.is_empty()
+        && !has_attachments
+        && !parsed.as_ref().is_ok_and(|p| {
+            !p.track().events().is_empty()
+                && !p.track().events().iter().any(taiyou_render::requires_font)
+        })
+    {
         return Err(RenderError::new(
             ErrorCode::FontUnavailable,
             "at least one explicit --font or ASS embedded font is required",

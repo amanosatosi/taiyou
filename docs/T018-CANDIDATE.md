@@ -1,5 +1,7 @@
 # T018 — ASS scalar blur candidate
 
+Historical static-filter implementation record. The preserved 508e676 production metric/layout/shadow corrections are recorded in [BE audit](T018-BE-AUDIT.md); the current owner-requested transform/drawing extension is recorded in [implementation notes](T018-TRANSFORMS-DRAWINGS.md). Statements below about transforms being unsupported describe the earlier candidate.
+
 Integration base: `5c6672660b50a69a98518a2fc024abd27559807d` (merged PR31).
 This implements static `\blur` and real-valued `\be`, not animated transforms,
 LegacyXyV1 admission or an authenticated xy pixel oracle. No dependency added.

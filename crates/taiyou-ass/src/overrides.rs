@@ -254,23 +254,72 @@ fn block(
         // A transform containing a parenthesized command can leave unmatched
         // ')' characters on the following numeric/hex command. xy's native
         // suffix conversion ignores them; literal font/reset names do not.
-        let raw = if !unstructured && !raw.contains('(') { raw.trim_end_matches(')') } else { raw };
+        let raw = if !unstructured && !raw.contains('(') {
+            raw.trim_end_matches(')')
+        } else {
+            raw
+        };
         if !parents.is_empty() {
             let suffix = decode::trim(raw.split_once('(').map_or(raw, |(s, _)| s));
-            if (suffix.starts_with('b') && !suffix.starts_with("blur") && !suffix.starts_with("bord") && !suffix.starts_with("be")) || (suffix.starts_with('i') && !suffix.starts_with("iclip")) {
+            if (suffix.starts_with('b')
+                && !suffix.starts_with("blur")
+                && !suffix.starts_with("bord")
+                && !suffix.starts_with("be"))
+                || (suffix.starts_with('i') && !suffix.starts_with("iclip"))
+            {
                 let italic = suffix.starts_with('i');
                 let value = decode::trim(&suffix[1..]);
                 let sign = usize::from(value.starts_with(['+', '-']));
-                let end = sign + value.as_bytes()[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
-                let n = if end == sign { 0.0 } else { blur_number(&value[..end])? };
-                let op = if value.is_empty() || (italic && n != 0.0 && n != 1.0) || (!italic && n != 0.0 && n != 1.0 && n < 100.0) {
-                    OverrideOp::RestoreOriginal { field: if italic { OriginalField::Italic } else { OriginalField::Weight }, source: span }
-                } else if italic { OverrideOp::SetItalic { italic: n == 1.0, source: span } }
-                else {
-                    if n > u16::MAX as f64 { return Err(ParseError::new(ErrorCode::LimitExceeded, "ASS font weight outside supported numeric domain")); }
-                    OverrideOp::SetWeight { weight: if n==0.0 { 400 } else if n==1.0 { 700 } else { n as u16 }, source: span }
+                let end = sign
+                    + value.as_bytes()[sign..]
+                        .iter()
+                        .take_while(|b| b.is_ascii_digit())
+                        .count();
+                let n = if end == sign {
+                    0.0
+                } else {
+                    blur_number(&value[..end])?
                 };
-                push(program, TextOp::Override(op), ctx.options.limits().text_bytes_per_event())?;
+                let op = if value.is_empty()
+                    || (italic && n != 0.0 && n != 1.0)
+                    || (!italic && n != 0.0 && n != 1.0 && n < 100.0)
+                {
+                    OverrideOp::RestoreOriginal {
+                        field: if italic {
+                            OriginalField::Italic
+                        } else {
+                            OriginalField::Weight
+                        },
+                        source: span,
+                    }
+                } else if italic {
+                    OverrideOp::SetItalic {
+                        italic: n == 1.0,
+                        source: span,
+                    }
+                } else {
+                    if n > u16::MAX as f64 {
+                        return Err(ParseError::new(
+                            ErrorCode::LimitExceeded,
+                            "ASS font weight outside supported numeric domain",
+                        ));
+                    }
+                    OverrideOp::SetWeight {
+                        weight: if n == 0.0 {
+                            400
+                        } else if n == 1.0 {
+                            700
+                        } else {
+                            n as u16
+                        },
+                        source: span,
+                    }
+                };
+                push(
+                    program,
+                    TextOp::Override(op),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
                 continue;
             }
             let original = match suffix {
@@ -286,7 +335,14 @@ fn block(
                 _ => None,
             };
             if let Some(field) = original {
-                push(program, TextOp::Override(OverrideOp::RestoreOriginal { field, source: span }), ctx.options.limits().text_bytes_per_event())?;
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::RestoreOriginal {
+                        field,
+                        source: span,
+                    }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
                 continue;
             }
             if let Some(op) = transform_number(raw, span)? {
@@ -415,7 +471,9 @@ fn transform(
 }
 
 fn transform_number(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError> {
-    if raw.starts_with("fsc") && !raw.starts_with("fscx") && !raw.starts_with("fscy") { return Ok(None); }
+    if raw.starts_with("fsc") && !raw.starts_with("fscx") && !raw.starts_with("fscy") {
+        return Ok(None);
+    }
     for (name, property) in [
         ("fscx", TransformProperty::ScaleX),
         ("fscy", TransformProperty::ScaleY),
@@ -487,17 +545,40 @@ fn parse(
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
     for (name, baseline) in [("pbo", true), ("p", false)] {
-        if name == "p" && raw.starts_with("pos") { continue; }
+        if name == "p" && raw.starts_with("pos") {
+            continue;
+        }
         if let Some(suffix) = raw.strip_prefix(name) {
             // CMD_p/CMD_pbo use wcstol: decimal prefix, no digits -> zero.
             let value = decode::trim(suffix.split_once('(').map_or(suffix, |(v, _)| v));
             let sign = usize::from(value.starts_with(['+', '-']));
-            let end = sign + value.as_bytes()[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
-            let n = if end == sign { 0.0 } else { blur_number(&value[..end])? };
-            if n < i32::MIN as f64 || n > i32::MAX as f64 { return Err(ParseError::new(ErrorCode::LimitExceeded, "drawing parameter outside native integer range")); }
+            let end = sign
+                + value.as_bytes()[sign..]
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            let n = if end == sign {
+                0.0
+            } else {
+                blur_number(&value[..end])?
+            };
+            if n < i32::MIN as f64 || n > i32::MAX as f64 {
+                return Err(ParseError::new(
+                    ErrorCode::LimitExceeded,
+                    "drawing parameter outside native integer range",
+                ));
+            }
             return Ok(Some(if baseline {
-                OverrideOp::SetDrawingBaseline { offset: n as i32, source }
-            } else { OverrideOp::SetDrawingMode { scale: (n as i32).max(0) as u32, source } }));
+                OverrideOp::SetDrawingBaseline {
+                    offset: n as i32,
+                    source,
+                }
+            } else {
+                OverrideOp::SetDrawingMode {
+                    scale: (n as i32).max(0) as u32,
+                    source,
+                }
+            }));
         }
     }
     // pinterf ParseSSATag takes these values from the command suffix,

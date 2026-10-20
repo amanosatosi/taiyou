@@ -108,6 +108,32 @@ struct DraftLine {
     glyphs: std::ops::Range<usize>,
 }
 
+/// CLine::Compact applies after GetNextLine even when q2 disables wrapping.
+/// Keep source ranges immutable; only complete edge-space clusters disappear
+/// from positioned contents. Drawing words and NBSP are never space words.
+fn compact_edges(input: &ShapedEvent, start: u32, end: u32) -> (u32, u32) {
+    let bytes = input.source_map().text().as_bytes();
+    let (mut left, mut right) = (start, end);
+    while left < right && bytes[left as usize] == b' ' { left += 1; }
+    while right > left && bytes[right as usize-1] == b' ' { right -= 1; }
+    let first = input.runs().partition_point(|r| r.decoded().end() <= start);
+    for run in input.runs()[first..].iter().take_while(|r| r.decoded().start() < end) {
+        if run.drawing().is_some() {
+            if run.decoded().start() < left && left <= run.decoded().end() { left=run.decoded().start(); }
+            if run.decoded().start() <= right && right < run.decoded().end() { right=run.decoded().end(); }
+        } else {
+            // A backend cluster containing a non-space mark/ligature remains
+            // indivisible. Never remove its visible content with an edge space.
+            for glyph in run.glyphs() {
+                let c=glyph.cluster();
+                if c.start()<left && left<c.end() { left=c.start(); }
+                if c.start()<right && right<c.end() { right=c.end(); }
+            }
+        }
+    }
+    (left,right)
+}
+
 fn xy_plan(
     input: &ShapedEvent,
     constraints: &LayoutConstraints,
@@ -342,8 +368,7 @@ pub fn layout(
             },
             |p| p.end,
         );
-        let visible_start = proposed.map_or(start, |p| p.visible_start);
-        let visible_end = proposed.map_or(end, |p| p.visible_end);
+        let (visible_start,visible_end) = proposed.map_or_else(|| compact_edges(input,start,end), |p| (p.visible_start,p.visible_end));
         let decoded = input
             .source_map()
             .decoded_span(start..end)
@@ -351,7 +376,7 @@ pub fn layout(
         order.clear();
         while run_cursor < input.runs().len() && input.runs()[run_cursor].decoded().start() < end {
             let run = &input.runs()[run_cursor];
-            if automatic
+            if (automatic || visible_start < visible_end)
                 && (run.decoded().end() <= visible_start || run.decoded().start() >= visible_end)
             {
                 run_cursor += 1;
@@ -380,6 +405,20 @@ pub fn layout(
                 let sy = metrics.scale_y.get() * constraints.scale_y().get();
                 ascent = metrics.metrics.ascent().get() * sy;
                 descent = metrics.metrics.descent().get() * sy;
+            } else if !automatic && start < end {
+                // Compact returns early for an all-space line, retaining its
+                // original full metrics. It does not turn it into a half line.
+                for &r in &order {
+                    let run=&input.runs()[r];
+                    let state=&input.evaluated().runs()[association(input,run.decoded().start())?];
+                    let sy=state.geometry().scale_y().get()*constraints.scale_y().get();
+                    ascent=ascent.max(run.metrics().ascent().get()*sy);
+                    descent=descent.max(run.metrics().descent().get()*sy);
+                    for group in run.face_metrics() {
+                        ascent=ascent.max(group.metrics.ascent().get()*sy);
+                        descent=descent.max(group.metrics.descent().get()*sy);
+                    }
+                }
             } else if automatic {
                 let run = input
                     .runs()
@@ -450,6 +489,7 @@ pub fn layout(
                 descent = descent.max(run.metrics().descent().get() * sy);
             }
             for (g, glyph) in run.glyphs().iter().enumerate() {
+                if !automatic && (glyph.cluster().end() <= visible_start || glyph.cluster().start() >= visible_end) { continue; }
                 let a = association(input, glyph.cluster().start())?;
                 let state = &input.evaluated().runs()[a];
                 // A cluster cannot express two different scale transforms. Report

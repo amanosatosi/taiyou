@@ -163,9 +163,15 @@ fn animate_number(
                 TransformProperty::ScaleX | TransformProperty::ScaleY => value.get(),
                 _ => value.get(),
             };
-            if matches!(property,TransformProperty::ScaleX | TransformProperty::ScaleY) {
-                FiniteF64::new(animation.calc(dst,current.get()*100.0)?.get()/100.0).map_err(convert)?
-            } else { animation.calc(dst, current.get())? }
+            if matches!(
+                property,
+                TransformProperty::ScaleX | TransformProperty::ScaleY
+            ) {
+                FiniteF64::new(animation.calc(dst, current.get() * 100.0)?.get() / 100.0)
+                    .map_err(convert)?
+            } else {
+                animation.calc(dst, current.get())?
+            }
         }
     };
     let positive = if n.get() < 0.0 { FiniteF64::ZERO } else { n };
@@ -236,11 +242,23 @@ fn one(
     }
     let mut consumed = 0;
     for (index, operation) in event.program().iter().enumerate() {
-        if index < consumed { continue; }
-        if drawing_mode > 0 && matches!(operation,TextOp::Text { .. } | TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace) {
+        if index < consumed {
+            continue;
+        }
+        if drawing_mode > 0
+            && matches!(
+                operation,
+                TextOp::Text { .. } | TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace
+            )
+        {
             // ParsePolygon receives original drawing bytes, not ParseString's
             // decoded escapes. A source gap or override ends the polygon word.
-            let map = source_map.as_ref().ok_or_else(|| error(ErrorCode::InvalidArgument,"drawing word requires original source mapping"))?;
+            let map = source_map.as_ref().ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "drawing word requires original source mapping",
+                )
+            })?;
             let mut raw_start = None;
             let mut raw_end = 0;
             let mut length = 0_u32;
@@ -252,27 +270,63 @@ fn one(
                     TextOp::NoBreakSpace => 2,
                     _ => break,
                 };
-                let span = match op { TextOp::Text { source, .. } => Some(*source), _ => event.operation_sources().and_then(|s|s[next]) }.ok_or_else(|| error(ErrorCode::InvalidArgument,"drawing escape lacks original source"))?;
-                if raw_start.is_some() && span.start()!=raw_end { break; }
-                raw_start.get_or_insert(span.start()); raw_end=span.end();
-                length=length.checked_add(u32::try_from(bytes).map_err(|_|error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?).ok_or_else(||error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?;
-                next+=1;
+                let span = match op {
+                    TextOp::Text { source, .. } => Some(*source),
+                    _ => event.operation_sources().and_then(|s| s[next]),
+                }
+                .ok_or_else(|| {
+                    error(
+                        ErrorCode::InvalidArgument,
+                        "drawing escape lacks original source",
+                    )
+                })?;
+                if raw_start.is_some() && span.start() != raw_end {
+                    break;
+                }
+                raw_start.get_or_insert(span.start());
+                raw_end = span.end();
+                length = length
+                    .checked_add(u32::try_from(bytes).map_err(|_| {
+                        error(ErrorCode::LimitExceeded, "drawing decoded length overflow")
+                    })?)
+                    .ok_or_else(|| {
+                        error(ErrorCode::LimitExceeded, "drawing decoded length overflow")
+                    })?;
+                next += 1;
             }
-            let end=decoded_end.checked_add(length).ok_or_else(||error(ErrorCode::LimitExceeded,"drawing decoded length overflow"))?;
-            let text=map.text().get(decoded_end as usize..end as usize).ok_or_else(||error(ErrorCode::InvalidArgument,"drawing decoded range mismatch"))?;
-            let span=SourceSpan::new(track.source(),raw_start.ok_or_else(||error(ErrorCode::InvalidArgument,"missing drawing source"))? as usize,raw_end as usize).map_err(convert)?;
-            let raw=span.slice(track.source()).ok_or_else(||error(ErrorCode::InvalidArgument,"drawing source range mismatch"))?;
-            let drawing=crate::drawing::parse(raw,drawing_mode,drawing_baseline,limits)?;
+            let end = decoded_end.checked_add(length).ok_or_else(|| {
+                error(ErrorCode::LimitExceeded, "drawing decoded length overflow")
+            })?;
+            let text = map
+                .text()
+                .get(decoded_end as usize..end as usize)
+                .ok_or_else(|| {
+                    error(ErrorCode::InvalidArgument, "drawing decoded range mismatch")
+                })?;
+            let span = SourceSpan::new(
+                track.source(),
+                raw_start
+                    .ok_or_else(|| error(ErrorCode::InvalidArgument, "missing drawing source"))?
+                    as usize,
+                raw_end as usize,
+            )
+            .map_err(convert)?;
+            let raw = span.slice(track.source()).ok_or_else(|| {
+                error(ErrorCode::InvalidArgument, "drawing source range mismatch")
+            })?;
+            let drawing = crate::drawing::parse(raw, drawing_mode, drawing_baseline, limits)?;
             reserve(&mut runs)?;
-            runs.push(mapped_run(Arc::from(text),span,&state,&source_map,&mut decoded_end)?.with_drawing(drawing));
-            consumed=next;
+            runs.push(
+                mapped_run(Arc::from(text), span, &state, &source_map, &mut decoded_end)?
+                    .with_drawing(drawing),
+            );
+            consumed = next;
             continue;
         }
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                let run =
-                    mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?;
+                let run = mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?;
                 runs.push(run);
             }
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
@@ -302,16 +356,51 @@ fn one(
                 match op {
                     OverrideOp::RestoreOriginal { field, .. } => {
                         let original = |channel| match channel {
-                            PaintChannel::Primary => base.primary(), PaintChannel::Secondary => base.secondary(),
-                            PaintChannel::Outline => base.outline(), PaintChannel::Shadow => base.shadow_color(),
+                            PaintChannel::Primary => base.primary(),
+                            PaintChannel::Secondary => base.secondary(),
+                            PaintChannel::Outline => base.outline(),
+                            PaintChannel::Shadow => base.shadow_color(),
                         };
                         state = match field {
-                            OriginalField::Font => { let f = FontRequest::new(Arc::from(base.font().family()),state.font().weight(),state.font().italic(),base.font().vertical()); state.with_font(f) },
-                            OriginalField::Weight => { let f = state.font().clone().with_weight(base.font().weight()); state.with_font(f) },
-                            OriginalField::Italic => { let f = state.font().clone().with_italic(base.font().italic()); state.with_font(f) },
-                            OriginalField::Paint(channel) => channel_color(state,*channel,|c|{ let b=original(*channel); Rgba8::new(b.r(),b.g(),b.b(),c.a()) }),
-                            OriginalField::Opacity(Some(channel)) => channel_color(state,*channel,|c| Rgba8::new(c.r(),c.g(),c.b(),original(*channel).a())),
-                            OriginalField::Opacity(None) => { for c in [PaintChannel::Primary,PaintChannel::Secondary,PaintChannel::Outline,PaintChannel::Shadow] { state=channel_color(state,c,|old|Rgba8::new(old.r(),old.g(),old.b(),original(c).a())); } state },
+                            OriginalField::Font => {
+                                let f = FontRequest::new(
+                                    Arc::from(base.font().family()),
+                                    state.font().weight(),
+                                    state.font().italic(),
+                                    base.font().vertical(),
+                                );
+                                state.with_font(f)
+                            }
+                            OriginalField::Weight => {
+                                let f = state.font().clone().with_weight(base.font().weight());
+                                state.with_font(f)
+                            }
+                            OriginalField::Italic => {
+                                let f = state.font().clone().with_italic(base.font().italic());
+                                state.with_font(f)
+                            }
+                            OriginalField::Paint(channel) => channel_color(state, *channel, |c| {
+                                let b = original(*channel);
+                                Rgba8::new(b.r(), b.g(), b.b(), c.a())
+                            }),
+                            OriginalField::Opacity(Some(channel)) => {
+                                channel_color(state, *channel, |c| {
+                                    Rgba8::new(c.r(), c.g(), c.b(), original(*channel).a())
+                                })
+                            }
+                            OriginalField::Opacity(None) => {
+                                for c in [
+                                    PaintChannel::Primary,
+                                    PaintChannel::Secondary,
+                                    PaintChannel::Outline,
+                                    PaintChannel::Shadow,
+                                ] {
+                                    state = channel_color(state, c, |old| {
+                                        Rgba8::new(old.r(), old.g(), old.b(), original(c).a())
+                                    });
+                                }
+                                state
+                            }
                         };
                     }
                     OverrideOp::SetDrawingMode { scale, .. } => {
@@ -387,8 +476,18 @@ fn one(
                         state = state.with_font(font);
                     }
                     OverrideOp::SetSize { size, .. } => {
-                        state = if animation.depth == 0 { state.with_size(*size).map_err(convert)? }
-                        else { animate_number(state,base,TransformProperty::Size,Some(*size),false,&animation)? };
+                        state = if animation.depth == 0 {
+                            state.with_size(*size).map_err(convert)?
+                        } else {
+                            animate_number(
+                                state,
+                                base,
+                                TransformProperty::Size,
+                                Some(*size),
+                                false,
+                                &animation,
+                            )?
+                        };
                     }
                     OverrideOp::SetWeight { weight, .. } => {
                         let font = state.font().clone().with_weight(*weight);
@@ -400,10 +499,21 @@ fn one(
                     }
                     OverrideOp::SetScale { axis, factor, .. } => {
                         if animation.depth > 0 {
-                            let property = if *axis == ScaleAxis::X { TransformProperty::ScaleX } else { TransformProperty::ScaleY };
-                            let value = FiniteF64::new(factor.get()*100.0).map_err(convert)?;
-                            state = animate_number(state,base,property,Some(value),false,&animation)?;
-                            changes = changes.union(ChangeClass::between_styles(&before,&state));
+                            let property = if *axis == ScaleAxis::X {
+                                TransformProperty::ScaleX
+                            } else {
+                                TransformProperty::ScaleY
+                            };
+                            let value = FiniteF64::new(factor.get() * 100.0).map_err(convert)?;
+                            state = animate_number(
+                                state,
+                                base,
+                                property,
+                                Some(value),
+                                false,
+                                &animation,
+                            )?;
+                            changes = changes.union(ChangeClass::between_styles(&before, &state));
                             continue;
                         }
                         let (x, y) = match axis {
@@ -413,23 +523,48 @@ fn one(
                         state = state.with_scale(x, y).map_err(convert)?;
                     }
                     OverrideOp::SetSpacing { spacing, .. } => {
-                        let value = animation.calc(spacing.get(),state.spacing().get())?;
+                        let value = animation.calc(spacing.get(), state.spacing().get())?;
                         state = state.with_spacing(value);
                     }
                     OverrideOp::SetBorder { width, .. } => {
-                        state = if animation.depth == 0 { state.with_border(*width).map_err(convert)? }
-                        else { animate_number(state,base,TransformProperty::Border,Some(*width),false,&animation)? };
+                        state = if animation.depth == 0 {
+                            state.with_border(*width).map_err(convert)?
+                        } else {
+                            animate_number(
+                                state,
+                                base,
+                                TransformProperty::Border,
+                                Some(*width),
+                                false,
+                                &animation,
+                            )?
+                        };
                     }
                     OverrideOp::SetShadow { offset, .. } => {
-                        state = if animation.depth == 0 { state.with_shadow(*offset) }
-                        else { animate_number(state,base,TransformProperty::Shadow,Some(*offset),false,&animation)? };
+                        state = if animation.depth == 0 {
+                            state.with_shadow(*offset)
+                        } else {
+                            animate_number(
+                                state,
+                                base,
+                                TransformProperty::Shadow,
+                                Some(*offset),
+                                false,
+                                &animation,
+                            )?
+                        };
                     }
                     OverrideOp::SetAlignment { alignment, .. } => {
-                        if !alignment_seen { state = state.with_alignment(*alignment); event_alignment = *alignment; }
+                        if !alignment_seen {
+                            state = state.with_alignment(*alignment);
+                            event_alignment = *alignment;
+                        }
                         alignment_seen = true;
                     }
                     OverrideOp::SetPosition { point, .. } => {
-                        if anchor != Anchor::Default { continue; }
+                        if anchor != Anchor::Default {
+                            continue;
+                        }
                         if anchor != Anchor::Explicit(*point) {
                             changes = changes.with_placement();
                         }
@@ -530,7 +665,15 @@ fn one(
                     }
                 }
                 changes = changes.union(ChangeClass::between_styles(&before, &state));
-                if matches!(op, OverrideOp::SetFont { .. } | OverrideOp::ResetStyle { .. } | OverrideOp::RestoreOriginal { field: OriginalField::Font, .. }) {
+                if matches!(
+                    op,
+                    OverrideOp::SetFont { .. }
+                        | OverrideOp::ResetStyle { .. }
+                        | OverrideOp::RestoreOriginal {
+                            field: OriginalField::Font,
+                            ..
+                        }
+                ) {
                     validate_style(&state, event, op.source(), policy, d)?;
                 }
             }
@@ -543,7 +686,11 @@ fn one(
         )
         .with_context(Some(event.id()), warp_mode_source.or(Some(event.source()))));
     }
-    let placement = Placement::new(&state.clone().with_alignment(event_alignment), event.margins(), anchor);
+    let placement = Placement::new(
+        &state.clone().with_alignment(event_alignment),
+        event.margins(),
+        anchor,
+    );
     let evaluated = EvaluatedEvent::new(
         event.id(),
         EventOrder::new(event.layer(), event.id().ordinal()),

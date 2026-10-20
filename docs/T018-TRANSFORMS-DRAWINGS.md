@@ -65,3 +65,43 @@ preserved; normalized PNGs are display previews, not comparison authority.
 Focused Actions and exact-case results are recorded after execution. Until then,
 implemented paths are verification-pending. Static BE's remaining GDI-outline
 and 0–64 span-raster differences remain independent of these features.
+
+Focused candidate `44584c2f8c002fe1c46455287d4dd71a3ac01a14` passed
+[source/native/render/corpus checks](https://github.com/amanosatosi/taiyou/actions/runs/39485636519/job/118845195956).
+Artifact `12292764256` SHA-256
+`b41febbd0b46e29976a4f2c5bb671607a13b90f01c35e6c996985697f23299f8`
+contains the original reports, difference images, masks and CI formatting patch.
+Every requested case has strict exit 0, no tolerant fallback, and actual pixel
+metrics. No requested blur case is exact; their frozen UNSUPPORTED report labels
+do not mean transform/drawing execution is unavailable.
+
+| Frame | Differing pixels at 44584c2 |
+|---|---:|
+| blur+t-1000 | 74204 |
+| blur+t-1100 | 77771 |
+| blur+t-1200 | 80580 |
+| blur+t-1300 | 82853 |
+| blur+t-1400 | 85865 |
+| blur+t-1500 | 87720 |
+| blur+t-1600 | 90053 |
+| blur+t-1700 | 91932 |
+| blur+t-1800 | 93213 |
+| blur+t-1900 | 94767 |
+| blurs-anamorphic/blur-0000 | 81905 |
+
+The four static BE counts remain 8750/13959/15595/15985. The anamorphic
+oversampled native RGBA SHA-256 is
+`49e32564516e5b0970e4ab1766049fe1d978f185e6badc93f190321fc25d446b`;
+its normalized RGBA16 alpha MAE is 117.97685. Source/unit checks prove ordered
+animation and equal animated/static pixels at the corresponding evaluated
+values; they do not establish a compatible pre-filter mask.
+
+A further owner-approved placement correction implements CLine::Compact
+(RTS.cpp 1171–1200, called at 1471 and 1502) trims ASCII-space words at hard-line
+edges even with q2. The previous q2 layout preserved their advance. blur+t.ass has
+three edge spaces around several hard breaks, so its large mismatch cannot be
+attributed to rasterization alone before this placement difference is resolved.
+No automatic-wrapping algorithm changes. New line_compaction integration tests
+retain decoded/source ranges, NBSP, per-hard-line compaction, full whitespace-only
+metrics and half-height genuinely empty lines. The post-correction pixel results
+remain verification-pending until the focused Actions run completes.
