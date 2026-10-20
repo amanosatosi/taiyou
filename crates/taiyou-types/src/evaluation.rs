@@ -297,6 +297,7 @@ impl EventOrder {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedRun {
+    drawing: Option<Arc<AssDrawing>>,
     text: Arc<str>,
     source: SourceSpan,
     shaping: ShapeStyle,
@@ -310,6 +311,7 @@ impl EvaluatedRun {
     /// span, never invented offsets into decoded text. T009 must preserve that map.
     pub fn new(text: Arc<str>, source: SourceSpan, style: &Style) -> Self {
         Self {
+            drawing: None,
             text,
             source,
             shaping: ShapeStyle::from_style(style),
@@ -322,6 +324,11 @@ impl EvaluatedRun {
     pub fn text(&self) -> &str {
         &self.text
     }
+    pub fn with_drawing(mut self, drawing: Arc<AssDrawing>) -> Self {
+        self.drawing = Some(drawing);
+        self
+    }
+    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> { self.drawing.as_ref() }
     pub fn with_decoded(mut self, decoded: DecodedSpan) -> Result<Self, RenderError> {
         if decoded.text() != self.text.as_ref() {
             return Err(RenderError::new(

@@ -57,6 +57,7 @@ pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
         .checked_mul(3)
         .and_then(|v| v.checked_add(3 * (std::mem::size_of::<TextSourcePiece>() + 32) + 128))
         .ok_or_else(|| error(ErrorCode::LimitExceeded, "evaluation size overflow"))?;
+    let mut drawing_mode = 0;
     u64::try_from(count)
         .ok()
         .and_then(|n| n.checked_mul(u64::try_from(per).ok()?))
@@ -64,6 +65,8 @@ pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
         .and_then(|n| {
             event.program().iter().try_fold(n, |n, op| {
                 let bytes = match op {
+                    TextOp::Override(OverrideOp::SetDrawingMode { scale, .. }) => { drawing_mode = *scale; 0 },
+                    TextOp::Text { text, .. } if drawing_mode > 0 => (text.len() as u64).checked_mul(256)?,
                     TextOp::Text { text, .. } => text.len() as u64,
                     TextOp::NoBreakSpace => 2,
                     TextOp::HardBreak | TextOp::SoftBreak => 1,
@@ -194,6 +197,8 @@ fn one(
     let mut state = base.clone();
     let mut anchor = Anchor::Default;
     let mut changes = ChangeClass::default();
+    let mut drawing_mode = 0;
+    let mut drawing_baseline = 0;
     let mut warp_mode = WarpMode::XyStyle;
     let mut warp_mode_source = None;
     let mut wrap_mode = track.script().wrap();
@@ -224,13 +229,17 @@ fn one(
         match operation {
             TextOp::Text { text, source } => {
                 reserve(&mut runs)?;
-                runs.push(mapped_run(
+                let mut run = mapped_run(
                     text.clone(),
                     *source,
                     &state,
                     &source_map,
                     &mut decoded_end,
-                )?);
+                )?;
+                if drawing_mode > 0 {
+                    run = run.with_drawing(crate::drawing::parse(text, drawing_mode, drawing_baseline, limits)?);
+                }
+                runs.push(run);
             }
             TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace => {
                 let text = match operation {
@@ -257,6 +266,8 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
+                    OverrideOp::SetDrawingMode { scale, .. } => { drawing_mode = *scale; }
+                    OverrideOp::SetDrawingBaseline { offset, .. } => { drawing_baseline = *offset; }
                     OverrideOp::BeginTransform {
                         start_ms,
                         end_ms,
@@ -633,6 +644,21 @@ pub(crate) fn collision_eligible(event: &Event) -> bool {
         .program()
         .iter()
         .any(|operation| matches!(operation, TextOp::Override(OverrideOp::SetPosition { .. })))
+}
+
+/// Parsed drawing mode controls whether any visible word needs font services.
+/// p/pbo and reset behavior are immediate even inside transforms in xy.
+pub fn requires_font(event: &Event) -> bool {
+    let mut mode = 0;
+    for op in event.program() {
+        match op {
+            TextOp::Override(OverrideOp::SetDrawingMode { scale, .. }) => mode = *scale,
+            TextOp::Text { text, .. } if mode == 0 && !text.is_empty() => return true,
+            TextOp::HardBreak | TextOp::SoftBreak | TextOp::NoBreakSpace if mode == 0 => return true,
+            _ => (),
+        }
+    }
+    false
 }
 
 pub fn evaluate_active(

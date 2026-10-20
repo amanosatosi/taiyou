@@ -34,12 +34,13 @@ jobs:
       - run: echo "TAIYOU_BE_AUDIT_OUTPUT=$RUNNER_TEMP/t018-be-audit" >> "$GITHUB_ENV"
       - run: |
           python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python -m unittest discover -s validation -p test_oversampling.py
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - run: |
           cargo +1.99.1 fmt --all
           git diff --binary > "$RUNNER_TEMP/t018-be-format.patch"
           cargo +1.99.1 test --locked -p taiyou-ass -p taiyou-types -p taiyou-render
-          cargo +1.99.1 test --locked -p taiyou-cli --test transforms
+          cargo +1.99.1 test --locked -p taiyou-cli --test transforms --test drawings
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
       - name: Focused ASS compatibility and blur rendering regressions
@@ -51,7 +52,7 @@ jobs:
           TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
         run: |
-          cargo +1.99.1 test --locked -p taiyou-cli --features native --test ass_compatibility --test blur --test transforms --test renderer_effect_regressions --test geometry --test layout_pipeline
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test ass_compatibility --test blur --test transforms --test drawings --test renderer_effect_regressions --test geometry --test layout_pipeline
           cargo +1.99.1 test --locked -p taiyou-font --features native --test shaping
           cargo +1.99.1 test --locked -p taiyou-render --features native --test layout_fixed_font
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
@@ -88,6 +89,8 @@ jobs:
           LIBZ_SYS_STATIC: '1'
         run: |
           python validation/compare.py --suite focused --profile core-v1 --output "$RUNNER_TEMP/t018-transforms" --case regression/blurs/blur+t-1000.png --case regression/blurs/blur+t-1100.png --case regression/blurs/blur+t-1200.png --case regression/blurs/blur+t-1300.png --case regression/blurs/blur+t-1400.png --case regression/blurs/blur+t-1500.png --case regression/blurs/blur+t-1600.png --case regression/blurs/blur+t-1700.png --case regression/blurs/blur+t-1800.png --case regression/blurs/blur+t-1900.png
+      - name: Frozen anamorphic drawing and Gaussian frame
+        run: python validation/compare.py --suite focused --profile core-v1 --output "$RUNNER_TEMP/t018-anamorphic" --case regression/blurs-anamorphic/blur-0000.png
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -97,3 +100,4 @@ jobs:
             ${{ runner.temp }}/taiyou-comparison/
             ${{ runner.temp }}/t018-be-format.patch
             ${{ runner.temp }}/t018-transforms/
+            ${{ runner.temp }}/t018-anamorphic/

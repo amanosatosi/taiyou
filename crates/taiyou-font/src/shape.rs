@@ -338,8 +338,18 @@ fn resolve_mapped(
     styles: &[(DecodedSpan, ShapeStyle)],
     options: &ShapeOptions,
     limits: &Limits,
+    drawings: &[DecodedSpan],
 ) -> Result<(Vec<ResolvedRun>, Vec<DecodedSpan>), FontError> {
-    let (items, breaks) = itemize(map.text(), options, limits)?;
+    // Drawing commands are not text: neutralize their bytes for bidi analysis,
+    // while keeping all original decoded byte offsets and native text ranges.
+    let mut analysis = Vec::new();
+    if !drawings.is_empty() {
+        reserve(&mut analysis, map.text().len(), limits)?;
+        analysis.extend_from_slice(map.text().as_bytes());
+        for span in drawings { analysis[span.start() as usize..span.end() as usize].fill(b' '); }
+    }
+    let text = if analysis.is_empty() { map.text() } else { std::str::from_utf8(&analysis).map_err(|_|error(ErrorCode::InvalidArgument,"invalid drawing analysis"))? };
+    let (items, breaks) = itemize(text, options, limits)?;
     let mut result = Vec::new();
     let mut item_cursor = 0;
     for (span, style) in styles {
@@ -369,6 +379,10 @@ fn resolve_mapped(
             }
             let mut item = item.clone();
             item.range = start..end;
+            for drawing in drawings {
+                if drawing.end() as usize <= start { item.context.start = item.context.start.max(drawing.end() as usize); }
+                if drawing.start() as usize >= end { item.context.end = item.context.end.min(drawing.start() as usize); }
+            }
             reserve(&mut result, 1, limits)?;
             result.push(ResolvedRun {
                 catalog: catalog.clone(),
@@ -412,6 +426,7 @@ pub fn resolve_runs(
         &[(span, style.clone())],
         &ShapeOptions::default(),
         &limits,
+        &[],
     )?
     .0)
 }
@@ -794,7 +809,8 @@ fn shape_event_impl(
             decoded: span.clone(),
             paint: run.paint().clone(),
         });
-        if span.is_empty() {
+        if span.is_empty() || run.drawing().is_some() {
+            previous_scale = None;
             continue;
         }
         let scale = (run.geometry().scale_x(), run.geometry().scale_y());
@@ -809,7 +825,12 @@ fn shape_event_impl(
         }
         previous_scale = Some(scale);
     }
-    let (resolved, breaks) = resolve_mapped(catalog, map, &styles, options, limits)?;
+    let mut drawings = Vec::new();
+    for run in event.runs().iter().filter(|r| r.drawing().is_some()) {
+        reserve(&mut drawings, 1, limits)?;
+        drawings.push(run.decoded().ok_or_else(limited)?.clone());
+    }
+    let (resolved, breaks) = resolve_mapped(catalog, map, &styles, options, limits, &drawings)?;
     let resolved = if event.wrap_mode().get() != 2 {
         xy_word_items(resolved, map, limits)?
     } else {
@@ -837,6 +858,21 @@ fn shape_event_impl(
         reserve(&mut runs, 1, limits)?;
         runs.push(run);
     }
+    for evaluated in event.runs().iter().filter(|r| r.drawing().is_some()) {
+        let drawing = evaluated.drawing().ok_or_else(limited)?;
+        let span = evaluated.decoded().ok_or_else(limited)?;
+        if span.is_empty() { continue; }
+        count = count.checked_add(1).ok_or_else(limited)?;
+        if count > limits.glyphs_per_event() { return Err(limited()); }
+        let metrics = RunMetrics::new(
+            FiniteF64::new(drawing.ascent.get().max(0.0)).map_err(|_|limited())?,
+            FiniteF64::new(drawing.descent.get().max(0.0)).map_err(|_|limited())?,
+            FiniteF64::ZERO, 1,
+        )?;
+        reserve(&mut runs, 1, limits)?;
+        runs.push(ShapedRun::new(Arc::from([]), metrics, span.clone(), 0, u32::from_be_bytes(*b"Zyyy"), Arc::from("und"))?.with_drawing(drawing.clone())?);
+    }
+    runs.sort_unstable_by_key(|r| r.decoded().start());
     let empty_lines = empty_line_metrics(ctx, catalog, event, map, &breaks, options, limits)?;
     ShapedEvent::new(
         event,

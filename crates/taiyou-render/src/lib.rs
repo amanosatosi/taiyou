@@ -8,6 +8,7 @@ pub mod collision;
 pub mod collision_footprint;
 mod compose;
 pub mod effects;
+pub mod drawing;
 mod evaluate;
 pub mod geometry;
 pub mod layout;
@@ -17,7 +18,7 @@ pub mod renderer;
 pub mod stroke;
 mod xy_wrap;
 pub use compose::compose;
-pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy};
+pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy, requires_font};
 pub use layout::layout;
 pub use paint::{blend_pixel, mul255};
 #[cfg(feature = "native")]

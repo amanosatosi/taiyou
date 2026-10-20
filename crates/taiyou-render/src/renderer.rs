@@ -486,7 +486,7 @@ impl Renderer {
         }
         let mut operations = Vec::new();
         let mut total_segments = 0_u64;
-        if !events.is_empty() && fonts.faces().is_empty() {
+        if events.iter().any(|event| crate::requires_font(event)) && fonts.faces().is_empty() {
             return Err(RenderError::new(
                 ErrorCode::FontUnavailable,
                 "an explicit validated font is required",
@@ -685,17 +685,17 @@ impl Renderer {
                     },
                     &geom_limits,
                 )?);
-                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?;
+                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?.checked_add(bytes::<crate::geometry::GeometryItem>(placed.items().len())?).ok_or_else(limited)?;
                 geom_charge = add(
                     geom_charge,
-                    bytes::<GeometryInstance>(placed.glyphs().len())?,
+                    bytes::<GeometryInstance>(placed.items().len())?,
                 )?;
-                for g in placed.glyphs() {
+                for g in placed.items() {
                     total_segments = add(total_segments, g.geometry.ops().len() as u64)?;
                     geom_charge = add(
                         geom_charge,
                         add(
-                            bytes::<PathOp<FontPoint>>(g.outline.outline().ops().len())?,
+                            bytes::<PathOp<FontPoint>>(g.geometry.outline().ops().len())?,
                             bytes::<PathOp<DevicePoint>>(g.geometry.ops().len())?,
                         )?,
                     )?;
@@ -703,7 +703,7 @@ impl Renderer {
                 if total_segments > limits.path_segments_per_frame() {
                     return Err(limited());
                 }
-                geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.glyphs().len())?)?;
+                geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
                 let groups = coverage_groups(
                     placed.clone(),
@@ -721,7 +721,7 @@ impl Renderer {
                 for group in &groups {
                     let first = group.policy().members().start;
                     let state = &placed.layout().shaped().evaluated().runs()
-                        [placed.glyphs()[first].association];
+                        [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
                     let mut fill = rasterize(&mut fill_context, group)?;
@@ -765,7 +765,7 @@ impl Renderer {
                     let blur_spec = crate::effects::BlurSpec::new(
                         state.effects().blur(),
                         state.effects().be(),
-                        [1.0, 1.0],
+                        request.viewport.target_scale(),
                         limits,
                     )?;
                     if !border_exists {

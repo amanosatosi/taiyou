@@ -447,6 +447,20 @@ fn parse(
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    for (name, baseline) in [("pbo", true), ("p", false)] {
+        if name == "p" && raw.starts_with("pos") { continue; }
+        if let Some(suffix) = raw.strip_prefix(name) {
+            // CMD_p/CMD_pbo use wcstol: decimal prefix, no digits -> zero.
+            let value = decode::trim(suffix.split_once('(').map_or(suffix, |(v, _)| v));
+            let sign = usize::from(value.starts_with(['+', '-']));
+            let end = sign + value.as_bytes()[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
+            let n = if end == sign { 0.0 } else { blur_number(&value[..end])? };
+            if n < i32::MIN as f64 || n > i32::MAX as f64 { return Err(ParseError::new(ErrorCode::LimitExceeded, "drawing parameter outside native integer range")); }
+            return Ok(Some(if baseline {
+                OverrideOp::SetDrawingBaseline { offset: n as i32, source }
+            } else { OverrideOp::SetDrawingMode { scale: (n as i32).max(0) as u32, source } }));
+        }
+    }
     // pinterf ParseSSATag takes these values from the command suffix,
     // not parenthesized arguments. wcstod consumes a numeric prefix.
     for (name, gaussian) in [("blur", true), ("be", false)] {

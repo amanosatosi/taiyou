@@ -76,6 +76,14 @@ pub struct Outline {
     ops: Arc<[PathOp<FontPoint>]>,
     bounds: Option<FontBounds>,
 }
+/// ASS polygon geometry in local y-up script units. No synthetic font identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AssDrawing {
+    pub outline: Arc<Outline>,
+    pub width: FiniteF64,
+    pub ascent: FiniteF64,
+    pub descent: FiniteF64,
+}
 impl Outline {
     pub fn new(ops: Vec<PathOp<FontPoint>>, limits: &Limits) -> Result<Self, RenderError> {
         check_path_budget(ops.len(), limits)?;

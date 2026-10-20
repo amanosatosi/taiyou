@@ -11,6 +11,7 @@ import tempfile
 from inventory import InventoryError, canonical, digest, load, safe_path
 from policy import results, snapshots
 import images
+import oversampling
 
 ROOT = Path(__file__).resolve().parent.parent
 EXE = ".exe" if os.name == "nt" else ""
@@ -118,13 +119,15 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                                   for line in source.read_bytes().removeprefix(b"\xef\xbb\xbf").splitlines())
             if not fonts and not has_attachments:
                 raise ValueError("regression case has no explicit fonts")
-            if case["scale"] != "1":
-                record.update(status="UNSUPPORTED", feature="T015/oversampling-adapter", stage="scale",
-                              diagnostics="CoreV1 has no independent supersampling viewport mapping; no silent resizing/downsampling")
-                return record
+            sx, sy = oversampling.factors(case["scale"])
+            images.dimensions(expected[0] * sx, expected[1] * sy)
             png, raw = directory / "actual.png", directory / "actual.rgba"
-            command = [binary, "render", "--input", source, "--time-us", str(time_us), "--width", str(expected[0]),
-                       "--height", str(expected[1]), "--profile", "core-v1", "--output", png, "--raw", raw]
+            command = [binary, "render", "--input", source, "--time-us", str(time_us), "--width", str(expected[0] * sx),
+                       "--height", str(expected[1] * sy), "--profile", "core-v1", "--output", png, "--raw", raw]
+            if (sx, sy) != (1, 1):
+                command.extend(["--original-width", str(expected[0]), "--original-height", str(expected[1]), "--filter-radius", "512"])
+                record["oversampling"] = {"scale": [sx, sy], "filter_radius_budget": 512,
+                                          "rule": "libass-compare-fixed-reciprocal-RGBA16"}
             for font in fonts:
                 command.extend(["--font", font])
             code, diagnostic = execute(command, directory)
@@ -135,11 +138,12 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                 code, diagnostic = execute(command + ["--unsupported", "tolerant"], directory)
             metrics = None
             if code == 0:
-                actual = images.raw_rgba(raw, expected[0], expected[1])
+                actual = (images.raw_rgba(raw, expected[0], expected[1]) if (sx, sy) == (1, 1)
+                          else oversampling.normalize(raw, expected[0], expected[1], sx, sy))
                 # Validate the published PNG independently, without using it as
                 # authoritative raw output or requiring a lossy premul roundtrip.
                 decoded_png = images.read_png(png)
-                if decoded_png[:2] != expected[:2]:
+                if decoded_png[:2] != (expected[0] * sx, expected[1] * sy):
                     raise ValueError("renderer PNG dimensions mismatch")
                 key = digest(case["id"].encode())[:16]
                 artifact = out / key
@@ -150,7 +154,12 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                 record["raw_sha256"] = digest(raw.read_bytes())
                 record["png_sha256"] = digest(png.read_bytes())
                 if save:
-                    (artifact / "actual.png").write_bytes(png.read_bytes())
+                    if (sx, sy) == (1, 1):
+                        (artifact / "actual.png").write_bytes(png.read_bytes())
+                    else:
+                        (artifact / "oversampled.rgba").write_bytes(raw.read_bytes())
+                        (artifact / "oversampled.png").write_bytes(png.read_bytes())
+                        oversampling.preview(artifact / "actual.png", actual)
                     record["artifacts"] = {"actual": key + "/actual.png", "difference": key + "/difference.png",
                                            "expected": "external:" + frame["expected"]}
             status = classify(case, code, metrics, diagnostic)

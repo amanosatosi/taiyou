@@ -81,9 +81,14 @@ pub fn collision_footprint(
         == u64::from(device.content().height()) * u64::from(device.play_res().width());
     let mut result = local.collision_bounds();
     for positioned in local.glyphs() {
-        let glyph =
-            &local.shaped().runs()[positioned.run_index()].glyphs()[positioned.glyph_index()];
-        let ink = match glyph.ink() {
+        let run = &local.shaped().runs()[positioned.run_index()];
+        let glyph_ink = if let Some(drawing) = run.drawing() {
+            match drawing.outline.bounds() {
+                Some(b) => GlyphInk::Bounds(ScriptBounds::new(b.min().x().get(), -b.max().y().get(), b.max().x().get(), -b.min().y().get())?),
+                None => GlyphInk::Empty,
+            }
+        } else { run.glyphs()[positioned.glyph_index()].ink() };
+        let ink = match glyph_ink {
             GlyphInk::Bounds(bounds) => bounds,
             GlyphInk::Empty => continue,
             GlyphInk::Unknown => {

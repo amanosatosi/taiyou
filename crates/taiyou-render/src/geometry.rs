@@ -214,6 +214,14 @@ pub struct GeometryGlyph {
 pub struct GeometryEvent {
     layout: Arc<LocalLayout>,
     glyphs: Arc<[GeometryGlyph]>,
+    items: Arc<[GeometryItem]>,
+}
+/// Paint-ordered geometry, including drawings without a fabricated font face.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeometryItem {
+    pub geometry: GeometryInstance,
+    pub cluster: DecodedSpan,
+    pub association: usize,
 }
 impl GeometryEvent {
     pub fn layout(&self) -> &LocalLayout {
@@ -222,6 +230,7 @@ impl GeometryEvent {
     pub fn glyphs(&self) -> &[GeometryGlyph] {
         &self.glyphs
     }
+    pub fn items(&self) -> &[GeometryItem] { &self.items }
 }
 #[cfg(feature = "native")]
 pub(crate) fn font_error(e: FontError) -> RenderError {
@@ -243,7 +252,7 @@ pub fn geometry(
 ) -> Result<GeometryEvent, RenderError> {
     let count = layout.glyphs().len();
     let mut charge = (count as u64)
-        .checked_mul(3 * std::mem::size_of::<GeometryGlyph>() as u64)
+        .checked_mul(3 * (std::mem::size_of::<GeometryGlyph>() + std::mem::size_of::<GeometryItem>()) as u64)
         .ok_or_else(geometry_limit)?;
     if count as u64 > limits.glyphs_per_event() {
         return Err(geometry_limit());
@@ -252,6 +261,8 @@ pub fn geometry(
         return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut glyphs = Vec::new();
+    let mut items = Vec::new();
+    items.try_reserve_exact(count).map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "geometry item allocation failed"))?;
     glyphs.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
@@ -261,8 +272,18 @@ pub fn geometry(
     let mut total = 0usize;
     for positioned in layout.glyphs() {
         let run = &layout.shaped().runs()[positioned.run_index()];
-        let glyph = &run.glyphs()[positioned.glyph_index()];
         let state = &layout.shaped().evaluated().runs()[positioned.association_index()];
+        if let Some(drawing) = run.drawing() {
+            total = total.checked_add(drawing.outline.ops().len()).ok_or_else(geometry_limit)?;
+            check_path_budget(total, limits)?;
+            charge = charge.checked_add((drawing.outline.ops().len() as u64).checked_mul(4*(std::mem::size_of::<PathOp<FontPoint>>()+std::mem::size_of::<PathOp<DevicePoint>>()) as u64).ok_or_else(geometry_limit)?).ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() { return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)); }
+            let additional = layout.local_scale();
+            let mapping = GeometryMap::new((finite(state.geometry().scale_x().get()*additional.0.get())?, finite(state.geometry().scale_y().get()*additional.1.get())?), positioned.position(), placement.anchor, placement.origin, state.geometry().rotation_z(), placement.device)?;
+            items.push(GeometryItem { geometry: map_outline(drawing.outline.clone(), mapping, limits)?, cluster: positioned.cluster().clone(), association: positioned.association_index() });
+            continue;
+        }
+        let glyph = &run.glyphs()[positioned.glyph_index()];
         let blob = catalog
             .faces()
             .iter()
@@ -329,6 +350,7 @@ pub fn geometry(
             placement.device,
         )?;
         let mapped = map_outline(outline.outline().clone(), mapping, limits)?;
+        items.push(GeometryItem { geometry: mapped.clone(), cluster: positioned.cluster().clone(), association: positioned.association_index() });
         glyphs.push(GeometryGlyph {
             outline,
             geometry: mapped,
@@ -339,5 +361,6 @@ pub fn geometry(
     Ok(GeometryEvent {
         layout,
         glyphs: glyphs.into(),
+        items: items.into(),
     })
 }

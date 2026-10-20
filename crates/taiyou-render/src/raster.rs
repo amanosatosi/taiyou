@@ -106,10 +106,10 @@ pub fn coverage_groups(
     event: Arc<GeometryEvent>,
     limits: &Limits,
 ) -> Result<Vec<CoverageGroup>, RenderError> {
-    group_budget(event.glyphs().len(), limits)?;
+    group_budget(event.items().len(), limits)?;
     let mut groups = Vec::new();
     groups
-        .try_reserve_exact(event.glyphs().len())
+        .try_reserve_exact(event.items().len())
         .map_err(|_| {
             RenderError::new(
                 ErrorCode::AllocationFailed,
@@ -117,12 +117,12 @@ pub fn coverage_groups(
             )
         })?;
     let state =
-        |i: usize| &event.layout().shaped().evaluated().runs()[event.glyphs()[i].association];
+        |i: usize| &event.layout().shaped().evaluated().runs()[event.items()[i].association];
     let mut start = 0;
     let mut total = 0usize;
-    while start < event.glyphs().len() {
+    while start < event.items().len() {
         let mut end = start + 1;
-        while end < event.glyphs().len() {
+        while end < event.items().len() {
             let (a, b) = (state(start), state(end));
             // C3 classifies shape changes as geometry changes as well. Fallback
             // faces under the same request stay compatible; per-glyph position
@@ -143,7 +143,7 @@ pub fn coverage_groups(
                 "coverage membership allocation failed",
             )
         })?;
-        for glyph in &event.glyphs()[start..end] {
+        for glyph in &event.items()[start..end] {
             total = total
                 .checked_add(glyph.geometry.ops().len())
                 .ok_or_else(limited)?;
