@@ -91,7 +91,7 @@ WrapStyle2/line-metrics/box-separation paragraph:
 > after chosen lines are fully shaped. Production automatic modes remain
 > UnsupportedFeature until the data/conformance/native-work prerequisites and
 > separately reviewed C7 caller limits are satisfied. Legacy automatic wrapping
-> still requires authenticated R001 evidence and separate admission.
+> is separate from historical xy wrapping; authenticated captures are optional pixel evidence when source alone is insufficient.
 
 The amendment records the approved contract only. It does not add a runtime
 policy revision or approve C7 defaults. Production activation remains subject
