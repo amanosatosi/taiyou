@@ -96,7 +96,7 @@ impl Drop for Report {fn drop(&mut self){report();}}
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
-    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0 \{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
+    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0(?:\s*\|\|\s*\(state\.effects\(\)\.shadow_x\(\)\.get\(\) == 0\.0\s*&& state\.effects\(\)\.shadow_y\(\)\.get\(\) == 0\.0\))?\s*\{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
     assert shadow_scopes == 1
     if label == "candidate":
         marker = "        let limits = &self.config.limits;"

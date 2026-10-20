@@ -52,7 +52,7 @@ fn drawings_use_normal_masks_effects_and_deterministic_seeking() {
     let mut builder = FontCatalogBuilder::new(Limits::default());
     builder.register(&mut context,&std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(),0).unwrap();
     let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-    let request = |ms| RenderRequest { now:TimeUs::from_micros(ms*1000),viewport:Viewport::full(Size::new(160,100)).unwrap(),unsupported:UnsupportedPolicy::Strict };
+    let request = |ms:i64| RenderRequest { now:TimeUs::from_micros(ms*1000),viewport:Viewport::full(Size::new(160,100)).unwrap(),unsupported:UnsupportedPolicy::Strict };
     let input = r"{\p1}m 0 0 l 20 0 20 20 0 20";
     let baseline = Renderer::new(RendererConfig::default()).unwrap().render(parse(input).track().clone(),empty.clone(),&request(500)).unwrap();
     assert!(baseline.pixels().iter().any(|b| *b!=0));

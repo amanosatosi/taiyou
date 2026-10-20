@@ -160,10 +160,12 @@ fn animate_number(
                 TransformProperty::Size if relative => {
                     current.get() + current.get() * value.get() / 10.0
                 }
-                TransformProperty::ScaleX | TransformProperty::ScaleY => value.get() / 100.0,
+                TransformProperty::ScaleX | TransformProperty::ScaleY => value.get(),
                 _ => value.get(),
             };
-            animation.calc(dst, current.get())?
+            if matches!(property,TransformProperty::ScaleX | TransformProperty::ScaleY) {
+                FiniteF64::new(animation.calc(dst,current.get()*100.0)?.get()/100.0).map_err(convert)?
+            } else { animation.calc(dst, current.get())? }
         }
     };
     let positive = if n.get() < 0.0 { FiniteF64::ZERO } else { n };
@@ -201,6 +203,8 @@ fn one(
         .ok_or_else(|| error(ErrorCode::InvalidScript, "missing event style"))?;
     let mut state = base.clone();
     let mut anchor = Anchor::Default;
+    let mut alignment_seen = false;
+    let mut event_alignment = base.alignment();
     let mut changes = ChangeClass::default();
     let mut drawing_mode = 0;
     let mut drawing_baseline = 0;
@@ -271,6 +275,20 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
+                    OverrideOp::RestoreOriginal { field, .. } => {
+                        let original = |channel| match channel {
+                            PaintChannel::Primary => base.primary(), PaintChannel::Secondary => base.secondary(),
+                            PaintChannel::Outline => base.outline(), PaintChannel::Shadow => base.shadow_color(),
+                        };
+                        state = match field {
+                            OriginalField::Font => { let f = FontRequest::new(Arc::from(base.font().family()),state.font().weight(),state.font().italic(),base.font().vertical()); state.with_font(f) },
+                            OriginalField::Weight => { let f = state.font().clone().with_weight(base.font().weight()); state.with_font(f) },
+                            OriginalField::Italic => { let f = state.font().clone().with_italic(base.font().italic()); state.with_font(f) },
+                            OriginalField::Paint(channel) => channel_color(state,*channel,|c|{ let b=original(*channel); Rgba8::new(b.r(),b.g(),b.b(),c.a()) }),
+                            OriginalField::Opacity(Some(channel)) => channel_color(state,*channel,|c| Rgba8::new(c.r(),c.g(),c.b(),original(*channel).a())),
+                            OriginalField::Opacity(None) => { for c in [PaintChannel::Primary,PaintChannel::Secondary,PaintChannel::Outline,PaintChannel::Shadow] { state=channel_color(state,c,|old|Rgba8::new(old.r(),old.g(),old.b(),original(c).a())); } state },
+                        };
+                    }
                     OverrideOp::SetDrawingMode { scale, .. } => {
                         drawing_mode = *scale;
                     }
@@ -344,7 +362,8 @@ fn one(
                         state = state.with_font(font);
                     }
                     OverrideOp::SetSize { size, .. } => {
-                        state = state.with_size(*size).map_err(convert)?;
+                        state = if animation.depth == 0 { state.with_size(*size).map_err(convert)? }
+                        else { animate_number(state,base,TransformProperty::Size,Some(*size),false,&animation)? };
                     }
                     OverrideOp::SetWeight { weight, .. } => {
                         let font = state.font().clone().with_weight(*weight);
@@ -355,23 +374,37 @@ fn one(
                         state = state.with_font(font);
                     }
                     OverrideOp::SetScale { axis, factor, .. } => {
+                        if animation.depth > 0 {
+                            let property = if *axis == ScaleAxis::X { TransformProperty::ScaleX } else { TransformProperty::ScaleY };
+                            let value = FiniteF64::new(factor.get()*100.0).map_err(convert)?;
+                            state = animate_number(state,base,property,Some(value),false,&animation)?;
+                            changes = changes.union(ChangeClass::between_styles(&before,&state));
+                            continue;
+                        }
                         let (x, y) = match axis {
                             ScaleAxis::X => (*factor, state.scale_y()),
                             ScaleAxis::Y => (state.scale_x(), *factor),
                         };
                         state = state.with_scale(x, y).map_err(convert)?;
                     }
-                    OverrideOp::SetSpacing { spacing, .. } => state = state.with_spacing(*spacing),
+                    OverrideOp::SetSpacing { spacing, .. } => {
+                        let value = animation.calc(spacing.get(),state.spacing().get())?;
+                        state = state.with_spacing(value);
+                    }
                     OverrideOp::SetBorder { width, .. } => {
-                        state = state.with_border(*width).map_err(convert)?;
+                        state = if animation.depth == 0 { state.with_border(*width).map_err(convert)? }
+                        else { animate_number(state,base,TransformProperty::Border,Some(*width),false,&animation)? };
                     }
                     OverrideOp::SetShadow { offset, .. } => {
-                        state = state.with_shadow(*offset);
+                        state = if animation.depth == 0 { state.with_shadow(*offset) }
+                        else { animate_number(state,base,TransformProperty::Shadow,Some(*offset),false,&animation)? };
                     }
                     OverrideOp::SetAlignment { alignment, .. } => {
-                        state = state.with_alignment(*alignment)
+                        if !alignment_seen { state = state.with_alignment(*alignment); event_alignment = *alignment; }
+                        alignment_seen = true;
                     }
                     OverrideOp::SetPosition { point, .. } => {
+                        if anchor != Anchor::Default { continue; }
                         if anchor != Anchor::Explicit(*point) {
                             changes = changes.with_placement();
                         }
@@ -488,7 +521,7 @@ fn one(
         )
         .with_context(Some(event.id()), warp_mode_source.or(Some(event.source()))));
     }
-    let placement = Placement::new(&state, event.margins(), anchor);
+    let placement = Placement::new(&state.clone().with_alignment(event_alignment), event.margins(), anchor);
     let evaluated = EvaluatedEvent::new(
         event.id(),
         EventOrder::new(event.layer(), event.id().ordinal()),

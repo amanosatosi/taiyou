@@ -252,6 +252,39 @@ fn block(
             continue;
         }
         if !parents.is_empty() {
+            let suffix = decode::trim(raw.split_once('(').map_or(raw, |(s, _)| s));
+            if (suffix.starts_with('b') && !suffix.starts_with("blur") && !suffix.starts_with("bord") && !suffix.starts_with("be")) || (suffix.starts_with('i') && !suffix.starts_with("iclip")) {
+                let italic = suffix.starts_with('i');
+                let value = decode::trim(&suffix[1..]);
+                let sign = usize::from(value.starts_with(['+', '-']));
+                let end = sign + value.as_bytes()[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
+                let n = if end == sign { 0.0 } else { blur_number(&value[..end])? };
+                let op = if value.is_empty() || (italic && n != 0.0 && n != 1.0) || (!italic && n != 0.0 && n != 1.0 && n < 100.0) {
+                    OverrideOp::RestoreOriginal { field: if italic { OriginalField::Italic } else { OriginalField::Weight }, source: span }
+                } else if italic { OverrideOp::SetItalic { italic: n == 1.0, source: span } }
+                else {
+                    if n > u16::MAX as f64 { return Err(ParseError::new(ErrorCode::LimitExceeded, "ASS font weight outside supported numeric domain")); }
+                    OverrideOp::SetWeight { weight: if n==0.0 { 400 } else if n==1.0 { 700 } else { n as u16 }, source: span }
+                };
+                push(program, TextOp::Override(op), ctx.options.limits().text_bytes_per_event())?;
+                continue;
+            }
+            let original = match suffix {
+                "fn" | "fn0" => Some(OriginalField::Font),
+                "b" | "b-1" => Some(OriginalField::Weight),
+                "i" | "i-1" => Some(OriginalField::Italic),
+                "c" | "1c" => Some(OriginalField::Paint(PaintChannel::Primary)),
+                "2c" => Some(OriginalField::Paint(PaintChannel::Secondary)),
+                "3c" => Some(OriginalField::Paint(PaintChannel::Outline)),
+                "4c" => Some(OriginalField::Paint(PaintChannel::Shadow)),
+                "alpha" => Some(OriginalField::Opacity(None)),
+                "1a" | "2a" | "3a" | "4a" => Some(OriginalField::Opacity(Some(channel(suffix)))),
+                _ => None,
+            };
+            if let Some(field) = original {
+                push(program, TextOp::Override(OverrideOp::RestoreOriginal { field, source: span }), ctx.options.limits().text_bytes_per_event())?;
+                continue;
+            }
             if let Some(op) = transform_number(raw, span)? {
                 push(
                     program,
@@ -378,6 +411,7 @@ fn transform(
 }
 
 fn transform_number(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError> {
+    if raw.starts_with("fsc") && !raw.starts_with("fscx") && !raw.starts_with("fscy") { return Ok(None); }
     for (name, property) in [
         ("fscx", TransformProperty::ScaleX),
         ("fscy", TransformProperty::ScaleY),

@@ -10,8 +10,9 @@ fn fonts() -> Arc<ValidatedFontCatalog> {
     b.snapshot(&mut CatalogIngestor::new()).unwrap()
 }
 fn parsed(tags: &str, paint: &str) -> Arc<Track> {
+    let default_position = if paint.contains(r"\pos(") || tags.contains(r"\pos(") { "" } else { r"\pos(80,60)" };
     let source = format!(
-        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,BackColour\nStyle: Default,Source Sans 3,30,0,0,&HFF000000\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:02.00,{{\\pos(80,60){paint}{tags}}}Hg\n"
+        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,BackColour\nStyle: Default,Source Sans 3,30,0,0,&HFF000000\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:02.00,{{{default_position}{paint}{tags}}}Hg\n"
     );
     taiyou_ass::parse_ass(
         source.as_bytes(),

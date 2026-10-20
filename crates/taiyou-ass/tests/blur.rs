@@ -84,6 +84,11 @@ fn animated_blur_forms_keep_outer_and_embedded_provenance() {
         assert!(
             matches!(&ops[3], TextOp::Override(OverrideOp::EndTransform { source }) if source.slice(track.track().source()) == Some(")"))
         );
-        assert!(!track.diagnostics().iter().any(|d| d.code() == DiagnosticCode::UnsupportedFeature));
+        assert!(
+            !track
+                .diagnostics()
+                .iter()
+                .any(|d| d.code() == DiagnosticCode::UnsupportedFeature)
+        );
     }
 }

@@ -273,10 +273,20 @@ class AccountingTests(unittest.TestCase):
             output = root / "report"
             argv = ["compare", "--suite", "full", "--profile", "core-v1", "--corpus", str(root),
                     "--output", str(output), "--renderer", str(root / "renderer"), "--probe", str(root / "probe")]
+            def synthetic_execute(command, directory):
+                if command[1] == "render":
+                    width = int(command[command.index("--width") + 1])
+                    height = int(command[command.index("--height") + 1])
+                    png = command[command.index("--output") + 1]
+                    raw = command[command.index("--raw") + 1]
+                    pixels = bytes(width * height * 4)
+                    images.write_png(png, width, height, pixels)
+                    Path(raw).write_bytes(pixels)
+                return 0, "SAFETY_ONLY"
             with patch("sys.argv", argv), patch.object(compare, "accepted_snapshot", return_value=(root, inventory, self.policy)), \
                  patch.object(compare.subprocess, "run") as verification, \
                  patch.object(compare.subprocess, "check_output", return_value="0" * 40), \
-                 patch.object(compare, "execute", return_value=(0, "SAFETY_ONLY")), contextlib.redirect_stdout(io.StringIO()):
+                 patch.object(compare, "execute", side_effect=synthetic_execute), contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(compare.main(), 1)
             self.assertEqual(verification.call_count, 2)  # Before and after.
             report = load(output / "report.json")

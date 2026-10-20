@@ -656,6 +656,7 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    RestoreOriginal { field: OriginalField, source: SourceSpan },
     SetDrawingMode {
         scale: u32,
         source: SourceSpan,
@@ -756,7 +757,8 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetDrawingMode { source, .. }
+            Self::RestoreOriginal { source, .. }
+            | Self::SetDrawingMode { source, .. }
             | Self::SetDrawingBaseline { source, .. }
             | Self::BeginTransform { source, .. }
             | Self::EndTransform { source }
@@ -786,7 +788,7 @@ impl OverrideOp {
             Self::SetSize { size, .. } => size.get() > 0.0,
             Self::SetScale { factor, .. } => factor.get() >= 0.0,
             Self::SetBorder { width, .. } => width.get() >= 0.0,
-            Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
+            Self::SetWeight { weight, .. } => *weight >= 100,
             Self::SetPaint { color, .. } => color.a() == 255,
             _ => true,
         };
@@ -806,6 +808,15 @@ pub enum TransformProperty {
     Spacing,
     Border,
     Shadow,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OriginalField {
+    Font,
+    Weight,
+    Italic,
+    Paint(PaintChannel),
+    Opacity(Option<PaintChannel>),
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
