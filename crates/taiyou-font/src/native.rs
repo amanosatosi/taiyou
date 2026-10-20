@@ -1979,9 +1979,12 @@ impl FontContext {
                     if code != 0 {
                         return Err(native_error(code, "FT_Get_Sfnt_Name failed"));
                     }
-                    if !matches!(name.name, 1 | 16)
-                        || !(name.platform == 0
-                            || name.platform == 3 && matches!(name.encoding, 0 | 1 | 10))
+                    // Microsoft name strings are UTF-16BE even in older fonts
+                    // whose platform encoding names a legacy glyph charset.
+                    // Full and PostScript names are aliases, never substitutes
+                    // for the preferred family or independent fake faces.
+                    if !matches!(name.name, 1 | 4 | 6 | 16 | 21)
+                        || !matches!(name.platform, 0 | 3)
                     {
                         continue;
                     }
@@ -2038,7 +2041,9 @@ impl FontContext {
                         u8::from(name.language != 0x409),
                         name.language,
                     );
-                    if best.as_ref().is_none_or(|(old, _)| rank < *old) {
+                    if matches!(name.name, 1 | 16)
+                        && best.as_ref().is_none_or(|(old, _)| rank < *old)
+                    {
                         best = Some((rank, family));
                     }
                 }

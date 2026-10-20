@@ -32,7 +32,11 @@ impl Fonts {
                         * std::mem::size_of::<EmbeddedFont>() as u64,
                 )
             })
-            .and_then(|n| self.names.checked_mul(2).and_then(|names| n.checked_add(names)))
+            .and_then(|n| {
+                self.names
+                    .checked_mul(2)
+                    .and_then(|names| n.checked_add(names))
+            })
             .ok_or_else(|| {
                 ParseError::new(ErrorCode::LimitExceeded, "attachment reservation overflow")
             })?;
@@ -106,12 +110,9 @@ impl Fonts {
                 if value.is_empty() {
                     return ctx.recover(invalid("empty embedded font name"), None, span);
                 }
-                let names = self
-                    .names
-                    .checked_add(value.len() as u64)
-                    .ok_or_else(|| {
-                        ParseError::new(ErrorCode::LimitExceeded, "attachment name size overflow")
-                    })?;
+                let names = self.names.checked_add(value.len() as u64).ok_or_else(|| {
+                    ParseError::new(ErrorCode::LimitExceeded, "attachment name size overflow")
+                })?;
                 if names
                     .checked_mul(2)
                     .and_then(|n| {
@@ -134,7 +135,11 @@ impl Fonts {
             }
         }
         if self.name.is_none() {
-            return ctx.recover(invalid("embedded font payload requires fontname"), None, span);
+            return ctx.recover(
+                invalid("embedded font payload requires fontname"),
+                None,
+                span,
+            );
         }
         self.end = span.end() as usize;
         if self.invalid {

@@ -1210,7 +1210,9 @@ impl ParsedTrack {
         }
         let transient = bytes
             .checked_mul(3)
-            .and_then(|n| n.checked_add(fonts.len() as u64 * std::mem::size_of::<EmbeddedFont>() as u64))
+            .and_then(|n| {
+                n.checked_add(fonts.len() as u64 * std::mem::size_of::<EmbeddedFont>() as u64)
+            })
             .and_then(|n| names.checked_mul(2).and_then(|names| n.checked_add(names)))
             .ok_or_else(|| limit("embedded font reservation overflow"))?;
         if bytes > limits.font_bytes() || transient > limits.transient_bytes() {

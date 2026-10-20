@@ -28,6 +28,8 @@ for source, output in [("font.otf", "alias-regular.otf"), ("bold.otf", "alias-bo
                                     (1, "たいよう 別名", 0x411),
                                     (16, "Taiyou Typographic Family", 0x409)]:
         font["name"].setName(text, name_id, 3, 1, language)
+    font["name"].setName("TaiyouPostScriptAlias", 6, 3, 1, 0x409)
+    font["name"].setName("Taiyou Legacy Encoding Alias".encode("utf-16-be"), 1, 3, 2, 0x411)
     font.save(directory / output)
     font.close()
 print("ALIAS_FIXTURES=" + json.dumps({name: hashlib.sha256((directory/name).read_bytes()).hexdigest()

@@ -72,3 +72,21 @@ jobs:
         run: |
           cargo +1.99.1 test --locked -p taiyou-font --features native --test catalog
           cargo +1.99.1 test --locked -p taiyou-cli --features native --test embedded_fonts
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - name: Actual three font cases through the unchanged pixel metrics
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cargo +1.99.1 build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo +1.99.1 run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/font_nonunicode/shiftjis-1000.png --case regression/faux-italics/cff-0000.png --case regression/embedded-font/efont-1000.png
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ass-font-focused-${{ github.sha }}
+          path: ${{ runner.temp }}/taiyou-comparison/

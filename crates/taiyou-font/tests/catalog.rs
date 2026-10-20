@@ -24,6 +24,8 @@ fn catalog_localized_and_typographic_aliases_share_validated_face_and_selection(
             "たいよう 別名",
             "TAIYOU ALIAS FAMILY",
             "Taiyou Typographic Family",
+            "TaiyouPostScriptAlias",
+            "Taiyou Legacy Encoding Alias",
         ] {
             for (weight, expected) in [(400, a), (700, b)] {
                 assert_eq!(
