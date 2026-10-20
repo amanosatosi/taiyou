@@ -1,4 +1,4 @@
-//! Iterative Core tokenization. Legacy malformed/nesting behavior remains R001.
+//! Iterative Core tokenization. Historical malformed/nesting behavior follows pinterf when implemented.
 use crate::{Context, decode, invalid, reserve};
 use std::collections::BTreeMap;
 use std::sync::Arc;

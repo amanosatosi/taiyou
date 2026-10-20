@@ -296,7 +296,7 @@ impl FontId {
     }
 }
 
-/// LegacyXyV1 is representable, but enabling its behavior remains R001-gated.
+/// LegacyXyV1 is representable for compatibility bookkeeping; source-established behavior does not require a research admission gate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum Profile {
     CoreV1,

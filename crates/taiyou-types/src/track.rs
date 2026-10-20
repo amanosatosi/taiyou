@@ -312,7 +312,7 @@ impl FontRequest {
     }
 }
 
-/// OpaqueBox can be recorded but its rendering remains R001/R002-gated.
+/// OpaqueBox can be recorded; rendering remains unsupported until its pinterf behavior is implemented and tested.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BorderStyle {
     Outline,
