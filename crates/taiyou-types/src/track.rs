@@ -1162,6 +1162,9 @@ impl EmbeddedFont {
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
     }
+    pub fn shared_bytes(&self) -> Arc<[u8]> {
+        self.bytes.clone()
+    }
     pub const fn source(&self) -> SourceSpan {
         self.source
     }

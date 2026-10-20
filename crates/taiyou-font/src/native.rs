@@ -1905,22 +1905,47 @@ impl FontContext {
             _bytes: bytes,
         })
     }
+    fn probe_face_count(&self, bytes: Arc<[u8]>) -> Result<u32, FontError> {
+        let probe = self.open(bytes, -1)?;
+        // SAFETY: live initialized probe returned by FreeType.
+        let count = unsafe { (*probe.raw).num_faces };
+        u32::try_from(count)
+            .ok()
+            .filter(|&count| count > 0)
+            .ok_or_else(|| {
+                FontError::new(
+                    ErrorCode::NativeFailure,
+                    "invalid native collection face count",
+                )
+            })
+    }
+    /// Probe an in-memory font resource without publishing a native handle.
+    /// Every reported face still requires ordinary catalog validation.
+    pub fn face_count(&mut self, bytes: Arc<[u8]>) -> Result<u32, FontError> {
+        self.check_bytes(&bytes)?;
+        let count = self.probe_face_count(bytes)?;
+        // Higher FreeType index bits select named instances, not TTC faces.
+        if count > 0x1_0000 {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "collection face count exceeds supported native index range",
+            ));
+        }
+        Ok(count)
+    }
     fn with_face<T>(
         &mut self,
         bytes: Arc<[u8]>,
         index: u32,
         read: impl FnOnce(&Face<'_>) -> Result<T, FontError>,
     ) -> Result<T, FontError> {
-        let probe = self.open(bytes.clone(), -1)?;
-        // SAFETY: live initialized probe returned by FreeType.
-        let count = unsafe { (*probe.raw).num_faces };
-        if index > 0xffff || !u32::try_from(count).is_ok_and(|count| index < count) {
+        let count = self.probe_face_count(bytes.clone())?;
+        if index > 0xffff || index >= count {
             return Err(FontError::new(
                 ErrorCode::InvalidArgument,
                 "collection face index out of range or named-instance selector",
             ));
         }
-        drop(probe);
         let face = self.open(bytes, ft::FT_Long::from(index as u16))?;
         read(&face)
     }

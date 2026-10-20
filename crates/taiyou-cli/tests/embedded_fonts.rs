@@ -50,6 +50,59 @@ fn empty() -> Arc<ValidatedFontCatalog> {
         .unwrap()
 }
 #[test]
+fn embedded_collection_resolves_face_one_with_one_shared_font_byte_budget() {
+    let collection = std::fs::read(std::env::var("TAIYOU_TEST_COLLECTION").unwrap()).unwrap();
+    let limits = Limits::default()
+        .with_font_bytes(collection.len() as u64)
+        .unwrap();
+    let mut context = FontContext::with_limits(limits.clone()).unwrap();
+    let mut builder = FontCatalogBuilder::new(limits.clone());
+    builder.register(&mut context, &collection, 0).unwrap();
+    let first_only = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    // The unchanged two-face Source Sans collection has the same typographic
+    // family on both faces. Its Bold PostScript family alias belongs only to 1.
+    let family = "SourceSans3-Bold";
+    builder.register(&mut context, &collection, 1).unwrap();
+    let complete = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    let request = RenderRequest {
+        now: TimeUs::from_micros(1_000_000),
+        viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+        unsupported: UnsupportedPolicy::Strict,
+    };
+    let explicit = parse(&source(family));
+    let error = Renderer::new(RendererConfig::default())
+        .unwrap()
+        .render_parsed(&explicit, first_only, &request)
+        .unwrap_err();
+    assert_eq!(error.code(), ErrorCode::FontUnavailable);
+    let expected = Renderer::new(RendererConfig::default())
+        .unwrap()
+        .render_parsed(&explicit, complete, &request)
+        .unwrap();
+    assert!(expected.pixels().iter().any(|b| *b != 0));
+    let input = source(family)
+        + "[Fonts]\nfontname: ../../collection.otc\n"
+        + &encode(&collection)
+        + "\n";
+    let parsed = parse(&input);
+    assert_eq!(parsed.embedded_fonts().len(), 1);
+    assert_eq!(parsed.embedded_fonts()[0].bytes(), collection);
+    let mut renderer = Renderer::new(RendererConfig {
+        limits,
+        ..Default::default()
+    })
+    .unwrap();
+    for now in [1_000_000, 0, 1_500_000, 1_000_000] {
+        let request = RenderRequest {
+            now: TimeUs::from_micros(now),
+            ..request
+        };
+        let actual = renderer.render_parsed(&parsed, empty(), &request).unwrap();
+        assert_eq!(actual.pixels(), expected.pixels());
+        assert_eq!(actual.diagnostics(), expected.diagnostics());
+    }
+}
+#[test]
 fn embedded_single_multiple_localized_aliases_and_seek_match_explicit_font_pixels() {
     let path = PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
     let regular = std::fs::read(path.with_file_name("alias-regular.otf")).unwrap();

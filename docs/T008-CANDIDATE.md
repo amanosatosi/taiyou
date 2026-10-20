@@ -77,3 +77,21 @@ render_parsed/CLI perform attachment registration. No new runtime dependency.
 Verification and actual corpus transitions are recorded in the PR after the
 focused runner checks and the final complete external comparison. Successful
 font resolution alone is not an exact rendering compatibility claim.
+
+PR #31 collection follow-up: embedded TTC/OTC resources now use the existing
+FreeType probe to enumerate every face, then ordinary catalog registration in
+ascending face-index order after host faces. Every face undergoes normal native
+validation; an invalid face or exhausted budget aborts without publishing a
+partial frame. The catalog shares one digest-backed byte blob across collection
+faces and charges font bytes once. The probe observes the existing font/transient
+limits and rejects counts outside the adapter's existing 16-bit face-index range;
+it does not reinterpret named-instance selectors as collection faces.
+
+The additive integration regression embeds the unchanged two-face
+TAIYOU_TEST_COLLECTION. SourceSans3-Bold is an alias present only on face 1;
+a face-0-only catalog must reject that request. The embedded path with no external
+fonts must match the explicit complete collection's nonempty RGBA output and
+diagnostics across repeated/seeking renders, under a font-byte cap equal to the
+single collection's byte length. An additive catalog regression verifies count,
+ascending IDs, shared Arc bytes, and byte/transient/malformed-resource rejection.
+No font selection rule, fixture bytes, corpus policy or reference data changes.

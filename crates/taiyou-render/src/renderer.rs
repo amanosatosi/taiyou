@@ -342,11 +342,19 @@ impl Renderer {
                     .map_err(crate::geometry::font_error)?;
             }
             for attachment in parsed.embedded_fonts() {
-                builder
-                    .register(&mut context, attachment.bytes(), 0)
-                    .map_err(|e| {
-                        crate::geometry::font_error(e).with_context(None, Some(attachment.source()))
-                    })?;
+                let attachment_error = |e| {
+                    crate::geometry::font_error(e).with_context(None, Some(attachment.source()))
+                };
+                let count = context
+                    .face_count(attachment.shared_bytes())
+                    .map_err(attachment_error)?;
+                // Resource order, then ascending face index; register shares
+                // one digest-backed byte blob and charges it only once.
+                for index in 0..count {
+                    builder
+                        .register(&mut context, attachment.bytes(), index)
+                        .map_err(attachment_error)?;
+                }
             }
             builder
                 .snapshot(&mut self.attachment_catalogs)

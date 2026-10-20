@@ -1,7 +1,7 @@
 name: ASS font compatibility focused checks
 on:
   push:
-    branches: [task/T008-ass-font-compatibility]
+    branches: [task/T008-ass-font-compatibility, task/T008-font-collection-validation]
   workflow_dispatch:
 permissions:
   contents: read
