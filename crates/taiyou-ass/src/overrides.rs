@@ -271,6 +271,20 @@ fn parse(
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    // pinterf ParseSSATag takes these values from the command suffix,
+    // not parenthesized arguments. wcstod consumes a numeric prefix.
+    for (name, gaussian) in [("blur", true), ("be", false)] {
+        if let Some(suffix) = raw.strip_prefix(name) {
+            let suffix = suffix.split_once('(').map_or(suffix, |(value, _)| value);
+            let suffix = decode::trim(suffix);
+            let value = if suffix.is_empty() { None } else {
+                let n = blur_number(suffix)?;
+                Some(FiniteF64::new(if gaussian { n.max(0.0) } else { n })?)
+            };
+            return Ok(Some(if gaussian { OverrideOp::SetBlur { value, source } }
+                else { OverrideOp::SetBe { value, source } }));
+        }
+    }
     // pinterf's q path uses a decimal integer prefix. No digits means zero;
     // empty/out-of-domain values restore Script Info's wrapping style.
     if let Some(value) = raw.strip_prefix('q') {
@@ -436,4 +450,33 @@ fn parse(
         _ => return Ok(None),
     };
     Ok(Some(op))
+}
+
+fn blur_number(value: &str) -> Result<f64, ParseError> {
+    let b = value.as_bytes();
+    let mut end = usize::from(matches!(b.first(), Some(b'+' | b'-')));
+    let mut digits = 0;
+    while b.get(end).is_some_and(u8::is_ascii_digit) { end += 1; digits += 1; }
+    if b.get(end) == Some(&b'.') {
+        end += 1;
+        while b.get(end).is_some_and(u8::is_ascii_digit) { end += 1; digits += 1; }
+    }
+    if digits == 0 {
+        if value.trim_start_matches(['+', '-']).to_ascii_lowercase().starts_with("inf")
+            || value.trim_start_matches(['+', '-']).to_ascii_lowercase().starts_with("nan") {
+            return Err(invalid("blur strength must be finite"));
+        }
+        return Ok(0.0);
+    }
+    if matches!(b.get(end), Some(b'e' | b'E')) {
+        let exponent = end;
+        end += 1;
+        if matches!(b.get(end), Some(b'+' | b'-')) { end += 1; }
+        let start = end;
+        while b.get(end).is_some_and(u8::is_ascii_digit) { end += 1; }
+        if start == end { end = exponent; }
+    }
+    let number = value[..end].parse::<f64>().map_err(|_| invalid("invalid blur value"))?;
+    if !number.is_finite() { return Err(invalid("blur strength must be finite")); }
+    Ok(number)
 }

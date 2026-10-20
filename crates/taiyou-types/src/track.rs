@@ -338,6 +338,8 @@ pub struct Style {
     border_style: BorderStyle,
     border: FiniteF64,
     shadow: FiniteF64,
+    blur: FiniteF64,
+    be: FiniteF64,
     alignment: Alignment,
     margins: Margins,
     encoding: i32,
@@ -362,6 +364,8 @@ impl Style {
             border_style: BorderStyle::Outline,
             border: FiniteF64::CORE_BORDER,
             shadow: FiniteF64::CORE_BORDER,
+            blur: FiniteF64::ZERO,
+            be: FiniteF64::ZERO,
             alignment: Alignment(2),
             margins: Margins::new(10, 10, 10),
             encoding: 1,
@@ -431,6 +435,19 @@ impl Style {
         self.shadow = shadow;
         self
     }
+    pub fn with_blur(mut self, blur: FiniteF64) -> Result<Self, ParseError> {
+        if blur.get() < 0.0 {
+            return Err(invalid("style Gaussian blur must be nonnegative"));
+        }
+        self.blur = blur;
+        Ok(self)
+    }
+    pub fn with_be(mut self, be: FiniteF64) -> Self {
+        self.be = be;
+        self
+    }
+    pub const fn blur(&self) -> FiniteF64 { self.blur }
+    pub const fn be(&self) -> FiniteF64 { self.be }
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
         self
@@ -635,6 +652,8 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    SetBlur { value: Option<FiniteF64>, source: SourceSpan },
+    SetBe { value: Option<FiniteF64>, source: SourceSpan },
     SetWrapMode {
         mode: Option<WrapMode>,
         source: SourceSpan,
@@ -702,7 +721,9 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetWrapMode { source, .. }
+            Self::SetBlur { source, .. }
+            | Self::SetBe { source, .. }
+            | Self::SetWrapMode { source, .. }
             | Self::SetWarpMode { source, .. }
             | Self::SetFont { source, .. }
             | Self::SetSize { source, .. }
@@ -721,6 +742,7 @@ impl OverrideOp {
     }
     pub fn validate(&self) -> Result<(), ParseError> {
         let valid = match self {
+            Self::SetBlur { value: Some(value), .. } => value.get() >= 0.0,
             Self::SetFont { family, .. } => !family.is_empty(),
             Self::SetSize { size, .. } => size.get() > 0.0,
             Self::SetScale { factor, .. } => factor.get() >= 0.0,

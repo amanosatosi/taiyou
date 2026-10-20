@@ -1,0 +1,26 @@
+use taiyou_types::*;
+fn parsed(tags: &str) -> ParsedTrack {
+    let input = format!("[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:02.00,{{{tags}}}A\n");
+    taiyou_ass::parse_ass(input.as_bytes(), &ParseOptions::new(InputEncoding::Utf8, Profile::CoreV1, Limits::default(), SyntaxPolicy::Strict), &mut TrackIngestor::new()).unwrap()
+}
+#[test]
+fn typed_real_values_prefixes_parentheses_and_resets_keep_source_order() {
+    let parsed = parsed(r"\blur1.5tail\be2.25\blur-5\blur\be\blur(2)\blur2(foo)\be-0.5\blur1e1");
+    let ops = parsed.track().events()[0].program();
+    let blur = |i: usize, expected: Option<f64>| {
+        let TextOp::Override(OverrideOp::SetBlur { value, source }) = &ops[i] else { panic!("not blur") };
+        assert_eq!(value.map(FiniteF64::get), expected);
+        assert!(source.slice(parsed.track().source()).unwrap().starts_with(r"\blur"));
+    };
+    blur(0, Some(1.5)); blur(2, Some(0.0)); blur(3, None); blur(5, None); blur(6, Some(2.0)); blur(8, Some(10.0));
+    assert!(matches!(&ops[1], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.25));
+    assert!(matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: None, .. })));
+    assert!(matches!(&ops[7], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == -0.5));
+}
+#[test]
+fn animated_blur_remains_a_single_unsupported_transform() {
+    let track = parsed(r"\t(0,100,\blur4\be2)");
+    let ops = track.track().events()[0].program();
+    assert_eq!(ops.len(), 2);
+    assert!(matches!(&ops[0], TextOp::Unsupported { name, .. } if name.as_ref() == "t"));
+}

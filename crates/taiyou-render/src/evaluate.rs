@@ -166,6 +166,12 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
+                    OverrideOp::SetBlur { value, .. } => {
+                        state = state.with_blur(value.unwrap_or(base.blur())).map_err(convert)?;
+                    }
+                    OverrideOp::SetBe { value, .. } => {
+                        state = state.with_be(value.unwrap_or(base.be()));
+                    }
                     OverrideOp::SetWrapMode { mode, .. } => {
                         wrap_mode = mode.unwrap_or(track.script().wrap());
                     }

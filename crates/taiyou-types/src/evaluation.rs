@@ -96,6 +96,8 @@ pub struct EffectStyle {
     border_style: BorderStyle,
     border: FiniteF64,
     shadow: FiniteF64,
+    blur: FiniteF64,
+    be: FiniteF64,
 }
 impl EffectStyle {
     pub fn from_style(s: &Style) -> Self {
@@ -103,6 +105,8 @@ impl EffectStyle {
             border_style: s.border_style(),
             border: s.border(),
             shadow: s.shadow(),
+            blur: s.blur(),
+            be: s.be(),
         }
     }
     pub const fn border_style(&self) -> BorderStyle {
@@ -121,13 +125,13 @@ impl EffectStyle {
         self.shadow
     }
     pub const fn blur(&self) -> FiniteF64 {
-        FiniteF64::ZERO
+        self.blur
     }
-    pub const fn be(&self) -> u32 {
-        0
+    pub const fn be(&self) -> FiniteF64 {
+        self.be
     }
     pub const fn policy_revision(&self) -> u32 {
-        1
+        2
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
