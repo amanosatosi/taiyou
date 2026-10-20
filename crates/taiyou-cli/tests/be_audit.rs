@@ -14,8 +14,16 @@ use taiyou_render::{
 fn save(root: &Path, name: &str, mask: &Mask, metadata: &mut String) {
     std::fs::write(root.join(format!("{name}.a8")), mask.data()).unwrap();
     let b = mask.bounds();
+    let mut histogram = [0_u64; 256];
+    for y in 0..b.height() as usize {
+        for &coverage in &mask.data()[y * mask.stride()..y * mask.stride() + b.width() as usize] {
+            histogram[coverage as usize] += 1;
+        }
+    }
+    let nonzero: u64 = histogram[1..].iter().sum();
+    let sum: u64 = histogram.iter().enumerate().map(|(v, n)| v as u64 * n).sum();
     metadata.push_str(&format!(
-        "{{\"name\":\"{name}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"stride\":{}}}\n",
+        "{{\"name\":\"{name}\",\"x\":{},\"y\":{},\"width\":{},\"height\":{},\"stride\":{},\"nonzero\":{nonzero},\"sum\":{sum},\"histogram\":{histogram:?}}}\n",
         b.x0(),
         b.y0(),
         b.width(),
@@ -276,9 +284,9 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
             )
             .unwrap();
         assert_eq!(
-            two.pixels(),
+            one.pixels(),
             actual.pixels(),
-            "diagnostic reconstruction must match the real renderer"
+            "zero-depth shadow must not enter the real renderer"
         );
         assert_ne!(
             one.pixels(),

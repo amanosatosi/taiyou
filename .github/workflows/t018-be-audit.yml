@@ -1,7 +1,7 @@
 name: T018 four-case BE audit
 on:
   push:
-    branches: [task/T018-be-audit, task/T018-ass-blur]
+    branches: [task/T018-be-audit, task/T018-be-fixes, task/T018-ass-blur]
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +26,13 @@ jobs:
           cargo +1.99.1 test --locked -p taiyou-ass -p taiyou-types -p taiyou-render
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
+      - name: Focused ASS compatibility and blur rendering regressions
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+        run: cargo +1.99.1 test --locked -p taiyou-cli --features native --test ass_compatibility --test blur --test renderer_effect_regressions
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests

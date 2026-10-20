@@ -803,10 +803,12 @@ impl Renderer {
                         None
                     };
 
-                    // Alpha zero proves this pass cannot affect any pixel. Do
-                    // not quantize offsets, stroke, rasterize or reserve masks.
-                    // Visible zero-offset shadows still use the coincident E/F.
-                    let shadow = if state.paint().shadow().a() == 0 {
+                    // RTS.cpp1243 tests the ASS depths before quantization.
+                    // A zero-depth style has no shadow, even with opaque paint.
+                    let shadow = if state.paint().shadow().a() == 0
+                        || (state.effects().shadow_x().get() == 0.0
+                            && state.effects().shadow_y().get() == 0.0)
+                    {
                         None
                     } else {
                         let dx = script_offset_q6(
