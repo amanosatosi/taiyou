@@ -25,8 +25,36 @@ pub struct ValidatedFontCatalog {
     // Folded SFNT family/typographic-family names, in native record order.
     // One entry per validated face; aliases never mint another FontId.
     aliases: Arc<[Arc<[String]>]>,
+    cells: Arc<[(u16, u16, u16)]>,
 }
 impl ValidatedFontCatalog {
+    /// Validated (UPEM, Windows cell ascent, Windows cell descent) of one face.
+    pub fn ass_cell_metrics(&self, font: FontId) -> Result<(u16, u16, u16), FontError> {
+        let index = self.faces().iter().position(|f| f.blob().id() == font).ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent from validated catalog"))?;
+        Ok(self.cells[index])
+    }
+    /// Positive GDI cell-height sizing at xy's 64-unit font construction scale.
+    pub fn ass_font_scale(&self, font: FontId, size: FiniteF64) -> Result<FiniteF64, FontError> {
+        let (upem, ascent, descent) = self.ass_cell_metrics(font)?;
+        let height = (size.get() * 64.0 + 0.5).floor();
+        if !height.is_finite() || height > f64::from(i32::MAX) {
+            return Err(error(ErrorCode::LimitExceeded, "ASS cell height exceeds GDI coordinate range"));
+        }
+        let em = (height * f64::from(upem) / (f64::from(ascent) + f64::from(descent)) + 0.5).floor();
+        if em <= 0.0 {
+            return Err(error(ErrorCode::UnsupportedFeature, "ASS cell rounds to an unspecified GDI default height"));
+        }
+        FiniteF64::new(em / (64.0 * f64::from(upem))).map_err(|e| error(e.code(), e.detail()))
+    }
+    pub(crate) fn ass_line_metrics(&self, font: FontId, size: FiniteF64) -> Result<RunMetrics, FontError> {
+        let (upem, ascent, descent) = self.ass_cell_metrics(font)?;
+        let scale = self.ass_font_scale(font, size)?.get();
+        let metric = |v: u16| {
+            let native = (f64::from(v) * scale * 64.0 + 0.5).floor();
+            FiniteF64::new(((native + 4.0) / 8.0).floor() / 8.0).map_err(|e| error(e.code(), e.detail()))
+        };
+        RunMetrics::new(metric(ascent)?, metric(descent)?, FiniteF64::ZERO, upem)
+    }
     pub fn revision(&self) -> CatalogRevision {
         self.inner.revision()
     }
@@ -111,6 +139,7 @@ pub struct FontCatalogBuilder {
     bytes: u64,
     names: u64,
     aliases: Vec<Arc<[String]>>,
+    cells: Vec<(u16, u16, u16)>,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -121,6 +150,7 @@ impl FontCatalogBuilder {
             bytes: 0,
             names: 0,
             aliases: Vec::new(),
+            cells: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -164,7 +194,7 @@ impl FontCatalogBuilder {
         let metadata_cost = u64::try_from(self.records.len())
             .ok()
             .and_then(|n| n.checked_add(1))
-            .and_then(|n| n.checked_mul(3 * std::mem::size_of::<FontRecord>() as u64))
+            .and_then(|n| n.checked_mul(3 * (std::mem::size_of::<FontRecord>() + std::mem::size_of::<(u16,u16,u16)>()) as u64))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog metadata overflow"))?;
         // Includes native scratch estimate, name decoding/folding, copy-to-Arc
         // overlap, retained names and catalog publication overlap. Native RSS is
@@ -260,6 +290,7 @@ impl FontCatalogBuilder {
                 "catalog aliases allocation failed",
             )
         })?;
+        self.cells.try_reserve(1).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cell metric allocation failed"))?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -271,6 +302,7 @@ impl FontCatalogBuilder {
         }
         self.records.push(record);
         self.aliases.push(aliases.into());
+        self.cells.push(metadata.cell);
         self.bytes = new_total;
         self.names = names;
         Ok(id)
@@ -297,11 +329,15 @@ impl FontCatalogBuilder {
             )
         })?;
         aliases.extend(self.aliases.iter().cloned());
+        let mut cells = Vec::new();
+        cells.try_reserve_exact(self.cells.len()).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cell metric snapshot allocation failed"))?;
+        cells.extend_from_slice(&self.cells);
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
             inner: ingestion.publish_unverified(records.into())?,
             aliases: aliases.into(),
+            cells: cells.into(),
         }))
     }
 }

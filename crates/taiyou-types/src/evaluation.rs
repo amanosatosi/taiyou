@@ -54,7 +54,7 @@ impl ShapeStyle {
         &[]
     }
     pub const fn metric_policy(&self) -> u32 {
-        1
+        2
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]

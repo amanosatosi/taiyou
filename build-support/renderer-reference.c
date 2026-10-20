@@ -4,6 +4,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
+#include FT_TRUETYPE_TABLES_H
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,8 +18,12 @@ int main(int argc, char **argv) {
     FT_Library_Version(library, &major, &minor, &patch);
     require(major == 2 && minor == 14 && patch == 3);
     require(FT_New_Face(library, argv[1], 0, &face) == 0 && face->units_per_EM > 0);
-    double scale = 20.0 / face->units_per_EM;
-    double ascent = face->ascender * scale, descent = -face->descender * scale;
+    TT_OS2 *os2 = FT_Get_Sfnt_Table(face, FT_SFNT_OS2);
+    require(os2 != NULL && os2->usWinAscent + os2->usWinDescent > 0);
+    double em = floor(1280.0 * face->units_per_EM / (os2->usWinAscent + os2->usWinDescent) + 0.5);
+    double scale = em / (64.0 * face->units_per_EM);
+    double ascent = floor((floor(os2->usWinAscent * scale * 64.0 + 0.5) + 4.0) / 8.0) / 8.0;
+    double descent = floor((floor(os2->usWinDescent * scale * 64.0 + 0.5) + 4.0) / 8.0) / 8.0;
     printf("INDEPENDENT_H_METRICS upem=%u ascender=%ld descender=%ld\n", face->units_per_EM, (long)face->ascender, (long)face->descender);
     for (int a = 1; a <= 10; a++) {
         require(FT_Load_Char(face, 'H', FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP | FT_LOAD_IGNORE_TRANSFORM) == 0);

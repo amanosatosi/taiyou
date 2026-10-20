@@ -526,9 +526,6 @@ impl FontContext {
             Ok(RawRun {
                 glyphs,
                 upem,
-                ascent: extents.ascender,
-                descent: extents.descender,
-                line_gap: extents.line_gap,
             })
         }
     }
@@ -722,6 +719,7 @@ unsafe extern "C" {
     fn FT_Get_Sfnt_Name_Count(face: ft::FT_Face) -> u32;
     fn FT_Get_Sfnt_Name(face: ft::FT_Face, index: u32, name: *mut SfntName) -> ft::FT_Error;
     fn FT_Get_Sfnt_Table(face: ft::FT_Face, tag: i32) -> *mut std::ffi::c_void;
+    fn FT_Load_Sfnt_Table(face: ft::FT_Face, tag: ft::FT_ULong, offset: ft::FT_Long, buffer: *mut ft::FT_Byte, length: *mut ft::FT_ULong) -> ft::FT_Error;
 }
 fn native_error(code: ft::FT_Error, detail: &str) -> FontError {
     FontError::new(ErrorCode::NativeFailure, detail).with_native_code(i64::from(code))
@@ -1741,6 +1739,7 @@ pub(crate) struct Metadata {
     pub weight: u16,
     pub italic: bool,
     pub glyphs: u32,
+    pub cell: (u16, u16, u16),
 }
 /// Experimental cumulative native-work budgets, never production C7 defaults.
 /// Context/range UTF-8 bytes and calls are charged before each native attempt,
@@ -2104,12 +2103,29 @@ impl FontContext {
                 let glyphs = u32::try_from((*face.raw).num_glyphs).map_err(|_| {
                     FontError::new(ErrorCode::FontUnavailable, "invalid glyph count")
                 })?;
+                // FreeType validates the SFNT directory. Read only the fixed
+                // OS/2 Windows metrics bytes; no native TT_OS2 layout assumption.
+                let mut table = [0_u8; 78];
+                let mut length = table.len() as ft::FT_ULong;
+                let valid_win = FT_Load_Sfnt_Table(face.raw, u32::from_be_bytes(*b"OS/2") as ft::FT_ULong, 0, table.as_mut_ptr(), &mut length) == 0 && length == 78;
+                let (ascent, descent) = if valid_win {
+                    (u16::from_be_bytes([table[74], table[75]]), u16::from_be_bytes([table[76], table[77]]))
+                } else {
+                    // Non-SFNT faces retain their validated native cell metrics.
+                    // This fallback is not a claim about GDI's font mapper.
+                    (u16::try_from((*face.raw).ascender).map_err(|_| native_error(0, "invalid cell ascent"))?, u16::try_from(-i32::from((*face.raw).descender)).map_err(|_| native_error(0, "invalid cell descent"))?)
+                };
+                let upem = (*face.raw).units_per_EM;
+                if upem == 0 || u32::from(ascent) + u32::from(descent) == 0 {
+                    return Err(native_error(0, "invalid ASS font cell metrics"));
+                }
                 Ok(Metadata {
                     family,
                     aliases,
                     weight,
                     italic: (*face.raw).style_flags & ft::FT_STYLE_FLAG_ITALIC != 0,
                     glyphs,
+                    cell: (upem, ascent, descent),
                 })
             }
         })

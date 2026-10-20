@@ -68,9 +68,6 @@ pub(crate) struct RawGlyph {
 pub(crate) struct RawRun {
     pub glyphs: Vec<RawGlyph>,
     pub upem: u32,
-    pub ascent: i32,
-    pub descent: i32,
-    pub line_gap: i32,
 }
 #[derive(Clone)]
 struct Item {
@@ -560,7 +557,10 @@ fn shape_item(
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
-        let scale = input.style.font_size().get() / f64::from(raw.upem);
+        let scale = input.catalog.ass_font_scale(face.id(), input.style.font_size())?.get();
+        if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
+            return Err(error(ErrorCode::NativeFailure, "font UPEM changed after validation"));
+        }
         let finite = |v| FiniteF64::new(v).map_err(|_| limited());
         reserve(&mut face_metrics, 1, limits)?;
         face_metrics.push(FaceMetrics {
@@ -570,13 +570,7 @@ fn shape_item(
                     .len()
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
-            metrics: RunMetrics::new(
-                finite(f64::from(raw.ascent) * scale)?,
-                finite(-f64::from(raw.descent) * scale)?,
-                finite(f64::from(raw.line_gap) * scale)?,
-                u16::try_from(raw.upem)
-                    .map_err(|_| error(ErrorCode::NativeFailure, "invalid native UPEM"))?,
-            )?,
+            metrics: input.catalog.ass_line_metrics(face.id(), input.style.font_size())?,
         });
         if glyphs
             .len()
@@ -901,14 +895,10 @@ fn empty_line_metrics(
                 .as_ref()
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing font metrics"))?
                 .1;
-            let scale = style.font_size().get() / f64::from(raw.upem);
-            let finite = |v| FiniteF64::new(v).map_err(|_| limited());
-            let metrics = RunMetrics::new(
-                finite(f64::from(raw.ascent) * scale)?,
-                finite(-f64::from(raw.descent) * scale)?,
-                finite(f64::from(raw.line_gap) * scale)?,
-                u16::try_from(raw.upem).map_err(|_| limited())?,
-            )?;
+            if u32::from(catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
+                return Err(error(ErrorCode::NativeFailure, "font UPEM changed after validation"));
+            }
+            let metrics = catalog.ass_line_metrics(face.id(), style.font_size())?;
             reserve(&mut result, 1, limits)?;
             result.push(EmptyLineMetrics {
                 decoded: map.decoded_span(start..start)?,

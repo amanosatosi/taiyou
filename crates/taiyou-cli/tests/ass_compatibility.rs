@@ -122,3 +122,20 @@ fn hard_empty_lines_use_half_metrics_and_no_synthetic_terminal_line() {
         assert_eq!(layout.logical_bounds().height(), count as f64 * (ah + dh));
     }
 }
+
+#[test]
+fn ordinary_font_cell_size_matches_independent_gdi_metrics_and_baseline() {
+    let fonts = fonts();
+    let id = fonts.faces()[0].blob().id();
+    assert_eq!(fonts.ass_cell_metrics(id).unwrap(), (1000, 1000, 326));
+    assert_eq!(fonts.ass_font_scale(id, FiniteF64::new(30.0).unwrap()).unwrap().get(), 1448.0 / 64000.0);
+    let layout = local(&source("0", "", "Ag"), &fonts);
+    let line = &layout.lines()[0];
+    assert_eq!(line.ascent().get(), 22.625);
+    assert_eq!(line.descent().get(), 7.375);
+    assert_eq!(line.baseline().y().get(), 22.625);
+    assert_eq!(layout.logical_bounds().height(), 30.0);
+    let ink = layout.ink_bounds().unwrap();
+    assert!(ink.y0().get() < line.baseline().y().get());
+    assert!(ink.y1().get() > line.baseline().y().get());
+}

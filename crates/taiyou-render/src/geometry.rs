@@ -312,7 +312,7 @@ pub fn geometry(
         if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
-        let size = state.shaping().font_size().get() / f64::from(outline.units_per_em());
+        let size = catalog.ass_font_scale(blob.id(), state.shaping().font_size()).map_err(font_error)?.get();
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (

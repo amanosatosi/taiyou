@@ -171,6 +171,11 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
             )
             .unwrap(),
         );
+        let id = catalog.faces()[0].blob().id();
+        assert_eq!(catalog.ass_cell_metrics(id).unwrap(), (1000, 970, 230));
+        assert_eq!(catalog.ass_font_scale(id, FiniteF64::new(100.0).unwrap()).unwrap().get(), 5333.0 / 64000.0);
+        assert_eq!(local.lines()[0].ascent().get(), 80.875);
+        assert_eq!(local.lines()[0].descent().get(), 19.125);
         for (i, line) in local.lines().iter().enumerate() {
             line_info.push_str(&format!(
                 "{ms}\t{i}\t{:?}\t{}\t{}\t{}\n",
