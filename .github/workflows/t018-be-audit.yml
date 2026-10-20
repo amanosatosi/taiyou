@@ -12,11 +12,11 @@ jobs:
     env:
       TAIYOU_FOCUSED_RENDERER: '1'
       CANDIDATE_SHA: ${{ github.sha }}
-      TAIYOU_BE_AUDIT_OUTPUT: ${{ runner.temp }}/t018-be-audit
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - run: echo "TAIYOU_BE_AUDIT_OUTPUT=$RUNNER_TEMP/t018-be-audit" >> "$GITHUB_ENV"
       - run: |
           python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
