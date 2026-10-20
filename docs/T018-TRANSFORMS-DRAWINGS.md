@@ -97,11 +97,51 @@ animation and equal animated/static pixels at the corresponding evaluated
 values; they do not establish a compatible pre-filter mask.
 
 A further owner-approved placement correction implements CLine::Compact
-(RTS.cpp 1171–1200, called at 1471 and 1502) trims ASCII-space words at hard-line
+(RTS.cpp 1171–1200, called at 1471 and 1502), trimming ASCII-space words at hard-line
 edges even with q2. The previous q2 layout preserved their advance. blur+t.ass has
 three edge spaces around several hard breaks, so its large mismatch cannot be
 attributed to rasterization alone before this placement difference is resolved.
 No automatic-wrapping algorithm changes. New line_compaction integration tests
 retain decoded/source ranges, NBSP, per-hard-line compaction, full whitespace-only
-metrics and half-height genuinely empty lines. The post-correction pixel results
-remain verification-pending until the focused Actions run completes.
+metrics and half-height genuinely empty lines.
+
+Candidate `bc3b48c7552047d8f55ca4034a4f264180c6643a` passed the
+[focused source/native/corpus job](https://github.com/amanosatosi/taiyou/actions/runs/39488883716/job/118856395286),
+[Windows metric probe](https://github.com/amanosatosi/taiyou/actions/runs/39488883716/job/118856395610)
+and [Fast/MSRV gate](https://github.com/amanosatosi/taiyou/actions/runs/39488883723).
+Artifact `12295360593` ZIP SHA-256
+`60885c7e470ee4236098dfb1c178bbeeb1d0c095be4267cd65b2c0b8ad8e4e3e`
+retains all original reports, raw images, differences and stage masks. Its CI
+formatting diff is empty. Every requested frame still renders strictly with exit0.
+
+| blur+t frame | Before compaction, differing pixels | After compaction | After alpha MAE, RGBA16 |
+|---|---:|---:|---:|
+| 1000 | 74204 | 55516 | 100.34833 |
+| 1100 | 77771 | 58566 | 100.41525 |
+| 1200 | 80580 | 61754 | 108.51129 |
+| 1300 | 82853 | 63921 | 105.24257 |
+| 1400 | 85865 | 65977 | 103.80551 |
+| 1500 | 87720 | 67957 | 107.56574 |
+| 1600 | 90053 | 69992 | 105.74319 |
+| 1700 | 91932 | 72314 | 109.29353 |
+| 1800 | 93213 | 73625 | 108.19807 |
+| 1900 | 94767 | 73992 | 109.21911 |
+
+At1000ms alpha MAE decreases from2052.39932 to100.34833; at1900ms from1899.82164
+to109.21911. This isolates a real placement contribution rather than changing
+the Gaussian filter. All ten remain rendered pixel mismatches. The four static
+BE raw hashes/counts and the 8x1 raw hash/count remain byte-identical to44584c2.
+The independently documented GDI outline and xy span-overlay prerequisites
+remain open; neither this result nor equal animated/static Taiyou frames proves
+xy pixel identity. No authenticated xy stage capture is available to assign all
+remaining Gaussian/drawing error to one stage.
+
+Fast also caught an unintended extension change: warpmode inside t had begun
+executing. The evaluator now preserves its existing standalone-only contract;
+the preexisting warpmode rejection test is unchanged. Directly affected layout
+tests preserve the untrimmed shaped/source text while asserting compacted layout.
+The geometry lifetime fixture uses an explicit NBSP edge to retain its original
+empty-outline assertion. No corpus/reference/pixel-policy changes accompany
+these owner-authorized fixture corrections. Full final-candidate platform,
+sanitizer, oracle and external-comparison verification is recorded separately
+in the PR; focused success alone is not final acceptance.
