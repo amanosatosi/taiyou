@@ -89,7 +89,7 @@ fn layout_fixed_font_real_empty_lines_and_owned_lifetime() {
         layout(&s, &constraints()).unwrap()
     };
     assert_eq!(layout.lines().len(), 4);
-    let descent = 326.0 * (20.0 / 1000.0);
+    let descent: f64 = 326.0 * (20.0 / 1000.0);
     let height = 20.0 + descent;
     let mut top = 0.0;
     for (i, line) in layout.lines().iter().enumerate() {
