@@ -60,11 +60,20 @@ struct GroupMasks {
     shadow_paint: Rgba8,
 }
 #[cfg(feature = "native")]
-fn filter_mask(mask: Arc<Mask>, spec: &crate::effects::BlurSpec, held: &mut u64, event_charge: u64, limits: &Limits) -> Result<Arc<Mask>, RenderError> {
-    let filtered = crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+fn filter_mask(
+    mask: Arc<Mask>,
+    spec: &crate::effects::BlurSpec,
+    held: &mut u64,
+    event_charge: u64,
+    limits: &Limits,
+) -> Result<Arc<Mask>, RenderError> {
+    let filtered =
+        crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
     if !Arc::ptr_eq(&mask, &filtered) {
         charge_mask(&filtered, held, event_charge, limits)?;
-        let old = (mask.data().len() as u64).checked_mul(3).ok_or_else(limited)?;
+        let old = (mask.data().len() as u64)
+            .checked_mul(3)
+            .ok_or_else(limited)?;
         *held = held.checked_sub(old).ok_or_else(limited)?;
     }
     Ok(filtered)
@@ -754,7 +763,11 @@ impl Renderer {
                     };
                     let border_exists = border_enabled && border_value > 0.0;
                     let blur_spec = crate::effects::BlurSpec::new(
-                        state.effects().blur(), state.effects().be(), [1.0, 1.0], limits)?;
+                        state.effects().blur(),
+                        state.effects().be(),
+                        [1.0, 1.0],
+                        limits,
+                    )?;
                     if !border_exists {
                         fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
                     }
@@ -830,7 +843,13 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?)
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
@@ -844,7 +863,13 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?)
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         }
                     };
                     if border_exists

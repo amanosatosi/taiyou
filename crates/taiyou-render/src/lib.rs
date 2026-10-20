@@ -7,8 +7,8 @@
 pub mod collision;
 pub mod collision_footprint;
 mod compose;
-mod evaluate;
 pub mod effects;
+mod evaluate;
 pub mod geometry;
 pub mod layout;
 mod paint;

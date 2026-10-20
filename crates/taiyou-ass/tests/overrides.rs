@@ -160,7 +160,9 @@ fn anisotropic_border_shadow_and_blur_prefixes_remain_unsupported() {
         })
         .collect();
     assert_eq!(names, ["xbord", "ybord", "xshad", "yshad"]);
-    assert!(matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.0));
+    assert!(
+        matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.0)
+    );
     assert_eq!(
         parsed
             .diagnostics()

@@ -3,7 +3,13 @@ use taiyou_render::effects::{BlurSpec, apply_effects};
 use taiyou_types::*;
 
 fn spec(blur: f64, be: f64) -> BlurSpec {
-    BlurSpec::new(FiniteF64::new(blur).unwrap(), FiniteF64::new(be).unwrap(), [1.0, 1.0], &Limits::default()).unwrap()
+    BlurSpec::new(
+        FiniteF64::new(blur).unwrap(),
+        FiniteF64::new(be).unwrap(),
+        [1.0, 1.0],
+        &Limits::default(),
+    )
+    .unwrap()
 }
 fn impulse() -> Arc<Mask> {
     let mut data = vec![0; 25];
@@ -13,7 +19,7 @@ fn impulse() -> Arc<Mask> {
 #[test]
 fn threshold_zero_identity_and_source_immutability() {
     let mask = impulse();
-    for (blur, be) in [(0.0, 0.0), (0.333332, 0.0), (0.333333, 0.0), (0.0, -2.0)] {
+    for (blur, be) in [(0.0, 0.0), (0.333332, 0.0), (f64::from(0.333333_f32), 0.0), (0.0, -2.0)] {
         let output = apply_effects(&mask, &spec(blur, be), &Limits::default()).unwrap();
         assert!(Arc::ptr_eq(&mask, &output));
     }
@@ -29,7 +35,10 @@ fn gaussian_one_impulse_uses_reference_short_float_kernel() {
     let expected = [[19, 32, 19], [32, 52, 32], [19, 32, 19]];
     for (y, row) in expected.into_iter().enumerate() {
         for (x, v) in row.into_iter().enumerate() {
-            assert_eq!(output.coverage_at(x as i64 - 1, y as i64 - 1, PixelOffset::default()), v);
+            assert_eq!(
+                output.coverage_at(x as i64 - 1, y as i64 - 1, PixelOffset::default()),
+                v
+            );
         }
     }
 }
@@ -56,12 +65,30 @@ fn integer_fractional_edge_and_combined_filters_are_distinct() {
 #[test]
 fn support_pass_dimension_and_transient_limits_fail_before_filtering() {
     for (blur, be) in [(1000.0, 0.0), (0.0, 65.0), (f64::MAX, 1.0), (0.0, f64::MAX)] {
-        assert_eq!(BlurSpec::new(FiniteF64::new(blur).unwrap(), FiniteF64::new(be).unwrap(), [1.0, 1.0], &Limits::default()).err().unwrap().code(), ErrorCode::LimitExceeded);
+        assert_eq!(
+            BlurSpec::new(
+                FiniteF64::new(blur).unwrap(),
+                FiniteF64::new(be).unwrap(),
+                [1.0, 1.0],
+                &Limits::default()
+            )
+            .err()
+            .unwrap()
+            .code(),
+            ErrorCode::LimitExceeded
+        );
     }
     let s = spec(2.0, 1.0);
     let source = impulse();
-    for limits in [Limits::default().with_max_dimension(5).unwrap(), Limits::default().with_transient_bytes(1).unwrap(), Limits::default().with_output_pixels(1).unwrap()] {
-        assert_eq!(apply_effects(&source, &s, &limits).unwrap_err().code(), ErrorCode::LimitExceeded);
+    for limits in [
+        Limits::default().with_max_dimension(5).unwrap(),
+        Limits::default().with_transient_bytes(1).unwrap(),
+        Limits::default().with_output_pixels(1).unwrap(),
+    ] {
+        assert_eq!(
+            apply_effects(&source, &s, &limits).unwrap_err().code(),
+            ErrorCode::LimitExceeded
+        );
     }
     assert_eq!(source.data()[12], 255);
 }
