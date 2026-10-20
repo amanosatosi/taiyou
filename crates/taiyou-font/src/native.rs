@@ -1737,6 +1737,7 @@ impl Drop for Face<'_> {
 }
 pub(crate) struct Metadata {
     pub family: String,
+    pub aliases: Vec<String>,
     pub weight: u16,
     pub italic: bool,
     pub glyphs: u32,
@@ -1963,6 +1964,8 @@ impl FontContext {
                     ));
                 }
                 let mut best: Option<((u8, u8, u16), String)> = None;
+                let mut aliases = Vec::new();
+                let mut name_bytes = 0_usize;
                 for i in 0..count {
                     let mut name = SfntName {
                         platform: 0,
@@ -2010,6 +2013,20 @@ impl FontContext {
                     if family.is_empty() {
                         continue;
                     }
+                    if !aliases.contains(&family) {
+                        // Name records may reference overlapping storage. Bound
+                        // aggregate decoded metadata, not just each record.
+                        name_bytes = name_bytes.checked_add(family.len()).ok_or_else(|| {
+                            FontError::new(ErrorCode::LimitExceeded, "font alias size overflow")
+                        })?;
+                        if name_bytes > byte_limit.saturating_mul(3) {
+                            return Err(FontError::new(ErrorCode::LimitExceeded, "font alias budget exceeded"));
+                        }
+                        aliases.try_reserve(1).map_err(|_| {
+                            FontError::new(ErrorCode::AllocationFailed, "font alias allocation failed")
+                        })?;
+                        aliases.push(family.clone());
+                    }
                     let rank = (
                         u8::from(name.name != 16),
                         u8::from(name.language != 0x409),
@@ -2036,6 +2053,9 @@ impl FontContext {
                         })?
                         .to_owned()
                 };
+                if aliases.is_empty() {
+                    aliases.push(family.clone());
+                }
                 let os2 = FT_Get_Sfnt_Table(face.raw, 2);
                 let weight = if os2.is_null() {
                     if (*face.raw).style_flags & ft::FT_STYLE_FLAG_BOLD != 0 {
@@ -2051,6 +2071,7 @@ impl FontContext {
                 })?;
                 Ok(Metadata {
                     family,
+                    aliases,
                     weight,
                     italic: (*face.raw).style_flags & ft::FT_STYLE_FLAG_ITALIC != 0,
                     glyphs,

@@ -320,6 +320,24 @@ impl Renderer {
                 }
             }
         }
+        // ASS attachment names are metadata. Only validated font bytes enter
+        // the same explicit, ordered catalog as host-supplied faces.
+        let fonts = if parsed.embedded_fonts().is_empty() {
+            fonts
+        } else {
+            let mut context = FontContext::with_limits(self.config.limits.clone())
+                .map_err(crate::geometry::font_error)?;
+            let mut builder = FontCatalogBuilder::new(self.config.limits.clone());
+            for face in fonts.faces() {
+                builder.register(&mut context, face.blob().bytes(), face.blob().id().face_index())
+                    .map_err(crate::geometry::font_error)?;
+            }
+            for attachment in parsed.embedded_fonts() {
+                builder.register(&mut context, attachment.bytes(), 0)
+                    .map_err(|e| crate::geometry::font_error(e).with_context(None, Some(attachment.source())))?;
+            }
+            builder.snapshot(&mut CatalogIngestor::new()).map_err(crate::geometry::font_error)?
+        };
         let frame = self.render(parsed.track().clone(), fonts, request)?;
         let mut report = DiagnosticBuffer::new();
         report

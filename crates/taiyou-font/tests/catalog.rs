@@ -9,6 +9,28 @@ fn request(family: &str, weight: u16, italic: bool) -> FontRequest {
     FontRequest::new(Arc::from(family), weight, italic, false)
 }
 #[test]
+fn catalog_localized_and_typographic_aliases_share_validated_face_and_selection() {
+    let directory = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
+    let regular = std::fs::read(directory.with_file_name("alias-regular.otf")).unwrap();
+    let bold = std::fs::read(directory.with_file_name("alias-bold.otf")).unwrap();
+    let mut context = FontContext::new().unwrap();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let a = builder.register(&mut context, &regular, 0).unwrap();
+    let b = builder.register(&mut context, &bold, 0).unwrap();
+    for _ in 0..2 {
+        let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+        assert_eq!(catalog.faces().len(), 2);
+        for family in ["たいよう 別名", "TAIYOU ALIAS FAMILY", "Taiyou Typographic Family"] {
+            for (weight, expected) in [(400, a), (700, b)] {
+                assert_eq!(resolve_family(&catalog, &request(family, weight, false), &Limits::default()).unwrap(), expected);
+            }
+        }
+        assert_eq!(builder.register(&mut context, &regular, 0).unwrap(), a);
+        assert_eq!(catalog.faces()[0].blob().bytes(), regular);
+        assert_eq!(builder.registered_bytes(), (regular.len() + bold.len()) as u64);
+    }
+}
+#[test]
 fn catalog_identity_dedup_order_and_owned_lifetime() {
     fn shared<T: Send + Sync>() {}
     shared::<ValidatedFontCatalog>();

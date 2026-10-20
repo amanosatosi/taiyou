@@ -22,6 +22,9 @@ fn error(code: ErrorCode, detail: &str) -> FontError {
 #[derive(Clone, Debug)]
 pub struct ValidatedFontCatalog {
     inner: Arc<FontCatalog>,
+    // Folded SFNT family/typographic-family names, in native record order.
+    // One entry per validated face; aliases never mint another FontId.
+    aliases: Arc<[Arc<[String]>]>,
 }
 impl ValidatedFontCatalog {
     pub fn revision(&self) -> CatalogRevision {
@@ -101,6 +104,7 @@ pub struct FontCatalogBuilder {
     blobs: Vec<([u8; 32], Arc<[u8]>)>,
     bytes: u64,
     names: u64,
+    aliases: Vec<Arc<[String]>>,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -110,6 +114,7 @@ impl FontCatalogBuilder {
             blobs: Vec::new(),
             bytes: 0,
             names: 0,
+            aliases: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -182,11 +187,27 @@ impl FontCatalogBuilder {
         };
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
+        let mut aliases = Vec::new();
+        aliases.try_reserve_exact(metadata.aliases.len()).map_err(|_| {
+            error(ErrorCode::AllocationFailed, "catalog aliases allocation failed")
+        })?;
+        let mut alias_cost = 0_u64;
+        for alias in metadata.aliases {
+            let alias = fold_family(&alias, &self.limits)?;
+            alias_cost = alias_cost.checked_add(alias.len() as u64)
+                .and_then(|n| n.checked_add(3 * std::mem::size_of::<String>() as u64))
+                .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog aliases overflow"))?;
+            aliases.push(alias);
+        }
         let names = self
             .names
             .checked_add(metadata.family.len() as u64)
             .and_then(|n| n.checked_add(folded.len() as u64))
+            .and_then(|n| n.checked_add(alias_cost))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;
+        if intake_cost.checked_add(alias_cost).is_none_or(|n| n > self.limits.transient_bytes()) {
+            return Err(error(ErrorCode::LimitExceeded, "catalog aliases transient budget exceeded"));
+        }
         let record = FontRecord::from_unverified(
             FontBlob::from_unverified(id, data.clone()),
             Arc::from(metadata.family),
@@ -197,6 +218,9 @@ impl FontCatalogBuilder {
         self.records
             .try_reserve(1)
             .map_err(|_| error(ErrorCode::AllocationFailed, "catalog allocation failed"))?;
+        self.aliases.try_reserve(1).map_err(|_| {
+            error(ErrorCode::AllocationFailed, "catalog aliases allocation failed")
+        })?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -207,6 +231,7 @@ impl FontCatalogBuilder {
             self.blobs.push((hash, data));
         }
         self.records.push(record);
+        self.aliases.push(aliases.into());
         self.bytes = new_total;
         self.names = names;
         Ok(id)
@@ -225,10 +250,16 @@ impl FontCatalogBuilder {
             )
         })?;
         records.extend(self.records.iter().cloned());
+        let mut aliases = Vec::new();
+        aliases.try_reserve_exact(self.aliases.len()).map_err(|_| {
+            error(ErrorCode::AllocationFailed, "catalog aliases snapshot allocation failed")
+        })?;
+        aliases.extend(self.aliases.iter().cloned());
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
             inner: ingestion.publish_unverified(records.into())?,
+            aliases: aliases.into(),
         }))
     }
 }
@@ -277,10 +308,19 @@ pub fn resolve_family(
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
-    select_family(catalog.faces(), request, limits)
+    select_family_aliases(catalog.faces(), Some(&catalog.aliases), request, limits)
 }
+#[cfg(test)]
 fn select_family(
     records: &[FontRecord],
+    request: &FontRequest,
+    limits: &Limits,
+) -> Result<FontId, FontError> {
+    select_family_aliases(records, None, request, limits)
+}
+fn select_family_aliases(
+    records: &[FontRecord],
+    aliases: Option<&[Arc<[String]>]>,
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
@@ -294,7 +334,8 @@ fn select_family(
     records
         .iter()
         .enumerate()
-        .filter(|(_, record)| record.folded_family() == folded)
+        .filter(|(index, record)| record.folded_family() == folded
+            || aliases.is_some_and(|names| names[*index].iter().any(|name| *name == folded)))
         .min_by_key(|(index, record)| {
             (
                 record.weight().abs_diff(request.weight()),

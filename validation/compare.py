@@ -111,7 +111,12 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
             record["expected"] = assets[frame["expected"]]
             if list(expected[:2]) != frame["reference_size"]:
                 raise ValueError("reference dimensions differ from inventory")
-            if not fonts:
+            # The renderer owns attachment decoding and native validation.
+            # Recognizing the section here only permits execution without an
+            # external --font; it neither authenticates data nor implies PASS.
+            has_attachments = not fonts and any(line.strip().lower() == b"[fonts]"
+                                  for line in source.read_bytes().removeprefix(b"\xef\xbb\xbf").splitlines())
+            if not fonts and not has_attachments:
                 raise ValueError("regression case has no explicit fonts")
             if case["scale"] != "1":
                 record.update(status="UNSUPPORTED", feature="T015/oversampling-adapter", stage="scale",

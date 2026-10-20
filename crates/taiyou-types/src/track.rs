@@ -1138,6 +1138,23 @@ fn validate_event_provenance(event: &Event, source: &str) -> Result<(), ParseErr
 pub struct ParsedTrack {
     track: Arc<Track>,
     diagnostics: Vec<Diagnostic>,
+    embedded_fonts: Arc<[EmbeddedFont]>,
+}
+/// Decoded ASS attachment. The name is metadata only, never a filesystem path.
+/// Bytes remain untrusted until taiyou-font validates the native face.
+#[derive(Clone, Debug)]
+pub struct EmbeddedFont {
+    name: Arc<str>,
+    bytes: Arc<[u8]>,
+    source: SourceSpan,
+}
+impl EmbeddedFont {
+    pub fn new(name: Arc<str>, bytes: Arc<[u8]>, source: SourceSpan) -> Self {
+        Self { name, bytes, source }
+    }
+    pub fn name(&self) -> &str { &self.name }
+    pub fn bytes(&self) -> &[u8] { &self.bytes }
+    pub const fn source(&self) -> SourceSpan { self.source }
 }
 impl ParsedTrack {
     pub fn new(
@@ -1157,8 +1174,27 @@ impl ParsedTrack {
         Ok(Self {
             track,
             diagnostics: diagnostics.finish()?,
+            embedded_fonts: Arc::from([]),
         })
     }
+    pub fn with_embedded_fonts(mut self, fonts: Arc<[EmbeddedFont]>, limits: &Limits) -> Result<Self, ParseError> {
+        let mut bytes = 0_u64;
+        for font in fonts.iter() {
+            if font.source.slice(self.track.source()).is_none() || font.name.is_empty() || font.bytes.is_empty() {
+                return Err(invalid("invalid embedded font metadata"));
+            }
+            bytes = bytes.checked_add(font.bytes.len() as u64).ok_or_else(|| limit("embedded font size overflow"))?;
+        }
+        let transient = bytes.checked_mul(3)
+            .and_then(|n| n.checked_add(fonts.len() as u64 * std::mem::size_of::<EmbeddedFont>() as u64))
+            .ok_or_else(|| limit("embedded font reservation overflow"))?;
+        if bytes > limits.font_bytes() || transient > limits.transient_bytes() {
+            return Err(limit("embedded font budget exceeded"));
+        }
+        self.embedded_fonts = fonts;
+        Ok(self)
+    }
+    pub fn embedded_fonts(&self) -> &[EmbeddedFont] { &self.embedded_fonts }
     pub fn track(&self) -> &Arc<Track> {
         &self.track
     }

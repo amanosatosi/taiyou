@@ -91,12 +91,6 @@ impl Arguments {
                 "only explicit core-v1 is available",
             ));
         }
-        if fonts.is_empty() {
-            return Err(RenderError::new(
-                ErrorCode::FontUnavailable,
-                "at least one explicit --font is required",
-            ));
-        }
         let policy_value = match values.get("--unsupported") {
             Some(s) => s
                 .to_str()
