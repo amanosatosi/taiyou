@@ -80,10 +80,8 @@ fn embedded_collection_resolves_face_one_with_one_shared_font_byte_budget() {
         .render_parsed(&explicit, complete, &request)
         .unwrap();
     assert!(expected.pixels().iter().any(|b| *b != 0));
-    let input = source(family)
-        + "[Fonts]\nfontname: ../../collection.otc\n"
-        + &encode(&collection)
-        + "\n";
+    let input =
+        source(family) + "[Fonts]\nfontname: ../../collection.otc\n" + &encode(&collection) + "\n";
     let parsed = parse(&input);
     assert_eq!(parsed.embedded_fonts().len(), 1);
     assert_eq!(parsed.embedded_fonts()[0].bytes(), collection);

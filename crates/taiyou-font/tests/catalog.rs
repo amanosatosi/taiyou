@@ -32,27 +32,29 @@ fn catalog_resource_face_count_preserves_shared_bytes_order_and_limits() {
         &catalog.faces()[1].blob().shared_bytes()
     ));
     assert_eq!(
-        context.face_count(fixture("TAIYOU_TEST_FONT").into()).unwrap(),
+        context
+            .face_count(fixture("TAIYOU_TEST_FONT").into())
+            .unwrap(),
         1
     );
-    let mut limited = FontContext::with_limits(
-        limits.with_font_bytes(collection.len() as u64 - 1).unwrap(),
-    )
-    .unwrap();
+    let mut limited =
+        FontContext::with_limits(limits.with_font_bytes(collection.len() as u64 - 1).unwrap())
+            .unwrap();
     assert_eq!(
         limited.face_count(collection.clone()).unwrap_err().code(),
         ErrorCode::LimitExceeded
     );
-    let mut limited = FontContext::with_limits(
-        Limits::default().with_transient_bytes(1).unwrap(),
-    )
-    .unwrap();
+    let mut limited =
+        FontContext::with_limits(Limits::default().with_transient_bytes(1).unwrap()).unwrap();
     assert_eq!(
         limited.face_count(collection).unwrap_err().code(),
         ErrorCode::LimitExceeded
     );
     assert_eq!(
-        context.face_count(Arc::from([0xA5; 16])).unwrap_err().code(),
+        context
+            .face_count(Arc::from([0xA5; 16]))
+            .unwrap_err()
+            .code(),
         ErrorCode::NativeFailure
     );
 }
