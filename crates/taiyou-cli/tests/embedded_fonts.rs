@@ -8,20 +8,46 @@ fn encode(bytes: &[u8]) -> String {
         let a = chunk[0];
         let b = chunk.get(1).copied().unwrap_or(0);
         let c = chunk.get(2).copied().unwrap_or(0);
-        for value in [a >> 2, ((a & 3) << 4) | (b >> 4), ((b & 15) << 2) | (c >> 6), c & 63].into_iter().take(chunk.len() + 1) {
+        for value in [
+            a >> 2,
+            ((a & 3) << 4) | (b >> 4),
+            ((b & 15) << 2) | (c >> 6),
+            c & 63,
+        ]
+        .into_iter()
+        .take(chunk.len() + 1)
+        {
             text.push(char::from(value + 33));
         }
     }
-    text.as_bytes().chunks(80).map(|line| std::str::from_utf8(line).unwrap()).collect::<Vec<_>>().join("\n")
+    text.as_bytes()
+        .chunks(80)
+        .map(|line| std::str::from_utf8(line).unwrap())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 fn source(family: &str) -> String {
-    format!("[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,{family},20,0,0\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:02.00,Embedded\n")
+    format!(
+        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,{family},20,0,0\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:02.00,Embedded\n"
+    )
 }
 fn parse(source: &str) -> ParsedTrack {
-    taiyou_ass::parse_ass(source.as_bytes(), &ParseOptions::new(InputEncoding::Utf8, Profile::CoreV1, Limits::default(), SyntaxPolicy::Strict), &mut TrackIngestor::new()).unwrap()
+    taiyou_ass::parse_ass(
+        source.as_bytes(),
+        &ParseOptions::new(
+            InputEncoding::Utf8,
+            Profile::CoreV1,
+            Limits::default(),
+            SyntaxPolicy::Strict,
+        ),
+        &mut TrackIngestor::new(),
+    )
+    .unwrap()
 }
 fn empty() -> Arc<ValidatedFontCatalog> {
-    FontCatalogBuilder::new(Limits::default()).snapshot(&mut CatalogIngestor::new()).unwrap()
+    FontCatalogBuilder::new(Limits::default())
+        .snapshot(&mut CatalogIngestor::new())
+        .unwrap()
 }
 #[test]
 fn embedded_single_multiple_localized_aliases_and_seek_match_explicit_font_pixels() {
@@ -33,16 +59,32 @@ fn embedded_single_multiple_localized_aliases_and_seek_match_explicit_font_pixel
     builder.register(&mut ctx, &regular, 0).unwrap();
     builder.register(&mut ctx, &bold, 0).unwrap();
     let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-    let request = RenderRequest { now: TimeUs::from_micros(1_000_000), viewport: Viewport::full(Size::new(160,100)).unwrap(), unsupported: UnsupportedPolicy::Strict };
-    for family in ["たいよう 別名", "Taiyou Alias Family", "Taiyou Typographic Family"] {
+    let request = RenderRequest {
+        now: TimeUs::from_micros(1_000_000),
+        viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+        unsupported: UnsupportedPolicy::Strict,
+    };
+    for family in [
+        "たいよう 別名",
+        "Taiyou Alias Family",
+        "Taiyou Typographic Family",
+    ] {
         let explicit = parse(&source(family));
-        let expected = Renderer::new(RendererConfig::default()).unwrap().render_parsed(&explicit, catalog.clone(), &request).unwrap();
+        let expected = Renderer::new(RendererConfig::default())
+            .unwrap()
+            .render_parsed(&explicit, catalog.clone(), &request)
+            .unwrap();
         assert!(expected.pixels().iter().any(|b| *b != 0));
         for multiple in [false, true] {
-            let mut input = source(family) + "[Fonts]\nfontname: ../../never-created.ttf\n" + &encode(&regular) + "\n";
-            if multiple { input += &format!("fontname: C:\\never-created-bold.ttf\n{}\n", encode(&bold)); }
+            let mut input = source(family)
+                + "[Fonts]\nfontname: ../../never-created.ttf\n"
+                + &encode(&regular)
+                + "\n";
+            if multiple {
+                input += &format!("fontname: C:\\never-created-bold.ttf\n{}\n", encode(&bold));
+            }
             let parsed = parse(&input);
-            assert_eq!(parsed.embedded_fonts().len(), if multiple {2} else {1});
+            assert_eq!(parsed.embedded_fonts().len(), if multiple { 2 } else { 1 });
             let mut renderer = Renderer::new(RendererConfig::default()).unwrap();
             for now in [1_000_000, 0, 1_500_000, 1_000_000] {
                 let mut request = request.clone();
@@ -57,13 +99,29 @@ fn embedded_single_multiple_localized_aliases_and_seek_match_explicit_font_pixel
 #[test]
 fn embedded_bytes_cannot_bypass_native_validation_or_combined_catalog_limit() {
     let parsed = parse(&(source("Absent") + "[Fonts]\nfontname: font.ttf\n!!!!\n"));
-    let request = RenderRequest { now: TimeUs::from_micros(1), viewport: Viewport::full(Size::new(160,100)).unwrap(), unsupported: UnsupportedPolicy::Strict };
-    let error = Renderer::new(RendererConfig::default()).unwrap().render_parsed(&parsed, empty(), &request).unwrap_err();
+    let request = RenderRequest {
+        now: TimeUs::from_micros(1),
+        viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+        unsupported: UnsupportedPolicy::Strict,
+    };
+    let error = Renderer::new(RendererConfig::default())
+        .unwrap()
+        .render_parsed(&parsed, empty(), &request)
+        .unwrap_err();
     assert_eq!(error.code(), ErrorCode::NativeFailure);
     assert_eq!(error.span(), Some(parsed.embedded_fonts()[0].source()));
     let font = std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap();
-    let parsed = parse(&(source("Source Sans 3") + "[Fonts]\nfontname: font.ttf\n" + &encode(&font) + "\n"));
-    let limits = Limits::default().with_font_bytes(font.len() as u64 - 1).unwrap();
-    let error = Renderer::new(RendererConfig { limits, ..Default::default() }).unwrap().render_parsed(&parsed, empty(), &request).unwrap_err();
+    let parsed =
+        parse(&(source("Source Sans 3") + "[Fonts]\nfontname: font.ttf\n" + &encode(&font) + "\n"));
+    let limits = Limits::default()
+        .with_font_bytes(font.len() as u64 - 1)
+        .unwrap();
+    let error = Renderer::new(RendererConfig {
+        limits,
+        ..Default::default()
+    })
+    .unwrap()
+    .render_parsed(&parsed, empty(), &request)
+    .unwrap_err();
     assert_eq!(error.code(), ErrorCode::LimitExceeded);
 }

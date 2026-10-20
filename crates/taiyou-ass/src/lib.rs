@@ -97,8 +97,16 @@ pub fn parse_ass(
         if section == sections::Section::Fonts {
             // '[' is a valid encoded character. Only real ASS section headers
             // terminate attachment data, as in the pinterf reader.
-            let header = ["[Script Info]", "[V4+ Styles]", "[V4 Styles]", "[Events]", "[Fonts]", "[Graphics]"]
-                .iter().any(|name| text.trim_end().eq_ignore_ascii_case(name));
+            let header = [
+                "[Script Info]",
+                "[V4+ Styles]",
+                "[V4 Styles]",
+                "[Events]",
+                "[Fonts]",
+                "[Graphics]",
+            ]
+            .iter()
+            .any(|name| text.trim_end().eq_ignore_ascii_case(name));
             if !header {
                 fonts.line(text, source, span, &mut ctx)?;
                 continue;
@@ -112,7 +120,9 @@ pub fn parse_ass(
             if text.trim_end().eq_ignore_ascii_case("[V4 Styles]") {
                 // Never synthesize ASS defaults and misreport missing fonts
                 // for the separate, unimplemented SSA V4 style mapping.
-                return Err(unsupported("SSA V4 styles are not implemented").with_context(None, Some(span)));
+                return Err(
+                    unsupported("SSA V4 styles are not implemented").with_context(None, Some(span))
+                );
             }
             match sections::section(text) {
                 Ok(value) => {
@@ -262,5 +272,6 @@ pub fn parse_ass(
         events.into(),
         options.limits(),
     )?;
-    ParsedTrack::new(track, ctx.diagnostics)?.with_embedded_fonts(fonts.into_records(), options.limits())
+    ParsedTrack::new(track, ctx.diagnostics)?
+        .with_embedded_fonts(fonts.into_records(), options.limits())
 }

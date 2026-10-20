@@ -188,13 +188,19 @@ impl FontCatalogBuilder {
         let metadata = context.inspect(data.clone(), face_index)?;
         let folded = fold_family(&metadata.family, &self.limits)?;
         let mut aliases = Vec::new();
-        aliases.try_reserve_exact(metadata.aliases.len()).map_err(|_| {
-            error(ErrorCode::AllocationFailed, "catalog aliases allocation failed")
-        })?;
+        aliases
+            .try_reserve_exact(metadata.aliases.len())
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "catalog aliases allocation failed",
+                )
+            })?;
         let mut alias_cost = 0_u64;
         for alias in metadata.aliases {
             let alias = fold_family(&alias, &self.limits)?;
-            alias_cost = alias_cost.checked_add(alias.len() as u64)
+            alias_cost = alias_cost
+                .checked_add(alias.len() as u64)
                 .and_then(|n| n.checked_add(3 * std::mem::size_of::<String>() as u64))
                 .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog aliases overflow"))?;
             aliases.push(alias);
@@ -205,8 +211,14 @@ impl FontCatalogBuilder {
             .and_then(|n| n.checked_add(folded.len() as u64))
             .and_then(|n| n.checked_add(alias_cost))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog name size overflow"))?;
-        if intake_cost.checked_add(alias_cost).is_none_or(|n| n > self.limits.transient_bytes()) {
-            return Err(error(ErrorCode::LimitExceeded, "catalog aliases transient budget exceeded"));
+        if intake_cost
+            .checked_add(alias_cost)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(error(
+                ErrorCode::LimitExceeded,
+                "catalog aliases transient budget exceeded",
+            ));
         }
         let record = FontRecord::from_unverified(
             FontBlob::from_unverified(id, data.clone()),
@@ -219,7 +231,10 @@ impl FontCatalogBuilder {
             .try_reserve(1)
             .map_err(|_| error(ErrorCode::AllocationFailed, "catalog allocation failed"))?;
         self.aliases.try_reserve(1).map_err(|_| {
-            error(ErrorCode::AllocationFailed, "catalog aliases allocation failed")
+            error(
+                ErrorCode::AllocationFailed,
+                "catalog aliases allocation failed",
+            )
         })?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
@@ -252,7 +267,10 @@ impl FontCatalogBuilder {
         records.extend(self.records.iter().cloned());
         let mut aliases = Vec::new();
         aliases.try_reserve_exact(self.aliases.len()).map_err(|_| {
-            error(ErrorCode::AllocationFailed, "catalog aliases snapshot allocation failed")
+            error(
+                ErrorCode::AllocationFailed,
+                "catalog aliases snapshot allocation failed",
+            )
         })?;
         aliases.extend(self.aliases.iter().cloned());
         // All builder records originate from register: digest, native face index,
@@ -334,8 +352,10 @@ fn select_family_aliases(
     records
         .iter()
         .enumerate()
-        .filter(|(index, record)| record.folded_family() == folded
-            || aliases.is_some_and(|names| names[*index].iter().any(|name| *name == folded)))
+        .filter(|(index, record)| {
+            record.folded_family() == folded
+                || aliases.is_some_and(|names| names[*index].iter().any(|name| *name == folded))
+        })
         .min_by_key(|(index, record)| {
             (
                 record.weight().abs_diff(request.weight()),

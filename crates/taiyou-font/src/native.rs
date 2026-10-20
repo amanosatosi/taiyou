@@ -2020,10 +2020,16 @@ impl FontContext {
                             FontError::new(ErrorCode::LimitExceeded, "font alias size overflow")
                         })?;
                         if name_bytes > byte_limit.saturating_mul(3) {
-                            return Err(FontError::new(ErrorCode::LimitExceeded, "font alias budget exceeded"));
+                            return Err(FontError::new(
+                                ErrorCode::LimitExceeded,
+                                "font alias budget exceeded",
+                            ));
                         }
                         aliases.try_reserve(1).map_err(|_| {
-                            FontError::new(ErrorCode::AllocationFailed, "font alias allocation failed")
+                            FontError::new(
+                                ErrorCode::AllocationFailed,
+                                "font alias allocation failed",
+                            )
                         })?;
                         aliases.push(family.clone());
                     }

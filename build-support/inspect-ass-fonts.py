@@ -18,7 +18,7 @@ for case in inventory["cases"]:
     for relative in case["fonts"]:
         path = corpus / relative
         font = TTFont(path)
-        names = [{"id": n.nameID, "platform": n.platformID, "encoding": n.platEncID, "language": n.langID, "value": n.toUnicode()}
+        names = [{"id": n.nameID, "platform": n.platformID, "encoding": n.platEncID, "language": n.langID, "value": n.toUnicode(errors="backslashreplace"), "raw_hex": n.string.hex()}
                  for n in font["name"].names if n.nameID in [1, 4, 6, 16, 21]]
         item["fonts"].append({"path": relative, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "names": names})
         font.close()
