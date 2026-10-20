@@ -113,7 +113,7 @@ prerequisite for T005 solo acceptance or T015.
 
 ## V5. Full visibility and focused runs
 
-Every full run reports the entire inventory for each profile with counts for exact/tolerant pass, expected difference, unsupported, regression, crash and infrastructure error. Summary denominators include all cases; supported-subset percentages are separately labeled. Unsupported is a known feature limitation; crashes/timeouts remain failures even on unsupported scripts. Missing fonts cannot masquerade as a feature limitation.
+Every full run reports the entire inventory for each profile with counts for exact/tolerant pass, expected difference, unsupported, regression, crash and infrastructure error. Summary denominators include all cases; supported-subset percentages are separately labeled. Accepted inventory support is historical metadata, not an override of current execution evidence: a strict exact render is `PASS_EXACT`, a strict successful pixel mismatch is a gate-failing regression reported as `PIXEL_MISMATCH`, and `UNSUPPORTED` is reserved for a strict typed `UnsupportedFeature` result. Tolerant diagnostic output cannot promote or replace the strict result. Crashes/timeouts remain failures even on unsupported scripts. Missing fonts cannot masquerade as a feature limitation.
 
 Every relevant PR must run the complete pinned CoreV1 external comparison in
 GitHub Actions: `cargo run --locked -p xtask -- compare --suite full --profile core-v1`.

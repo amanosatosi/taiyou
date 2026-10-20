@@ -70,21 +70,38 @@ def execute(command, directory, timeout=45):
         return -999, "renderer timeout"
 
 
-def classify(case, outcome, metrics, diagnostic):
-    support = case["profile_records"]["CoreV1"]["support"]
+def observe(outcome, metrics):
+    """Describe what the current strict renderer actually did.
+
+    Accepted inventory support is historical metadata; it must not override
+    execution or pixel evidence from this candidate.
+    """
     if outcome < 0:
         return "CRASH"
+    if outcome == 20:
+        return "BLOCKED_BY_UNSUPPORTED_FEATURE"
     if outcome != 0:
-        if outcome == 20:
-            return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
-        # A malformed source that the renderer safely rejects is still reported;
-        # it is never a compatibility pass. Accepted supported sources must work.
-        if outcome in (11, 12):
-            return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+        return "EXECUTION_FAILED" if outcome in (11, 12) else "INFRA_ERROR"
+    if metrics is None:
         return "INFRA_ERROR"
-    if metrics and metrics["exact"]:
-        return "PASS_EXACT"
-    return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+    return "PASS_EXACT" if metrics["exact"] else "PIXEL_MISMATCH"
+
+
+def classify(case, outcome, metrics, diagnostic):
+    # Keep the protected T005 result vocabulary/policy file unchanged while
+    # making its meaning truthful. REGRESSION is the gate-failing umbrella for
+    # current pixel mismatches and renderer execution failures; UNSUPPORTED now
+    # means the strict renderer actually returned UnsupportedFeature.
+    _ = case, diagnostic
+    observed = observe(outcome, metrics)
+    return {
+        "PASS_EXACT": "PASS_EXACT",
+        "PIXEL_MISMATCH": "REGRESSION",
+        "BLOCKED_BY_UNSUPPORTED_FEATURE": "UNSUPPORTED",
+        "EXECUTION_FAILED": "REGRESSION",
+        "INFRA_ERROR": "INFRA_ERROR",
+        "CRASH": "CRASH",
+    }[observed]
 
 
 def run_case(case, corpus, binary, probe, out, assets, artifacts):
@@ -130,14 +147,21 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                                           "rule": "libass-compare-fixed-reciprocal-RGBA16"}
             for font in fonts:
                 command.extend(["--font", font])
-            code, diagnostic = execute(command, directory)
-            strict_unsupported = code == 20
-            # Tolerant exploratory output cannot promote the accepted support state.
+            strict_code, strict_diagnostic = execute(command, directory)
+            strict_unsupported = strict_code == 20
             if strict_unsupported:
-                record["strict_diagnostics"] = diagnostic
-                code, diagnostic = execute(command + ["--unsupported", "tolerant"], directory)
+                # Tolerant execution is diagnostic only. It must never replace
+                # the current strict result or manufacture a compatibility pass.
+                tolerant_code, tolerant_diagnostic = execute(
+                    command + ["--unsupported", "tolerant"], directory
+                )
+                record.update(
+                    strict_diagnostics=strict_diagnostic,
+                    tolerant_exit_code=tolerant_code,
+                    tolerant_diagnostics=tolerant_diagnostic,
+                )
             metrics = None
-            if code == 0:
+            if strict_code == 0:
                 actual = (images.raw_rgba(raw, expected[0], expected[1]) if (sx, sy) == (1, 1)
                           else oversampling.normalize(raw, expected[0], expected[1], sx, sy))
                 # Validate the published PNG independently, without using it as
@@ -162,11 +186,11 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                         oversampling.preview(artifact / "actual.png", actual)
                     record["artifacts"] = {"actual": key + "/actual.png", "difference": key + "/difference.png",
                                            "expected": "external:" + frame["expected"]}
-            status = classify(case, code, metrics, diagnostic)
-            if strict_unsupported and status == "PASS_EXACT":
-                status = "UNSUPPORTED" if case["profile_records"]["CoreV1"]["support"] == "UNSUPPORTED" else "REGRESSION"
-            record.update(status=status, metrics=metrics, diagnostics=diagnostic, stage="pixel-comparison" if metrics else "render",
-                          tolerant_attempt=strict_unsupported, exit_code=code)
+            observed = observe(strict_code, metrics)
+            status = classify(case, strict_code, metrics, strict_diagnostic)
+            record.update(status=status, observed_result=observed, metrics=metrics,
+                          diagnostics=strict_diagnostic, stage="pixel-comparison" if metrics else "render",
+                          tolerant_attempt=strict_unsupported, exit_code=strict_code)
     except images.ImageDecodeError as error:
         record.update(status="INFRA_ERROR", diagnostic_code="InvalidImage", diagnostics=str(error))
     except (OSError, ValueError, KeyError, InventoryError) as error:
@@ -203,6 +227,14 @@ def summarize(inventory, selected, policy, records):
         counts = {status: sum(r["status"] == status for r in grouped) for status in policy["allowed_results"]}
         summary[name] = {"total": len(grouped), "counts": counts}
     summary["visual"]["exact_matches"] = summary["visual"]["counts"]["PASS_EXACT"]
+    observed_names = (
+        "PASS_EXACT", "PIXEL_MISMATCH", "BLOCKED_BY_UNSUPPORTED_FEATURE",
+        "EXECUTION_FAILED", "INFRA_ERROR", "CRASH",
+    )
+    summary["visual"]["observed"] = {
+        name: sum(r.get("observed_result") == name for r in groups["visual"])
+        for name in observed_names
+    }
     summary["safety"]["successful_parser_probes"] = summary["safety"]["counts"]["PASS_EXACT"]
     return summary
 
@@ -257,7 +289,8 @@ def main():
             record = run_case(case, corpus, args.renderer.resolve(), args.probe.resolve(), args.output, assets,
                               sum("artifacts" in r for r in records))
             records.append(record)
-            print(json.dumps({"case": record["case"], "status": record["status"], "stage": record["stage"]}), flush=True)
+            print(json.dumps({"case": record["case"], "status": record["status"],
+                              "observed": record.get("observed_result"), "stage": record["stage"]}), flush=True)
         summary = summarize(inventory, selected, policy, records)
         report = {"schema": 1, "candidate_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                   "accepted_baseline": os.environ.get("ACCEPTED_BASELINE", "candidate-local-unaccepted"),
