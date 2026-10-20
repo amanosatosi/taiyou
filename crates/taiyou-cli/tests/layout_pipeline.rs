@@ -37,7 +37,7 @@ fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coales
         let l = layout(&s, &LayoutConstraints::new(s.placement().alignment())).unwrap();
         assert_eq!(l.glyphs().len(), glyph_count);
         if glyph_count == 2 {
-            let advance = 292.0 * (20.0 / 1000.0);
+            let advance = 292.0 * (965.0 / 64000.0);
             assert_eq!(l.glyphs()[1].position().x().get(), advance);
             assert_eq!(l.lines()[0].advance().get(), advance + advance * 2.0);
         }
@@ -96,7 +96,7 @@ fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
                 .metrics
                 .ascent()
                 .get(),
-            40.0
+            30.125
         );
         let ligature = output
             .glyphs()
@@ -166,7 +166,7 @@ fn layout_pipeline_empty_and_break_only_events_have_real_metrics() {
         assert!(l.logical_bounds().height() > 0.0);
         assert_eq!(
             l.lines()[0].ascent().get(),
-            if text.contains("40") { 40.0 } else { 20.0 }
+            if text.contains("40") { 30.125 } else if text.contains("\\N") { 7.5 } else { 15.125 }
         );
     }
 }

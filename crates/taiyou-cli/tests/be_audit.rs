@@ -148,6 +148,7 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
     let mut metadata = String::new();
     let mut line_info = String::new();
     let mut group_info = String::new();
+    let mut outlines = String::new();
     for ms in [500, 1500, 2500, 3500] {
         let now = TimeUs::from_micros(ms * 1000);
         let event = track.events().iter().find(|e| e.is_active(now)).unwrap();
@@ -225,6 +226,21 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
                 "{{\"ms\":{ms},\"group\":{i},\"be\":{},\"decoded_utf8_hex\":\"{decoded_hex}\"}}\n",
                 state.effects().be().get()
             ));
+            if ms == 500 {
+                let scale = catalog.ass_font_scale(catalog.faces()[0].blob().id(), FiniteF64::new(100.0).unwrap()).unwrap().get() * 64.0;
+                let mut points = Vec::new();
+                let mut point = |p: FontPoint, kind: u8| points.push(format!("[{},{},{kind}]", (p.x().get()*scale).round() as i64, (-p.y().get()*scale).round() as i64));
+                for op in geometry.glyphs()[member].outline.outline().ops() {
+                    match *op {
+                        PathOp::MoveTo(p) => point(p,6),
+                        PathOp::LineTo(p) => point(p,2),
+                        PathOp::CubicTo(a,b,c) => { point(a,4); point(b,4); point(c,4); },
+                        PathOp::QuadTo(a,b) => { point(a,3); point(b,3); },
+                        PathOp::Close => {},
+                    }
+                }
+                outlines.push_str(&format!("{{\"group\":{i},\"points\":[{}]}}\n", points.join(",")));
+            }
             assert_eq!(state.effects().border_x().get(), 0.0);
             assert_eq!(state.effects().shadow_x().get(), 0.0);
             let raw = rasterize(
@@ -308,4 +324,5 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
     std::fs::write(root.join("masks.jsonl"), metadata).unwrap();
     std::fs::write(root.join("lines.tsv"), line_info).unwrap();
     std::fs::write(root.join("groups.jsonl"), group_info).unwrap();
+    std::fs::write(root.join("font-outlines-q6.jsonl"), outlines).unwrap();
 }

@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
         x -= col == 0 ? 0.0 : col == 1 ? advance / 2.0 : advance;
         y += row == 0 ? -descent : row == 1 ? (ascent - descent) / 2.0 : ascent;
         if (a == 10) { x = -2.0; y = -8.0 + ascent; }
+        y += floor(os2->usWinAscent * scale * 64.0 + 0.5) / 64.0 - ascent;
         for (unsigned int i = 0; i < outline->n_points; i++) {
             double px = outline->points[i].x * scale + x;
             double py = -outline->points[i].y * scale + y;

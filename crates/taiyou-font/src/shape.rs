@@ -558,6 +558,7 @@ fn shape_item(
         };
         let ends = boundaries(raw, a, b, limits)?;
         let scale = input.catalog.ass_font_scale(face.id(), input.style.font_size())?.get();
+        let baseline_offset = input.catalog.ass_baseline_offset(face.id(), input.style.font_size())?;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
             return Err(error(ErrorCode::NativeFailure, "font UPEM changed after validation"));
         }
@@ -589,7 +590,7 @@ fn shape_item(
                 finite(f64::from(g.advance_x) * scale)?,
                 finite(-f64::from(g.advance_y) * scale)?,
                 finite(f64::from(g.offset_x) * scale)?,
-                finite(-f64::from(g.offset_y) * scale)?,
+                finite(-f64::from(g.offset_y) * scale + baseline_offset)?,
             );
             let ink = if cluster.text().chars().all(char::is_whitespace) {
                 GlyphInk::Empty

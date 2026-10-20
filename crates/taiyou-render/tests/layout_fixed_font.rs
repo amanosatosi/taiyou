@@ -89,14 +89,16 @@ fn layout_fixed_font_real_empty_lines_and_owned_lifetime() {
         layout(&s, &constraints()).unwrap()
     };
     assert_eq!(layout.lines().len(), 4);
-    let descent: f64 = 326.0 * (20.0 / 1000.0);
-    let height = 20.0 + descent;
+    // Source Sans 3: independently observed GDI cell metrics at height1280.
+    let ascent: f64 = 15.125;
+    let descent: f64 = 4.875;
+    let height = ascent + descent;
     let mut top = 0.0;
     for (i, line) in layout.lines().iter().enumerate() {
         let (a, d) = if i % 2 == 0 {
-            (10.0, (descent * 4.0).floor() / 8.0)
+            ((ascent * 4.0).floor() / 8.0, (descent * 4.0).floor() / 8.0)
         } else {
-            (20.0, descent)
+            (ascent, descent)
         };
         assert_eq!(line.ascent().get(), a);
         assert_eq!(line.descent().get(), d);
@@ -185,8 +187,20 @@ fn layout_fixed_font_maximal_metrics_include_all_fallback_faces() {
     let s = shaped(&mut ctx, &catalog, "A日本語कि");
     let l = layout(&s, &constraints()).unwrap();
     assert!(s.missing().is_empty());
-    assert_eq!(l.lines()[0].ascent().get(), 1160.0 * (20.0 / 1000.0));
-    assert_eq!(l.lines()[0].descent().get(), 408.0 * (20.0 / 1000.0));
+    let inputs = std::fs::read_to_string(PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv")).unwrap();
+    let mut maxima = [0.0_f64; 2];
+    for font in ["latin", "cjk", "indic"] {
+        let prefix = format!("font:{font}");
+        let line = inputs.lines().find(|l| l.split_whitespace().next() == Some(prefix.as_str())).unwrap();
+        let values: Vec<f64> = line.split_whitespace().skip(1).map(|s| s.parse().unwrap()).collect();
+        let em = (1280.0 * values[0] / (values[1] + values[2]) + 0.5).floor();
+        for axis in 0..2 {
+            let value = (((values[axis+1] * em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
+            maxima[axis] = maxima[axis].max(value);
+        }
+    }
+    assert_eq!(l.lines()[0].ascent().get(), maxima[0]);
+    assert_eq!(l.lines()[0].descent().get(), maxima[1]);
     assert!(
         l.glyphs()
             .iter()

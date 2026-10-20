@@ -55,6 +55,14 @@ impl ValidatedFontCatalog {
         };
         RunMetrics::new(metric(ascent)?, metric(descent)?, FiniteF64::ZERO, upem)
     }
+    pub(crate) fn ass_baseline_offset(&self, font: FontId, size: FiniteF64) -> Result<f64, FontError> {
+        let (_, ascent, _) = self.ass_cell_metrics(font)?;
+        let scale = self.ass_font_scale(font, size)?.get();
+        let native_ascent = (f64::from(ascent) * scale * 64.0 + 0.5).floor() / 64.0;
+        // GDI TextOut's TA_TOP path contains native tmAscent. CLine::PaintAll
+        // aligns word tops using the separately rounded eighth-unit ascent.
+        Ok(native_ascent - self.ass_line_metrics(font, size)?.ascent().get())
+    }
     pub fn revision(&self) -> CatalogRevision {
         self.inner.revision()
     }

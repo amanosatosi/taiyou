@@ -89,7 +89,7 @@ fn rgba(mask: &[u8], color: [u8; 4]) -> Vec<u8> {
 #[test]
 fn renderer_slice_timing_seeks_owned_pixels() {
     let fonts = catalog(false);
-    let track = track(&dialogue("H"));
+    let track = track(&dialogue("{\\fs40}H"));
     let mut renderer = renderer(limits());
     let first = renderer
         .render(track.clone(), fonts.clone(), &request(100_000))
@@ -198,7 +198,7 @@ fn renderer_slice_layer_source_order_and_paint_boundaries() {
     assert_ne!(source_order.pixels(), two.pixels());
     let painted = renderer
         .render(
-            track(&dialogue("H{\\1c&HFF0000&}H")),
+            track(&dialogue("{\\fs40}H{\\1c&HFF0000&}H")),
             fonts,
             &request(500_000),
         )
