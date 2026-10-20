@@ -178,11 +178,7 @@ fn layout_fixed_font_mixed_bidi_and_trailing_whitespace_l1() {
                 .any(|g| g.cluster().start() == trailing)
         );
         assert!(l.glyphs().iter().all(|g| g.cluster().start() != trailing));
-        if text.starts_with('س') {
-            assert_eq!(l.glyphs()[0].cluster().text(), "a");
-        } else {
-            assert_eq!(l.glyphs()[0].cluster().text(), "a");
-        }
+        assert_eq!(l.glyphs()[0].cluster().text(), "a");
         for r in 0..s.runs().len() {
             let native: Vec<_> = l
                 .glyphs()

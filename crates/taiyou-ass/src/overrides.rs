@@ -280,10 +280,8 @@ fn block(
                 } else {
                     blur_number(&value[..end])?
                 };
-                let op = if value.is_empty()
-                    || (italic && n != 0.0 && n != 1.0)
-                    || (!italic && n != 0.0 && n != 1.0 && n < 100.0)
-                {
+                let restore = value.is_empty() || (n != 0.0 && n != 1.0 && (italic || n < 100.0));
+                let op = if restore {
                     OverrideOp::RestoreOriginal {
                         field: if italic {
                             OriginalField::Italic
