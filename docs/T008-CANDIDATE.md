@@ -23,3 +23,57 @@ Catalog publication takes an explicit `&mut CatalogIngestor` owned by the render
 Review follow-up seals runtime publication. Shared `FontBlob::from_unverified`, `FontRecord::from_unverified` and `CatalogIngestor::publish_unverified` explicitly describe untrusted host descriptors. They do not yield a `ValidatedFontCatalog`. That immutable capability has private construction in the native catalog adapter; runtime `resolve_family` requires it, and no Deref/unchecked conversion exposes a bypass. The verified builder can publish it directly. Importing shared descriptors through `validate_catalog` recomputes SHA-256, validates collection faces and compares family, folded name, weight and italic against freshly derived native records. Duplicate imported identities are rejected, even if identical; ordinary builder registration still deduplicates identical bytes/index. Failed imports consume no validated output revision. Native blob inspection independently checks claimed digests before using them.
 
 The synthetic weight/italic/order fixture retains its exact assertions inside a `cfg(test)` private-selector test. Production publication has no fixture feature, unchecked marker constructor or metadata override. Integration regressions use actual pinned fonts and reject forged hashes, conflicting bytes, duplicate IDs, family/folded-name/weight/italic spoofing and bad face indices. Compile-fail examples prove raw catalogs cannot enter runtime resolution or construct the sealed capability. The seven-package DAG, immutable shared descriptors, native ownership and normative contracts remain unchanged; these provisional helper interfaces still require review before integration or T009. The owner's acceptance of the pinned sha2/ICU selections remains subject to technical, dependency and license review.
+
+## ASS font compatibility follow-up (2026-10-20)
+
+This owner-requested T008 completion starts from merged PR #30, main
+`4166a18fdf93927eb64a2c25c69473f6a25d881c`. It does not implement SSA V4 styles,
+change system discovery/fallback, or admit LegacyXyV1 behavior. The original
+candidate history above is retained.
+
+Source inspected first: local pinterf xy-VSFilter archive labeled 3.2.0.810,
+without Git metadata; equivalence to the locked upstream commit is unverified.
+`src/subtitles/STS.cpp` SHA-256
+`59f431e3ac36d99e2b694cdab106a530edaf7bbc8c85410f91647d3ff4578895`:
+LoadFont lines 1798–1870 decodes the offset-33 six-bit attachment stream and
+passes it to AddFontMemResourceEx; LoadUUEFont lines 1872–1897 accumulates
+fontname-separated payloads; LOGFONTW conversion lines 3719–3731 passes the
+requested family to GDI. `RTS.cpp` SHA-256
+`dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`:
+CMyFont lines 116–137 calls CreateFontIndirect. GDI performs its own font name
+matching; this source does not establish an exact cross-platform alias ordering
+or pixel result. Taiyou preserves its existing deterministic face-selection
+ordering and uses names from that same supplied face. No Windows capture is
+claimed. Invalid attachment syntax follows Taiyou's existing Strict/Recover
+policy rather than reproducing the historical unchecked invalid-character path.
+
+The pinned libass-tests metadata inspection ran in Actions run 39397731478,
+job 118544523162. Frozen font bytes were not modified:
+
+| Case | Evidence and implementation |
+|---|---|
+| font_nonunicode/shiftjis | ASS requests `麗流隷書`. The supplied shiftjis_Reishoreiryu.ttf (SHA-256 `cb7906711eb6bcda10ffc0888e60af8704a9460cfee6d030f3cc40a939c95fcb`) has Microsoft language 0x411 / encoding 2 name bytes `9e976d4196b766f8`, representing the requested UTF-16BE name. The old encoding-ID filter skipped it and fell back to a different name. All Microsoft name records now use their Unicode name-string interpretation. |
+| faux-italics/cff | ASS requests `FansubBlock-CFF`, stored as name ID 6; family ID 1 is `Fansub Block CFF`. The supplied OTF SHA-256 is `ad6a80cad983636039b54db21c4fc484a5285268c1e8e39a216c782115e2e53e`. Full/PostScript/WWS-family aliases use the same general validated-face path as family aliases. |
+| embedded-font/efont | ASS requests `wow` and carries `fontname: fansubdoge_0.otf`. The harness now permits the renderer to execute with those attachments and zero external font arguments; actual decoding and native validation remain renderer responsibilities. |
+| ssa/alpha-* | SSA V4 style mapping remains unsupported. The parser reports a typed UnsupportedFeature before ASS default-style synthesis can produce a misleading FontUnavailable. No SSA mapping or replacement font is introduced. |
+
+Aliases retain a single FontId and byte blob per face; weight distance, italic
+match, then catalog ordinal remain unchanged. Localized and alternate names are
+Unicode-folded without compatibility normalization. Catalog aliases are sealed
+native-derived metadata, not trusted host claims. Added independently authored
+Source Sans name-table fixtures are runner-only OFL derivatives; original
+Regular/Bold/OTC fixtures and external corpus bytes remain unchanged. FontTools
+and native dependency versions/licenses are unchanged.
+
+Decoded attachments live in ParsedTrack with original spans. Attachment names
+never reach filesystem APIs. Parse limits check cumulative decoded font bytes,
+metadata and allocation overlap before appending. The rendering boundary again
+checks the caller's aggregate catalog font limit and validates every face using
+FreeType. Combined catalogs use a renderer-owned monotone CatalogIngestor,
+without history-dependent font selection or a new cache. Callers using the raw
+Track rendering API remain responsible for supplying their validated catalog;
+render_parsed/CLI perform attachment registration. No new runtime dependency.
+
+Verification and actual corpus transitions are recorded in the PR after the
+focused runner checks and the final complete external comparison. Successful
+font resolution alone is not an exact rendering compatibility claim.

@@ -236,8 +236,23 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     // Retain the actual input handles until publication, including Windows
     // sharing protection against hard links, short names and other aliases.
     let mut inputs = Vec::new();
+    let source = read_limited(&args.input, limits.input_bytes(), &mut inputs)?;
+    // Preserve the explicit-font CLI's missing-font error for inputs without
+    // attachments, even when their encoding is invalid. This is admission only:
+    // the ASS parser and native catalog still validate all attachment content.
+    let has_attachments = source
+        .strip_prefix(b"\xef\xbb\xbf")
+        .unwrap_or(&source)
+        .split(|b| matches!(b, b'\r' | b'\n'))
+        .any(|line| line.trim_ascii().eq_ignore_ascii_case(b"[Fonts]"));
+    if args.fonts.is_empty() && !has_attachments {
+        return Err(RenderError::new(
+            ErrorCode::FontUnavailable,
+            "at least one explicit --font or ASS embedded font is required",
+        ));
+    }
     let parsed = taiyou_ass::parse_ass(
-        &read_limited(&args.input, limits.input_bytes(), &mut inputs)?,
+        &source,
         &options,
         &mut TrackIngestor::new(),
     )

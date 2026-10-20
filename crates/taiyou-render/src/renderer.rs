@@ -271,6 +271,8 @@ pub fn alignment_anchor(placement: &Placement, play_res: Size) -> Result<ScriptP
 pub struct Renderer {
     config: RendererConfig,
     output: OutputBudget,
+    #[cfg(feature = "native")]
+    attachment_catalogs: CatalogIngestor,
     _not_sync: PhantomData<Cell<()>>,
 }
 impl Renderer {
@@ -285,6 +287,8 @@ impl Renderer {
         Ok(Self {
             config,
             output,
+            #[cfg(feature = "native")]
+            attachment_catalogs: CatalogIngestor::new(),
             _not_sync: PhantomData,
         })
     }
@@ -345,7 +349,7 @@ impl Renderer {
                     })?;
             }
             builder
-                .snapshot(&mut CatalogIngestor::new())
+                .snapshot(&mut self.attachment_catalogs)
                 .map_err(crate::geometry::font_error)?
         };
         let frame = self.render(parsed.track().clone(), fonts, request)?;
