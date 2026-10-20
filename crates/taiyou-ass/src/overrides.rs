@@ -160,7 +160,11 @@ fn block(
     loop {
         if cursor >= text.len() {
             if let Some((parent, parent_base, next, span)) = parents.pop() {
-                push(program, TextOp::Override(OverrideOp::EndTransform { source: span }), ctx.options.limits().text_bytes_per_event())?;
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::EndTransform { source: span }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
                 text = parent;
                 base = parent_base;
                 cursor = next;
@@ -222,13 +226,23 @@ fn block(
         if raw == "t" || raw.starts_with("t(") {
             if let Some((settings, children, child_base)) = transform(raw, base + start + 1)? {
                 if parents.len() as u32 >= ctx.options.limits().tag_nesting() {
-                    return Err(ParseError::new(ErrorCode::LimitExceeded, "transform nesting limit exceeded"));
+                    return Err(ParseError::new(
+                        ErrorCode::LimitExceeded,
+                        "transform nesting limit exceeded",
+                    ));
                 }
                 let header = SourceSpan::new(source, base + start, child_base)?;
                 let tail = SourceSpan::new(source, child_base + children.len(), base + cursor)?;
-                push(program, TextOp::Override(OverrideOp::BeginTransform {
-                    start_ms: settings.0, end_ms: settings.1, accel: settings.2, source: header,
-                }), ctx.options.limits().text_bytes_per_event())?;
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::BeginTransform {
+                        start_ms: settings.0,
+                        end_ms: settings.1,
+                        accel: settings.2,
+                        source: header,
+                    }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
                 reserve(&mut parents)?;
                 parents.push((text, base, cursor, tail));
                 text = children;
@@ -239,7 +253,11 @@ fn block(
         }
         if !parents.is_empty() {
             if let Some(op) = transform_number(raw, span)? {
-                push(program, TextOp::Override(op), ctx.options.limits().text_bytes_per_event())?;
+                push(
+                    program,
+                    TextOp::Override(op),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
                 continue;
             }
         }
@@ -277,35 +295,65 @@ fn block(
 }
 
 type TransformParameters = (i32, i32, FiniteF64);
-fn transform(raw: &str, base: usize) -> Result<Option<(TransformParameters, &str, usize)>, ParseError> {
-    let Some(open) = raw.find('(') else { return Ok(None) };
+fn transform(
+    raw: &str,
+    base: usize,
+) -> Result<Option<(TransformParameters, &str, usize)>, ParseError> {
+    let Some(open) = raw.find('(') else {
+        return Ok(None);
+    };
     // xy's parameter reader ends at the first ')', including malformed partial
     // blocks; the child reader receives precisely that substring.
-    let end = raw[open + 1..].find(')').map_or(raw.len(), |n| open + 1 + n);
+    let end = raw[open + 1..]
+        .find(')')
+        .map_or(raw.len(), |n| open + 1 + n);
     let content = &raw[open + 1..end];
     let child = content.find('\\').unwrap_or(content.len());
     let mut values = [""; 4];
     let mut count = 0;
-    for value in content[..child].split(',').map(decode::trim).filter(|s| !s.is_empty()) {
-        if count == 4 { return Ok(None) }
+    for value in content[..child]
+        .split(',')
+        .map(decode::trim)
+        .filter(|s| !s.is_empty())
+    {
+        if count == 4 {
+            return Ok(None);
+        }
         values[count] = value;
         count += 1;
     }
     if child < content.len() {
-        if count == 4 { return Ok(None) }
+        if count == 4 {
+            return Ok(None);
+        }
         values[count] = &content[child..];
         count += 1;
     }
-    if count == 0 { return Ok(None) }
+    if count == 0 {
+        return Ok(None);
+    }
     let integer = |s: &str, decimal: bool| -> Result<i32, ParseError> {
-        let n = if decimal { blur_number(s)? } else {
+        let n = if decimal {
+            blur_number(s)?
+        } else {
             let bytes = s.as_bytes();
             let sign = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
-            let end = sign + bytes[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
-            if end == sign { 0.0 } else { blur_number(&s[..end])? }
+            let end = sign
+                + bytes[sign..]
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            if end == sign {
+                0.0
+            } else {
+                blur_number(&s[..end])?
+            }
         };
         if n < i32::MIN as f64 || n > i32::MAX as f64 {
-            return Err(ParseError::new(ErrorCode::LimitExceeded, "transform time exceeds signed milliseconds"));
+            return Err(ParseError::new(
+                ErrorCode::LimitExceeded,
+                "transform time exceeds signed milliseconds",
+            ));
         }
         Ok(n.trunc() as i32)
     };
@@ -313,25 +361,40 @@ fn transform(raw: &str, base: usize) -> Result<Option<(TransformParameters, &str
         1 => (0, 0, 1.0),
         2 => (0, 0, blur_number(values[0])?),
         3 => (integer(values[0], true)?, integer(values[1], true)?, 1.0),
-        _ => (integer(values[0], false)?, integer(values[1], false)?, blur_number(values[2])?),
+        _ => (
+            integer(values[0], false)?,
+            integer(values[1], false)?,
+            blur_number(values[2])?,
+        ),
     };
     // With no child backslash the reference may parse numeric text as the last
     // modifier, but it produces no operations.
-    Ok(Some(((start, end, FiniteF64::new(accel)?), &content[child..], base + open + 1 + child)))
+    Ok(Some((
+        (start, end, FiniteF64::new(accel)?),
+        &content[child..],
+        base + open + 1 + child,
+    )))
 }
 
 fn transform_number(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError> {
     for (name, property) in [
-        ("fscx", TransformProperty::ScaleX), ("fscy", TransformProperty::ScaleY),
-        ("fsp", TransformProperty::Spacing), ("fs", TransformProperty::Size),
-        ("bord", TransformProperty::Border), ("shad", TransformProperty::Shadow),
+        ("fscx", TransformProperty::ScaleX),
+        ("fscy", TransformProperty::ScaleY),
+        ("fsp", TransformProperty::Spacing),
+        ("fs", TransformProperty::Size),
+        ("bord", TransformProperty::Border),
+        ("shad", TransformProperty::Shadow),
     ] {
         if let Some(suffix) = raw.strip_prefix(name) {
             let suffix = decode::trim(suffix.split_once('(').map_or(suffix, |(s, _)| s));
             return Ok(Some(OverrideOp::TransformNumber {
                 property,
                 relative: property == TransformProperty::Size && suffix.starts_with(['+', '-']),
-                value: if suffix.is_empty() { None } else { Some(FiniteF64::new(blur_number(suffix)?)?) },
+                value: if suffix.is_empty() {
+                    None
+                } else {
+                    Some(FiniteF64::new(blur_number(suffix)?)?)
+                },
                 source,
             }));
         }

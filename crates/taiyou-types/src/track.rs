@@ -663,7 +663,9 @@ pub enum OverrideOp {
         accel: FiniteF64,
         source: SourceSpan,
     },
-    EndTransform { source: SourceSpan },
+    EndTransform {
+        source: SourceSpan,
+    },
     /// Raw numeric targets used inside ASS transforms, before field-specific clamps.
     TransformNumber {
         property: TransformProperty,
@@ -1026,13 +1028,21 @@ impl TrackIngestor {
                         op.validate()?;
                         match op {
                             OverrideOp::BeginTransform { .. } => {
-                                transforms = transforms.checked_add(1).ok_or_else(|| limit("transform depth overflow"))?;
-                                if transforms > limits.tag_nesting() { return Err(limit("transform nesting limit exceeded")); }
+                                transforms = transforms
+                                    .checked_add(1)
+                                    .ok_or_else(|| limit("transform depth overflow"))?;
+                                if transforms > limits.tag_nesting() {
+                                    return Err(limit("transform nesting limit exceeded"));
+                                }
                             }
                             OverrideOp::EndTransform { .. } => {
-                                transforms = transforms.checked_sub(1).ok_or_else(|| invalid("unmatched transform end"))?;
+                                transforms = transforms
+                                    .checked_sub(1)
+                                    .ok_or_else(|| invalid("unmatched transform end"))?;
                             }
-                            OverrideOp::TransformNumber { .. } if transforms == 0 => return Err(invalid("transform target outside transform")),
+                            OverrideOp::TransformNumber { .. } if transforms == 0 => {
+                                return Err(invalid("transform target outside transform"));
+                            }
                             _ => (),
                         }
                         (None, op.source())
@@ -1056,7 +1066,9 @@ impl TrackIngestor {
                     .checked_add(length)
                     .ok_or_else(|| limit("text byte count overflow"))?;
             }
-            if transforms != 0 { return Err(invalid("unclosed transform")); }
+            if transforms != 0 {
+                return Err(invalid("unclosed transform"));
+            }
             if text_bytes > limits.text_bytes_per_event {
                 return Err(limit("event text byte limit exceeded"));
             }

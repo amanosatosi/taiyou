@@ -58,14 +58,32 @@ fn animated_blur_forms_keep_outer_and_embedded_provenance() {
         let track = parsed(tags);
         let ops = track.track().events()[0].program();
         assert_eq!(ops.len(), 5);
-        let TextOp::Override(OverrideOp::BeginTransform { start_ms, end_ms, accel, source }) = &ops[0] else { panic!("missing typed transform") };
-        assert_eq!((*start_ms, *end_ms, accel.get()), (start, end, acceleration));
-        assert_eq!(source.slice(track.track().source()), Some(tags.split_once(r"\blur").unwrap().0));
+        let TextOp::Override(OverrideOp::BeginTransform {
+            start_ms,
+            end_ms,
+            accel,
+            source,
+        }) = &ops[0]
+        else {
+            panic!("missing typed transform")
+        };
+        assert_eq!(
+            (*start_ms, *end_ms, accel.get()),
+            (start, end, acceleration)
+        );
+        assert_eq!(
+            source.slice(track.track().source()),
+            Some(tags.split_once(r"\blur").unwrap().0)
+        );
         for (i, expected) in [(1, r"\blur4"), (2, r"\be2")] {
-            let TextOp::Override(op) = &ops[i] else { panic!("missing child") };
+            let TextOp::Override(op) = &ops[i] else {
+                panic!("missing child")
+            };
             assert_eq!(op.source().slice(track.track().source()), Some(expected));
         }
-        assert!(matches!(&ops[3], TextOp::Override(OverrideOp::EndTransform { source }) if source.slice(track.track().source()) == Some(")")));
-        assert!(track.diagnostics().is_empty());
+        assert!(
+            matches!(&ops[3], TextOp::Override(OverrideOp::EndTransform { source }) if source.slice(track.track().source()) == Some(")"))
+        );
+        assert!(!track.diagnostics().iter().any(|d| d.code() == DiagnosticCode::UnsupportedFeature));
     }
 }

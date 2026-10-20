@@ -112,10 +112,14 @@ impl Animation {
         } else if self.now < self.start {
             src
         } else if self.now < self.end {
-            let p = ((self.now - self.start) as f64 / (self.end - self.start) as f64).powf(self.accel);
+            let p =
+                ((self.now - self.start) as f64 / (self.end - self.start) as f64).powf(self.accel);
             (1.0 - p) * src + p * dst
-        } else { dst };
-        FiniteF64::new(value).map_err(|_| error(ErrorCode::InvalidScript, "nonfinite ASS transform result"))
+        } else {
+            dst
+        };
+        FiniteF64::new(value)
+            .map_err(|_| error(ErrorCode::InvalidScript, "nonfinite ASS transform result"))
     }
     fn opacity(&self, dst: u8, src: u8) -> Result<u8, RenderError> {
         // xy casts interpolated transparency, before opacity inversion.
@@ -126,8 +130,12 @@ impl Animation {
     }
 }
 fn animate_number(
-    state: Style, base: &Style, property: TransformProperty,
-    value: Option<FiniteF64>, relative: bool, animation: &Animation,
+    state: Style,
+    base: &Style,
+    property: TransformProperty,
+    value: Option<FiniteF64>,
+    relative: bool,
+    animation: &Animation,
 ) -> Result<Style, RenderError> {
     let (current, original) = match property {
         TransformProperty::Size => (state.font_size(), base.font_size()),
@@ -141,7 +149,9 @@ fn animate_number(
         None => original,
         Some(value) => {
             let dst = match property {
-                TransformProperty::Size if relative => current.get() + current.get() * value.get() / 10.0,
+                TransformProperty::Size if relative => {
+                    current.get() + current.get() * value.get() / 10.0
+                }
                 TransformProperty::ScaleX | TransformProperty::ScaleY => value.get() / 100.0,
                 _ => value.get(),
             };
@@ -150,9 +160,17 @@ fn animate_number(
     };
     let positive = if n.get() < 0.0 { FiniteF64::ZERO } else { n };
     match property {
-        TransformProperty::Size => state.with_size(if n.get() > 0.0 { n } else { original }).map_err(convert),
-        TransformProperty::ScaleX => { let y = state.scale_y(); state.with_scale(positive, y).map_err(convert) },
-        TransformProperty::ScaleY => { let x = state.scale_x(); state.with_scale(x, positive).map_err(convert) },
+        TransformProperty::Size => state
+            .with_size(if n.get() > 0.0 { n } else { original })
+            .map_err(convert),
+        TransformProperty::ScaleX => {
+            let y = state.scale_y();
+            state.with_scale(positive, y).map_err(convert)
+        }
+        TransformProperty::ScaleY => {
+            let x = state.scale_x();
+            state.with_scale(x, positive).map_err(convert)
+        }
         TransformProperty::Spacing => Ok(state.with_spacing(n)),
         TransformProperty::Border => state.with_border(positive).map_err(convert),
         TransformProperty::Shadow => Ok(state.with_shadow(positive)),
@@ -181,8 +199,15 @@ fn one(
     let mut wrap_mode = track.script().wrap();
     let mut runs = Vec::new();
     let local_ms = (i128::from(now.as_micros()) - i128::from(event.start().as_micros())) / 1000;
-    let duration_ms = (i128::from(event.end().as_micros()) - i128::from(event.start().as_micros())) / 1000;
-    let mut animation = Animation { start: 0, end: duration_ms, accel: 1.0, depth: 0, now: local_ms };
+    let duration_ms =
+        (i128::from(event.end().as_micros()) - i128::from(event.start().as_micros())) / 1000;
+    let mut animation = Animation {
+        start: 0,
+        end: duration_ms,
+        accel: 1.0,
+        depth: 0,
+        now: local_ms,
+    };
     let source_map = event_map(track, event, limits)?;
     let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
@@ -232,16 +257,33 @@ fn one(
             TextOp::Override(op) => {
                 let before = state.clone();
                 match op {
-                    OverrideOp::BeginTransform { start_ms, end_ms, accel, .. } => {
+                    OverrideOp::BeginTransform {
+                        start_ms,
+                        end_ms,
+                        accel,
+                        ..
+                    } => {
                         animation.start = i128::from(*start_ms);
-                        animation.end = if *end_ms == 0 { duration_ms } else { i128::from(*end_ms) };
+                        animation.end = if *end_ms == 0 {
+                            duration_ms
+                        } else {
+                            i128::from(*end_ms)
+                        };
                         animation.accel = accel.get();
                         animation.depth += 1;
                         changes = changes.with_animation();
                     }
-                    OverrideOp::EndTransform { .. } => { animation.depth -= 1; }
-                    OverrideOp::TransformNumber { property, value, relative, .. } => {
-                        state = animate_number(state, base, *property, *value, *relative, &animation)?;
+                    OverrideOp::EndTransform { .. } => {
+                        animation.depth -= 1;
+                    }
+                    OverrideOp::TransformNumber {
+                        property,
+                        value,
+                        relative,
+                        ..
+                    } => {
+                        state =
+                            animate_number(state, base, *property, *value, *relative, &animation)?;
                     }
                     OverrideOp::SetBlur { value, .. } => {
                         // Preserve the raw target in the operation for future
@@ -339,15 +381,32 @@ fn one(
                     }
                     OverrideOp::SetPaint { channel, color, .. } => {
                         let current = match channel {
-                            PaintChannel::Primary => state.primary(), PaintChannel::Secondary => state.secondary(),
-                            PaintChannel::Outline => state.outline(), PaintChannel::Shadow => state.shadow_color(),
+                            PaintChannel::Primary => state.primary(),
+                            PaintChannel::Secondary => state.secondary(),
+                            PaintChannel::Outline => state.outline(),
+                            PaintChannel::Shadow => state.shadow_color(),
                         };
                         let c = |dst: u8, src: u8, shift: u32| -> Result<u8, RenderError> {
-                            let v = animation.calc(f64::from(u32::from(dst) << shift), f64::from(u32::from(src) << shift))?.get();
-                            if v < i32::MIN as f64 || v > i32::MAX as f64 { return Err(error(ErrorCode::InvalidScript, "transformed color exceeds native integer range")); }
+                            let v = animation
+                                .calc(
+                                    f64::from(u32::from(dst) << shift),
+                                    f64::from(u32::from(src) << shift),
+                                )?
+                                .get();
+                            if v < i32::MIN as f64 || v > i32::MAX as f64 {
+                                return Err(error(
+                                    ErrorCode::InvalidScript,
+                                    "transformed color exceeds native integer range",
+                                ));
+                            }
                             Ok((((v as i32) >> shift) & 255) as u8)
                         };
-                        let rgb = Rgba8::new(c(color.r(), current.r(), 0)?, c(color.g(), current.g(), 8)?, c(color.b(), current.b(), 16)?, 255);
+                        let rgb = Rgba8::new(
+                            c(color.r(), current.r(), 0)?,
+                            c(color.g(), current.g(), 8)?,
+                            c(color.b(), current.b(), 16)?,
+                            255,
+                        );
                         state = channel_color(state, *channel, |c| {
                             Rgba8::new(rgb.r(), rgb.g(), rgb.b(), c.a())
                         })
@@ -357,10 +416,15 @@ fn one(
                         opacity,
                         ..
                     } => {
-                        let opacity = animation.opacity(*opacity, match channel {
-                            PaintChannel::Primary => state.primary().a(), PaintChannel::Secondary => state.secondary().a(),
-                            PaintChannel::Outline => state.outline().a(), PaintChannel::Shadow => state.shadow_color().a(),
-                        })?;
+                        let opacity = animation.opacity(
+                            *opacity,
+                            match channel {
+                                PaintChannel::Primary => state.primary().a(),
+                                PaintChannel::Secondary => state.secondary().a(),
+                                PaintChannel::Outline => state.outline().a(),
+                                PaintChannel::Shadow => state.shadow_color().a(),
+                            },
+                        )?;
                         state = channel_color(state, *channel, |c| {
                             Rgba8::new(c.r(), c.g(), c.b(), opacity)
                         })
@@ -370,7 +434,14 @@ fn one(
                         opacity,
                         ..
                     } => {
-                        let apply = |c: Rgba8| -> Result<Rgba8, RenderError> { Ok(Rgba8::new(c.r(), c.g(), c.b(), animation.opacity(*opacity, c.a())?)) };
+                        let apply = |c: Rgba8| -> Result<Rgba8, RenderError> {
+                            Ok(Rgba8::new(
+                                c.r(),
+                                c.g(),
+                                c.b(),
+                                animation.opacity(*opacity, c.a())?,
+                            ))
+                        };
                         let colors = [
                             apply(state.primary())?,
                             apply(state.secondary())?,
