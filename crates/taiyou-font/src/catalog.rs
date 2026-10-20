@@ -35,7 +35,9 @@ impl ValidatedFontCatalog {
     }
     pub(crate) fn matches_family(&self, index: usize, folded: &str) -> bool {
         self.faces()[index].folded_family() == folded
-            || self.aliases[index].iter().any(|alias| alias.as_str() == folded)
+            || self.aliases[index]
+                .iter()
+                .any(|alias| alias.as_str() == folded)
     }
     /// Extract through the immutable catalog's authentication proof. Arbitrary
     /// public FontBlob inputs still use FontContext::outline and reauthenticate.
