@@ -986,3 +986,6 @@ mod staging_tests;
 
 #[cfg(all(test, feature = "native"))]
 mod f1_equivalence_tests;
+
+#[cfg(all(test, feature = "native"))]
+mod f1_fixture;

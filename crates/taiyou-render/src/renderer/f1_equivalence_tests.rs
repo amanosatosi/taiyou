@@ -10,22 +10,8 @@ use std::path::PathBuf;
 
 #[test]
 fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
-    let source = include_str!(
-        "../../../../experiments/t017/results/ae467c9/optimized-initial/adaptive-256-multiglyph.ass"
-    );
     let limits = Limits::default();
-    let parsed = taiyou_ass::parse_ass(
-        source.as_bytes(),
-        &ParseOptions::new(
-            InputEncoding::Utf8,
-            Profile::CoreV1,
-            limits.clone(),
-            SyntaxPolicy::Strict,
-        ),
-        &mut TrackIngestor::new(),
-    )
-    .unwrap();
-    let track = parsed.track();
+    let track = super::f1_fixture::track();
     let mut context = FontContext::new().unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
     let font = PathBuf::from(std::env::var_os("RUNNER_TEMP").unwrap())
@@ -35,7 +21,7 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         .unwrap();
     let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
     let evaluated = crate::evaluate(
-        track,
+        &track,
         EventId::new(0),
         TimeUs::from_micros(750_000),
         Profile::CoreV1,

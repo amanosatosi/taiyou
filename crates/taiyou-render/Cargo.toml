@@ -9,10 +9,6 @@ publish.workspace = true
 taiyou-types.workspace = true
 taiyou-font.workspace = true
 
-[dev-dependencies]
-# Existing workspace parser, only for the preserved end-to-end F1 fixture.
-taiyou-ass.workspace = true
-
 [lints]
 workspace = true
 
