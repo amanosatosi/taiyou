@@ -86,10 +86,20 @@ pub fn collision_footprint(
     scaled_border_shadow: bool,
     policy: UnsupportedPolicy,
 ) -> Result<ScriptBounds, RenderError> {
-    collision_footprint_with_limits(local,device,scaled_border_shadow,policy,&Limits::default())
+    collision_footprint_with_limits(
+        local,
+        device,
+        scaled_border_shadow,
+        policy,
+        &Limits::default(),
+    )
 }
 pub fn collision_footprint_with_limits(
-    local:&LocalLayout,device:DeviceMapping,scaled_border_shadow:bool,_policy:UnsupportedPolicy,limits:&Limits,
+    local: &LocalLayout,
+    device: DeviceMapping,
+    scaled_border_shadow: bool,
+    _policy: UnsupportedPolicy,
+    limits: &Limits,
 ) -> Result<ScriptBounds, RenderError> {
     if local.shaped().placement().origin().is_some() {
         return Err(RenderError::new(
@@ -99,8 +109,8 @@ pub fn collision_footprint_with_limits(
     }
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
-    let [lx,ly]=device.layout_scale();
-    let target=device.target_scale();
+    let [lx, ly] = device.layout_scale();
+    let target = device.target_scale();
     let mut result = local.collision_bounds();
     for positioned in local.glyphs() {
         let run = &local.shaped().runs()[positioned.run_index()];
@@ -156,13 +166,13 @@ pub fn collision_footprint_with_limits(
                     y + state.geometry().shear_y().get() * x,
                 );
                 let (x, y) = crate::geometry::project_3d(
-                    cos * x*lx + sin * y*ly,
-                    -sin * x*lx + cos * y*ly,
+                    cos * x * lx + sin * y * ly,
+                    -sin * x * lx + cos * y * ly,
                     state.geometry().rotation_x().get(),
                     state.geometry().rotation_y().get(),
                 )?;
-                let dx = finite(x * sx/lx)?.get();
-                let dy = finite(y * sy/ly)?.get();
+                let dx = finite(x * sx / lx)?.get();
+                let dy = finite(y * sy / ly)?.get();
                 include(&mut hull, ScriptBounds::new(dx, dy, dx, dy)?)?;
             }
         }
@@ -170,21 +180,25 @@ pub fn collision_footprint_with_limits(
             && (state.effects().border_x().get() > 0.0 || state.effects().border_y().get() > 0.0);
         let radius = if border {
             Some((
-                q6(state.effects().border_x().get() * if scaled_border_shadow { sx } else { target[0] })?,
-                q6(state.effects().border_y().get() * if scaled_border_shadow { sy } else { target[1] })?,
+                q6(state.effects().border_x().get()
+                    * if scaled_border_shadow { sx } else { target[0] })?,
+                q6(state.effects().border_y().get()
+                    * if scaled_border_shadow { sy } else { target[1] })?,
             ))
         } else {
             None
         };
         let shadow = if state.paint().shadow().a() == 0
-            || state.effects().border_style()==BorderStyle::OpaqueBox
+            || state.effects().border_style() == BorderStyle::OpaqueBox
             || (state.effects().shadow_x().get() == 0.0 && state.effects().shadow_y().get() == 0.0)
         {
             None
         } else {
             Some((
-                q6(state.effects().shadow_x().get() * if scaled_border_shadow { sx } else { target[0] })?,
-                q6(state.effects().shadow_y().get() * if scaled_border_shadow { sy } else { target[1] })?,
+                q6(state.effects().shadow_x().get()
+                    * if scaled_border_shadow { sx } else { target[0] })?,
+                q6(state.effects().shadow_y().get()
+                    * if scaled_border_shadow { sy } else { target[1] })?,
             ))
         };
         if let Some(hull) = hull {
@@ -199,34 +213,74 @@ pub fn collision_footprint_with_limits(
             }
         }
     }
-    let mut start=0;
-    while start<local.glyphs().len(){
-        let state=&local.shaped().evaluated().runs()[local.glyphs()[start].association_index()];
-        let mut end=start+1;
-        while end<local.glyphs().len() {
-            let b=&local.shaped().evaluated().runs()[local.glyphs()[end].association_index()];
-            if state.shaping()!=b.shaping() || state.geometry()!=b.geometry() || state.effects()!=b.effects() || state.paint()!=b.paint() || state.karaoke()!=b.karaoke(){break;}
-            end+=1;
+    let mut start = 0;
+    while start < local.glyphs().len() {
+        let state = &local.shaped().evaluated().runs()[local.glyphs()[start].association_index()];
+        let mut end = start + 1;
+        while end < local.glyphs().len() {
+            let b = &local.shaped().evaluated().runs()[local.glyphs()[end].association_index()];
+            if state.shaping() != b.shaping()
+                || state.geometry() != b.geometry()
+                || state.effects() != b.effects()
+                || state.paint() != b.paint()
+                || state.karaoke() != b.karaoke()
+            {
+                break;
+            }
+            end += 1;
         }
-        if state.effects().border_style()==BorderStyle::OpaqueBox {
-            let zero=ScriptPoint::new(FiniteF64::ZERO,FiniteF64::ZERO);
-            let boxes=crate::geometry::opaque_box_paths(local,start..end,device,zero,None,scaled_border_shadow,limits)?;
+        if state.effects().border_style() == BorderStyle::OpaqueBox {
+            let zero = ScriptPoint::new(FiniteF64::ZERO, FiniteF64::ZERO);
+            let boxes = crate::geometry::opaque_box_paths(
+                local,
+                start..end,
+                device,
+                zero,
+                None,
+                scaled_border_shadow,
+                limits,
+            )?;
             for path in boxes {
-                let mut precise=None;
-                for op in path.outline().ops(){let _:PathOp<FontPoint>=op.try_map(|p|{let(x,y)=path.mapping().precise_point(p)?;include(&mut precise,ScriptBounds::new(x,y,x,y)?)?;Ok::<_,RenderError>(p)})?;}
-                if let Some(b)=precise {
-                    let bound=b.translated(-f64::from(device.content().x0()),-f64::from(device.content().y0()))?;
-                    let visible=(state.effects().border_x().get()>0.0 || state.effects().border_y().get()>0.0) && state.paint().outline().a()!=0;
-                    if visible{result=result.union(bound.scaled(1.0/sx,1.0/sy)?)?;}
-                    if state.paint().shadow().a()!=0 && (state.effects().shadow_x().get()!=0.0 || state.effects().shadow_y().get()!=0.0){
-                        let dx=q6(state.effects().shadow_x().get()*if scaled_border_shadow{sx}else{target[0]})?;
-                        let dy=q6(state.effects().shadow_y().get()*if scaled_border_shadow{sy}else{target[1]})?;
-                        result=result.union(bound.translated(f64::from(dx.ticks())/64.0,f64::from(dy.ticks())/64.0)?.scaled(1.0/sx,1.0/sy)?)?;
+                let mut precise = None;
+                for op in path.outline().ops() {
+                    let _: PathOp<FontPoint> = op.try_map(|p| {
+                        let (x, y) = path.mapping().precise_point(p)?;
+                        include(&mut precise, ScriptBounds::new(x, y, x, y)?)?;
+                        Ok::<_, RenderError>(p)
+                    })?;
+                }
+                if let Some(b) = precise {
+                    let bound = b.translated(
+                        -f64::from(device.content().x0()),
+                        -f64::from(device.content().y0()),
+                    )?;
+                    let visible = (state.effects().border_x().get() > 0.0
+                        || state.effects().border_y().get() > 0.0)
+                        && state.paint().outline().a() != 0;
+                    if visible {
+                        result = result.union(bound.scaled(1.0 / sx, 1.0 / sy)?)?;
+                    }
+                    if state.paint().shadow().a() != 0
+                        && (state.effects().shadow_x().get() != 0.0
+                            || state.effects().shadow_y().get() != 0.0)
+                    {
+                        let dx = q6(state.effects().shadow_x().get()
+                            * if scaled_border_shadow { sx } else { target[0] })?;
+                        let dy = q6(state.effects().shadow_y().get()
+                            * if scaled_border_shadow { sy } else { target[1] })?;
+                        result = result.union(
+                            bound
+                                .translated(
+                                    f64::from(dx.ticks()) / 64.0,
+                                    f64::from(dy.ticks()) / 64.0,
+                                )?
+                                .scaled(1.0 / sx, 1.0 / sy)?,
+                        )?;
                     }
                 }
             }
         }
-        start=end;
+        start = end;
     }
     Ok(result)
 }

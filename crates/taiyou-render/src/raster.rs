@@ -118,9 +118,13 @@ pub fn coverage_groups(
         |i: usize| &event.layout().shaped().evaluated().runs()[event.items()[i].association];
     let mut start = 0;
     let mut total = 0usize;
+    let mut line_index=0;
     while start < event.items().len() {
+        while event.layout().lines().get(line_index).is_some_and(|l|l.glyph_range().end<=start){line_index+=1;}
+        let opaque=state(start).effects().border_style()==BorderStyle::OpaqueBox;
+        let line_end=if opaque {event.layout().lines().get(line_index).map_or(event.items().len(),|l|l.glyph_range().end)}else{event.items().len()};
         let mut end = start + 1;
-        while end < event.items().len() {
+        while end < line_end {
             let (a, b) = (state(start), state(end));
             // C3 classifies shape changes as geometry changes as well. Fallback
             // faces under the same request stay compatible; per-glyph position
@@ -130,6 +134,7 @@ pub fn coverage_groups(
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
                 || a.karaoke() != b.karaoke()
+                || (opaque && a.drawing().is_some()!=b.drawing().is_some())
             {
                 break;
             }

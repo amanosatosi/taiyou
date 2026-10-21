@@ -537,9 +537,30 @@ impl FontContext {
                 {
                     return Err(failed());
                 }
-                let rotated=vertical.filter(|v|v.cff || request.text[cluster as usize..].chars().next().is_some_and(|c|c>='\u{2e80}'));
-                let advance=if rotated.is_some(){hb::hb_font_get_glyph_v_advance(font.raw,g.codepoint).checked_neg().ok_or_else(limited)?}else{p.x_advance};
-                let vertical_offset=if let Some(v)=rotated {Some([advance.checked_add(i32::from(v.typo_descent)).ok_or_else(limited)?,i32::from(v.typo_descent)])}else{None};
+                let rotated = vertical.filter(|v| {
+                    v.cff
+                        || request.text[cluster as usize..]
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c >= '\u{2e80}')
+                });
+                let advance = if rotated.is_some() {
+                    hb::hb_font_get_glyph_v_advance(font.raw, g.codepoint)
+                        .checked_neg()
+                        .ok_or_else(limited)?
+                } else {
+                    p.x_advance
+                };
+                let vertical_offset = if let Some(v) = rotated {
+                    Some([
+                        advance
+                            .checked_add(i32::from(v.typo_descent))
+                            .ok_or_else(limited)?,
+                        i32::from(v.typo_descent),
+                    ])
+                } else {
+                    None
+                };
                 glyphs.push(RawGlyph {
                     vertical_offset,
                     ink: {
@@ -603,7 +624,7 @@ fn outline_funcs() -> OutlineFuncs {
     }
 }
 unsafe extern "C" {
-    fn FT_Get_Font_Format(face:ft::FT_Face)->*const std::ffi::c_char;
+    fn FT_Get_Font_Format(face: ft::FT_Face) -> *const std::ffi::c_char;
     fn FT_Outline_Get_Orientation(outline: *const ft::FT_Outline) -> ft::FT_Int;
     fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
     fn FT_Outline_Decompose(
@@ -2217,13 +2238,38 @@ impl FontContext {
                     )
                 };
                 let upem = (*face.raw).units_per_EM;
-                let typo_descent=if valid_win {i16::from_be_bytes([table[70],table[71]])}else{(*face.raw).descender};
-                let format=FT_Get_Font_Format(face.raw);
-                let cff=!format.is_null() && CStr::from_ptr(format).to_bytes()==b"CFF";
-                let (va,vd)=if cff {
-                    (u16::try_from((*face.raw).bbox.xMax.checked_add(typo_descent as ft::FT_Pos).ok_or_else(||native_error(0,"vertical cell overflow"))?.max(0)).map_err(|_|native_error(0,"vertical cell ascent"))?,
-                     u16::try_from((*face.raw).bbox.xMin.checked_add(typo_descent as ft::FT_Pos).and_then(|n|n.checked_neg()).ok_or_else(||native_error(0,"vertical cell overflow"))?.max(0)).map_err(|_|native_error(0,"vertical cell descent"))?)
-                }else{(ascent,descent)};
+                let typo_descent = if valid_win {
+                    i16::from_be_bytes([table[70], table[71]])
+                } else {
+                    (*face.raw).descender
+                };
+                let format = FT_Get_Font_Format(face.raw);
+                let cff = !format.is_null() && CStr::from_ptr(format).to_bytes() == b"CFF";
+                let (va, vd) = if cff {
+                    (
+                        u16::try_from(
+                            (*face.raw)
+                                .bbox
+                                .xMax
+                                .checked_add(typo_descent as ft::FT_Pos)
+                                .ok_or_else(|| native_error(0, "vertical cell overflow"))?
+                                .max(0),
+                        )
+                        .map_err(|_| native_error(0, "vertical cell ascent"))?,
+                        u16::try_from(
+                            (*face.raw)
+                                .bbox
+                                .xMin
+                                .checked_add(typo_descent as ft::FT_Pos)
+                                .and_then(|n| n.checked_neg())
+                                .ok_or_else(|| native_error(0, "vertical cell overflow"))?
+                                .max(0),
+                        )
+                        .map_err(|_| native_error(0, "vertical cell descent"))?,
+                    )
+                } else {
+                    (ascent, descent)
+                };
                 if upem == 0 || u32::from(ascent) + u32::from(descent) == 0 {
                     return Err(native_error(0, "invalid ASS font cell metrics"));
                 }
@@ -2234,7 +2280,12 @@ impl FontContext {
                     italic: (*face.raw).style_flags & ft::FT_STYLE_FLAG_ITALIC != 0,
                     glyphs,
                     cell: (upem, ascent, descent),
-                    vertical: crate::catalog::VerticalMetrics{cff,typo_descent,ascent:va,descent:vd},
+                    vertical: crate::catalog::VerticalMetrics {
+                        cff,
+                        typo_descent,
+                        ascent: va,
+                        descent: vd,
+                    },
                 })
             }
         })

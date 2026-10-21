@@ -53,6 +53,11 @@ mod native {
         assert!(draw(r"\bord4\3a&HFF&").iter().all(|b|*b==0));
         assert_ne!(draw(r"\bord4"),draw(r"\bord4\blur2"));
         assert_ne!(draw(r"\bord4"),draw(r"\xbord8\ybord2"));
+        // Separate finalized lines composite their translucent boxes separately,
+        // rather than rasterizing one union and losing overlap accumulation.
+        let p=parsed_style("","Source Sans 3",r"{\pos(120,80)\bord20\1a&HFF&\3a&H80&}H\NH",3);
+        let raw=pixels(&p,c,vp,0);
+        assert_eq!(raw[(40*240+120)*4+3],191);
     }
     #[test]
     fn opaque_boxes_finalize_per_line_and_follow_normal_transforms_and_limits(){

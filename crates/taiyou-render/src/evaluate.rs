@@ -98,7 +98,7 @@ fn validate_style(
     policy: UnsupportedPolicy,
     d: &mut DiagnosticBuffer,
 ) -> Result<(), RenderError> {
-    if !matches!(style.encoding(),0|1) {
+    if !matches!(style.encoding(), 0 | 1) {
         unsupported(
             event,
             span,

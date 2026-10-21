@@ -24,8 +24,13 @@ impl Default for ShapeOptions {
 impl ShapeOptions {
     /// Layout pixels per PlayRes unit; glyph metrics are returned in script units.
     pub fn with_layout_scale(mut self, scale: [f64; 2]) -> Result<Self, FontError> {
-        if scale.iter().any(|s| !s.is_finite() || *s <= 0.0) { return Err(error(ErrorCode::InvalidArgument,"invalid layout scale")); }
-        self.layout_scale = [FiniteF64::new(scale[0]).map_err(|_|limited())?,FiniteF64::new(scale[1]).map_err(|_|limited())?];
+        if scale.iter().any(|s| !s.is_finite() || *s <= 0.0) {
+            return Err(error(ErrorCode::InvalidArgument, "invalid layout scale"));
+        }
+        self.layout_scale = [
+            FiniteF64::new(scale[0]).map_err(|_| limited())?,
+            FiniteF64::new(scale[1]).map_err(|_| limited())?,
+        ];
         Ok(self)
     }
     pub fn with_direction(mut self, direction: Direction) -> Self {
@@ -66,7 +71,7 @@ pub(crate) struct NativeRequest<'a> {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct RawGlyph {
-    pub vertical_offset: Option<[i32;2]>,
+    pub vertical_offset: Option<[i32; 2]>,
     pub ink: Option<[i32; 4]>,
     pub glyph: u32,
     pub cluster: u32,
@@ -301,7 +306,7 @@ fn priorities(
     style: &ShapeStyle,
     limits: &Limits,
 ) -> Result<Vec<usize>, FontError> {
-    if !matches!(style.encoding(),0|1)
+    if !matches!(style.encoding(), 0 | 1)
         || !style.features().is_empty()
         || !style.variations().is_empty()
     {
@@ -310,7 +315,14 @@ fn priorities(
             "legacy/custom variation shaping is not enabled",
         ));
     }
-    let family = fold_family(style.font().family().strip_prefix('@').unwrap_or(style.font().family()), limits)?;
+    let family = fold_family(
+        style
+            .font()
+            .family()
+            .strip_prefix('@')
+            .unwrap_or(style.font().family()),
+        limits,
+    )?;
     if !(0..catalog.faces().len()).any(|index| catalog.matches_family(index, &family)) {
         return Err(error(
             ErrorCode::FontUnavailable,
@@ -592,16 +604,20 @@ fn shape_item(
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
-        let [lx,ly] = input.options.layout_scale.map(FiniteF64::get);
-        let cell_size = FiniteF64::new(input.style.font_size().get()*ly).map_err(|_|limited())?;
-        let vertical=input.style.font().vertical() || input.style.font().family().starts_with('@');
+        let [lx, ly] = input.options.layout_scale.map(FiniteF64::get);
+        let cell_size =
+            FiniteF64::new(input.style.font_size().get() * ly).map_err(|_| limited())?;
+        let vertical =
+            input.style.font().vertical() || input.style.font().family().starts_with('@');
         let scale = input
             .catalog
-            .ass_oriented_font_scale(face.id(), cell_size,vertical)?
+            .ass_oriented_font_scale(face.id(), cell_size, vertical)?
             .get();
-        let baseline_offset = input
-            .catalog
-            .ass_oriented_baseline_offset(face.id(), cell_size,vertical)? / ly;
+        let baseline_offset =
+            input
+                .catalog
+                .ass_oriented_baseline_offset(face.id(), cell_size, vertical)?
+                / ly;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
             return Err(error(
                 ErrorCode::NativeFailure,
@@ -618,8 +634,15 @@ fn shape_item(
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
             metrics: {
-                let m=input.catalog.ass_oriented_line_metrics(face.id(),cell_size,vertical)?;
-                RunMetrics::new(finite(m.ascent().get()/ly)?,finite(m.descent().get()/ly)?,finite(m.line_gap().get()/ly)?,m.units_per_em())?
+                let m = input
+                    .catalog
+                    .ass_oriented_line_metrics(face.id(), cell_size, vertical)?;
+                RunMetrics::new(
+                    finite(m.ascent().get() / ly)?,
+                    finite(m.descent().get() / ly)?,
+                    finite(m.line_gap().get() / ly)?,
+                    m.units_per_em(),
+                )?
             },
         });
         if glyphs
@@ -644,11 +667,18 @@ fn shape_item(
             let ink = if cluster.text().chars().all(char::is_whitespace) {
                 GlyphInk::Empty
             } else if let Some(mut bounds) = g.ink {
-                if let Some([dv,desc])=g.vertical_offset {
-                    let [x,y,w,h]=bounds;
-                    bounds=[dv.checked_sub(y).ok_or_else(limited)?, x.checked_add(w).and_then(|n|n.checked_add(desc)).ok_or_else(limited)?,h.checked_neg().ok_or_else(limited)?,w.checked_neg().ok_or_else(limited)?];
+                if let Some([dv, desc]) = g.vertical_offset {
+                    let [x, y, w, h] = bounds;
+                    bounds = [
+                        dv.checked_sub(y).ok_or_else(limited)?,
+                        x.checked_add(w)
+                            .and_then(|n| n.checked_add(desc))
+                            .ok_or_else(limited)?,
+                        h.checked_neg().ok_or_else(limited)?,
+                        w.checked_neg().ok_or_else(limited)?,
+                    ];
                 }
-                let [x,y,w,h]=bounds;
+                let [x, y, w, h] = bounds;
                 if w == 0 || h == 0 {
                     GlyphInk::Empty
                 } else {
@@ -668,7 +698,14 @@ fn shape_item(
                 GlyphInk::Unknown
             };
             glyphs.push(
-                ShapedGlyph::new(face.id(), g.glyph, cluster.clone(), position).with_ink(ink).with_vertical_offset(g.vertical_offset.map(|[x,y]|FontPoint::new(f64::from(x),f64::from(y))).transpose().map_err(|_|limited())?),
+                ShapedGlyph::new(face.id(), g.glyph, cluster.clone(), position)
+                    .with_ink(ink)
+                    .with_vertical_offset(
+                        g.vertical_offset
+                            .map(|[x, y]| FontPoint::new(f64::from(x), f64::from(y)))
+                            .transpose()
+                            .map_err(|_| limited())?,
+                    ),
             );
             if g.glyph == 0
                 && missing
@@ -998,11 +1035,20 @@ fn empty_line_metrics(
                     "font UPEM changed after validation",
                 ));
             }
-            let ly=options.layout_scale[1].get();
-            let cell=FiniteF64::new(style.font_size().get()*ly).map_err(|_|limited())?;
-            let m = catalog.ass_oriented_line_metrics(face.id(), cell,style.font().vertical() || style.font().family().starts_with('@'))?;
-            let f=|n:f64|FiniteF64::new(n).map_err(|_|limited());
-            let metrics=RunMetrics::new(f(m.ascent().get()/ly)?,f(m.descent().get()/ly)?,f(m.line_gap().get()/ly)?,m.units_per_em())?;
+            let ly = options.layout_scale[1].get();
+            let cell = FiniteF64::new(style.font_size().get() * ly).map_err(|_| limited())?;
+            let m = catalog.ass_oriented_line_metrics(
+                face.id(),
+                cell,
+                style.font().vertical() || style.font().family().starts_with('@'),
+            )?;
+            let f = |n: f64| FiniteF64::new(n).map_err(|_| limited());
+            let metrics = RunMetrics::new(
+                f(m.ascent().get() / ly)?,
+                f(m.descent().get() / ly)?,
+                f(m.line_gap().get() / ly)?,
+                m.units_per_em(),
+            )?;
             reserve(&mut result, 1, limits)?;
             result.push(EmptyLineMetrics {
                 decoded: map.decoded_span(start..start)?,

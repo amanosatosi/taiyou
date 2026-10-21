@@ -106,8 +106,13 @@ impl ShapedGlyph {
     pub const fn font(&self) -> FontId {
         self.font
     }
-    pub fn with_vertical_offset(mut self,offset:Option<FontPoint>)->Self {self.vertical_offset=offset;self}
-    pub const fn vertical_offset(&self)->Option<FontPoint>{self.vertical_offset}
+    pub fn with_vertical_offset(mut self, offset: Option<FontPoint>) -> Self {
+        self.vertical_offset = offset;
+        self
+    }
+    pub const fn vertical_offset(&self) -> Option<FontPoint> {
+        self.vertical_offset
+    }
     pub fn with_ink(mut self, ink: GlyphInk) -> Self {
         self.ink = ink;
         self

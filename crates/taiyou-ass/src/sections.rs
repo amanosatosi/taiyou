@@ -180,9 +180,13 @@ impl Header {
     ) -> Result<(), ParseError> {
         let value = decode::trim(value);
         if key.eq_ignore_ascii_case("layoutresx") || key.eq_ignore_ascii_case("layoutresy") {
-            let value=decode::integer(value).map_err(|e|e.with_context(None,Some(span)))?;
-            if key.eq_ignore_ascii_case("layoutresx"){self.layout_x=Some(value);}else{self.layout_y=Some(value);}
-        }else if ["playresx", "playresy"]
+            let value = decode::integer(value).map_err(|e| e.with_context(None, Some(span)))?;
+            if key.eq_ignore_ascii_case("layoutresx") {
+                self.layout_x = Some(value);
+            } else {
+                self.layout_y = Some(value);
+            }
+        } else if ["playresx", "playresy"]
             .iter()
             .any(|name| key.eq_ignore_ascii_case(name))
         {
@@ -233,7 +237,10 @@ impl Header {
         };
         let play = pair(self.play_x, self.play_y)?.unwrap_or(Size::new(384, 288));
         // RenderEx uses the declared pair only when BOTH dimensions are > 0.
-        let layout=match(self.layout_x,self.layout_y){(Some(x),Some(y)) if x>0 && y>0=>Some(Size::new(x as u32,y as u32)),_=>None};
+        let layout = match (self.layout_x, self.layout_y) {
+            (Some(x), Some(y)) if x > 0 && y > 0 => Some(Size::new(x as u32, y as u32)),
+            _ => None,
+        };
         Ok(ScriptInfo::core_default()
             .with_play_res(play)?
             .with_layout_res(layout)?

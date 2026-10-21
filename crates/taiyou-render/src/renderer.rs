@@ -93,8 +93,12 @@ fn script_offset_q6(
     let content = device.content();
     let play = device.play_res();
     let ratio = if !scaled_border_shadow {
-        let [lx,ly]=device.layout_scale();
-        if x_axis {f64::from(content.width())/f64::from(play.width())/lx} else {f64::from(content.height())/f64::from(play.height())/ly}
+        let [lx, ly] = device.layout_scale();
+        if x_axis {
+            f64::from(content.width()) / f64::from(play.width()) / lx
+        } else {
+            f64::from(content.height()) / f64::from(play.height()) / ly
+        }
     } else if x_axis {
         f64::from(content.width()) / f64::from(play.width())
     } else {
@@ -154,9 +158,16 @@ struct Preparation<'a> {
     request: &'a RenderRequest,
     config: &'a RendererConfig,
 }
-#[cfg(feature="native")]
-fn device_mapping(track:&Track,request:&RenderRequest)->Result<DeviceMapping,RenderError>{
-    DeviceMapping::new(track.script().play_res(),request.viewport.content())?.with_layout_res(Some(track.script().layout_res().unwrap_or(request.viewport.original_size())))
+#[cfg(feature = "native")]
+fn device_mapping(track: &Track, request: &RenderRequest) -> Result<DeviceMapping, RenderError> {
+    DeviceMapping::new(track.script().play_res(), request.viewport.content())?.with_layout_res(
+        Some(
+            track
+                .script()
+                .layout_res()
+                .unwrap_or(request.viewport.original_size()),
+        ),
+    )
 }
 #[cfg(feature = "native")]
 struct PreparedLocal {
@@ -199,9 +210,9 @@ fn prepare_local(
         ctx,
         fonts,
         &evaluated,
-        &taiyou_font::ShapeOptions::default().with_layout_scale(
-            device_mapping(track,request)?.layout_scale()
-        ).map_err(crate::geometry::font_error)?,
+        &taiyou_font::ShapeOptions::default()
+            .with_layout_scale(device_mapping(track, request)?.layout_scale())
+            .map_err(crate::geometry::font_error)?,
         &available(limits, stage_held)?,
     )
     .map_err(crate::geometry::font_error)?;
@@ -445,10 +456,15 @@ impl Renderer {
         #[cfg(test)]
         PREPARATION_ATTEMPTS.with(|n| n.set(n.get() + 1));
         let adjusted;
-        let request=if let Some(layout)=track.script().layout_res() {
-            adjusted=RenderRequest {viewport:request.viewport.with_original_size(layout)?,..*request};
+        let request = if let Some(layout) = track.script().layout_res() {
+            adjusted = RenderRequest {
+                viewport: request.viewport.with_original_size(layout)?,
+                ..*request
+            };
             &adjusted
-        }else{request};
+        } else {
+            request
+        };
         let limits = &self.config.limits;
         let (_, length) = limits
             .check_output_size(request.viewport.size())
@@ -592,10 +608,10 @@ impl Renderer {
                     anchor: alignment_anchor(placement, track.script().play_res())?,
                     bounds: crate::collision_footprint::collision_footprint_with_limits(
                         &local,
-                        device_mapping(&track,request)?,
+                        device_mapping(&track, request)?,
                         track.script().scaled_border_shadow(),
                         request.unsupported,
-                        &available(limits,add(held,local_charge)?)?,
+                        &available(limits, add(held, local_charge)?)?,
                     )?,
                     eligible: true,
                 });
@@ -671,8 +687,7 @@ impl Renderer {
                     };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
-                let device =
-                    device_mapping(&track,request)?;
+                let device = device_mapping(&track, request)?;
                 // xy's integer effect coordinates belong to layout pixels,
                 // before any separately declared raster-target oversampling.
                 let target_scale = request.viewport.target_scale();
@@ -781,7 +796,7 @@ impl Renderer {
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
                     let border_enabled = state.effects().border_style() == BorderStyle::Outline;
-                    let opaque=state.effects().border_style()==BorderStyle::OpaqueBox;
+                    let opaque = state.effects().border_style() == BorderStyle::OpaqueBox;
                     let border_value = state.effects().border_x().get();
                     let border_radius = if border_enabled {
                         let ratio = if track.script().scaled_border_shadow() {
@@ -813,30 +828,79 @@ impl Renderer {
                         request.viewport.target_scale(),
                         limits,
                     )?;
-                    let br=if track.script().scaled_border_shadow(){[sx*target_scale[0],sy*target_scale[1]]}else{target_scale};
-                    let box_outline=(state.effects().border_x().get()*br[0]*8.0+0.5>=1.0 || state.effects().border_y().get()*br[1]*8.0+0.5>=1.0) && !state.karaoke().is_some_and(|k|k.kind==KaraokeTag::Outline && k.now_ms<i64::from(k.start_ms));
-                    let mut box_charge=0;
-                    let box_group=if opaque && ((box_outline && state.paint().outline().a()!=0) || (state.paint().shadow().a()!=0 && (state.effects().shadow_x().get()!=0.0 || state.effects().shadow_y().get()!=0.0))) {
-                        let instances=opaque_box_paths(placed.layout(),group.policy().members(),device,anchor,origin,track.script().scaled_border_shadow(),&available(limits,add(held,event_charge)?)?)?;
-                        let segments=instances.iter().try_fold(0u64,|n,g|add(n,g.ops().len() as u64))?;
-                        total_segments=add(total_segments,segments)?;
-                        if total_segments>limits.path_segments_per_frame(){return Err(limited());}
-                        box_charge=add(bytes::<GeometryInstance>(instances.len())?,segments.checked_mul(4*(std::mem::size_of::<PathOp<FontPoint>>()+std::mem::size_of::<PathOp<DevicePoint>>()) as u64).ok_or_else(limited)?)?;
-                        event_charge=add(event_charge,box_charge)?;
-                        Some(CoverageGroup::new(instances,CoveragePass::Fill,Profile::CoreV1,&available(limits,add(held,event_charge)?)?)?)
-                    }else{None};
+                    let br = if track.script().scaled_border_shadow() {
+                        [sx * target_scale[0], sy * target_scale[1]]
+                    } else {
+                        target_scale
+                    };
+                    let box_outline = (state.effects().border_x().get() * br[0] * 8.0 + 0.5 >= 1.0
+                        || state.effects().border_y().get() * br[1] * 8.0 + 0.5 >= 1.0)
+                        && !state.karaoke().is_some_and(|k| {
+                            k.kind == KaraokeTag::Outline && k.now_ms < i64::from(k.start_ms)
+                        });
+                    let mut box_charge = 0;
+                    let box_group = if opaque
+                        && ((box_outline && state.paint().outline().a() != 0)
+                            || (state.paint().shadow().a() != 0
+                                && (state.effects().shadow_x().get() != 0.0
+                                    || state.effects().shadow_y().get() != 0.0)))
+                    {
+                        let instances = opaque_box_paths(
+                            placed.layout(),
+                            group.policy().members(),
+                            device,
+                            anchor,
+                            origin,
+                            track.script().scaled_border_shadow(),
+                            &available(limits, add(held, event_charge)?)?,
+                        )?;
+                        let segments = instances
+                            .iter()
+                            .try_fold(0u64, |n, g| add(n, g.ops().len() as u64))?;
+                        total_segments = add(total_segments, segments)?;
+                        if total_segments > limits.path_segments_per_frame() {
+                            return Err(limited());
+                        }
+                        box_charge = add(
+                            bytes::<GeometryInstance>(instances.len())?,
+                            segments
+                                .checked_mul(
+                                    4 * (std::mem::size_of::<PathOp<FontPoint>>()
+                                        + std::mem::size_of::<PathOp<DevicePoint>>())
+                                        as u64,
+                                )
+                                .ok_or_else(limited)?,
+                        )?;
+                        event_charge = add(event_charge, box_charge)?;
+                        Some(CoverageGroup::new(
+                            instances,
+                            CoveragePass::Fill,
+                            Profile::CoreV1,
+                            &available(limits, add(held, event_charge)?)?,
+                        )?)
+                    } else {
+                        None
+                    };
                     if opaque || !border_exists {
                         fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
-                    let mut border = if let Some(boxes)=box_group.as_ref() {
-                        let mut raster=RasterContext::with_limits(available(limits,add(held,event_charge)?)?)?;
-                        let mask=rasterize(&mut raster,boxes)?;drop(raster);
-                        charge_mask(&mask,&mut held,event_charge,limits)?;
-                        let mask=filter_mask(mask,&blur_spec,&mut held,event_charge,limits)?;
-                        expanded=Some(mask.clone());
-                        if box_outline && state.paint().outline().a()!=0 {Some(mask)}else{None}
-                    }else if border_exists {
+                    let mut border = if let Some(boxes) = box_group.as_ref() {
+                        let mut raster = RasterContext::with_limits(available(
+                            limits,
+                            add(held, event_charge)?,
+                        )?)?;
+                        let mask = rasterize(&mut raster, boxes)?;
+                        drop(raster);
+                        charge_mask(&mask, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        expanded = Some(mask.clone());
+                        if box_outline && state.paint().outline().a() != 0 {
+                            Some(mask)
+                        } else {
+                            None
+                        }
+                    } else if border_exists {
                         let remaining = limits
                             .path_segments_per_frame()
                             .checked_sub(total_segments)
@@ -890,11 +954,22 @@ impl Renderer {
                         )?;
                         if dx.ticks() == 0 && dy.ticks() == 0 {
                             Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
-                        } else if let Some(boxes)=box_group.as_ref() {
-                            let mut raster=RasterContext::with_limits(available(limits,add(held,event_charge)?)?)?;
-                            let mask=crate::stroke::rasterize_translated(&mut raster,boxes,dx,dy)?;drop(raster);
-                            charge_mask(&mask,&mut held,event_charge,limits)?;
-                            Some(filter_mask(mask,&blur_spec,&mut held,event_charge,limits)?)
+                        } else if let Some(boxes) = box_group.as_ref() {
+                            let mut raster = RasterContext::with_limits(available(
+                                limits,
+                                add(held, event_charge)?,
+                            )?)?;
+                            let mask =
+                                crate::stroke::rasterize_translated(&mut raster, boxes, dx, dy)?;
+                            drop(raster);
+                            charge_mask(&mask, &mut held, event_charge, limits)?;
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -946,7 +1021,7 @@ impl Renderer {
                         }
                     };
                     drop(box_group);
-                    event_charge=event_charge.checked_sub(box_charge).ok_or_else(limited)?;
+                    event_charge = event_charge.checked_sub(box_charge).ok_or_else(limited)?;
                     if (border_exists || (opaque && border.is_none()))
                         && shadow
                             .as_ref()
