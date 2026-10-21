@@ -151,14 +151,20 @@ fn thick_borders_change_real_displacement_but_hidden_effects_do_not_pad() {
         let input = source(&row(&text).repeat(2));
         let (_, support) = footprint(&input, &fonts, size).unwrap();
         heights.push(support.height());
-        let expected = source(&format!(
-            "{}{}",
-            row(&format!("{{\\pos(13,9)}}{text}")),
-            row(&format!("{{\\pos(13,{})}}{text}", 9.0 + support.height()))
-        ));
+        // Continuous F1 anchors are not ASS pos coordinates (which truncate
+        // through native eighth pixels). Inject below ASS semantics instead.
+        let expected = Renderer::new(Default::default()).unwrap()
+            .render_with_continuous_anchors_for_test(
+                track(&input), fonts.clone(),
+                &RenderRequest { now: TimeUs::from_micros(750_000), viewport: Viewport::full(size).unwrap(), unsupported: UnsupportedPolicy::Strict },
+                vec![
+                    (EventId::new(0), ScriptPoint::new(FiniteF64::new(13.0).unwrap(), FiniteF64::new(9.0).unwrap())),
+                    (EventId::new(1), ScriptPoint::new(FiniteF64::new(13.0).unwrap(), FiniteF64::new(9.0 + support.height()).unwrap())),
+                ],
+            ).unwrap();
         assert_eq!(
             render(&input, fonts.clone(), size, Limits::default()).pixels(),
-            render(&expected, fonts.clone(), size, Limits::default()).pixels()
+            expected.pixels()
         );
     }
     assert!(heights[1] > heights[0]);

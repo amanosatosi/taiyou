@@ -292,9 +292,9 @@ pub struct Renderer {
     output: OutputBudget,
     #[cfg(feature = "native")]
     attachment_catalogs: CatalogIngestor,
-    // Unit-test injection below ASS coordinate semantics. Never compiled into
-    // a production renderer or exposed through the public rendering API.
-    #[cfg(all(test, feature = "native"))]
+    // Regression injection below ASS coordinate semantics, absent from normal
+    // optimized builds. Always None for ordinary rendering.
+    #[cfg(all(any(test, debug_assertions), feature = "native"))]
     continuous_test_anchors: Option<Vec<(EventId, ScriptPoint)>>,
     _not_sync: PhantomData<Cell<()>>,
 }
@@ -312,7 +312,7 @@ impl Renderer {
             output,
             #[cfg(feature = "native")]
             attachment_catalogs: CatalogIngestor::new(),
-            #[cfg(all(test, feature = "native"))]
+            #[cfg(all(any(test, debug_assertions), feature = "native"))]
             continuous_test_anchors: None,
             _not_sync: PhantomData,
         })
@@ -322,6 +322,27 @@ impl Renderer {
     }
     pub fn retained_output_bytes(&self) -> u64 {
         self.output.retained_bytes()
+    }
+
+    /// Internal regression helper, not a supported host placement API. Accepts
+    /// already-resolved continuous anchors below ASS pos/move quantization.
+    /// Debug builds only; injection is cleared on both success and error.
+    #[cfg(all(feature = "native", debug_assertions))]
+    #[doc(hidden)]
+    pub fn render_with_continuous_anchors_for_test(
+        &mut self,
+        track: Arc<Track>,
+        fonts: Arc<ValidatedFontCatalog>,
+        request: &RenderRequest,
+        anchors: Vec<(EventId, ScriptPoint)>,
+    ) -> Result<Frame, RenderError> {
+        if self.continuous_test_anchors.is_some() {
+            return Err(RenderError::new(ErrorCode::InvalidArgument, "nested test placement"));
+        }
+        self.continuous_test_anchors = Some(anchors);
+        let result = self.render(track, fonts, request);
+        self.continuous_test_anchors = None;
+        result
     }
 
     /// Parsed-input convenience boundary: retain ingestion diagnostics in the
@@ -682,7 +703,7 @@ impl Renderer {
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
-                #[cfg(test)]
+                #[cfg(any(test, debug_assertions))]
                 let anchor = self
                     .continuous_test_anchors
                     .as_ref()
