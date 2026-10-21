@@ -60,7 +60,7 @@ mod native {
         for (text,count) in [(r"H\NH",2),(r"H\N\NH",2),(r"   ",0),(r"\h",1)]{
             let p=parsed_style("","Source Sans 3",&format!(r"{{\bord3\pos(120,80)}}{text}"),3);
             let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
-            let mut ctx=FontContext::new().unwrap();let shaped=taiyou_font::shape_event(&mut ctx,&c,&e,&Default::default(),&Limits::default()).unwrap();
+            let mut ctx=FontContext::new().unwrap();let shaped=taiyou_render::shaping::shape_event(&mut ctx,&c,&e,&Default::default(),&Limits::default()).unwrap();
             let local=taiyou_render::layout(&shaped,&LayoutConstraints::new(e.placement().alignment())).unwrap();
             let device=taiyou_render::geometry::DeviceMapping::new(Size::new(240,160),vp.content()).unwrap();
             let paths=taiyou_render::geometry::opaque_box_paths(&local,0..local.glyphs().len(),device,ScriptPoint::new(FiniteF64::new(120.0).unwrap(),FiniteF64::new(80.0).unwrap()),None,false,&Limits::default()).unwrap();
@@ -80,7 +80,7 @@ mod native {
         let shape=|ctx:&mut FontContext,family:&str,text:&str|{
             let p=parsed("",family,text);
             let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
-            taiyou_font::shape_event(ctx,&c,&e,&Default::default(),&limits).unwrap()
+            taiyou_render::shaping::shape_event(ctx,&c,&e,&Default::default(),&limits).unwrap()
         };
         let h=shape(&mut ctx,"IPAexGothic","A日、");let v=shape(&mut ctx,"@IPAexGothic","A日、");
         let hg:Vec<_>=h.runs().iter().flat_map(|r|r.glyphs()).collect();let vg:Vec<_>=v.runs().iter().flat_map(|r|r.glyphs()).collect();

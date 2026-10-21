@@ -35,4 +35,10 @@ An intentional difference proposal includes original script/fonts, captured refe
 
 ## B4. Unresolved boundaries
 
+The current owner-directed batch implements LayoutRes, source-consumed unknown
+commands (including board1's b-prefix recovery), vertical @ font requests and
+standard BorderStyle=3 boxes. [Source paths and focused native witnesses](T018-CANDIDATE.md#layout-unknown-commands-vertical-fonts-and-opaque-boxes)
+record the implementation boundary. These are working renderer features;
+unresolved font/raster pixel parity is reported separately from execution.
+
 GDI versus FreeType outline/span raster differences, overlapping translucent runs, ligatures crossing paint boundaries, fractional rotation, legacy YCbCr conversion, vertical fonts, unusual codepages and some malformed-tag precedence remain unresolved. R004 remains a narrow investigation only where transform source behavior is genuinely ambiguous. V1 output is encoded RGB overlay; historical video-space color conversion is a host adapter/research task and must remain an explicit compatibility limitation. `.asa` and exact Mangetsu identity/specification need authoritative material before syntax contracts.
