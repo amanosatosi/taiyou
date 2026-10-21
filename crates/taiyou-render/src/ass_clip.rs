@@ -3,7 +3,7 @@ use crate::geometry::{DeviceMapping, GeometryMap};
 use crate::raster::RasterContext;
 use std::sync::Arc;
 use taiyou_types::*;
-type ResolvedEventClip=(Arc<ResolvedClip>,Option<Arc<Mask>>,u64);
+type ResolvedEventClip = (Arc<ResolvedClip>, Option<Arc<Mask>>, u64);
 fn limit() -> RenderError {
     RenderError::new(
         ErrorCode::LimitExceeded,
@@ -80,7 +80,10 @@ pub(crate) fn resolve(
         let zero = ScriptPoint::new(FiniteF64::ZERO, FiniteF64::ZERO);
         let mapping = GeometryMap::new(
             (FiniteF64::ONE, FiniteF64::ONE),
-            zero,
+            // Polygon words store y-up coordinates relative to their baseline.
+            // CClipper places native drawing coordinates at frame (0,0), so
+            // undo that storage-only baseline before the viewport map.
+            ScriptPoint::new(FiniteF64::ZERO,drawing.ascent),
             zero,
             None,
             FiniteF64::ZERO,

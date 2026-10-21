@@ -832,13 +832,13 @@ fn one(
                     }
                     OverrideOp::SetShadow { offset, .. } => {
                         state = animate_number(
-                                state,
-                                base,
-                                TransformProperty::Shadow,
-                                Some(*offset),
-                                false,
-                                &animation,
-                            )?;
+                            state,
+                            base,
+                            TransformProperty::Shadow,
+                            Some(*offset),
+                            false,
+                            &animation,
+                        )?;
                     }
                     OverrideOp::SetAlignment { alignment, .. } => {
                         if !alignment_seen {

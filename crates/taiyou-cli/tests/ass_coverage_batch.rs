@@ -3,7 +3,7 @@ use taiyou_render::renderer::*;
 fn parsed(tags: &str) -> ParsedTrack {
     parsed_body(&format!("{{{tags}}}A"))
 }
-fn parsed_body(body:&str)->ParsedTrack {
+fn parsed_body(body: &str) -> ParsedTrack {
     let ass = format!(
         "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:05.00,{body}\n"
     );
@@ -125,16 +125,44 @@ fn karaoke_source_clock_and_nonanimated_transform_commands() {
 }
 #[test]
 fn karaoke_words_escapes_and_provenance_survive_partitioning() {
-    let p=parsed_body(r"{\kt50\kf100}AB\hCD EF{\k20}G");
-    let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(1000000),Profile::CoreV1).unwrap();
-    let a=e.runs()[0].karaoke().unwrap();
-    for r in &e.runs()[..3] {let k=r.karaoke().unwrap();assert_eq!((k.start_ms,k.end_ms,k.word),(500,1500,a.word));}
-    let space=e.runs()[3].karaoke().unwrap();assert_eq!((space.start_ms,space.end_ms),(1500,1500));
-    let last=e.runs().last().unwrap().karaoke().unwrap();assert_eq!((last.kind,last.start_ms,last.end_ms),(KaraokeTag::Instant,1500,1700));
-    for r in e.runs(){let d=r.decoded().unwrap();assert_eq!(d.text(),r.text());assert!(d.belongs_to(e.source_map().unwrap()));}
-    assert_eq!(at(r"\shad-3",0).runs()[0].effects().shadow_x().get(),0.0);
-    assert_eq!(at(r"\xshad-3",0).runs()[0].effects().shadow_x().get(),-3.0);
-    let e=at(r"\xbord2\ybord8\t(0,1000,\bord4)",500);assert_eq!((e.runs()[0].effects().border_x().get(),e.runs()[0].effects().border_y().get()),(3.0,6.0));
+    let p = parsed_body(r"{\kt50\kf100}AB\hCD EF{\k20}G");
+    let e = taiyou_render::evaluate(
+        p.track(),
+        EventId::new(0),
+        TimeUs::from_micros(1000000),
+        Profile::CoreV1,
+    )
+    .unwrap();
+    let a = e.runs()[0].karaoke().unwrap();
+    for r in &e.runs()[..3] {
+        let k = r.karaoke().unwrap();
+        assert_eq!((k.start_ms, k.end_ms, k.word), (500, 1500, a.word));
+    }
+    let space = e.runs()[3].karaoke().unwrap();
+    assert_eq!((space.start_ms, space.end_ms), (1500, 1500));
+    let last = e.runs().last().unwrap().karaoke().unwrap();
+    assert_eq!(
+        (last.kind, last.start_ms, last.end_ms),
+        (KaraokeTag::Instant, 1500, 1700)
+    );
+    for r in e.runs() {
+        let d = r.decoded().unwrap();
+        assert_eq!(d.text(), r.text());
+        assert!(d.belongs_to(e.source_map().unwrap()));
+    }
+    assert_eq!(at(r"\shad-3", 0).runs()[0].effects().shadow_x().get(), 0.0);
+    assert_eq!(
+        at(r"\xshad-3", 0).runs()[0].effects().shadow_x().get(),
+        -3.0
+    );
+    let e = at(r"\xbord2\ybord8\t(0,1000,\bord4)", 500);
+    assert_eq!(
+        (
+            e.runs()[0].effects().border_x().get(),
+            e.runs()[0].effects().border_y().get()
+        ),
+        (3.0, 6.0)
+    );
 }
 
 #[cfg(feature = "native")]
@@ -152,9 +180,9 @@ mod pixels {
         b.snapshot(&mut CatalogIngestor::new()).unwrap()
     }
     fn render(tags: &str, ms: i64) -> Vec<u8> {
-        render_body(&format!("{{{tags}}}A"),ms)
+        render_body(&format!("{{{tags}}}A"), ms)
     }
-    fn render_body(body:&str,ms:i64)->Vec<u8> {
+    fn render_body(body: &str, ms: i64) -> Vec<u8> {
         Renderer::new(Default::default())
             .unwrap()
             .render_parsed(
@@ -219,11 +247,26 @@ mod pixels {
     }
     #[test]
     fn drawing_geometry_and_transform_tags_share_the_pipeline() {
-        let draw=|tags:&str|render_body(&format!(r"{{\pos(60,60)\p1{tags}}}m 0 0 l 20 0 20 10 0 10"),500);
-        let base=draw("");assert!(base.chunks_exact(4).any(|p|p[3]>0));
-        for tag in [r"\frx40",r"\fry40",r"\fax0.5",r"\fay0.5",r"\xbord2\ybord5",r"\clip(0,0,60,120)"] {assert_ne!(base,draw(tag),"{tag}");}
-        assert_ne!(draw(r"\frx20\fax0.5"),draw(r"\org(0,0)\frx20\fax0.5"));
-        assert_eq!(draw(r"\fax0.5"),draw(r"\org(0,0)\fax0.5"));
+        let draw = |tags: &str| {
+            render_body(
+                &format!(r"{{\pos(60,60)\p1{tags}}}m 0 0 l 20 0 20 10 0 10"),
+                500,
+            )
+        };
+        let base = draw("");
+        assert!(base.chunks_exact(4).any(|p| p[3] > 0));
+        for tag in [
+            r"\frx40",
+            r"\fry40",
+            r"\fax0.5",
+            r"\fay0.5",
+            r"\xbord2\ybord5",
+            r"\clip(0,0,60,120)",
+        ] {
+            assert_ne!(base, draw(tag), "{tag}");
+        }
+        assert_ne!(draw(r"\frx20\fax0.5"), draw(r"\org(0,0)\frx20\fax0.5"));
+        assert_eq!(draw(r"\fax0.5"), draw(r"\org(0,0)\fax0.5"));
     }
     #[test]
     fn karaoke_pixels_and_seeking() {
