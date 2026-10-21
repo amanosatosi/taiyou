@@ -92,3 +92,43 @@ pixel mismatches from the frozen inventory label. It records the actual masks,
 independent integer-equation checks, measured upstream metric/layout/shadow
 contributions and the unresolved xy coverage/overlay prerequisite. The four
 static BE frames are not pixel-compatible and remain open before acceptance.
+
+## Stale T017 expectations corrected after positive cell sizing
+
+The focused [metric review](https://github.com/amanosatosi/taiyou/actions/runs/39593907687/job/119201385792)
+changes no production renderer code or external reference. The pinned CJK witness
+retains all 202 glyph identities and offsets; its advances change from em20 to
+13.8125 after native Q6 cell conversion (UPEM 1000, Win cell 1448, em Q6 884).
+The experiment verifies font bytes, hmtx-derived advances, exact old/current
+witness hashes, repeated output and corrupt/missing/mismatched evidence. Historical
+performance samples remain immutable. Their pixels are compared within the old
+metric policy; current repeated/staging pixels are compared within the corrected
+policy. Cross-policy equality would require restoring the disproven em semantics.
+
+The 500-event segment test has these measured boundaries (event, preparations):
+
+| Border | Old em geometry control | Positive cell geometry |
+|---|---|---|
+| 0.5 | 441, 444 | 423, 426 |
+| 3 | 235, 238 | 225, 228 |
+
+Changing only size back to the old em restores both old boundaries. The current
+1M budget expires at the next input geometry, before its stroke. Increasing only
+the caller segment budget to 1,010,000 moves exhaustion to events 427/227, where
+native stroke diagnostics report 2063/2071 points against 271/1138 remaining.
+All original one-attempt, original-error/event/span, repeatability and 4M-success
+pixel/diagnostic equivalence assertions remain. These counts describe geometry,
+not an ASS requirement. The default limit and resource classification are unchanged.
+
+The actual embedded-font `efont-1000` font has UPEM 1000 and Win ascent/descent
+863/144 (SHA-256 `fde6c58b1eafe11c24de4f1860a6e6539df4d009b792f4929e8759f27b76472a`).
+At requested 48 its corrected scale is 0.047671875; restoring only old em sizing
+uses 0.048 and reduces alpha MAE from 45.48030 to 42.95213. Restoring only the old
+coincident shadow yields 44.75749. These controls isolate the intentional sizing
+and zero-shadow changes; they do not reconstruct all old baseline-rounding code.
+The earlier 43.35202 and current 45.48030 observations both retain 384 changed
+pixels and bounds [296,411,345,461]. The source remains a pixel disagreement,
+not an exact match; no fixture-specific correction is justified. Its legacy
+YCbCr metadata blocks strict rendering, so these MAEs are explicitly **tolerant
+diagnostic** measurements and never compatibility passes. The focused test also
+checks that the normal embedded-font path reproduces the current diagnostic bytes.

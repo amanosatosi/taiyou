@@ -24,7 +24,9 @@ def validate(kind, rows, environment, measured):
     assert re.fullmatch(r"[0-9a-f]{40}", measured)
     cell_policy = environment.get("pixel_identity_policy")
     assert cell_policy in (None, "positive-cell-height-v2")
-    if cell_policy:
+    if cell_policy and kind == "debug":
+        assert environment["metric_font"] == {"sha256":FONT, "upem":1000, "win_ascent":1000, "win_descent":326}
+    elif cell_policy:
         assert kind == "optimized"
         assert environment["cell_identity"]["historical_sha256"] == "9171c7aba2e228f4ea715a86eb8d2108a13d62bc01fbe17cf5a40bbd5511d032"
         assert environment["cell_identity"]["current_sha256"] == "e99750fabb0ffd5ce301ee971c47100f97c546430f18809fa949feb178538b20"
@@ -62,7 +64,7 @@ def validate(kind, rows, environment, measured):
                 assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"])
         comparable = selected if kind == "debug" else [r for r in selected if not r["implementation"].startswith("earlier") and r["exit_code"] == 0]
         cohorts = [[r for r in comparable if r["implementation"].startswith(prefix)]
-                   for prefix in ("reviewed", "candidate")] if cell_policy else [comparable]
+                   for prefix in (("before", "after") if kind == "debug" else ("reviewed", "candidate"))] if cell_policy else [comparable]
         for cohort in cohorts:
             assert len({r["raw_sha256"] for r in cohort}) <= 1
 
@@ -162,6 +164,21 @@ def self_test():
         except AssertionError:
             continue
         raise AssertionError("invalid performance evidence was accepted")
+    cell_debug = dict(environment, pixel_identity_policy="positive-cell-height-v2",
+                      metric_font={"sha256":FONT, "upem":1000, "win_ascent":1000, "win_descent":326})
+    validate("debug", rows, cell_debug, environment["candidate"])
+    for candidate in broken:
+        try:
+            validate("debug", candidate, cell_debug, environment["candidate"])
+        except AssertionError:
+            continue
+        raise AssertionError("invalid cell-height debug evidence accepted")
+    try:
+        validate("debug", rows, dict(cell_debug, metric_font={}), environment["candidate"])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("unverified metric font accepted")
     # Old evidence keeps its original checks. The metric revision only permits
     # cross-policy differences; corruption within the current policy must fail.
     saved = ROOT / "experiments/t017/results/dc83cab/T017-optimized"

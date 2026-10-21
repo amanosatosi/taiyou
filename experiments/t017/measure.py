@@ -17,6 +17,7 @@ import sys
 import tarfile
 import threading
 import time
+from fontTools.ttLib import TTFont
 
 if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
     raise SystemExit("measurement is restricted to Linux GitHub Actions")
@@ -31,6 +32,12 @@ subprocess.run(["git", "fetch", "--no-tags", "origin", base], cwd=root, check=Tr
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
+# This pinned workload changed from em20 to positive-cell20 in T018.
+# Verify the physical font metrics; do not refresh historical output hashes.
+with TTFont(font, recalcTimestamp=False) as sfnt:
+    metric_font = {"sha256":pin["sha256"], "upem":sfnt["head"].unitsPerEm,
+                   "win_ascent":sfnt["OS/2"].usWinAscent, "win_descent":sfnt["OS/2"].usWinDescent}
+assert metric_font == {"sha256":pin["sha256"], "upem":1000, "win_ascent":1000, "win_descent":326}
 
 def snapshot(label, sha):
     destination = temp / label
@@ -144,8 +151,11 @@ def measure_case(case):
                 with (out / "samples.jsonl").open("a") as samples:
                     samples.write(json.dumps(record) + "\n")
             print("T017_MEMORY_SAMPLE=" + json.dumps(record), flush=True)
-    hashes = {r["raw_sha256"] for r in records if r["case"] == name}
-    assert len(hashes) == 1, f"ordinary no-effects pixels changed for {name}"
+    # Cross-generation equality encoded obsolete em sizing. Keep all repeats,
+    # inputs and saved hashes, requiring exact equality within each policy.
+    for label in ["before", "after"]:
+        hashes = {r["raw_sha256"] for r in records if r["case"] == name and r["implementation"] == label}
+        assert len(hashes) == 1, f"repeated {label} pixels changed for {name}"
     return records
 
 # Keep every original case and all three before/after pairs. Two bounded case
@@ -156,6 +166,7 @@ with ThreadPoolExecutor(max_workers=2) as workers:
     records = [record for group in workers.map(measure_case, cases) for record in group]
 (out / "samples.json").write_text(json.dumps(records, indent=2) + "\n")
 environment = {"base": base, "candidate": head, "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "font": pin, "profile": "debug, identical pinned native prefix, three atomic counters per process", "benchmark_case_workers": 2, "concurrency_semantics": "two cases concurrently, each case's three pairs sequential; other correctness tests may share the runner; do not compare wall times directly with the original sequential experiment", "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims", "limits": "unchanged CLI defaults"}
+environment.update(pixel_identity_policy="positive-cell-height-v2", metric_font=metric_font)
 (out / "environment.json").write_text(json.dumps(environment, indent=2) + "\n")
 from reuse_completed import validate
 validate("debug", records, environment, head)
