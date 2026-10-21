@@ -35,12 +35,15 @@ jobs:
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
         run: cargo test --locked -p taiyou-render --features native --lib positive_cell_stroke_budget_evidence -- --nocapture
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - if: always()
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests
           key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
-      - run: python validation/acquire.py
-      - env:
+      - if: always()
+        run: python validation/acquire.py
+      - if: always()
+        env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
