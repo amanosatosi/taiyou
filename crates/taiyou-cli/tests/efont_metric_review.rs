@@ -26,7 +26,10 @@ fn embedded_fixture_isolates_cell_metrics_and_zero_depth_shadow() {
     let request = RenderRequest {
         now: TimeUs::from_micros(1_000_000),
         viewport: Viewport::full(Size::new(640, 480)).unwrap(),
-        unsupported: UnsupportedPolicy::Strict,
+        // The historical MAE observation used tolerant diagnostics: this input
+        // declares legacy YCbCr metadata. Keep that fact separate from strict
+        // compatibility; no reference or normalization policy is changed here.
+        unsupported: UnsupportedPolicy::Tolerant,
     };
     let mut evidence = format!("upem={upem} win_ascent={ascent} win_descent={descent}\n");
     for (label, restore_em, coincident) in [

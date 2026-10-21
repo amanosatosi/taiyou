@@ -381,7 +381,10 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
             );
             // With current geometry, the remaining segment allowance is too
             // small for the next input outline, before FT stroker output.
-            assert_eq!(error.detail(), "geometry coordinate/count/reservation limit");
+            assert_eq!(
+                error.detail(),
+                "geometry coordinate/count/reservation limit"
+            );
         }
         let config = RendererConfig {
             limits: Limits::default()
