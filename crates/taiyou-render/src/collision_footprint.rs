@@ -84,7 +84,12 @@ pub fn collision_footprint(
     local: &LocalLayout,
     device: DeviceMapping,
     scaled_border_shadow: bool,
-    _policy: UnsupportedPolicy,
+    policy: UnsupportedPolicy,
+) -> Result<ScriptBounds, RenderError> {
+    collision_footprint_with_limits(local,device,scaled_border_shadow,policy,&Limits::default())
+}
+pub fn collision_footprint_with_limits(
+    local:&LocalLayout,device:DeviceMapping,scaled_border_shadow:bool,_policy:UnsupportedPolicy,limits:&Limits,
 ) -> Result<ScriptBounds, RenderError> {
     if local.shaped().placement().origin().is_some() {
         return Err(RenderError::new(
@@ -207,8 +212,10 @@ pub fn collision_footprint(
             let zero=ScriptPoint::new(FiniteF64::ZERO,FiniteF64::ZERO);
             let boxes=crate::geometry::opaque_box_paths(local,start..end,device,zero,None,scaled_border_shadow,limits)?;
             for path in boxes {
-                if let Some(b)=path.bounds(){
-                    let bound=ScriptBounds::new(f64::from(b.min().x().ticks())/64.0-f64::from(device.content().x0()),f64::from(b.min().y().ticks())/64.0-f64::from(device.content().y0()),f64::from(b.max().x().ticks())/64.0-f64::from(device.content().x0()),f64::from(b.max().y().ticks())/64.0-f64::from(device.content().y0()))?;
+                let mut precise=None;
+                for op in path.outline().ops(){let _:PathOp<FontPoint>=op.try_map(|p|{let(x,y)=path.mapping().precise_point(p)?;include(&mut precise,ScriptBounds::new(x,y,x,y)?)?;Ok::<_,RenderError>(p)})?;}
+                if let Some(b)=precise {
+                    let bound=b.translated(-f64::from(device.content().x0()),-f64::from(device.content().y0()))?;
                     let visible=(state.effects().border_x().get()>0.0 || state.effects().border_y().get()>0.0) && state.paint().outline().a()!=0;
                     if visible{result=result.union(bound.scaled(1.0/sx,1.0/sy)?)?;}
                     if state.paint().shadow().a()!=0 && (state.effects().shadow_x().get()!=0.0 || state.effects().shadow_y().get()!=0.0){

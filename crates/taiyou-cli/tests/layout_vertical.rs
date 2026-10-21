@@ -1,6 +1,9 @@
 use taiyou_render::renderer::*;
 fn parsed(header:&str,family:&str,body:&str)->ParsedTrack {
-    let input=format!("[Script Info]\nPlayResX: 240\nPlayResY: 160\nWrapStyle: 2\n{header}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Encoding\nStyle: Default,{family},40,0,0,1\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:05.00,{body}\n");
+    parsed_style(header,family,body,1)
+}
+fn parsed_style(header:&str,family:&str,body:&str,border_style:u8)->ParsedTrack {
+    let input=format!("[Script Info]\nPlayResX: 240\nPlayResY: 160\nWrapStyle: 2\n{header}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Encoding,BorderStyle\nStyle: Default,{family},40,0,0,1,{border_style}\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:05.00,{body}\n");
     taiyou_ass::parse_ass(input.as_bytes(),&ParseOptions::new(InputEncoding::Utf8,Profile::CoreV1,Limits::default(),SyntaxPolicy::Strict),&mut TrackIngestor::new()).unwrap()
 }
 #[test]
@@ -28,6 +31,40 @@ mod native {
     }
     fn pixels(p:&ParsedTrack,c:Arc<ValidatedFontCatalog>,viewport:Viewport,ms:i64)->Vec<u8>{
         Renderer::new(Default::default()).unwrap().render_parsed(p,c,&RenderRequest{now:TimeUs::from_micros(ms*1000),viewport,unsupported:UnsupportedPolicy::Strict}).unwrap().pixels().to_vec()
+    }
+    #[test]
+    fn opaque_boxes_use_outline_paint_cell_rectangles_and_separate_shadow(){
+        let c=fonts();let vp=Viewport::full(Size::new(240,160)).unwrap();
+        let draw=|tags:&str|pixels(&parsed_style("","Source Sans 3",&format!(r"{{\pos(120,80)\1a&HFF&\3c&H00FF00&{tags}}}H"),3),c.clone(),vp,0);
+        assert!(draw(r"\bord0").iter().all(|b|*b==0));
+        let raw=draw(r"\bord4");assert!(raw.chunks_exact(4).any(|p|p==[0,255,0,255]));
+        assert!(raw.chunks_exact(4).all(|p|p[0]==0 && p[2]==0));
+        // Background contains the cell interior, rather than an outline ring.
+        assert_eq!(&raw[(80*240+120)*4..(80*240+120)*4+4],&[0,255,0,255]);
+        assert!(draw(r"\bord0\shad3").chunks_exact(4).any(|p|p[3]>0));
+        assert!(draw(r"\bord4\3a&HFF&").iter().all(|b|*b==0));
+        assert_ne!(draw(r"\bord4"),draw(r"\bord4\blur2"));
+        assert_ne!(draw(r"\bord4"),draw(r"\xbord8\ybord2"));
+    }
+    #[test]
+    fn opaque_boxes_finalize_per_line_and_follow_normal_transforms_and_limits(){
+        let c=fonts();let vp=Viewport::full(Size::new(240,160)).unwrap();
+        for (text,count) in [(r"H\NH",2),(r"H\N\NH",2),(r"   ",0),(r"\h",1)]{
+            let p=parsed_style("","Source Sans 3",&format!(r"{{\bord3\pos(120,80)}}{text}"),3);
+            let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
+            let mut ctx=FontContext::new().unwrap();let shaped=taiyou_font::shape_event(&mut ctx,&c,&e,&Default::default(),&Limits::default()).unwrap();
+            let local=taiyou_render::layout(&shaped,&LayoutConstraints::new(e.placement().alignment())).unwrap();
+            let device=taiyou_render::geometry::DeviceMapping::new(Size::new(240,160),vp.content()).unwrap();
+            let paths=taiyou_render::geometry::opaque_box_paths(&local,0..local.glyphs().len(),device,ScriptPoint::new(FiniteF64::new(120.0).unwrap(),FiniteF64::new(80.0).unwrap()),None,false,&Limits::default()).unwrap();
+            assert_eq!(paths.len(),count,"{text}");
+        }
+        for tags in [r"\frz20",r"\frx20\fry30",r"\fax0.3",r"\fscx200\fscy50",r"\org(0,0)\frz20",r"\clip(0,0,130,160)",r"\blur1\be1",r"\fad(1000,1000)"] {
+            let p=parsed_style("LayoutResX: 480\nLayoutResY: 320\nScaledBorderAndShadow: yes","Source Sans 3",&format!(r"{{\pos(120,80)\bord3\shad2{tags}}}H{{\p1}}m 0 0 l 10 0 10 10 0 10"),3);
+            assert!(pixels(&p,c.clone(),vp,500).chunks_exact(4).any(|p|p[3]>0),"{tags}");
+        }
+        let p=parsed_style("","Source Sans 3",r"{\bord999999999}H",3);
+        let error=Renderer::new(Default::default()).unwrap().render_parsed(&p,c,&RenderRequest{now:TimeUs::from_micros(0),viewport:vp,unsupported:UnsupportedPolicy::Strict}).unwrap_err();
+        assert_eq!(error.code(),ErrorCode::LimitExceeded);
     }
     #[test]
     fn vertical_family_metrics_variants_and_orientation_are_real(){

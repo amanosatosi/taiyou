@@ -590,11 +590,12 @@ impl Renderer {
                     start: event.start(),
                     alignment: placement.alignment(),
                     anchor: alignment_anchor(placement, track.script().play_res())?,
-                    bounds: crate::collision_footprint::collision_footprint(
+                    bounds: crate::collision_footprint::collision_footprint_with_limits(
                         &local,
                         device_mapping(&track,request)?,
                         track.script().scaled_border_shadow(),
                         request.unsupported,
+                        &available(limits,add(held,local_charge)?)?,
                     )?,
                     eligible: true,
                 });

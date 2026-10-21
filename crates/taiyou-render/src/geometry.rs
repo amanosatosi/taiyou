@@ -99,6 +99,11 @@ impl GeometryMap {
         self
     }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
+        let (x,y)=self.precise_point(p)?;
+        Ok(DevicePoint::new(q6(x)?,q6(y)?))
+    }
+    /// Continuous geometric support before the final raster Q6 conversion.
+    pub fn precise_point(self,p:FontPoint)->Result<(f64,f64),RenderError>{
         // Font y-up conversion occurs exactly once, before rotation and viewport.
         let [rx, ry, fx, fy] = self.projection.map(FiniteF64::get);
         // Shear acts on the word's native coordinates before scale/rotation;
@@ -129,14 +134,13 @@ impl GeometryMap {
         let (x, y) = (cos * x + sin * y, -sin * x + cos * y);
         let (x, y) = project_3d(x, y, rx, ry)?;
         let (x, y) = (x/lx + self.origin.x().get(), y/ly + self.origin.y().get());
-        Ok(DevicePoint::new(
-            q6(x * (f64::from(self.device.content.width())
+        let x=x * (f64::from(self.device.content.width())
                 / f64::from(self.device.play_res.width()))
-                + f64::from(self.device.content.x0()))?,
-            q6(y * (f64::from(self.device.content.height())
+                + f64::from(self.device.content.x0());
+        let y=y * (f64::from(self.device.content.height())
                 / f64::from(self.device.play_res.height()))
-                + f64::from(self.device.content.y0()))?,
-        ))
+                + f64::from(self.device.content.y0());
+        finite(x)?;finite(y)?;Ok((x,y))
     }
 }
 /// RTS.cpp CWord::Transform: Z, X, Y, then perspective. Native paths use
