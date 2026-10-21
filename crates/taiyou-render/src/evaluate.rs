@@ -358,7 +358,7 @@ fn one(
             continue;
         }
         if matches!(operation,TextOp::Text {..}|TextOp::NoBreakSpace|TextOp::HardBreak|TextOp::SoftBreak) {
-            let span=event.operation_sources().and_then(|spans|spans.get(index)).copied().flatten().or_else(||match operation {TextOp::Text {source,..}=>Some(*source),_=>None});
+            let span=event.operation_sources().and_then(|spans|spans.get(index)).copied().flatten().or(match operation {TextOp::Text {source,..}=>Some(*source),_=>None});
             if let Some(span)=span {
                 // An empty/ignored override block still ends ParseString's
                 // current word. Escapes have contiguous original source spans.

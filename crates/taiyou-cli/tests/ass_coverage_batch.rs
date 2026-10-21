@@ -257,6 +257,35 @@ mod pixels {
         );
     }
     #[test]
+    fn decorations_add_coverage_for_cff_and_truetype_contours() {
+        let latin = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
+        for path in [latin.clone(), latin.with_file_name("indic.ttf")] {
+            let mut context = FontContext::new().unwrap();
+            let mut builder = FontCatalogBuilder::new(Limits::default());
+            builder.register(&mut context, &std::fs::read(path).unwrap(), 0).unwrap();
+            let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+            let family = catalog.faces()[0].family();
+            let draw = |tags: &str| {
+                let track = parsed_body(&format!(r"{{\fn{family}\pos(60,60){tags}}}Hgyp"));
+                Renderer::new(Default::default()).unwrap().render_parsed(
+                    &track, catalog.clone(), &RenderRequest {
+                        now: TimeUs::from_micros(0),
+                        viewport: Viewport::full(Size::new(120,120)).unwrap(),
+                        unsupported: UnsupportedPolicy::Strict,
+                    }).unwrap().pixels().to_vec()
+            };
+            let plain = draw("");
+            assert!(plain.chunks_exact(4).any(|p|p[3]>0));
+            for tag in [r"\u1",r"\s1",r"\u1\s1"] {
+                let decorated = draw(tag);
+                assert_ne!(plain,decorated,"{family} {tag}");
+                // Filled decorations must not cut holes into overlapping ink.
+                assert!(plain.chunks_exact(4).zip(decorated.chunks_exact(4)).all(|(a,b)|b[3]>=a[3]),"{family} {tag}");
+                assert_eq!(decorated,draw(tag));
+            }
+        }
+    }
+    #[test]
     fn drawing_geometry_and_transform_tags_share_the_pipeline() {
         let draw = |tags: &str| {
             render_body(
