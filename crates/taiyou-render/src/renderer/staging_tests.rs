@@ -249,6 +249,38 @@ fn effects_track(border: f64) -> Arc<Track> {
 }
 
 #[test]
+fn positive_cell_stroke_budget_evidence() {
+    let fonts = catalog();
+    let font = fonts.faces()[0].blob().id();
+    let (upem, ascent, descent) = fonts.ass_cell_metrics(font).unwrap();
+    let mut report = format!("cell={upem},{ascent},{descent}\n");
+    for border in [0.5, 3.0] {
+        for restore_em in [false, true] {
+            let input = effects_track(border);
+            let input = if restore_em {
+                let ratio = (f64::from(ascent) + f64::from(descent)) / f64::from(upem);
+                let styles: Vec<_> = input.styles().iter().map(|s| {
+                    s.clone().with_size(FiniteF64::new(s.font_size().get() * ratio).unwrap()).unwrap()
+                }).collect();
+                TrackIngestor::new().ingest(Arc::from(input.source()), input.script().clone(),
+                    styles.into(), input.events().to_vec().into(), &Limits::default()).unwrap()
+            } else { input };
+            PREPARATION_ATTEMPTS.with(|n| n.set(0));
+            PREPARE_CALLS.with(|n| n.set(0));
+            let error = Renderer::new(Default::default()).unwrap()
+                .render(input, fonts.clone(), &request(500_000)).unwrap_err();
+            assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
+            assert_eq!(error.code(), ErrorCode::LimitExceeded);
+            assert_eq!(error.resource_failure(), ResourceFailure::Other);
+            assert!(error.detail().contains("check=frame-segments"));
+            report.push_str(&format!("border={border} restore_em={restore_em} prepares={} error={error:?}\n", PREPARE_CALLS.with(Cell::get)));
+        }
+    }
+    eprintln!("CELL_STROKE_BUDGET\n{report}");
+    report_p0("cell-stroke", &report);
+}
+
+#[test]
 fn fixed_segment_exhaustion_never_repeats_preparation() {
     let fonts = catalog();
     for (border, event, prepares) in [(0.5, 441, 444), (3.0, 235, 238)] {
