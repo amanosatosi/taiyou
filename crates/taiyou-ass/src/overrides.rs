@@ -502,7 +502,10 @@ fn hex(value: &str, digits: usize) -> Result<u32, ParseError> {
     let value = value
         .strip_prefix("&H")
         .or_else(|| value.strip_prefix("&h"))
-        .ok_or_else(|| invalid("override color/alpha requires &H hex"))?;
+        // pinterf RTS.cpp ParseSSATag (2181-2191) trims &/H before
+        // base-16 conversion; H-less &hex and an omitted closing & are valid.
+        .or_else(|| value.strip_prefix('&'))
+        .ok_or_else(|| invalid("override color/alpha requires & hex"))?;
     let value = value.strip_suffix('&').unwrap_or(value);
     if value.is_empty() || value.len() > digits || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(invalid("override hex channel out of range"));
