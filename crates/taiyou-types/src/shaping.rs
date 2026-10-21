@@ -400,7 +400,7 @@ impl ShapedEvent {
     pub fn placement(&self) -> &Placement {
         self.evaluated.placement()
     }
-    pub const fn clip(&self) -> ClipSpec {
+    pub fn clip(&self) -> ClipSpec {
         self.evaluated.clip()
     }
     /// Original decoded ranges retain geometry, effects and paint associations.

@@ -103,7 +103,7 @@ fn effect_arity_recovery_and_reference_numeric_prefixes() {
         let p = parsed(tag);
         assert!(matches!(
             p.track().events()[0].program()[0],
-            TextOp::Unsupported { .. }
+            TextOp::Override(_)
         ));
     }
 }

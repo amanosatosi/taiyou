@@ -449,13 +449,25 @@ impl Style {
         self.shadow_y = shadow;
         self
     }
-    pub fn with_axis_border(mut self, axis: ScaleAxis, value: FiniteF64) -> Result<Self, ParseError> {
-        if value.get() < 0.0 { return Err(invalid("negative border")); }
-        match axis { ScaleAxis::X => self.border = value, ScaleAxis::Y => self.border_y = value }
+    pub fn with_axis_border(
+        mut self,
+        axis: ScaleAxis,
+        value: FiniteF64,
+    ) -> Result<Self, ParseError> {
+        if value.get() < 0.0 {
+            return Err(invalid("negative border"));
+        }
+        match axis {
+            ScaleAxis::X => self.border = value,
+            ScaleAxis::Y => self.border_y = value,
+        }
         Ok(self)
     }
     pub fn with_axis_shadow(mut self, axis: ScaleAxis, value: FiniteF64) -> Self {
-        match axis { ScaleAxis::X => self.shadow = value, ScaleAxis::Y => self.shadow_y = value }
+        match axis {
+            ScaleAxis::X => self.shadow = value,
+            ScaleAxis::Y => self.shadow_y = value,
+        }
         self
     }
     pub fn with_projection(mut self, property: TransformProperty, value: FiniteF64) -> Self {
@@ -468,12 +480,24 @@ impl Style {
         }
         self
     }
-    pub const fn rotation_x(&self) -> FiniteF64 { self.rotation_x }
-    pub const fn rotation_y(&self) -> FiniteF64 { self.rotation_y }
-    pub const fn shear_x(&self) -> FiniteF64 { self.shear_x }
-    pub const fn shear_y(&self) -> FiniteF64 { self.shear_y }
-    pub const fn border_y(&self) -> FiniteF64 { self.border_y }
-    pub const fn shadow_y(&self) -> FiniteF64 { self.shadow_y }
+    pub const fn rotation_x(&self) -> FiniteF64 {
+        self.rotation_x
+    }
+    pub const fn rotation_y(&self) -> FiniteF64 {
+        self.rotation_y
+    }
+    pub const fn shear_x(&self) -> FiniteF64 {
+        self.shear_x
+    }
+    pub const fn shear_y(&self) -> FiniteF64 {
+        self.shear_y
+    }
+    pub const fn border_y(&self) -> FiniteF64 {
+        self.border_y
+    }
+    pub const fn shadow_y(&self) -> FiniteF64 {
+        self.shadow_y
+    }
     pub fn with_blur(mut self, blur: FiniteF64) -> Result<Self, ParseError> {
         if blur.get() < 0.0 {
             return Err(invalid("style Gaussian blur must be nonnegative"));
@@ -695,11 +719,31 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
-    Karaoke {kind:KaraokeTag,value_ms:Option<FiniteF64>,source:SourceSpan},
-    ClipRect { coords: [FiniteF64;4], inverse: bool, source: SourceSpan },
-    ClipDrawing { path: Arc<str>, scale: u32, inverse: bool, source: SourceSpan },
-    SetDecoration { strikeout: bool, value: Option<bool>, source: SourceSpan },
-    SetLegacyAlignment { value: Option<u8>, source: SourceSpan },
+    Karaoke {
+        kind: KaraokeTag,
+        value_ms: Option<FiniteF64>,
+        source: SourceSpan,
+    },
+    ClipRect {
+        coords: [FiniteF64; 4],
+        inverse: bool,
+        source: SourceSpan,
+    },
+    ClipDrawing {
+        path: Arc<str>,
+        scale: u32,
+        inverse: bool,
+        source: SourceSpan,
+    },
+    SetDecoration {
+        strikeout: bool,
+        value: Option<bool>,
+        source: SourceSpan,
+    },
+    SetLegacyAlignment {
+        value: Option<u8>,
+        source: SourceSpan,
+    },
     RestoreOriginal {
         field: OriginalField,
         source: SourceSpan,
@@ -827,8 +871,11 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::Karaoke {source,..} | Self::ClipRect { source, .. } | Self::ClipDrawing { source, .. }
-            | Self::SetDecoration { source, .. } | Self::SetLegacyAlignment { source, .. }
+            Self::Karaoke { source, .. }
+            | Self::ClipRect { source, .. }
+            | Self::ClipDrawing { source, .. }
+            | Self::SetDecoration { source, .. }
+            | Self::SetLegacyAlignment { source, .. }
             | Self::RestoreOriginal { source, .. }
             | Self::SetDrawingMode { source, .. }
             | Self::SetDrawingBaseline { source, .. }
@@ -894,8 +941,13 @@ pub enum TransformProperty {
     Border,
     Shadow,
 }
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
-pub enum KaraokeTag { Instant, Sweep, Outline, Absolute }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KaraokeTag {
+    Instant,
+    Sweep,
+    Outline,
+    Absolute,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OriginalField {

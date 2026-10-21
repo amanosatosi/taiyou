@@ -7,6 +7,8 @@
 pub mod collision;
 #[cfg(feature = "native")]
 mod ass_clip;
+#[cfg(feature="native")]
+mod axis_widen;
 pub mod collision_footprint;
 mod compose;
 pub mod drawing;

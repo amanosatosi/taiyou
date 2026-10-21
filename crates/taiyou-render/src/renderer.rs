@@ -56,7 +56,7 @@ struct GroupMasks {
     border: Option<Arc<Mask>>,
     shadow: Option<Arc<Mask>>,
     fill_paint: Rgba8,
-    sweep: Option<(i32,Rgba8)>,
+    sweep: Option<(i32, Rgba8)>,
     border_paint: Rgba8,
     shadow_paint: Rgba8,
 }
@@ -732,13 +732,18 @@ impl Renderer {
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
-                let (event_clip,clip_mask,clip_segments)=crate::ass_clip::resolve(
-                    placed.layout().shaped().evaluated().ass_clip(),device,
-                    &available(limits,add(held,event_charge)?)?
+                let (event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
+                    placed.layout().shaped().evaluated().ass_clip(),
+                    device,
+                    &available(limits, add(held, event_charge)?)?,
                 )?;
-                total_segments=add(total_segments,clip_segments)?;
-                if total_segments>limits.path_segments_per_frame() {return Err(limited())}
-                if let Some(mask)=clip_mask {charge_mask(&mask,&mut held,event_charge,limits)?;}
+                total_segments = add(total_segments, clip_segments)?;
+                if total_segments > limits.path_segments_per_frame() {
+                    return Err(limited());
+                }
+                if let Some(mask) = clip_mask {
+                    charge_mask(&mask, &mut held, event_charge, limits)?;
+                }
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -775,11 +780,19 @@ impl Renderer {
                     } else {
                         Q6::from_ticks(0)
                     };
-                    let border_radius_y=if border_enabled {
-                        let ratio=if track.script().scaled_border_shadow() {f64::from(device.content().height())/f64::from(device.play_res().height())}else{1.0};
-                        q6_pixels(state.effects().border_y().get()*ratio)?
-                    }else{Q6::from_ticks(0)};
-                    let border_exists = border_enabled && (border_value > 0.0 || state.effects().border_y().get()>0.0);
+                    let border_radius_y = if border_enabled {
+                        let ratio = if track.script().scaled_border_shadow() {
+                            f64::from(device.content().height())
+                                / f64::from(device.play_res().height())
+                        } else {
+                            1.0
+                        };
+                        q6_pixels(state.effects().border_y().get() * ratio)?
+                    } else {
+                        Q6::from_ticks(0)
+                    };
+                    let border_exists = border_enabled
+                        && (border_value > 0.0 || state.effects().border_y().get() > 0.0);
                     let blur_spec = crate::effects::BlurSpec::new(
                         state.effects().blur(),
                         state.effects().be(),
@@ -908,29 +921,57 @@ impl Renderer {
                             held = held.checked_sub(charge).ok_or_else(limited)?;
                         }
                     }
-                    let mut fill_paint=state.paint().primary();
-                    let mut sweep=None;
-                    if let Some(k)=state.karaoke() {
-                        let mut progress=if k.now_ms<i64::from(k.start_ms) {0.0}else if k.kind==KaraokeTag::Sweep && k.now_ms<i64::from(k.end_ms) {
-                            (k.now_ms-i64::from(k.start_ms)) as f64/(i64::from(k.end_ms)-i64::from(k.start_ms)) as f64
-                        }else{1.0};
-                        if k.kind==KaraokeTag::Outline && k.now_ms<i64::from(k.start_ms) {border=None;}
-                        if progress<=0.0 {fill_paint=state.paint().secondary();}
-                        else if progress<1.0 {
-                            let angle=state.geometry().rotation_z().get()%360.0;
-                            let mut secondary=state.paint().secondary();
-                            if angle>90.0&&angle<270.0 {progress=1.0-progress;std::mem::swap(&mut fill_paint,&mut secondary);}
-                            let mut width=0.0;
-                            for i in group.policy().members().clone() {
-                                let g=&placed.layout().glyphs()[i];
-                                let run=&placed.layout().shaped().runs()[g.run_index()];
-                                width+=if let Some(d)=run.drawing(){d.width.get()}else{run.glyphs()[g.glyph_index()].advance_x().get()};
+                    let mut fill_paint = state.paint().primary();
+                    let mut sweep = None;
+                    if let Some(k) = state.karaoke() {
+                        let mut progress = if k.now_ms < i64::from(k.start_ms) {
+                            0.0
+                        } else if k.kind == KaraokeTag::Sweep && k.now_ms < i64::from(k.end_ms) {
+                            (k.now_ms - i64::from(k.start_ms)) as f64
+                                / (i64::from(k.end_ms) - i64::from(k.start_ms)) as f64
+                        } else {
+                            1.0
+                        };
+                        if k.kind == KaraokeTag::Outline && k.now_ms < i64::from(k.start_ms) {
+                            border = None;
+                        }
+                        if progress <= 0.0 {
+                            fill_paint = state.paint().secondary();
+                        } else if progress < 1.0 {
+                            let angle = state.geometry().rotation_z().get() % 360.0;
+                            let mut secondary = state.paint().secondary();
+                            if angle > 90.0 && angle < 270.0 {
+                                progress = 1.0 - progress;
+                                std::mem::swap(&mut fill_paint, &mut secondary);
                             }
-                            width*=state.geometry().scale_x().get()*placed.layout().local_scale().0.get()*sx;
-                            let native=((state.effects().border_x().get()+progress*width)*8.0).trunc();
-                            if !native.is_finite()||native<f64::from(i32::MIN)||native>f64::from(i32::MAX) {return Err(limited())}
-                            let cut=fill.bounds().x0().checked_add((native as i32)>>3).ok_or_else(limited)?;
-                            sweep=Some((cut,secondary));
+                            let mut width = 0.0;
+                            for i in group.policy().members().clone() {
+                                let g = &placed.layout().glyphs()[i];
+                                let run = &placed.layout().shaped().runs()[g.run_index()];
+                                width += if let Some(d) = run.drawing() {
+                                    d.width.get()
+                                } else {
+                                    run.glyphs()[g.glyph_index()].advance_x().get()
+                                };
+                            }
+                            width *= state.geometry().scale_x().get()
+                                * placed.layout().local_scale().0.get()
+                                * sx;
+                            let native = ((state.effects().border_x().get() + progress * width)
+                                * 8.0)
+                                .trunc();
+                            if !native.is_finite()
+                                || native < f64::from(i32::MIN)
+                                || native > f64::from(i32::MAX)
+                            {
+                                return Err(limited());
+                            }
+                            let cut = fill
+                                .bounds()
+                                .x0()
+                                .checked_add((native as i32) >> 3)
+                                .ok_or_else(limited)?;
+                            sweep = Some((cut, secondary));
                         }
                     }
                     group_masks.push(GroupMasks {
@@ -961,12 +1002,41 @@ impl Renderer {
                         let Some((mask, paint)) = selected else {
                             continue;
                         };
-                        if selector==2 {
-                            if let Some((cut,secondary))=masks.sweep {
-                                for (side,color) in [(0_u32,paint),(1,secondary)] {
-                                    let rect=if side==0 {PixelRect::new(i32::MIN,i32::MIN,cut,i32::MAX)}else{PixelRect::new(cut,i32::MIN,i32::MAX,i32::MAX)}.map_err(convert)?;
-                                    let clip=Arc::new(ResolvedClip::Intersection(event_clip.clone(),Arc::new(ResolvedClip::Rectangle {bounds:rect,inverse:false})));
-                                    push_operation(&mut operations,&mut held,event_charge,limits,DrawOrder::new(event.layer(),event.id(),selector,u32::try_from(ordinal).map_err(|_|limited())?.checked_mul(2).and_then(|v|v.checked_add(side)).ok_or_else(limited)?),mask.clone(),color,clip)?;
+                        if selector == 2 {
+                            if let Some((cut, secondary)) = masks.sweep {
+                                for (side, color) in [(0_u32, paint), (1, secondary)] {
+                                    let rect = if side == 0 {
+                                        PixelRect::new(i32::MIN, i32::MIN, cut, i32::MAX)
+                                    } else {
+                                        PixelRect::new(cut, i32::MIN, i32::MAX, i32::MAX)
+                                    }
+                                    .map_err(convert)?;
+                                    let clip = Arc::new(ResolvedClip::Intersection(
+                                        event_clip.clone(),
+                                        Arc::new(ResolvedClip::Rectangle {
+                                            bounds: rect,
+                                            inverse: false,
+                                        }),
+                                    ));
+                                    push_operation(
+                                        &mut operations,
+                                        &mut held,
+                                        event_charge,
+                                        limits,
+                                        DrawOrder::new(
+                                            event.layer(),
+                                            event.id(),
+                                            selector,
+                                            u32::try_from(ordinal)
+                                                .map_err(|_| limited())?
+                                                .checked_mul(2)
+                                                .and_then(|v| v.checked_add(side))
+                                                .ok_or_else(limited)?,
+                                        ),
+                                        mask.clone(),
+                                        color,
+                                        clip,
+                                    )?;
                                 }
                                 continue;
                             }
@@ -980,7 +1050,10 @@ impl Renderer {
                                 event.layer(),
                                 event.id(),
                                 selector,
-                                u32::try_from(ordinal).map_err(|_| limited())?.checked_mul(2).ok_or_else(limited)?,
+                                u32::try_from(ordinal)
+                                    .map_err(|_| limited())?
+                                    .checked_mul(2)
+                                    .ok_or_else(limited)?,
                             ),
                             mask,
                             paint,

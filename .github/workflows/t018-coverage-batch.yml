@@ -34,7 +34,9 @@ jobs:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
-        run: cargo test --locked -p taiyou-cli --features native --test ass_coverage_batch
+        run: |
+          cargo test --locked -p taiyou-render --features native --lib axis_widen
+          cargo test --locked -p taiyou-cli --features native --test ass_coverage_batch
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests

@@ -72,18 +72,39 @@ impl Drop for HbBuffer {
 }
 
 impl FontContext {
-    pub(crate) fn decoration_metrics_authenticated(&mut self,blob:&FontBlob)->Result<[(i16,i16);2],FontError> {
-        self.with_face(blob.shared_bytes(),blob.id().face_index(),|face| {
+    pub(crate) fn decoration_metrics_authenticated(
+        &mut self,
+        blob: &FontBlob,
+    ) -> Result<[(i16, i16); 2], FontError> {
+        self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
             // SAFETY: a validated worker-local face and a bounded fixed SFNT
             // buffer remain live throughout these synchronous reads.
             unsafe {
-                let underline=((*face.raw).underline_position,(*face.raw).underline_thickness);
-                let mut table=[0_u8;30];let mut len=table.len() as ft::FT_ULong;
-                if FT_Load_Sfnt_Table(face.raw,u32::from_be_bytes(*b"OS/2") as ft::FT_ULong,0,table.as_mut_ptr(),&mut len)!=0 || len!=30 {
-                    return Err(FontError::new(ErrorCode::FontUnavailable,"strikeout OS/2 metrics unavailable"));
+                let underline = (
+                    (*face.raw).underline_position,
+                    (*face.raw).underline_thickness,
+                );
+                let mut table = [0_u8; 30];
+                let mut len = table.len() as ft::FT_ULong;
+                if FT_Load_Sfnt_Table(
+                    face.raw,
+                    u32::from_be_bytes(*b"OS/2") as ft::FT_ULong,
+                    0,
+                    table.as_mut_ptr(),
+                    &mut len,
+                ) != 0
+                    || len != 30
+                {
+                    return Err(FontError::new(
+                        ErrorCode::FontUnavailable,
+                        "strikeout OS/2 metrics unavailable",
+                    ));
                 }
-                let strike=(i16::from_be_bytes([table[28],table[29]]),i16::from_be_bytes([table[26],table[27]]));
-                Ok([underline,strike])
+                let strike = (
+                    i16::from_be_bytes([table[28], table[29]]),
+                    i16::from_be_bytes([table[26], table[27]]),
+                );
+                Ok([underline, strike])
             }
         })
     }
@@ -1032,14 +1053,18 @@ impl RasterContext {
         radius: Q6,
         remaining_segments: u64,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
-        self.stroke_rasterize_path_axes(ops,radius,radius,remaining_segments)
+        self.stroke_rasterize_path_axes(ops, radius, radius, remaining_segments)
     }
     /// Elliptical round joins: normalize the device-space axes before the
     /// scalar round stroker, then restore them before coverage rasterization.
     pub fn stroke_rasterize_path_axes(
-        &mut self,ops:&[PathOp<DevicePoint>],radius_x:Q6,radius_y:Q6,remaining_segments:u64,
-    )->Result<(Arc<Mask>,u64),RenderError> {
-        let radius=radius_x.max(radius_y);
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        let radius = radius_x.max(radius_y);
         let invalid =
             || RenderError::new(ErrorCode::InvalidArgument, "invalid stroke path or radius");
         let evidence = std::cell::Cell::new(StrokeLimitEvidence {
@@ -1067,7 +1092,7 @@ impl RasterContext {
         };
         let limits = &self.owner.limits;
         check_path_budget(ops.len(), limits)?;
-        if radius_x.ticks() < 0 || radius_y.ticks()<0 {
+        if radius_x.ticks() < 0 || radius_y.ticks() < 0 {
             return Err(invalid());
         }
         if ops.is_empty() {
@@ -1153,8 +1178,11 @@ impl RasterContext {
                 .rasterize_path(ops, input_bounds, stride)
                 .map(|mask| (mask, 0));
         }
-        if radius_x.ticks()==0 || radius_y.ticks()==0 {
-            return Err(RenderError::new(ErrorCode::UnsupportedFeature,"degenerate single-axis outline widening"));
+        if radius_x.ticks() == 0 || radius_y.ticks() == 0 {
+            return Err(RenderError::new(
+                ErrorCode::UnsupportedFeature,
+                "degenerate single-axis outline widening",
+            ));
         }
         let mut bounds = PixelRect::new(
             floor_pixel(min_x.checked_sub(radius).ok_or_else(limit)?)?,
@@ -1266,11 +1294,13 @@ impl RasterContext {
                 }
             }
         }
-        let axes=(i128::from(radius_x.ticks()),i128::from(radius_y.ticks()));
-        if radius_x!=radius_y {
+        let axes = (i128::from(radius_x.ticks()), i128::from(radius_y.ticks()));
+        if radius_x != radius_y {
             for p in &mut points {
-                p.x=ft::FT_Pos::try_from(i128::from(p.x)*i128::from(radius)/axes.0).map_err(|_|limit())?;
-                p.y=ft::FT_Pos::try_from(i128::from(p.y)*i128::from(radius)/axes.1).map_err(|_|limit())?;
+                p.x = ft::FT_Pos::try_from(i128::from(p.x) * i128::from(radius) / axes.0)
+                    .map_err(|_| limit())?;
+                p.y = ft::FT_Pos::try_from(i128::from(p.y) * i128::from(radius) / axes.1)
+                    .map_err(|_| limit())?;
             }
         }
         let mut outline = ft::FT_Outline {
@@ -1423,10 +1453,12 @@ impl RasterContext {
                 "FT_Stroker_ExportBorder count mismatch",
             ));
         }
-        if radius_x!=radius_y {
+        if radius_x != radius_y {
             for p in &mut expanded_points {
-                p.x=ft::FT_Pos::try_from(i128::from(p.x)*axes.0/i128::from(radius)).map_err(|_|limit())?;
-                p.y=ft::FT_Pos::try_from(i128::from(p.y)*axes.1/i128::from(radius)).map_err(|_|limit())?;
+                p.x = ft::FT_Pos::try_from(i128::from(p.x) * axes.0 / i128::from(radius))
+                    .map_err(|_| limit())?;
+                p.y = ft::FT_Pos::try_from(i128::from(p.y) * axes.1 / i128::from(radius))
+                    .map_err(|_| limit())?;
             }
         }
         let x_shift = (i64::from(input_bounds.x0()) - i64::from(bounds.x0())) * 64;

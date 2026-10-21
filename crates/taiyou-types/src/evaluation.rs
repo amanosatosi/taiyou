@@ -92,10 +92,18 @@ impl GeometryStyle {
     pub const fn rotation_z(&self) -> FiniteF64 {
         self.rotation_z
     }
-    pub const fn rotation_x(&self) -> FiniteF64 { self.rotation_x }
-    pub const fn rotation_y(&self) -> FiniteF64 { self.rotation_y }
-    pub const fn shear_x(&self) -> FiniteF64 { self.shear_x }
-    pub const fn shear_y(&self) -> FiniteF64 { self.shear_y }
+    pub const fn rotation_x(&self) -> FiniteF64 {
+        self.rotation_x
+    }
+    pub const fn rotation_y(&self) -> FiniteF64 {
+        self.rotation_y
+    }
+    pub const fn shear_x(&self) -> FiniteF64 {
+        self.shear_x
+    }
+    pub const fn shear_y(&self) -> FiniteF64 {
+        self.shear_y
+    }
     pub const fn underline(&self) -> bool {
         self.underline
     }
@@ -341,20 +349,21 @@ impl Placement {
         self.anchor == Anchor::Default && self.origin.is_none()
     }
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClipSpec {
     None,
+    Ass(AssClip),
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClipRectStep {
-    pub coords: [i32;4],
+    pub coords: [i32; 4],
     pub progress: FiniteF64,
     pub inverse: bool,
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AssClip {
     pub rectangles: Arc<[ClipRectStep]>,
-    pub vector: Option<(Arc<AssDrawing>,bool)>,
+    pub vector: Option<(Arc<AssDrawing>, bool)>,
 }
 
 /// Independent dependency changes observed during ordered evaluation, not cache
@@ -389,6 +398,7 @@ impl ChangeClass {
         self.placement = true;
         self
     }
+    pub fn with_clip(mut self)->Self {self.clip=true;self}
     pub fn with_animation(mut self) -> Self {
         self.temporal = true;
         self
@@ -460,7 +470,7 @@ impl EventOrder {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedRun {
-    karaoke:Option<Karaoke>,
+    karaoke: Option<Karaoke>,
     drawing: Option<Arc<AssDrawing>>,
     text: Arc<str>,
     source: SourceSpan,
@@ -479,7 +489,7 @@ impl EvaluatedRun {
     /// span, never invented offsets into decoded text. T009 must preserve that map.
     pub fn new(text: Arc<str>, source: SourceSpan, style: &Style) -> Self {
         Self {
-            karaoke:None,
+            karaoke: None,
             drawing: None,
             text,
             source,
@@ -493,8 +503,13 @@ impl EvaluatedRun {
     pub fn text(&self) -> &str {
         &self.text
     }
-    pub fn with_karaoke(mut self,karaoke:Option<Karaoke>)->Self {self.karaoke=karaoke;self}
-    pub const fn karaoke(&self)->Option<Karaoke> {self.karaoke}
+    pub fn with_karaoke(mut self, karaoke: Option<Karaoke>) -> Self {
+        self.karaoke = karaoke;
+        self
+    }
+    pub const fn karaoke(&self) -> Option<Karaoke> {
+        self.karaoke
+    }
     pub fn with_drawing(mut self, drawing: Arc<AssDrawing>) -> Self {
         self.drawing = Some(drawing);
         self
@@ -531,13 +546,13 @@ impl EvaluatedRun {
         &self.paint
     }
 }
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Karaoke {
-    pub kind:KaraokeTag,
-    pub start_ms:i32,
-    pub end_ms:i32,
-    pub now_ms:i64,
-    pub word:u32,
+    pub kind: KaraokeTag,
+    pub start_ms: i32,
+    pub end_ms: i32,
+    pub now_ms: i64,
+    pub word: u32,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedEvent {
@@ -578,8 +593,13 @@ impl EvaluatedEvent {
     pub const fn id(&self) -> EventId {
         self.id
     }
-    pub fn with_ass_clip(mut self, clip: AssClip) -> Self { self.ass_clip=clip; self }
-    pub fn ass_clip(&self) -> &AssClip { &self.ass_clip }
+    pub fn with_ass_clip(mut self, clip: AssClip) -> Self {
+        self.ass_clip = clip;
+        self
+    }
+    pub fn ass_clip(&self) -> &AssClip {
+        &self.ass_clip
+    }
     pub const fn warp_mode(&self) -> WarpMode {
         self.warp_mode
     }
@@ -643,8 +663,8 @@ impl EvaluatedEvent {
     pub fn placement(&self) -> &Placement {
         &self.placement
     }
-    pub const fn clip(&self) -> ClipSpec {
-        ClipSpec::None
+    pub fn clip(&self) -> ClipSpec {
+        if self.ass_clip.rectangles.is_empty()&&self.ass_clip.vector.is_none(){ClipSpec::None}else{ClipSpec::Ass(self.ass_clip.clone())}
     }
     pub const fn animation(&self) -> ChangeClass {
         self.animation

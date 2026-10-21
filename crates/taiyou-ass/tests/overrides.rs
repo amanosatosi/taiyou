@@ -155,11 +155,23 @@ fn anisotropic_border_shadow_and_blur_prefixes_are_typed() {
     let properties: Vec<_> = ops
         .iter()
         .filter_map(|op| match op {
-            TextOp::Override(OverrideOp::TransformNumber {property,value:Some(value),..}) => Some((*property,value.get())),
+            TextOp::Override(OverrideOp::TransformNumber {
+                property,
+                value: Some(value),
+                ..
+            }) => Some((*property, value.get())),
             _ => None,
         })
         .collect();
-    assert_eq!(properties, [(TransformProperty::BorderX,2.0),(TransformProperty::BorderY,3.0),(TransformProperty::ShadowX,1.0),(TransformProperty::ShadowY,-1.0)]);
+    assert_eq!(
+        properties,
+        [
+            (TransformProperty::BorderX, 2.0),
+            (TransformProperty::BorderY, 3.0),
+            (TransformProperty::ShadowX, 1.0),
+            (TransformProperty::ShadowY, -1.0)
+        ]
+    );
     assert!(
         matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.0)
     );

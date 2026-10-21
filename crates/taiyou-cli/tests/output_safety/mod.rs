@@ -149,7 +149,7 @@ fn failed_generation_or_output_preparation_preserves_existing_files() {
     f.failed(&directory, Some(&raw));
     assert_eq!(fs::read(&raw).unwrap(), OLD_RAW);
     // A genuine render failure occurs before either destination is published.
-    f.ass_bytes = super::source(&super::dialogue(r"{\k20}H")).into_bytes();
+    f.ass_bytes = super::source(&super::dialogue(r"{\fe128}H")).into_bytes();
     fs::write(&f.ass, &f.ass_bytes).unwrap();
     let result = f.run(&png, Some(&raw));
     assert_eq!(result.status.code(), Some(2));

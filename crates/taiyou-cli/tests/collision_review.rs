@@ -211,10 +211,10 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
                 footprint(&b, &fonts, size).unwrap().1
             );
         } else {
-            assert_eq!(
-                footprint(&b, &fonts, size).unwrap_err().code(),
-                ErrorCode::UnsupportedFeature
-            );
+            let unscaled=footprint(&a,&fonts,size).unwrap().1;
+            let scaled=footprint(&b,&fonts,size).unwrap().1;
+            assert_eq!(scaled.width(),unscaled.width());
+            assert!(scaled.height()>unscaled.height());
         }
         let shadow = source(&row(r"{\bord0\shad30.5\4a&H00&}H"));
         assert!(

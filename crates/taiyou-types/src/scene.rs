@@ -131,8 +131,11 @@ pub enum PaintMap {
 #[derive(Clone, Debug)]
 pub enum ResolvedClip {
     None,
-    Rectangle { bounds: PixelRect, inverse: bool },
-    Intersection(Arc<ResolvedClip>,Arc<ResolvedClip>),
+    Rectangle {
+        bounds: PixelRect,
+        inverse: bool,
+    },
+    Intersection(Arc<ResolvedClip>, Arc<ResolvedClip>),
     MaskCoverage {
         mask: Arc<Mask>,
         offset: PixelOffset,
@@ -144,10 +147,16 @@ impl ResolvedClip {
         match self {
             Self::None => 255,
             Self::Rectangle { bounds, inverse } => {
-                let inside=x>=i64::from(bounds.x0())&&x<i64::from(bounds.x1())&&y>=i64::from(bounds.y0())&&y<i64::from(bounds.y1());
-                if inside != *inverse {255} else {0}
+                let inside = x >= i64::from(bounds.x0())
+                    && x < i64::from(bounds.x1())
+                    && y >= i64::from(bounds.y0())
+                    && y < i64::from(bounds.y1());
+                if inside != *inverse { 255 } else { 0 }
             }
-            Self::Intersection(a,b) => ((u16::from(a.coverage_at(x,y))*u16::from(b.coverage_at(x,y))+127)/255) as u8,
+            Self::Intersection(a, b) => {
+                ((u16::from(a.coverage_at(x, y)) * u16::from(b.coverage_at(x, y)) + 127) / 255)
+                    as u8
+            }
             Self::MaskCoverage {
                 mask,
                 offset,
