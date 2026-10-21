@@ -18,12 +18,20 @@ fn ignored_commands_and_prefix_recovery_preserve_karaoke_boundaries(){
     assert_eq!(e.runs()[2].karaoke().unwrap().start_ms,1180);
     for r in e.runs(){assert!(r.decoded().unwrap().belongs_to(e.source_map().unwrap()));}
 }
+#[test]
+fn layout_pair_is_active_only_when_both_axes_are_positive(){
+    for header in ["LayoutResX: 480","LayoutResY: 320","LayoutResX: 0\nLayoutResY: 320","LayoutResX: -1\nLayoutResY: 320"]{
+        assert_eq!(parsed(header,"Source Sans 3","A").track().script().layout_res(),None);
+    }
+    assert_eq!(parsed("LayoutResX: 480\nLayoutResY: 320","Source Sans 3","A").track().script().layout_res(),Some(Size::new(480,320)));
+}
 #[cfg(feature="native")]
 mod native {
     use super::*;
     use std::sync::Arc;
     fn fonts()->Arc<ValidatedFontCatalog>{
-        let mut ctx=FontContext::new().unwrap();let mut b=FontCatalogBuilder::new(Limits::default());
+        let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();
+        let mut ctx=FontContext::with_limits(limits.clone()).unwrap();let mut b=FontCatalogBuilder::new(limits);
         for name in ["latin.otf","cjk.otf","IPAexGothic.ttf"] {
             let p=std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts").join(name);
             b.register(&mut ctx,&std::fs::read(p).unwrap(),0).unwrap();
@@ -68,11 +76,11 @@ mod native {
     }
     #[test]
     fn vertical_family_metrics_variants_and_orientation_are_real(){
-        let c=fonts();let mut ctx=FontContext::new().unwrap();
+        let c=fonts();let limits=Limits::default().with_transient_bytes(512*1024*1024).unwrap();let mut ctx=FontContext::with_limits(limits.clone()).unwrap();
         let shape=|ctx:&mut FontContext,family:&str,text:&str|{
             let p=parsed("",family,text);
             let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(0),Profile::CoreV1).unwrap();
-            taiyou_font::shape_event(ctx,&c,&e,&Default::default(),&Limits::default()).unwrap()
+            taiyou_font::shape_event(ctx,&c,&e,&Default::default(),&limits).unwrap()
         };
         let h=shape(&mut ctx,"IPAexGothic","A日、");let v=shape(&mut ctx,"@IPAexGothic","A日、");
         let hg:Vec<_>=h.runs().iter().flat_map(|r|r.glyphs()).collect();let vg:Vec<_>=v.runs().iter().flat_map(|r|r.glyphs()).collect();

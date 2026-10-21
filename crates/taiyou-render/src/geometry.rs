@@ -323,7 +323,7 @@ pub fn opaque_box_paths(
     let [lx,ly]=device.layout_scale();let (extra_x,extra_y)=layout.local_scale();
     let mut paths=Vec::new();paths.try_reserve_exact(count).map_err(|_|RenderError::new(ErrorCode::AllocationFailed,"opaque box geometry allocation"))?;
     let gs=layout.glyphs();let runs=layout.shaped().runs();let states=layout.shaped().evaluated().runs();
-    let mut segments=0;
+    let mut segments=0usize;
     for line in layout.lines(){
         let mut start=line.glyph_range().start.max(members.start);let stop=line.glyph_range().end.min(members.end);
         while start<stop {
@@ -353,7 +353,7 @@ pub fn opaque_box_paths(
                 let px=round(state.effects().border_x().get()*if scaled_bas{lx}else{1.0}*8.0)?/8.0;
                 let py=round(state.effects().border_y().get()*if scaled_bas{ly}else{1.0}*8.0)?/8.0;
                 let outline=Arc::new(Outline::new(vec![PathOp::MoveTo(FontPoint::new(-px,py)?),PathOp::LineTo(FontPoint::new(w+px,py)?),PathOp::LineTo(FontPoint::new(w+px,-h-py)?),PathOp::LineTo(FontPoint::new(-px,-h-py)?),PathOp::Close],limits)?);
-                segments+=5;check_path_budget(segments,limits)?;
+                segments=segments.checked_add(5).ok_or_else(geometry_limit)?;check_path_budget(segments,limits)?;
                 let mapping=GeometryMap::new((finite(sx/lx)?,finite(sy/ly)?),ScriptPoint::new(b.x0(),b.y0()),anchor,origin,state.geometry().rotation_z(),device)?.with_projection(state.geometry());
                 paths.push(map_outline(outline,mapping,limits)?);
             }

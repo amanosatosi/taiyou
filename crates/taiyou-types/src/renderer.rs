@@ -90,7 +90,7 @@ impl Viewport {
             ]
         })
     }
-    pub fn original_size(self)->Size {self.original.unwrap_or(Size::new(self.content.width() as u32,self.content.height() as u32))}
+    pub fn original_size(self)->Size {self.original.unwrap_or(Size::new(self.content.width(),self.content.height()))}
 }
 #[derive(Clone, Copy, Debug)]
 pub struct RenderRequest {

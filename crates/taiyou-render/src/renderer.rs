@@ -816,7 +816,7 @@ impl Renderer {
                     let br=if track.script().scaled_border_shadow(){[sx*target_scale[0],sy*target_scale[1]]}else{target_scale};
                     let box_outline=(state.effects().border_x().get()*br[0]*8.0+0.5>=1.0 || state.effects().border_y().get()*br[1]*8.0+0.5>=1.0) && !state.karaoke().is_some_and(|k|k.kind==KaraokeTag::Outline && k.now_ms<i64::from(k.start_ms));
                     let mut box_charge=0;
-                    let box_group=if opaque && (box_outline || (state.paint().shadow().a()!=0 && (state.effects().shadow_x().get()!=0.0 || state.effects().shadow_y().get()!=0.0))) {
+                    let box_group=if opaque && ((box_outline && state.paint().outline().a()!=0) || (state.paint().shadow().a()!=0 && (state.effects().shadow_x().get()!=0.0 || state.effects().shadow_y().get()!=0.0))) {
                         let instances=opaque_box_paths(placed.layout(),group.policy().members(),device,anchor,origin,track.script().scaled_border_shadow(),&available(limits,add(held,event_charge)?)?)?;
                         let segments=instances.iter().try_fold(0u64,|n,g|add(n,g.ops().len() as u64))?;
                         total_segments=add(total_segments,segments)?;
@@ -835,7 +835,7 @@ impl Renderer {
                         charge_mask(&mask,&mut held,event_charge,limits)?;
                         let mask=filter_mask(mask,&blur_spec,&mut held,event_charge,limits)?;
                         expanded=Some(mask.clone());
-                        if box_outline {Some(mask)}else{None}
+                        if box_outline && state.paint().outline().a()!=0 {Some(mask)}else{None}
                     }else if border_exists {
                         let remaining = limits
                             .path_segments_per_frame()

@@ -512,7 +512,7 @@ fn renderer_slice_parsed_diagnostics_and_header_capabilities() {
             .iter()
             .any(|d| d.code() == DiagnosticCode::MalformedRecord)
     );
-    for header in ["YCbCr Matrix: TV.601"] {
+    for header in ["YCbCr Matrix: TV.601", "YCbCr Matrix: TV.709"] {
         let text =
             source(&dialogue("H")).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
         let parsed = taiyou_ass::parse_ass(

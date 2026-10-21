@@ -35,6 +35,13 @@ Every key includes a stage schema/policy revision and profile when semantics dif
 
 Shape outputs may use design units internally, but size is conservatively in the shape key until T009 proves a smaller dependency safe (e.g. optical sizing can be size-dependent). Initial geometry caches can store unhinted design-unit outlines across sizes; hinting remains off. Persistent hashes alone never identify font content: font registration verifies bytes and collection face index. Replacing a same-named font produces a new FontId/catalog revision.
 
+LayoutRes adds the resolved layout/PlayRes ratios to shaping and metric identity,
+and output/layout ratios to effects/geometry. Vertical @ state, native vertical
+metrics and substitutions are distinct from horizontal shaping of the same face;
+stripping @ for family lookup never permits reusing horizontal shaped geometry.
+Opaque-box geometry depends on finalized line/word dimensions and copied style
+transforms/padding, independently of its outline paint color.
+
 ## K3. Change matrix
 
 “Reuse” assumes all other relevant inputs are equal. Recomposition still occurs whenever the final scene changes.

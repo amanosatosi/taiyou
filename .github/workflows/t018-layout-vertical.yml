@@ -31,11 +31,25 @@ jobs:
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
         run: cargo test --locked -p taiyou-cli --features native --test layout_vertical
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/embedded-font/efont-1000.png --case regression/karaoke/357-k-and-kf-desynced-6798.png --case regression/karaoke/357-k-and-kf-desynced-7170.png --case regression/karaoke/357-k-and-kf-desynced-8170.png --case regression/scaling_playres/playresx_sbas-no-0000.png --case regression/scaling_playres/playresx_sbas-no-1000.png --case regression/scaling_playres/playresx_sbas-no-2000.png --case regression/scaling_playres/playresx_sbas-yes-0000.png --case regression/scaling_playres/playresx_sbas-yes-1000.png --case regression/scaling_playres/playresx_sbas-yes-2000.png --case regression/scaling_playres/playresx_sbas-yes-3000.png --case regression/scaling_playres/playresx_sbas-yes-4000.png --case regression/zero-area/zero-area-2000.png --case regression/zero-area/zero-area-8000.png --case regression/karaoke/karaoke-and-runsplits-0000.png --case regression/karaoke/karaoke-and-runsplits-2040.png --case regression/karaoke/karaoke-and-runsplits-2800.png --case regression/karaoke/karaoke-and-runsplits-3120.png --case regression/karaoke/karaoke-and-runsplits-4600.png --case regression/karaoke/216-vertical-2252.png
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: layout-focused-${{ github.sha }}
-          path: ${{ runner.temp }}/layout-format.patch
+          path: |
+            ${{ runner.temp }}/layout-format.patch
+            ${{ runner.temp }}/taiyou-comparison/
   gdi:
     runs-on: windows-2022
     timeout-minutes: 10

@@ -51,9 +51,10 @@ Owner instruction explicitly selects xy's smaller padding and resulting edge
 truncation over a mathematically complete N-pixel BE halo. No extra guard ring.
 
 xy target scale is output/original-video (or explicit LayoutRes), not font scale,
-PlayRes scaling or SBAS. The standalone renderer treats output as original video
-and has no admitted LayoutRes/resampling host: target=(1,1). Blur is in device
-pixels even when SBAS is enabled. Host target scaling is explicit in BlurSpec.
+PlayRes scaling or SBAS. A positive declared LayoutRes pair takes precedence
+over the host original-video dimensions; otherwise the host original size (or
+content size when omitted) supplies the layout size. Blur target scale is output
+content divided by that layout size, independently of SBAS. BlurSpec carries it.
 
 Full Gaussian/selected BE allocations occur before filtering and final viewport
 clip; source masks stay immutable. Existing radius/pass/dimension/pixel/output
@@ -200,3 +201,60 @@ The three alpha-clipping frames rendered strictly and remained pixel mismatches
 patch was generated in that Actions run and applied to the candidate. The
 decoration regression locates the existing pinned shaping fonts through
 RUNNER_TEMP so the focused and full native runners use identical font bytes.
+
+## Layout, unknown commands, vertical fonts and opaque boxes
+
+LayoutRes is storage/layout space, never a replacement for PlayRes coordinates.
+STS.cpp 2066–2074 reads it; RTS.cpp RenderEx 3365–3404 selects it only when both
+axes are positive. GetSubtitle 2912–2961 constructs the font at
+`fontsize * layoutY / PlayResY`, spaces at `spacing * layoutX / PlayResX`, and
+SBAS effect axes at their respective layout ratios. Final target scaling is
+output/layout. Shaping returns normalized script-space metrics/advances;
+geometry rotates/projects in layout pixels before applying target scale. Script
+positions, margins, movement, origin and drawings retain PlayRes coordinates.
+Rectangular clip edges animate/round in layout pixels before target scaling;
+vector clips remain independent frame geometry. Partial/nonpositive LayoutRes
+pairs leave host storage size active. Encodings 0 (ANSI/default Unicode font
+request) and 1 use the supplied Unicode face; no legacy cmap/codepage emulation,
+style Encoding >=2, fe, YCbCr mangling or SSA V4 is admitted by this batch.
+
+ParseSSATag 2133–2220 dispatches the longest known prefix and consumes CMD_COUNT;
+its evaluation default does nothing. Thus `board1` dispatches b with `oard1`,
+whose wcstol value is zero (RTS.cpp 2320–2328). Unknown commands are consumed,
+not claimed as missing renderer features. Known unimplemented fe/fsc and
+unresolved named resets remain explicit unsupported operations. Original text
+spans retain override-block gaps, including ignored/empty blocks, so karaoke
+word ownership still changes at those boundaries.
+
+Vertical fonts are delegated unchanged to LOGFONT by STS.cpp 3719–3730 and
+RTS.cpp CMyFont 115–141, then TextOut/GetPath by CText::CreatePath 646–693.
+The narrow Windows probe uses that same path, existing pinned fonts, and records
+real glyph IDs, advances, metrics and contour coordinates; it is not a desktop
+screenshot or an authenticated xy binary capture. Runs
+[39682552397](https://github.com/amanosatosi/taiyou/actions/runs/39682552397) and
+[39682853492](https://github.com/amanosatosi/taiyou/actions/runs/39682853492)
+distinguish TrueType IPAexGothic from CFF Noto Sans CJK JP. The former retains
+horizontal Latin but rotates CJK/fullwidth contours and substitutes vertical
+punctuation; the latter rotates Latin too and uses its rotated cell bounds.
+The existing validated face is resolved after removing @ from lookup only;
+the semantic flag remains. Native vert/vkna substitutions, vertical advances and
+an owned `(advance + typoDescender - y, x + typoDescender)` outline map reproduce
+that horizontal TextOut run representation. This is not modern TTB paragraph
+layout: baseline/run progression remain xy's X progression until ordinary ASS
+rotation transforms the word. All normal geometry, painting, clipping, karaoke,
+font resets and drawing transitions remain shared. No universal GDI version,
+fallback or pixel-parity claim follows from the two controlled font witnesses.
+
+Standard BorderStyle=3 follows RTS.cpp CreateOpaqueBox 556–573 and
+xy_overlay_paint_machine.cpp PaintOutline/PaintShadow 116–134. The background
+is the outline color/alpha, made from each compacted compatible word segment's
+advance and cell height on its own line. Outline X/Y padding rounds in native
+eighth units; the copied polygon style reapplies font scale, shear, rotation and
+projection, including the reference's observable double scale of word dimensions.
+Body and box blur independently; shadow uses the box polygon. The background
+is not a glyph-outline subtraction ring. Zero outline disables the background
+pass, but a visible nonzero shadow can still use the unpadded cell box. Source
+alpha/fades, clipping, margins and placement use ordinary event machinery.
+Whitespace compaction and blank-line metrics stay unchanged. Collision includes
+visible box geometry and shadow support before final raster quantization, with
+caller limits enforced during the prepass. BorderStyle=1 keeps its existing path.
