@@ -802,6 +802,7 @@ fn shape_event_impl(
     let mut styles: Vec<(DecodedSpan, ShapeStyle)> = Vec::new();
     let mut paints = Vec::new();
     let mut previous_scale = None;
+    let mut previous_karaoke=None;
     for run in event.runs() {
         let span = run.decoded().ok_or_else(|| {
             error(
@@ -826,7 +827,7 @@ fn shape_event_impl(
         }
         let scale = (run.geometry().scale_x(), run.geometry().scale_y());
         if let Some((last, style)) = styles.last_mut().filter(|(last, style)| {
-            last.end() == span.start() && style == run.shaping() && previous_scale == Some(scale)
+            last.end() == span.start() && style == run.shaping() && previous_scale == Some(scale) && previous_karaoke==run.karaoke()
         }) {
             *last = map.decoded_span(last.start()..span.end())?;
             let _ = style;
@@ -835,6 +836,7 @@ fn shape_event_impl(
             styles.push((span.clone(), run.shaping().clone()));
         }
         previous_scale = Some(scale);
+        previous_karaoke=run.karaoke();
     }
     let mut drawings = Vec::new();
     for run in event.runs().iter().filter(|r| r.drawing().is_some()) {

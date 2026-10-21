@@ -56,6 +56,7 @@ struct GroupMasks {
     border: Option<Arc<Mask>>,
     shadow: Option<Arc<Mask>>,
     fill_paint: Rgba8,
+    sweep: Option<(i32,Rgba8)>,
     border_paint: Rgba8,
     shadow_paint: Rgba8,
 }
@@ -81,13 +82,6 @@ fn filter_mask(
 #[cfg(feature = "native")]
 fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
     Q6::from_pixels(FiniteF64::new(value).map_err(convert)?).map_err(convert)
-}
-#[cfg(feature = "native")]
-fn equal_device_scale(device: DeviceMapping) -> bool {
-    let content = device.content();
-    let play = device.play_res();
-    u64::from(content.width()).checked_mul(u64::from(play.height()))
-        == u64::from(content.height()).checked_mul(u64::from(play.width()))
 }
 #[cfg(feature = "native")]
 fn script_offset_q6(
@@ -132,6 +126,7 @@ fn push_operation(
     order: DrawOrder,
     mask: Arc<Mask>,
     paint: Rgba8,
+    clip: Arc<ResolvedClip>,
 ) -> Result<(), RenderError> {
     let future = add(*held, bytes::<DrawOp>(1)?)?;
     available(limits, add(future, event_charge)?)?;
@@ -145,7 +140,7 @@ fn push_operation(
         Paint::Solid(paint),
         PaintSpace::Device,
         PaintMap::Identity,
-        Arc::new(ResolvedClip::None),
+        clip,
     ));
     *held = future;
     Ok(())
@@ -194,25 +189,6 @@ fn prepare_local(
     )?;
     diagnostics.extend_finished(&report).map_err(convert)?;
     let stage_held = add(held, eval_charge)?;
-    // Static Core borders/shadows are rendered below. Decorations
-    // remain explicitly unsupported and are omitted in tolerant mode.
-    for state in evaluated.runs() {
-        if state.geometry().underline() || state.geometry().strikeout() {
-            let detail = "underline and strikeout decorations require a later Core stage";
-            if request.unsupported == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
-                    .with_context(Some(event.id()), Some(state.source())));
-            }
-            diagnostics
-                .push(Diagnostic::new(
-                    DiagnosticCode::UnsupportedFeature,
-                    Some(event.id()),
-                    Some(state.source()),
-                    detail,
-                ))
-                .map_err(convert)?;
-        }
-    }
     let shaped = taiyou_font::shape_event(
         ctx,
         fonts,
@@ -756,6 +732,13 @@ impl Renderer {
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
+                let (event_clip,clip_mask,clip_segments)=crate::ass_clip::resolve(
+                    placed.layout().shaped().evaluated().ass_clip(),device,
+                    &available(limits,add(held,event_charge)?)?
+                )?;
+                total_segments=add(total_segments,clip_segments)?;
+                if total_segments>limits.path_segments_per_frame() {return Err(limited())}
+                if let Some(mask)=clip_mask {charge_mask(&mask,&mut held,event_charge,limits)?;}
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -779,28 +762,8 @@ impl Renderer {
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
-                    let mut border_enabled = state.effects().border_style() == BorderStyle::Outline;
+                    let border_enabled = state.effects().border_style() == BorderStyle::Outline;
                     let border_value = state.effects().border_x().get();
-                    if border_enabled
-                        && border_value > 0.0
-                        && track.script().scaled_border_shadow()
-                        && !equal_device_scale(device)
-                    {
-                        let detail = "Core isotropic border scaling requires equal device/script x and y ratios";
-                        if request.unsupported == UnsupportedPolicy::Strict {
-                            return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
-                                .with_context(Some(event.id()), Some(state.source())));
-                        }
-                        diagnostics
-                            .push(Diagnostic::new(
-                                DiagnosticCode::UnsupportedFeature,
-                                Some(event.id()),
-                                Some(state.source()),
-                                detail,
-                            ))
-                            .map_err(convert)?;
-                        border_enabled = false;
-                    }
                     let border_radius = if border_enabled {
                         let ratio = if track.script().scaled_border_shadow() {
                             f64::from(device.content().width())
@@ -812,7 +775,11 @@ impl Renderer {
                     } else {
                         Q6::from_ticks(0)
                     };
-                    let border_exists = border_enabled && border_value > 0.0;
+                    let border_radius_y=if border_enabled {
+                        let ratio=if track.script().scaled_border_shadow() {f64::from(device.content().height())/f64::from(device.play_res().height())}else{1.0};
+                        q6_pixels(state.effects().border_y().get()*ratio)?
+                    }else{Q6::from_ticks(0)};
+                    let border_exists = border_enabled && (border_value > 0.0 || state.effects().border_y().get()>0.0);
                     let blur_spec = crate::effects::BlurSpec::new(
                         state.effects().blur(),
                         state.effects().be(),
@@ -823,7 +790,7 @@ impl Renderer {
                         fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
-                    let border = if border_exists {
+                    let mut border = if border_exists {
                         let remaining = limits
                             .path_segments_per_frame()
                             .checked_sub(total_segments)
@@ -832,10 +799,11 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded(
+                        let (mask, segments) = crate::stroke::rasterize_expanded_axes(
                             &mut stroke_context,
                             group,
                             border_radius,
+                            border_radius_y,
                             Q6::from_ticks(0),
                             Q6::from_ticks(0),
                             remaining,
@@ -885,10 +853,11 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let (mask, segments) = crate::stroke::rasterize_expanded(
+                            let (mask, segments) = crate::stroke::rasterize_expanded_axes(
                                 &mut stroke_context,
                                 group,
                                 border_radius,
+                                border_radius_y,
                                 dx,
                                 dy,
                                 remaining,
@@ -939,11 +908,37 @@ impl Renderer {
                             held = held.checked_sub(charge).ok_or_else(limited)?;
                         }
                     }
+                    let mut fill_paint=state.paint().primary();
+                    let mut sweep=None;
+                    if let Some(k)=state.karaoke() {
+                        let mut progress=if k.now_ms<i64::from(k.start_ms) {0.0}else if k.kind==KaraokeTag::Sweep && k.now_ms<i64::from(k.end_ms) {
+                            (k.now_ms-i64::from(k.start_ms)) as f64/(i64::from(k.end_ms)-i64::from(k.start_ms)) as f64
+                        }else{1.0};
+                        if k.kind==KaraokeTag::Outline && k.now_ms<i64::from(k.start_ms) {border=None;}
+                        if progress<=0.0 {fill_paint=state.paint().secondary();}
+                        else if progress<1.0 {
+                            let angle=state.geometry().rotation_z().get()%360.0;
+                            let mut secondary=state.paint().secondary();
+                            if angle>90.0&&angle<270.0 {progress=1.0-progress;std::mem::swap(&mut fill_paint,&mut secondary);}
+                            let mut width=0.0;
+                            for i in group.policy().members().clone() {
+                                let g=&placed.layout().glyphs()[i];
+                                let run=&placed.layout().shaped().runs()[g.run_index()];
+                                width+=if let Some(d)=run.drawing(){d.width.get()}else{run.glyphs()[g.glyph_index()].advance_x().get()};
+                            }
+                            width*=state.geometry().scale_x().get()*placed.layout().local_scale().0.get()*sx;
+                            let native=((state.effects().border_x().get()+progress*width)*8.0).trunc();
+                            if !native.is_finite()||native<f64::from(i32::MIN)||native>f64::from(i32::MAX) {return Err(limited())}
+                            let cut=fill.bounds().x0().checked_add((native as i32)>>3).ok_or_else(limited)?;
+                            sweep=Some((cut,secondary));
+                        }
+                    }
                     group_masks.push(GroupMasks {
                         fill,
                         border,
                         shadow,
-                        fill_paint: state.paint().primary(),
+                        fill_paint,
+                        sweep,
                         border_paint: state.paint().outline(),
                         shadow_paint: state.paint().shadow(),
                     });
@@ -966,6 +961,16 @@ impl Renderer {
                         let Some((mask, paint)) = selected else {
                             continue;
                         };
+                        if selector==2 {
+                            if let Some((cut,secondary))=masks.sweep {
+                                for (side,color) in [(0_u32,paint),(1,secondary)] {
+                                    let rect=if side==0 {PixelRect::new(i32::MIN,i32::MIN,cut,i32::MAX)}else{PixelRect::new(cut,i32::MIN,i32::MAX,i32::MAX)}.map_err(convert)?;
+                                    let clip=Arc::new(ResolvedClip::Intersection(event_clip.clone(),Arc::new(ResolvedClip::Rectangle {bounds:rect,inverse:false})));
+                                    push_operation(&mut operations,&mut held,event_charge,limits,DrawOrder::new(event.layer(),event.id(),selector,u32::try_from(ordinal).map_err(|_|limited())?.checked_mul(2).and_then(|v|v.checked_add(side)).ok_or_else(limited)?),mask.clone(),color,clip)?;
+                                }
+                                continue;
+                            }
+                        }
                         push_operation(
                             &mut operations,
                             &mut held,
@@ -975,10 +980,11 @@ impl Renderer {
                                 event.layer(),
                                 event.id(),
                                 selector,
-                                u32::try_from(ordinal).map_err(|_| limited())?,
+                                u32::try_from(ordinal).map_err(|_| limited())?.checked_mul(2).ok_or_else(limited)?,
                             ),
                             mask,
                             paint,
+                            event_clip.clone(),
                         )?;
                     }
                 }

@@ -62,6 +62,10 @@ pub struct GeometryStyle {
     scale_x: FiniteF64,
     scale_y: FiniteF64,
     rotation_z: FiniteF64,
+    rotation_x: FiniteF64,
+    rotation_y: FiniteF64,
+    shear_x: FiniteF64,
+    shear_y: FiniteF64,
     underline: bool,
     strikeout: bool,
 }
@@ -71,6 +75,10 @@ impl GeometryStyle {
             scale_x: s.scale_x(),
             scale_y: s.scale_y(),
             rotation_z: s.angle(),
+            rotation_x: s.rotation_x(),
+            rotation_y: s.rotation_y(),
+            shear_x: s.shear_x(),
+            shear_y: s.shear_y(),
             underline: s.underline(),
             strikeout: s.strikeout(),
         }
@@ -84,6 +92,10 @@ impl GeometryStyle {
     pub const fn rotation_z(&self) -> FiniteF64 {
         self.rotation_z
     }
+    pub const fn rotation_x(&self) -> FiniteF64 { self.rotation_x }
+    pub const fn rotation_y(&self) -> FiniteF64 { self.rotation_y }
+    pub const fn shear_x(&self) -> FiniteF64 { self.shear_x }
+    pub const fn shear_y(&self) -> FiniteF64 { self.shear_y }
     pub const fn underline(&self) -> bool {
         self.underline
     }
@@ -95,7 +107,9 @@ impl GeometryStyle {
 pub struct EffectStyle {
     border_style: BorderStyle,
     border: FiniteF64,
+    border_y: FiniteF64,
     shadow: FiniteF64,
+    shadow_y: FiniteF64,
     blur: FiniteF64,
     be: FiniteF64,
 }
@@ -104,7 +118,9 @@ impl EffectStyle {
         Self {
             border_style: s.border_style(),
             border: s.border(),
+            border_y: s.border_y(),
             shadow: s.shadow(),
+            shadow_y: s.shadow_y(),
             blur: s.blur(),
             be: s.be(),
         }
@@ -116,13 +132,13 @@ impl EffectStyle {
         self.border
     }
     pub const fn border_y(&self) -> FiniteF64 {
-        self.border
+        self.border_y
     }
     pub const fn shadow_x(&self) -> FiniteF64 {
         self.shadow
     }
     pub const fn shadow_y(&self) -> FiniteF64 {
-        self.shadow
+        self.shadow_y
     }
     pub const fn blur(&self) -> FiniteF64 {
         self.blur
@@ -329,6 +345,17 @@ impl Placement {
 pub enum ClipSpec {
     None,
 }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ClipRectStep {
+    pub coords: [i32;4],
+    pub progress: FiniteF64,
+    pub inverse: bool,
+}
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct AssClip {
+    pub rectangles: Arc<[ClipRectStep]>,
+    pub vector: Option<(Arc<AssDrawing>,bool)>,
+}
 
 /// Independent dependency changes observed during ordered evaluation, not cache
 /// keys or previous-frame dirty state. All T007 operations are time-invariant.
@@ -433,6 +460,7 @@ impl EventOrder {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedRun {
+    karaoke:Option<Karaoke>,
     drawing: Option<Arc<AssDrawing>>,
     text: Arc<str>,
     source: SourceSpan,
@@ -451,6 +479,7 @@ impl EvaluatedRun {
     /// span, never invented offsets into decoded text. T009 must preserve that map.
     pub fn new(text: Arc<str>, source: SourceSpan, style: &Style) -> Self {
         Self {
+            karaoke:None,
             drawing: None,
             text,
             source,
@@ -464,6 +493,8 @@ impl EvaluatedRun {
     pub fn text(&self) -> &str {
         &self.text
     }
+    pub fn with_karaoke(mut self,karaoke:Option<Karaoke>)->Self {self.karaoke=karaoke;self}
+    pub const fn karaoke(&self)->Option<Karaoke> {self.karaoke}
     pub fn with_drawing(mut self, drawing: Arc<AssDrawing>) -> Self {
         self.drawing = Some(drawing);
         self
@@ -500,8 +531,17 @@ impl EvaluatedRun {
         &self.paint
     }
 }
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub struct Karaoke {
+    pub kind:KaraokeTag,
+    pub start_ms:i32,
+    pub end_ms:i32,
+    pub now_ms:i64,
+    pub word:u32,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EvaluatedEvent {
+    ass_clip: AssClip,
     wrap_mode: WrapMode,
     warp_mode: WarpMode,
     warp_mode_source: Option<SourceSpan>,
@@ -522,6 +562,7 @@ impl EvaluatedEvent {
         animation: ChangeClass,
     ) -> Self {
         Self {
+            ass_clip: AssClip::default(),
             terminal_style: None,
             wrap_mode: WrapMode::new(2).expect("constant wrap"),
             warp_mode: WarpMode::XyStyle,
@@ -537,6 +578,8 @@ impl EvaluatedEvent {
     pub const fn id(&self) -> EventId {
         self.id
     }
+    pub fn with_ass_clip(mut self, clip: AssClip) -> Self { self.ass_clip=clip; self }
+    pub fn ass_clip(&self) -> &AssClip { &self.ass_clip }
     pub const fn warp_mode(&self) -> WarpMode {
         self.warp_mode
     }

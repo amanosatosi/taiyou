@@ -493,6 +493,14 @@ fn transform_number(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>,
     for (name, property) in [
         ("fscx", TransformProperty::ScaleX),
         ("fscy", TransformProperty::ScaleY),
+        ("frx", TransformProperty::RotationX),
+        ("fry", TransformProperty::RotationY),
+        ("fax", TransformProperty::ShearX),
+        ("fay", TransformProperty::ShearY),
+        ("xbord", TransformProperty::BorderX),
+        ("ybord", TransformProperty::BorderY),
+        ("xshad", TransformProperty::ShadowX),
+        ("yshad", TransformProperty::ShadowY),
         ("fsp", TransformProperty::Spacing),
         ("fs", TransformProperty::Size),
         ("bord", TransformProperty::Border),
@@ -674,6 +682,41 @@ fn parse(
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    for (name,kind) in [("kt",KaraokeTag::Absolute),("kf",KaraokeTag::Sweep),("ko",KaraokeTag::Outline),("K",KaraokeTag::Sweep),("k",KaraokeTag::Instant)] {
+        if let Some(suffix)=raw.strip_prefix(name) {
+            let suffix=suffix.split_once('(').map_or(suffix,|(s,_)|s).trim();
+            return Ok(Some(OverrideOp::Karaoke {kind,value_ms:if suffix.is_empty(){None}else{Some(FiniteF64::new(blur_number(suffix)?*10.0)?)},source}));
+        }
+    }
+    if let Some(suffix)=raw.strip_prefix("iclip").or_else(||raw.strip_prefix("clip")) {
+        let inverse=raw.starts_with("iclip");
+        let Some((_,body))=suffix.split_once('(') else {return Ok(None)};
+        let body=body.split_once(')').map_or(body,|(b,_)|b);
+        let params:Vec<_>=body.split(',').map(decode::trim).filter(|s|!s.is_empty()).collect();
+        return Ok(match params.as_slice() {
+            [a,b,c,d] => Some(OverrideOp::ClipRect {coords:[FiniteF64::new(blur_number(a)?)?,FiniteF64::new(blur_number(b)?)?,FiniteF64::new(blur_number(c)?)?,FiniteF64::new(blur_number(d)?)?],inverse,source}),
+            [path] => Some(OverrideOp::ClipDrawing {path:Arc::from(*path),scale:1,inverse,source}),
+            [scale,path] => {
+                let scale=blur_number(scale)?.trunc().max(1.0);
+                if scale>31.0 {return Err(ParseError::new(ErrorCode::LimitExceeded,"clip drawing scale exceeds native range"))}
+                Some(OverrideOp::ClipDrawing {path:Arc::from(*path),scale:scale as u32,inverse,source})
+            },
+            _=>None
+        });
+    }
+    if (raw.starts_with('u') || raw.starts_with('s')) && !raw.starts_with("shad") {
+        let suffix=raw[1..].split_once('(').map_or(&raw[1..],|(s,_)|s).trim();
+        let value=if suffix.is_empty() {None} else {match blur_number(suffix)? as i32 {0=>Some(false),1=>Some(true),_=>None}};
+        return Ok(Some(OverrideOp::SetDecoration {strikeout:raw.starts_with('s'),value,source}));
+    }
+    if raw.starts_with('a') && !raw.starts_with("an") && !raw.starts_with("alpha") {
+        let n=blur_number(&raw[1..])? as i32;
+        let value=if n>0&&n<12 {Some(((((n-1)&3)+1)+if n&4!=0 {6}else{0}+if n&8!=0 {3}else{0}) as u8)}else{None};
+        return Ok(Some(OverrideOp::SetLegacyAlignment {value,source}));
+    }
+    for name in ["frx", "fry", "fax", "fay", "xbord", "ybord", "xshad", "yshad"] {
+        if raw.starts_with(name) { return transform_number(raw, source); }
+    }
     if !raw.starts_with("frx") && !raw.starts_with("fry") {
         if let Some(suffix) = raw.strip_prefix("frz").or_else(|| raw.strip_prefix("fr")) {
             let value = decode::trim(suffix.split_once('(').map_or(suffix, |(s, _)| s));

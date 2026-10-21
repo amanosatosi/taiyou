@@ -149,17 +149,17 @@ fn static_border_and_shadow_tags_keep_q6_source_values_and_spans() {
 }
 
 #[test]
-fn anisotropic_border_shadow_and_blur_prefixes_remain_unsupported() {
+fn anisotropic_border_shadow_and_blur_prefixes_are_typed() {
     let parsed = parse(r"{\xbord2\ybord3\xshad1\yshad-1\be2}A");
     let ops = parsed.track().events()[0].program();
-    let names: Vec<_> = ops
+    let properties: Vec<_> = ops
         .iter()
         .filter_map(|op| match op {
-            TextOp::Unsupported { name, .. } => Some(name.as_ref()),
+            TextOp::Override(OverrideOp::TransformNumber {property,value:Some(value),..}) => Some((*property,value.get())),
             _ => None,
         })
         .collect();
-    assert_eq!(names, ["xbord", "ybord", "xshad", "yshad"]);
+    assert_eq!(properties, [(TransformProperty::BorderX,2.0),(TransformProperty::BorderY,3.0),(TransformProperty::ShadowX,1.0),(TransformProperty::ShadowY,-1.0)]);
     assert!(
         matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.0)
     );
@@ -169,7 +169,7 @@ fn anisotropic_border_shadow_and_blur_prefixes_remain_unsupported() {
             .iter()
             .filter(|d| d.code() == DiagnosticCode::UnsupportedFeature)
             .count(),
-        4
+        0
     );
 }
 
@@ -187,16 +187,16 @@ fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
 
 #[test]
 fn overrides_unknown_tags_remain_ordered_unsupported() {
-    let parsed = parse(r"{\mystery42(1,2)\frx(10)\clip(0,0,1,1)}A");
+    let parsed = parse(r"{\mystery42(1,2)\fe(10)\mysteryclip(0,0,1,1)}A");
     let ops = parsed.track().events()[0].program();
     assert_eq!(ops.len(), 4);
     assert!(
         matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "mystery42" && source.slice(parsed.track().source()) == Some(r"\mystery42(1,2)"))
     );
     assert!(
-        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "frx" && source.slice(parsed.track().source()) == Some(r"\frx(10)"))
+        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "fe" && source.slice(parsed.track().source()) == Some(r"\fe(10)"))
     );
-    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "clip"));
+    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "mysteryclip"));
     assert_eq!(
         parsed
             .diagnostics()

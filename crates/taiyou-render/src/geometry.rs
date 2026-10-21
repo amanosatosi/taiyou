@@ -43,6 +43,7 @@ pub struct GeometryMap {
     anchor: ScriptPoint,
     origin: ScriptPoint,
     rotation: FiniteF64,
+    projection: [FiniteF64;4],
     device: DeviceMapping,
 }
 impl GeometryMap {
@@ -66,8 +67,13 @@ impl GeometryMap {
             anchor,
             origin: origin.unwrap_or(anchor),
             rotation,
+            projection: [FiniteF64::ZERO;4],
             device,
         })
+    }
+    pub fn with_projection(mut self, style: &GeometryStyle) -> Self {
+        self.projection=[style.rotation_x(),style.rotation_y(),style.shear_x(),style.shear_y()];
+        self
     }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
         // Font y-up conversion occurs exactly once, before rotation and viewport.
@@ -86,10 +92,11 @@ impl GeometryMap {
             270.0 => (-1.0, 0.0),
             _ => angle.to_radians().sin_cos(),
         };
-        let (x, y) = (
-            cos * x + sin * y + self.origin.x().get(),
-            -sin * x + cos * y + self.origin.y().get(),
-        );
+        let [rx,ry,fx,fy]=self.projection.map(FiniteF64::get);
+        let (x,y)=(x+fx*y,y+fy*x);
+        let (x,y)=(cos*x+sin*y,-sin*x+cos*y);
+        let (x,y)=project_3d(x,y,rx,ry)?;
+        let (x,y)=(x+self.origin.x().get(),y+self.origin.y().get());
         Ok(DevicePoint::new(
             q6(x * (f64::from(self.device.content.width())
                 / f64::from(self.device.play_res.width()))
@@ -99,6 +106,18 @@ impl GeometryMap {
                 + f64::from(self.device.content.y0()))?,
         ))
     }
+}
+/// RTS.cpp CWord::Transform: Z, X, Y, then perspective. Native paths use
+/// 64 units/pixel: the source 20000/1000 constants become 312.5/15.625.
+pub(crate) fn project_3d(x:f64,y:f64,rx:f64,ry:f64)->Result<(f64,f64),RenderError> {
+    let trig=|a:f64| match a.rem_euclid(360.0) {
+        0.0=>(0.0,1.0),90.0=>(1.0,0.0),180.0=>(0.0,-1.0),270.0=>(-1.0,0.0),a=>a.to_radians().sin_cos()
+    };
+    let (sx,cx)=trig(rx); let (sy,cy)=trig(ry);
+    let z=sx*y;
+    let denom=(312.5+sy*x-cy*z).max(15.625);
+    let out=((cy*x+sy*z)*312.5/denom,cx*y*312.5/denom);
+    finite(out.0)?; finite(out.1)?; Ok(out)
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeviceBounds {
@@ -314,7 +333,7 @@ pub fn geometry(
                 placement.origin,
                 state.geometry().rotation_z(),
                 placement.device,
-            )?;
+            )?.with_projection(state.geometry());
             items.push(GeometryItem {
                 geometry: map_outline(drawing.outline.clone(), mapping, limits)?,
                 cluster: positioned.cluster().clone(),
@@ -387,8 +406,29 @@ pub fn geometry(
             placement.origin.or(layout.shaped().placement().origin()),
             state.geometry().rotation_z(),
             placement.device,
-        )?;
-        let mapped = map_outline(outline.outline().clone(), mapping, limits)?;
+        )?.with_projection(state.geometry());
+        let mut path=outline.outline().clone();
+        if state.geometry().underline() || state.geometry().strikeout() {
+            let metrics=catalog.decoration_metrics(context,blob.id()).map_err(font_error)?;
+            let extra=5*(usize::from(state.geometry().underline())+usize::from(state.geometry().strikeout()));
+            total=total.checked_add(extra).ok_or_else(geometry_limit)?;
+            check_path_budget(total,limits)?;
+            charge=charge.checked_add((extra as u64+path.ops().len() as u64)*4*(std::mem::size_of::<PathOp<FontPoint>>()+std::mem::size_of::<PathOp<DevicePoint>>()) as u64).ok_or_else(geometry_limit)?;
+            if charge>limits.transient_bytes() {return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory))}
+            let mut decorated=Vec::new();
+            decorated.try_reserve_exact(path.ops().len()+extra).map_err(|_|RenderError::new(ErrorCode::AllocationFailed,"decoration path allocation"))?;
+            decorated.extend_from_slice(path.ops());
+            // GDI TextOut decorations use face metrics and text advance, not
+            // glyph ink. Retain the exact same path/effects/composition route.
+            let width=glyph.advance_x().get()/size;
+            for (enabled,(centre,thickness)) in [state.geometry().underline(),state.geometry().strikeout()].into_iter().zip(metrics) {
+                if !enabled || thickness<=0 {continue}
+                let (y0,y1)=(f64::from(centre)-f64::from(thickness)/2.0,f64::from(centre)+f64::from(thickness)/2.0);
+                decorated.extend([PathOp::MoveTo(FontPoint::new(0.0,y0)?),PathOp::LineTo(FontPoint::new(width,y0)?),PathOp::LineTo(FontPoint::new(width,y1)?),PathOp::LineTo(FontPoint::new(0.0,y1)?),PathOp::Close]);
+            }
+            path=Arc::new(Outline::new(decorated,limits)?);
+        }
+        let mapped = map_outline(path, mapping, limits)?;
         items.push(GeometryItem {
             geometry: mapped.clone(),
             cluster: positioned.cluster().clone(),

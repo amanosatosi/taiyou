@@ -335,9 +335,15 @@ pub struct Style {
     scale_y: FiniteF64,
     spacing: FiniteF64,
     angle: FiniteF64,
+    rotation_x: FiniteF64,
+    rotation_y: FiniteF64,
+    shear_x: FiniteF64,
+    shear_y: FiniteF64,
     border_style: BorderStyle,
     border: FiniteF64,
+    border_y: FiniteF64,
     shadow: FiniteF64,
+    shadow_y: FiniteF64,
     blur: FiniteF64,
     be: FiniteF64,
     alignment: Alignment,
@@ -361,9 +367,15 @@ impl Style {
             scale_y: FiniteF64::ONE,
             spacing: FiniteF64::ZERO,
             angle: FiniteF64::ZERO,
+            rotation_x: FiniteF64::ZERO,
+            rotation_y: FiniteF64::ZERO,
+            shear_x: FiniteF64::ZERO,
+            shear_y: FiniteF64::ZERO,
             border_style: BorderStyle::Outline,
             border: FiniteF64::CORE_BORDER,
+            border_y: FiniteF64::CORE_BORDER,
             shadow: FiniteF64::CORE_BORDER,
+            shadow_y: FiniteF64::CORE_BORDER,
             blur: FiniteF64::ZERO,
             be: FiniteF64::ZERO,
             alignment: Alignment(2),
@@ -399,6 +411,7 @@ impl Style {
             return Err(invalid("style border must be nonnegative"));
         }
         self.border = border;
+        self.border_y = border;
         Ok(self)
     }
     pub fn with_colors(
@@ -433,8 +446,34 @@ impl Style {
     }
     pub fn with_shadow(mut self, shadow: FiniteF64) -> Self {
         self.shadow = shadow;
+        self.shadow_y = shadow;
         self
     }
+    pub fn with_axis_border(mut self, axis: ScaleAxis, value: FiniteF64) -> Result<Self, ParseError> {
+        if value.get() < 0.0 { return Err(invalid("negative border")); }
+        match axis { ScaleAxis::X => self.border = value, ScaleAxis::Y => self.border_y = value }
+        Ok(self)
+    }
+    pub fn with_axis_shadow(mut self, axis: ScaleAxis, value: FiniteF64) -> Self {
+        match axis { ScaleAxis::X => self.shadow = value, ScaleAxis::Y => self.shadow_y = value }
+        self
+    }
+    pub fn with_projection(mut self, property: TransformProperty, value: FiniteF64) -> Self {
+        match property {
+            TransformProperty::RotationX => self.rotation_x = value,
+            TransformProperty::RotationY => self.rotation_y = value,
+            TransformProperty::ShearX => self.shear_x = value,
+            TransformProperty::ShearY => self.shear_y = value,
+            _ => {}
+        }
+        self
+    }
+    pub const fn rotation_x(&self) -> FiniteF64 { self.rotation_x }
+    pub const fn rotation_y(&self) -> FiniteF64 { self.rotation_y }
+    pub const fn shear_x(&self) -> FiniteF64 { self.shear_x }
+    pub const fn shear_y(&self) -> FiniteF64 { self.shear_y }
+    pub const fn border_y(&self) -> FiniteF64 { self.border_y }
+    pub const fn shadow_y(&self) -> FiniteF64 { self.shadow_y }
     pub fn with_blur(mut self, blur: FiniteF64) -> Result<Self, ParseError> {
         if blur.get() < 0.0 {
             return Err(invalid("style Gaussian blur must be nonnegative"));
@@ -656,6 +695,11 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    Karaoke {kind:KaraokeTag,value_ms:Option<FiniteF64>,source:SourceSpan},
+    ClipRect { coords: [FiniteF64;4], inverse: bool, source: SourceSpan },
+    ClipDrawing { path: Arc<str>, scale: u32, inverse: bool, source: SourceSpan },
+    SetDecoration { strikeout: bool, value: Option<bool>, source: SourceSpan },
+    SetLegacyAlignment { value: Option<u8>, source: SourceSpan },
     RestoreOriginal {
         field: OriginalField,
         source: SourceSpan,
@@ -783,7 +827,9 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::RestoreOriginal { source, .. }
+            Self::Karaoke {source,..} | Self::ClipRect { source, .. } | Self::ClipDrawing { source, .. }
+            | Self::SetDecoration { source, .. } | Self::SetLegacyAlignment { source, .. }
+            | Self::RestoreOriginal { source, .. }
             | Self::SetDrawingMode { source, .. }
             | Self::SetDrawingBaseline { source, .. }
             | Self::BeginTransform { source, .. }
@@ -833,6 +879,14 @@ impl OverrideOp {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransformProperty {
     RotationZ,
+    RotationX,
+    RotationY,
+    ShearX,
+    ShearY,
+    BorderX,
+    BorderY,
+    ShadowX,
+    ShadowY,
     Size,
     ScaleX,
     ScaleY,
@@ -840,6 +894,8 @@ pub enum TransformProperty {
     Border,
     Shadow,
 }
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub enum KaraokeTag { Instant, Sweep, Outline, Absolute }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OriginalField {
@@ -1091,11 +1147,6 @@ impl TrackIngestor {
                                 transforms = transforms
                                     .checked_sub(1)
                                     .ok_or_else(|| invalid("unmatched transform end"))?;
-                            }
-                            OverrideOp::TransformNumber { property, .. }
-                                if transforms == 0 && *property != TransformProperty::RotationZ =>
-                            {
-                                return Err(invalid("transform target outside transform"));
                             }
                             _ => (),
                         }

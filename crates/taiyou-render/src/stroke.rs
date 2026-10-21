@@ -14,7 +14,7 @@ fn limited() -> RenderError {
 }
 
 #[cfg(feature = "native")]
-fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError> {
+pub(crate) fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError> {
     let mut bounds: Option<(i64, i64, i64, i64)> = None;
     let mut point = |p: DevicePoint| {
         let (x, y) = (i64::from(p.x().ticks()), i64::from(p.y().ticks()));
@@ -100,6 +100,12 @@ pub fn rasterize_expanded(
         ));
     }
     context.stroke_rasterize_path(&ops, radius, remaining_segments)
+}
+#[cfg(feature="native")]
+pub fn rasterize_expanded_axes(context:&mut RasterContext,group:&CoverageGroup,rx:Q6,ry:Q6,dx:Q6,dy:Q6,remaining:u64)->Result<(Arc<Mask>,u64),RenderError> {
+    check_group(group)?;
+    let ops=coverage_path(group,dx,dy,context.limits())?;
+    context.stroke_rasterize_path_axes(&ops,rx,ry,remaining)
 }
 
 /// Core outline coverage B=max(E-F,0), using saturating A8 subtraction.

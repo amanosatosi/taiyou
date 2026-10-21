@@ -28,6 +28,11 @@ pub struct ValidatedFontCatalog {
     cells: Arc<[(u16, u16, u16)]>,
 }
 impl ValidatedFontCatalog {
+    /// Validated face's design-unit decoration centres and thicknesses.
+    pub fn decoration_metrics(&self,context:&mut FontContext,font:FontId)->Result<[(i16,i16);2],FontError> {
+        let face=self.faces().iter().find(|f|f.blob().id()==font).ok_or_else(||error(ErrorCode::FontUnavailable,"decoration face absent"))?;
+        context.decoration_metrics_authenticated(face.blob())
+    }
     /// Validated (UPEM, Windows cell ascent, Windows cell descent) of one face.
     pub fn ass_cell_metrics(&self, font: FontId) -> Result<(u16, u16, u16), FontError> {
         let index = self

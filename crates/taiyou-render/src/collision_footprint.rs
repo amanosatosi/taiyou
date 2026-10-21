@@ -30,21 +30,26 @@ pub fn effect_bounds(
     fill_visible: bool,
     border_visible: bool,
 ) -> Result<Option<ScriptBounds>, RenderError> {
+    effect_bounds_axes(ink,border.map(|r|(r,r)),shadow,fill_visible,border_visible)
+}
+pub fn effect_bounds_axes(
+    ink:ScriptBounds,border:Option<(Q6,Q6)>,shadow:Option<(Q6,Q6)>,fill_visible:bool,border_visible:bool,
+)->Result<Option<ScriptBounds>,RenderError> {
     if ink.width() == 0.0 || ink.height() == 0.0 {
         return Ok(None);
     }
-    let radius = border.map_or(0.0, |r| f64::from(r.ticks()) / 64.0);
-    if radius < 0.0 {
+    let (rx,ry) = border.map_or((0.0,0.0), |(x,y)| (f64::from(x.ticks()) / 64.0,f64::from(y.ticks())/64.0));
+    if rx < 0.0 || ry<0.0 {
         return Err(RenderError::new(
             ErrorCode::InvalidArgument,
             "negative collision border radius",
         ));
     }
     let expanded = ScriptBounds::new(
-        ink.x0().get() - radius,
-        ink.y0().get() - radius,
-        ink.x1().get() + radius,
-        ink.y1().get() + radius,
+        ink.x0().get() - rx,
+        ink.y0().get() - ry,
+        ink.x1().get() + rx,
+        ink.y1().get() + ry,
     )?;
     let mut result = None;
     if fill_visible {
@@ -67,7 +72,7 @@ pub fn collision_footprint(
     local: &LocalLayout,
     device: DeviceMapping,
     scaled_border_shadow: bool,
-    policy: UnsupportedPolicy,
+    _policy: UnsupportedPolicy,
 ) -> Result<ScriptBounds, RenderError> {
     if local.shaped().placement().origin().is_some() {
         return Err(RenderError::new(
@@ -77,8 +82,6 @@ pub fn collision_footprint(
     }
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
-    let equal_scale = u64::from(device.content().width()) * u64::from(device.play_res().height())
-        == u64::from(device.content().height()) * u64::from(device.play_res().width());
     let mut result = local.collision_bounds();
     for positioned in local.glyphs() {
         let run = &local.shaped().runs()[positioned.run_index()];
@@ -129,27 +132,19 @@ pub fn collision_footprint(
         let mut hull = None;
         for x in [ink.x0().get(), ink.x1().get()] {
             for y in [ink.y0().get(), ink.y1().get()] {
-                let dx = finite((cos * x + sin * y) * sx)?.get();
-                let dy = finite((-sin * x + cos * y) * sy)?.get();
+                let (x,y)=(x+state.geometry().shear_x().get()*y,y+state.geometry().shear_y().get()*x);
+                let (x,y)=crate::geometry::project_3d(cos*x+sin*y,-sin*x+cos*y,state.geometry().rotation_x().get(),state.geometry().rotation_y().get())?;
+                let dx = finite(x * sx)?.get();
+                let dy = finite(y * sy)?.get();
                 include(&mut hull, ScriptBounds::new(dx, dy, dx, dy)?)?;
             }
         }
-        let mut border = state.effects().border_style() == BorderStyle::Outline
-            && state.effects().border_x().get() > 0.0;
-        if border && scaled_border_shadow && !equal_scale {
-            if policy == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(
-                    ErrorCode::UnsupportedFeature,
-                    "Core isotropic border scaling requires equal device/script x and y ratios",
-                ));
-            }
-            // Match the ordinary renderer's diagnosed omission in tolerant mode.
-            border = false;
-        }
+        let border = state.effects().border_style() == BorderStyle::Outline
+            && (state.effects().border_x().get() > 0.0 || state.effects().border_y().get()>0.0);
         let radius = if border {
-            Some(q6(
+            Some((q6(
                 state.effects().border_x().get() * if scaled_border_shadow { sx } else { 1.0 }
-            )?)
+            )?,q6(state.effects().border_y().get()*if scaled_border_shadow {sy}else{1.0})?))
         } else {
             None
         };
@@ -164,7 +159,7 @@ pub fn collision_footprint(
             ))
         };
         if let Some(hull) = hull {
-            if let Some(support) = effect_bounds(
+            if let Some(support) = effect_bounds_axes(
                 hull,
                 radius,
                 shadow,

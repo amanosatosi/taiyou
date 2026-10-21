@@ -5,6 +5,8 @@
 //! composition through the single-worker CoreV1 coordinator.
 
 pub mod collision;
+#[cfg(feature = "native")]
+mod ass_clip;
 pub mod collision_footprint;
 mod compose;
 pub mod drawing;

@@ -53,6 +53,7 @@ pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
     // Include override-only diagnostics and empty-event storage as well as runs.
     // The multiplier covers Vec growth and Vec-to-Arc publication overlap.
     let count = event.program().len();
+    let has_karaoke=event.program().iter().any(|op|matches!(op,TextOp::Override(OverrideOp::Karaoke {..})));
     let per = std::mem::size_of::<EvaluatedRun>()
         .checked_mul(3)
         .and_then(|v| v.checked_add(3 * (std::mem::size_of::<TextSourcePiece>() + 32) + 128))
@@ -72,7 +73,8 @@ pub(crate) fn preflight(event: &Event) -> Result<u64, RenderError> {
                     TextOp::Text { text, .. } if drawing_mode > 0 => {
                         (text.len() as u64).checked_mul(256)?
                     }
-                    TextOp::Text { text, .. } => text.len() as u64,
+                    TextOp::Override(OverrideOp::ClipDrawing {path,..}) => (path.len() as u64).checked_mul(256)?,
+                    TextOp::Text { text, .. } => (text.len() as u64).checked_mul(if has_karaoke {per as u64}else{1})?,
                     TextOp::NoBreakSpace => 2,
                     TextOp::HardBreak | TextOp::SoftBreak => 1,
                     _ => 0,
@@ -147,6 +149,14 @@ fn animate_number(
 ) -> Result<Style, RenderError> {
     let (current, original) = match property {
         TransformProperty::RotationZ => (state.angle(), base.angle()),
+        TransformProperty::RotationX => (state.rotation_x(), base.rotation_x()),
+        TransformProperty::RotationY => (state.rotation_y(), base.rotation_y()),
+        TransformProperty::ShearX => (state.shear_x(), base.shear_x()),
+        TransformProperty::ShearY => (state.shear_y(), base.shear_y()),
+        TransformProperty::BorderX => (state.border(), base.border()),
+        TransformProperty::BorderY => (state.border_y(), base.border_y()),
+        TransformProperty::ShadowX => (state.shadow(), base.shadow()),
+        TransformProperty::ShadowY => (state.shadow_y(), base.shadow_y()),
         TransformProperty::Size => (state.font_size(), base.font_size()),
         TransformProperty::ScaleX => (state.scale_x(), base.scale_x()),
         TransformProperty::ScaleY => (state.scale_y(), base.scale_y()),
@@ -178,6 +188,11 @@ fn animate_number(
     let positive = if n.get() < 0.0 { FiniteF64::ZERO } else { n };
     match property {
         TransformProperty::RotationZ => Ok(state.with_angle(n)),
+        TransformProperty::RotationX | TransformProperty::RotationY | TransformProperty::ShearX | TransformProperty::ShearY => Ok(state.with_projection(property,n)),
+        TransformProperty::BorderX => state.with_axis_border(ScaleAxis::X,positive).map_err(convert),
+        TransformProperty::BorderY => state.with_axis_border(ScaleAxis::Y,positive).map_err(convert),
+        TransformProperty::ShadowX => Ok(state.with_axis_shadow(ScaleAxis::X,n)),
+        TransformProperty::ShadowY => Ok(state.with_axis_shadow(ScaleAxis::Y,n)),
         TransformProperty::Size => state
             .with_size(if n.get() > 0.0 { n } else { original })
             .map_err(convert),
@@ -266,6 +281,10 @@ fn one(
     let mut motion = None;
     let mut origin = None;
     let mut fade = None;
+    let mut karaoke:Option<Karaoke>=None;
+    let mut karaoke_word=false;
+    let mut clip_rectangles=Vec::new();
+    let mut clip_vector=None;
     let mut alignment_seen = false;
     let mut event_alignment = base.alignment();
     let mut changes = ChangeClass::default();
@@ -375,13 +394,34 @@ fn one(
             reserve(&mut runs)?;
             runs.push(
                 mapped_run(Arc::from(text), span, &state, &source_map, &mut decoded_end)?
-                    .with_drawing(drawing),
+                    .with_drawing(drawing).with_karaoke(karaoke),
             );
+            if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}
+            karaoke_word=false;
             consumed = next;
             continue;
         }
         match operation {
             TextOp::Text { text, source } => {
+                if karaoke.is_some() {
+                    let mut start=0;
+                    while start<text.len() {
+                        let tail=&text[start..];
+                        let separator=matches!(tail.as_bytes()[0],b' '|b'\n');
+                        let end=if separator {start+1}else{start+tail.find([' ','\n']).unwrap_or(tail.len())};
+                        if separator && karaoke_word {if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}karaoke_word=false;}
+                        if !karaoke_word {if let Some(k)=&mut karaoke {k.word=decoded_end;}}
+                        let span=if source.slice(track.source())==Some(text.as_ref()) {
+                            SourceSpan::new(track.source(),source.start() as usize+start,source.start() as usize+end).map_err(convert)?
+                        }else{*source};
+                        reserve(&mut runs)?;
+                        runs.push(mapped_run(Arc::from(&text[start..end]),span,&state,&source_map,&mut decoded_end)?.with_karaoke(karaoke));
+                        karaoke_word=!separator;
+                        if separator {if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}}
+                        start=end;
+                    }
+                    continue;
+                }
                 reserve(&mut runs)?;
                 let run = mapped_run(text.clone(), *source, &state, &source_map, &mut decoded_end)?;
                 runs.push(run);
@@ -392,6 +432,9 @@ fn one(
                     TextOp::SoftBreak if wrap_mode.get() != 2 => " ",
                     _ => "\n",
                 };
+                let separator=text==" "||text=="\n";
+                if separator&&karaoke_word {if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}karaoke_word=false;}
+                if !karaoke_word {if let Some(k)=&mut karaoke {k.word=decoded_end;}}
                 reserve(&mut runs)?;
                 runs.push(mapped_run(
                     Arc::from(text),
@@ -399,7 +442,9 @@ fn one(
                     &state,
                     &source_map,
                     &mut decoded_end,
-                )?);
+                )?.with_karaoke(karaoke));
+                karaoke_word=!separator;
+                if separator {if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}}
             }
             TextOp::Unsupported { source, .. } => unsupported(
                 event,
@@ -409,8 +454,41 @@ fn one(
                 "unsupported operation retained without evaluation",
             )?,
             TextOp::Override(op) => {
+                if karaoke_word {if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}karaoke_word=false;}
                 let before = state.clone();
                 match op {
+                    OverrideOp::Karaoke {kind,value_ms,..} => {
+                        let mut k=karaoke.unwrap_or(Karaoke {kind:KaraokeTag::Instant,start_ms:0,end_ms:0,now_ms:i64::try_from(local_ms).map_err(|_|error(ErrorCode::LimitExceeded,"karaoke local time overflow"))?,word:decoded_end});
+                        let value=if *kind==KaraokeTag::Absolute {value_ms.map_or(0.0,FiniteF64::get)}else{f64::from(k.end_ms)+value_ms.map_or(1000.0,FiniteF64::get)};
+                        if value<f64::from(i32::MIN)||value>f64::from(i32::MAX) {return Err(error(ErrorCode::LimitExceeded,"karaoke clock overflow"))}
+                        if *kind==KaraokeTag::Absolute {k.start_ms=value as i32;k.end_ms=k.start_ms;}else{k.kind=*kind;k.start_ms=k.end_ms;k.end_ms=value as i32;}
+                        karaoke=Some(k);changes=changes.with_animation();
+                    }
+                    OverrideOp::ClipRect {coords,inverse,..} => {
+                        let mut target=[0;4];
+                        for (to,from) in target.iter_mut().zip(coords) {
+                            let n=(from.get()+0.5).trunc();
+                            if n<f64::from(i32::MIN)||n>f64::from(i32::MAX) {return Err(error(ErrorCode::LimitExceeded,"clip coordinate exceeds native range"))}
+                            *to=n as i32;
+                        }
+                        reserve(&mut clip_rectangles)?;
+                        clip_rectangles.push(ClipRectStep {coords:target,progress:animation.calc(1.0,0.0)?,inverse:*inverse});
+                    }
+                    OverrideOp::ClipDrawing {path,scale,inverse,..} => {
+                        if clip_vector.is_none() {clip_vector=Some((crate::drawing::parse(path,*scale,0,limits)?,*inverse));}
+                    }
+                    OverrideOp::SetDecoration {strikeout,value,..} => {
+                        let (u,s)=(state.underline(),state.strikeout());
+                        state=if *strikeout {state.with_decoration(u,value.unwrap_or(base.strikeout()))} else {state.with_decoration(value.unwrap_or(base.underline()),s)};
+                    }
+                    OverrideOp::SetLegacyAlignment {value,..} => {
+                        if !alignment_seen {
+                            // xy uses modulo-three columns and any value >=7
+                            // as top alignment, including the old a4/a8 values.
+                            let value=value.and_then(|v| Alignment::new(if v>9 {v-3}else{v}).ok()).unwrap_or(base.alignment());
+                            state=state.with_alignment(value);event_alignment=value;alignment_seen=true;
+                        }
+                    }
                     OverrideOp::RestoreOriginal { field, .. } => {
                         let original = |channel| match channel {
                             PaintChannel::Primary => base.primary(),
@@ -843,6 +921,7 @@ fn one(
         changes,
     )
     .with_terminal_style(state)
+    .with_ass_clip(AssClip {rectangles:clip_rectangles.into(),vector:clip_vector})
     .with_wrap_mode(wrap_mode)
     .with_warp_mode(warp_mode, warp_mode_source);
     match source_map {

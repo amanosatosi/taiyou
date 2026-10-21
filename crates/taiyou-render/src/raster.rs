@@ -129,6 +129,7 @@ pub fn coverage_groups(
                 || a.geometry() != b.geometry()
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
+                || a.karaoke() != b.karaoke()
             {
                 break;
             }
