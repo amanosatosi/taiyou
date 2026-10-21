@@ -216,7 +216,7 @@ fn overrides_invalid_parameters_diagnose_without_setting_state() {
         r"\fscx-1",
         r"\an0",
         r"\c&H1234567&",
-        r"\alpha&H123&",
+        r"\alpha&HGG&",
         r"\fn",
         r"\b2",
         r"\i2",

@@ -745,6 +745,12 @@ pub enum OverrideOp {
         opacity: u8,
         source: SourceSpan,
     },
+    /// Native signed hexadecimal target, converted to BYTE after animation.
+    SetAlpha {
+        channel: Option<PaintChannel>,
+        value: Option<i32>,
+        source: SourceSpan,
+    },
     SetAlignment {
         alignment: Alignment,
         source: SourceSpan,
@@ -797,6 +803,7 @@ impl OverrideOp {
             | Self::SetShadow { source, .. }
             | Self::SetPaint { source, .. }
             | Self::SetOpacity { source, .. }
+            | Self::SetAlpha { source, .. }
             | Self::SetAlignment { source, .. }
             | Self::SetPosition { source, .. }
             | Self::Move { source, .. }

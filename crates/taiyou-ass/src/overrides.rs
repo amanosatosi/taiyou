@@ -538,6 +538,20 @@ fn channel(name: &str) -> PaintChannel {
         _ => PaintChannel::Primary,
     }
 }
+
+// RTS.cpp 2181-2191, 2251-2278: bare hex and signed LONG targets;
+// narrowing happens after CalcAnimation, not in the parser.
+fn alpha_number(value: &str) -> Result<Option<i32>, ParseError> {
+    let value = decode::trim(value).trim_matches(['&', 'H', 'h']);
+    if value.is_empty() { return Ok(None); }
+    let negative = value.starts_with('-');
+    let digits = value.strip_prefix(['-', '+']).unwrap_or(value);
+    if digits.is_empty() || digits.len() > 8 || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(invalid("override hex channel out of range"));
+    }
+    let n = i64::from(u32::from_str_radix(digits, 16).map_err(|_| invalid("invalid override hex"))?);
+    Ok(Some((if negative { -n } else { n }).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32))
+}
 fn unsupported_name(raw: &str) -> &str {
     // Preserve the tag identity for known, deliberately unsupported static
     // extensions whose parameters are adjacent to the name.
@@ -864,15 +878,12 @@ fn parse(
             color: Rgba8::from_ass(hex(value, 6)?),
             source,
         },
-        "alpha" | "1a" | "2a" | "3a" | "4a" => OverrideOp::SetOpacity {
-            channel: if name == "alpha" {
-                None
-            } else {
-                Some(channel(name))
-            },
-            opacity: 255
-                - u8::try_from(hex(value, 2)?).map_err(|_| invalid("alpha out of range"))?,
-            source,
+        "alpha" | "1a" | "2a" | "3a" | "4a" => {
+            let channel = if name == "alpha" { None } else { Some(channel(name)) };
+            let value = alpha_number(value)?;
+            if let Some(value) = value.filter(|n| (0..=255).contains(n)) {
+                OverrideOp::SetOpacity { channel, opacity: 255 - value as u8, source }
+            } else { OverrideOp::SetAlpha { channel, value, source } }
         },
         _ => return Ok(None),
     };
