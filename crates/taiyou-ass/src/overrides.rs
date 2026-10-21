@@ -380,6 +380,7 @@ fn block(
                     ctx.options.limits().text_bytes_per_event(),
                 )?;
             }
+            Ok(None) if raw.starts_with("clip")||raw.starts_with("iclip") => {},
             Ok(None) => {
                 let name = unsupported_name(raw);
                 push(
@@ -565,6 +566,11 @@ fn alpha_number(value: &str) -> Result<Option<i32>, ParseError> {
         (if negative { -n } else { n }).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
     ))
 }
+fn decimal_prefix(value:&str)->Result<f64,ParseError> {
+    let value=value.trim_start();let sign=usize::from(value.starts_with(['+','-']));
+    let end=sign+value.as_bytes()[sign..].iter().take_while(|b|b.is_ascii_digit()).count();
+    if end==sign {Ok(0.0)}else{blur_number(&value[..end])}
+}
 fn unsupported_name(raw: &str) -> &str {
     // Preserve the tag identity for known, deliberately unsupported static
     // extensions whose parameters are adjacent to the name.
@@ -711,12 +717,11 @@ fn parse(
             return Ok(None);
         };
         let body = body.split_once(')').map_or(body, |(b, _)| b);
-        let params: Vec<_> = body
-            .split(',')
-            .map(decode::trim)
-            .filter(|s| !s.is_empty())
-            .collect();
-        return Ok(match params.as_slice() {
+        let mut params=["";4];let mut count=0;
+        for p in body.split(',').map(decode::trim).filter(|s|!s.is_empty()) {
+            if count==params.len(){return Ok(None)}params[count]=p;count+=1;
+        }
+        return Ok(match &params[..count] {
             [a, b, c, d] => Some(OverrideOp::ClipRect {
                 coords: [
                     FiniteF64::new(blur_number(a)?)?,
@@ -759,7 +764,7 @@ fn parse(
         let value = if suffix.is_empty() {
             None
         } else {
-            match blur_number(suffix)? as i32 {
+            match decimal_prefix(suffix)? as i32 {
                 0 => Some(false),
                 1 => Some(true),
                 _ => None,
@@ -772,7 +777,7 @@ fn parse(
         }));
     }
     if raw.starts_with('a') && !raw.starts_with("an") && !raw.starts_with("alpha") {
-        let n = blur_number(&raw[1..])? as i32;
+        let n = decimal_prefix(&raw[1..])? as i32;
         let value = if n > 0 && n < 12 {
             Some(
                 ((((n - 1) & 3) + 1)

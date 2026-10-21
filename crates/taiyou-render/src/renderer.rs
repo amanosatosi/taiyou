@@ -118,6 +118,7 @@ fn charge_mask(
     Ok(())
 }
 #[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
 fn push_operation(
     operations: &mut Vec<DrawOp>,
     held: &mut u64,
@@ -128,7 +129,7 @@ fn push_operation(
     paint: Rgba8,
     clip: Arc<ResolvedClip>,
 ) -> Result<(), RenderError> {
-    let future = add(*held, bytes::<DrawOp>(1)?)?;
+    let future = add(*held, add(bytes::<DrawOp>(1)?,bytes::<ResolvedClip>(3)?)?)?;
     available(limits, add(future, event_charge)?)?;
     operations.try_reserve_exact(1).map_err(|_| {
         RenderError::new(ErrorCode::AllocationFailed, "draw list allocation failed")

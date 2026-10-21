@@ -4,11 +4,11 @@
 //! owned geometry, grayscale coverage, FreeType border/shadow masks and scalar
 //! composition through the single-worker CoreV1 coordinator.
 
-pub mod collision;
 #[cfg(feature = "native")]
 mod ass_clip;
-#[cfg(feature="native")]
+#[cfg(feature = "native")]
 mod axis_widen;
+pub mod collision;
 pub mod collision_footprint;
 mod compose;
 pub mod drawing;

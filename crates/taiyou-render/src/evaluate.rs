@@ -155,14 +155,23 @@ fn animate_number(
     animation: &Animation,
 ) -> Result<Style, RenderError> {
     // CMD_bord and CMD_shad interpolate each current axis independently.
-    if matches!(property,TransformProperty::Border|TransformProperty::Shadow) {
-        let (x,y)=if property==TransformProperty::Border {(TransformProperty::BorderX,TransformProperty::BorderY)}else{(TransformProperty::ShadowX,TransformProperty::ShadowY)};
-        let s=animate_number(state,base,x,value,relative,animation)?;
-        let s=animate_number(s,base,y,value,relative,animation)?;
-        if property==TransformProperty::Shadow {
-            let positive=|n:FiniteF64|if n.get()<0.0 {FiniteF64::ZERO}else{n};
-            let (x,y)=(positive(s.shadow()),positive(s.shadow_y()));
-            return Ok(s.with_axis_shadow(ScaleAxis::X,x).with_axis_shadow(ScaleAxis::Y,y));
+    if matches!(
+        property,
+        TransformProperty::Border | TransformProperty::Shadow
+    ) {
+        let (x, y) = if property == TransformProperty::Border {
+            (TransformProperty::BorderX, TransformProperty::BorderY)
+        } else {
+            (TransformProperty::ShadowX, TransformProperty::ShadowY)
+        };
+        let s = animate_number(state, base, x, value, relative, animation)?;
+        let s = animate_number(s, base, y, value, relative, animation)?;
+        if property == TransformProperty::Shadow {
+            let positive = |n: FiniteF64| if n.get() < 0.0 { FiniteF64::ZERO } else { n };
+            let (x, y) = (positive(s.shadow()), positive(s.shadow_y()));
+            return Ok(s
+                .with_axis_shadow(ScaleAxis::X, x)
+                .with_axis_shadow(ScaleAxis::Y, y));
         }
         return Ok(s);
     }
@@ -572,7 +581,7 @@ fn one(
                     OverrideOp::ClipRect {
                         coords, inverse, ..
                     } => {
-                        changes=changes.with_clip();
+                        changes = changes.with_clip();
                         let mut target = [0; 4];
                         for (to, from) in target.iter_mut().zip(coords) {
                             let n = (from.get() + 0.5).trunc();
@@ -597,7 +606,7 @@ fn one(
                         inverse,
                         ..
                     } => {
-                        changes=changes.with_clip();
+                        changes = changes.with_clip();
                         if clip_vector.is_none() {
                             clip_vector =
                                 Some((crate::drawing::parse(path, *scale, 0, limits)?, *inverse));

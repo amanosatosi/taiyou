@@ -101,17 +101,37 @@ pub fn rasterize_expanded(
     }
     context.stroke_rasterize_path(&ops, radius, remaining_segments)
 }
-#[cfg(feature="native")]
-pub fn rasterize_expanded_axes(context:&mut RasterContext,group:&CoverageGroup,rx:Q6,ry:Q6,dx:Q6,dy:Q6,remaining:u64)->Result<(Arc<Mask>,u64),RenderError> {
+#[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
+pub fn rasterize_expanded_axes(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    rx: Q6,
+    ry: Q6,
+    dx: Q6,
+    dy: Q6,
+    remaining: u64,
+) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
-    let ops=coverage_path(group,dx,dy,context.limits())?;
-    if rx!=ry && (rx.ticks()==0||ry.ticks()==0) {
-        let charge=(ops.len() as u64).checked_mul(3*std::mem::size_of::<PathOp<DevicePoint>>() as u64).ok_or_else(limited)?;
-        let available=context.limits().transient_bytes().checked_sub(charge).filter(|n|*n>0).ok_or_else(||limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-        let limits=context.limits().clone().with_transient_bytes(available).map_err(|_|limited())?;
-        return crate::axis_widen::rasterize(&ops,rx,ry,remaining,&limits);
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
+        let charge = (ops.len() as u64)
+            .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+            .ok_or_else(limited)?;
+        let available = context
+            .limits()
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|n| *n > 0)
+            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+        let limits = context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?;
+        return crate::axis_widen::rasterize(&ops, rx, ry, remaining, &limits);
     }
-    context.stroke_rasterize_path_axes(&ops,rx,ry,remaining)
+    context.stroke_rasterize_path_axes(&ops, rx, ry, remaining)
 }
 
 /// Core outline coverage B=max(E-F,0), using saturating A8 subtraction.

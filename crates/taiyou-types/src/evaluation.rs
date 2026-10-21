@@ -398,7 +398,10 @@ impl ChangeClass {
         self.placement = true;
         self
     }
-    pub fn with_clip(mut self)->Self {self.clip=true;self}
+    pub fn with_clip(mut self) -> Self {
+        self.clip = true;
+        self
+    }
     pub fn with_animation(mut self) -> Self {
         self.temporal = true;
         self
@@ -664,7 +667,11 @@ impl EvaluatedEvent {
         &self.placement
     }
     pub fn clip(&self) -> ClipSpec {
-        if self.ass_clip.rectangles.is_empty()&&self.ass_clip.vector.is_none(){ClipSpec::None}else{ClipSpec::Ass(self.ass_clip.clone())}
+        if self.ass_clip.rectangles.is_empty() && self.ass_clip.vector.is_none() {
+            ClipSpec::None
+        } else {
+            ClipSpec::Ass(self.ass_clip.clone())
+        }
     }
     pub const fn animation(&self) -> ChangeClass {
         self.animation

@@ -26,18 +26,18 @@ pub(crate) fn resolve(
         ];
         let mut inverse = false;
         for step in spec.rectangles.iter() {
-            for i in 0..4 {
+            for (i,current) in current.iter_mut().enumerate() {
                 let dst = f64::from(step.coords[i]) * if i % 2 == 0 { sx } else { sy };
-                let value = if (dst - current[i]).abs() < 0.0001 {
+                let value = if (dst - *current).abs() < 0.0001 {
                     dst
                 } else {
-                    (1.0 - step.progress.get()) * current[i] + step.progress.get() * dst
+                    (1.0 - step.progress.get()) * *current + step.progress.get() * dst
                 };
                 if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX)
                 {
                     return Err(limit());
                 }
-                current[i] = value.trunc();
+                *current = value.trunc();
             }
             inverse = step.inverse;
         }

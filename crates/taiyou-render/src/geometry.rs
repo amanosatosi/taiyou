@@ -44,6 +44,7 @@ pub struct GeometryMap {
     origin: ScriptPoint,
     rotation: FiniteF64,
     projection: [FiniteF64; 4],
+    shear_offset: FontPoint,
     device: DeviceMapping,
 }
 impl GeometryMap {
@@ -68,6 +69,7 @@ impl GeometryMap {
             origin: origin.unwrap_or(anchor),
             rotation,
             projection: [FiniteF64::ZERO; 4],
+            shear_offset: FontPoint::ZERO,
             device,
         })
     }
@@ -80,11 +82,15 @@ impl GeometryMap {
         ];
         self
     }
+    pub fn with_shear_offset(mut self,offset:FontPoint)->Self {self.shear_offset=offset;self}
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
         // Font y-up conversion occurs exactly once, before rotation and viewport.
-        let x = p.x().get() * self.scale.0.get() + self.position.x().get() + self.anchor.x().get()
+        let [rx, ry, fx, fy] = self.projection.map(FiniteF64::get);
+        // Shear acts on the word's native coordinates before scale/rotation;
+        // changing the rotation origin must not change the shear itself.
+        let x = (p.x().get()+fx*(-p.y().get()+self.shear_offset.y().get())) * self.scale.0.get() + self.position.x().get() + self.anchor.x().get()
             - self.origin.x().get();
-        let y = -p.y().get() * self.scale.1.get() + self.position.y().get() + self.anchor.y().get()
+        let y = (-p.y().get()+fy*(p.x().get()+self.shear_offset.x().get())) * self.scale.1.get() + self.position.y().get() + self.anchor.y().get()
             - self.origin.y().get();
         finite(x)?;
         finite(y)?;
@@ -97,8 +103,6 @@ impl GeometryMap {
             270.0 => (-1.0, 0.0),
             _ => angle.to_radians().sin_cos(),
         };
-        let [rx, ry, fx, fy] = self.projection.map(FiniteF64::get);
-        let (x, y) = (x + fx * y, y + fy * x);
         let (x, y) = (cos * x + sin * y, -sin * x + cos * y);
         let (x, y) = project_3d(x, y, rx, ry)?;
         let (x, y) = (x + self.origin.x().get(), y + self.origin.y().get());
@@ -298,6 +302,8 @@ pub fn geometry(
     }
     let mut glyphs = Vec::new();
     let mut items = Vec::new();
+    let mut word_key=None;
+    let mut word_advance=0.0;
     items.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
@@ -356,6 +362,10 @@ pub fn geometry(
             continue;
         }
         let glyph = &run.glyphs()[positioned.glyph_index()];
+        let start=positioned.cluster().start() as usize;
+        let word_start=layout.shaped().source_map().text()[..start].rfind([' ','\n']).map_or(0,|i|i+1);
+        let key=(positioned.association_index(),word_start);
+        if word_key!=Some(key){word_key=Some(key);word_advance=0.0;}
         let blob = catalog
             .faces()
             .iter()
@@ -476,6 +486,11 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(decorated, limits)?);
         }
+        let (_,win_ascent,_)=catalog.ass_cell_metrics(blob.id()).map_err(font_error)?;
+        let ascent=(f64::from(win_ascent)*size*64.0+0.5).floor()/64.0;
+        let mapping=mapping.with_shear_offset(FontPoint::new((word_advance+glyph.offset_x().get())/size,(ascent-glyph.offset_y().get())/size)?);
+        word_advance+=glyph.advance_x().get();
+        finite(word_advance)?;
         let mapped = map_outline(path, mapping, limits)?;
         items.push(GeometryItem {
             geometry: mapped.clone(),
