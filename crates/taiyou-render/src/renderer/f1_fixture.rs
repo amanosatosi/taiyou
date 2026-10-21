@@ -10,13 +10,25 @@ pub fn track() -> Arc<Track> {
     let text = "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH";
     assert!(source.contains("Style: Default,Source Sans 3,20,&H00FFFFFF,&HFF000000,0,0,7,13,21,9"));
     let style = Style::core_default()
-        .with_font(FontRequest::new(Arc::from("Source Sans 3"), 400, false, false))
-        .with_size(FiniteF64::new(20.0).unwrap()).unwrap()
-        .with_border(FiniteF64::ZERO).unwrap()
+        .with_font(FontRequest::new(
+            Arc::from("Source Sans 3"),
+            400,
+            false,
+            false,
+        ))
+        .with_size(FiniteF64::new(20.0).unwrap())
+        .unwrap()
+        .with_border(FiniteF64::ZERO)
+        .unwrap()
         .with_shadow(FiniteF64::ZERO)
-        .with_colors(Rgba8::new(255,255,255,255), Rgba8::new(255,255,0,255), Rgba8::new(0,0,0,255), Rgba8::new(0,0,0,0))
+        .with_colors(
+            Rgba8::new(255, 255, 255, 255),
+            Rgba8::new(255, 255, 0, 255),
+            Rgba8::new(0, 0, 0, 255),
+            Rgba8::new(0, 0, 0, 0),
+        )
         .with_alignment(Alignment::new(7).unwrap())
-        .with_margins(Margins::new(13,21,9));
+        .with_margins(Margins::new(13, 21, 9));
     let events: Vec<_> = source.match_indices("Dialogue:").enumerate().map(|(id,(offset,_))| {
         let line = source[offset..].split('\n').next().unwrap().trim_end_matches('\r');
         assert_eq!(line, format!("Dialogue: 0,0:00:00.00,0:00:02.00,Default,{{\\fs5\\bord0.5\\shad1.25\\4a&H00&}}{text}"));
@@ -33,6 +45,17 @@ pub fn track() -> Arc<Track> {
             .with_text_source(SourceSpan::new(source, offset+line.find('{').unwrap(), offset+line.len()).unwrap())
             .with_program(program)
     }).collect();
-    assert_eq!(events.len(),256);
-    TrackIngestor::new().ingest(Arc::from(source), ScriptInfo::core_default().with_play_res(Size::new(160,100)).unwrap().with_wrap(WrapMode::new(2).unwrap()), Arc::from([style]), events.into(), &Limits::default()).unwrap()
+    assert_eq!(events.len(), 256);
+    TrackIngestor::new()
+        .ingest(
+            Arc::from(source),
+            ScriptInfo::core_default()
+                .with_play_res(Size::new(160, 100))
+                .unwrap()
+                .with_wrap(WrapMode::new(2).unwrap()),
+            Arc::from([style]),
+            events.into(),
+            &Limits::default(),
+        )
+        .unwrap()
 }

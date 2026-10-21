@@ -167,7 +167,7 @@ fn typed_position_and_origin_use_the_same_native_eighth_pixel_conversion() {
     let style = Style::core_default();
     let placement = Placement::new(
         &style,
-        Margins::default(),
+        Margins::new(0, 0, 0),
         Anchor::Explicit(point(10.12, -20.12)),
     )
     .with_origin(Some(point(12.12, -22.12)));

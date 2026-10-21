@@ -35,8 +35,8 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         &limits,
     )
     .unwrap();
-    let local = crate::layout(&shaped, &LayoutConstraints::new(Alignment::new(7).unwrap()))
-        .unwrap();
+    let local =
+        crate::layout(&shaped, &LayoutConstraints::new(Alignment::new(7).unwrap())).unwrap();
     // Unit mapping, no rotation/scale, visible fill/outline/shadow, Q6-exact
     // radius .5 and offset (1.25,1.25). Independently union the analytic hulls;
     // do not call the effect-bounds implementation to establish this expectation.
@@ -101,10 +101,8 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
             .events()
             .iter()
             .map(|event| {
-                let point = ScriptPoint::new(
-                    FiniteF64::new(13.0).unwrap(),
-                    FiniteF64::new(y).unwrap(),
-                );
+                let point =
+                    ScriptPoint::new(FiniteF64::new(13.0).unwrap(), FiniteF64::new(y).unwrap());
                 y = (y + bounds.y1().get()) - bounds.y0().get();
                 (event.id(), point)
             })
