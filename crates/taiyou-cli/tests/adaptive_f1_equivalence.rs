@@ -1,12 +1,15 @@
 #![cfg(feature = "native")]
 use taiyou_render::renderer::*;
 
-#[path = "../../taiyou-render/src/renderer/f1_fixture.rs"]
-mod fixture;
+mod f1_fixture;
 
 #[test]
 fn internal_f1_snapshot_is_identical_to_the_original_ass_parser_output() {
-    let expected = fixture::track();
+    assert_eq!(
+        include_str!("f1_fixture/mod.rs"),
+        include_str!("../../taiyou-render/src/renderer/f1_fixture.rs")
+    );
+    let expected = f1_fixture::track();
     let parsed = taiyou_ass::parse_ass(
         expected.source().as_bytes(),
         &ParseOptions::new(
