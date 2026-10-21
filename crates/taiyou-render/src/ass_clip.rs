@@ -15,15 +15,15 @@ pub(crate) fn resolve(
     device: DeviceMapping,
     limits: &Limits,
 ) -> Result<ResolvedEventClip, RenderError> {
-    let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
-    let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
+    let [sx,sy]=device.layout_scale();
+    let target=[f64::from(device.content().width())/f64::from(device.play_res().width())/sx,f64::from(device.content().height())/f64::from(device.play_res().height())/sy];
     let mut result = Arc::new(ResolvedClip::None);
     if !spec.rectangles.is_empty() {
         let mut current = [
             0.0,
             0.0,
-            f64::from(device.content().width()),
-            f64::from(device.content().height()),
+            f64::from(device.play_res().width())*sx,
+            f64::from(device.play_res().height())*sy,
         ];
         let mut inverse = false;
         for step in spec.rectangles.iter() {
@@ -44,7 +44,9 @@ pub(crate) fn resolve(
         }
         let mut c = [0; 4];
         for i in 0..4 {
-            c[i] = (current[i] as i32)
+            let coordinate=current[i]*target[i%2];
+            if !coordinate.is_finite() || coordinate<f64::from(i32::MIN) || coordinate>f64::from(i32::MAX) {return Err(limit());}
+            c[i] = (coordinate as i32)
                 .checked_add(if i % 2 == 0 {
                     device.content().x0()
                 } else {

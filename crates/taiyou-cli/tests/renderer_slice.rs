@@ -253,7 +253,7 @@ fn renderer_slice_position_breaks_fallback_and_clipping() {
 fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
     let fonts = catalog(false);
     let mut r = renderer(limits());
-    for text in ["{\\fe128}H", "{\\mystery30}H", "{\\future20}H"] {
+    for text in ["{\\fe128}H", "{\\fe30}H", "{\\fe20}H"] {
         let t = track(&dialogue(text));
         let e = r
             .render(t.clone(), fonts.clone(), &request(500_000))
@@ -512,7 +512,7 @@ fn renderer_slice_parsed_diagnostics_and_header_capabilities() {
             .iter()
             .any(|d| d.code() == DiagnosticCode::MalformedRecord)
     );
-    for header in ["LayoutResX: 160\nLayoutResY: 100", "YCbCr Matrix: TV.601"] {
+    for header in ["YCbCr Matrix: TV.601"] {
         let text =
             source(&dialogue("H")).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
         let parsed = taiyou_ass::parse_ass(

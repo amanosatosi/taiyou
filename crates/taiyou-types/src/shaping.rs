@@ -85,6 +85,7 @@ pub struct FaceMetrics {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedGlyph {
+    vertical_offset: Option<FontPoint>,
     ink: GlyphInk,
     font: FontId,
     glyph: u32,
@@ -94,6 +95,7 @@ pub struct ShapedGlyph {
 impl ShapedGlyph {
     pub fn new(font: FontId, glyph: u32, cluster: DecodedSpan, position: GlyphPosition) -> Self {
         Self {
+            vertical_offset: None,
             ink: GlyphInk::Unknown,
             font,
             glyph,
@@ -104,6 +106,8 @@ impl ShapedGlyph {
     pub const fn font(&self) -> FontId {
         self.font
     }
+    pub fn with_vertical_offset(mut self,offset:Option<FontPoint>)->Self {self.vertical_offset=offset;self}
+    pub const fn vertical_offset(&self)->Option<FontPoint>{self.vertical_offset}
     pub fn with_ink(mut self, ink: GlyphInk) -> Self {
         self.ink = ink;
         self

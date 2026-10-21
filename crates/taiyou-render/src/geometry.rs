@@ -17,6 +17,7 @@ pub struct DeviceMapping {
     play_res: Size,
     content: PixelRect,
     layout_scale: [FiniteF64; 2],
+    has_layout: bool,
 }
 impl DeviceMapping {
     pub fn new(play_res: Size, content: PixelRect) -> Result<Self, RenderError> {
@@ -26,16 +27,18 @@ impl DeviceMapping {
                 "empty geometry mapping",
             ));
         }
-        Ok(Self { play_res, content, layout_scale: [FiniteF64::ONE;2] })
+        Ok(Self { play_res, content, layout_scale: [FiniteF64::ONE;2],has_layout:false })
     }
     pub fn with_layout_res(mut self, layout: Option<Size>) -> Result<Self, RenderError> {
         if let Some(size)=layout {
+            self.has_layout=true;
             if size.is_empty() {return Err(RenderError::new(ErrorCode::InvalidArgument,"empty layout resolution"));}
             self.layout_scale=[finite(f64::from(size.width())/f64::from(self.play_res.width()))?,finite(f64::from(size.height())/f64::from(self.play_res.height()))?];
         }
         Ok(self)
     }
     pub fn layout_scale(self) -> [f64;2] { self.layout_scale.map(FiniteF64::get) }
+    pub fn target_scale(self)->[f64;2]{if !self.has_layout{return [1.0,1.0];}let [x,y]=self.layout_scale();[f64::from(self.content.width())/f64::from(self.play_res.width())/x,f64::from(self.content.height())/f64::from(self.play_res.height())/y]}
     pub const fn play_res(self) -> Size {
         self.play_res
     }
@@ -302,6 +305,59 @@ pub(crate) fn font_error(e: FontError) -> RenderError {
     }
     result
 }
+/// RTS.cpp CreateOpaqueBox: a polygon per compatible word segment on each
+/// finalized line, using text advance/cell height, not glyph ink. Its copied
+/// style applies scale/shear/rotation again, including the historical double
+/// scale of already measured word dimensions. Drawings use the same path.
+pub fn opaque_box_paths(
+    layout:&LocalLayout,members:std::ops::Range<usize>,device:DeviceMapping,
+    anchor:ScriptPoint,origin:Option<ScriptPoint>,scaled_bas:bool,limits:&Limits,
+)->Result<Vec<GeometryInstance>,RenderError>{
+    let count=members.end.checked_sub(members.start).ok_or_else(geometry_limit)?;
+    let charge=(count as u64).checked_mul(3*(std::mem::size_of::<GeometryInstance>()+5*(std::mem::size_of::<PathOp<FontPoint>>()+std::mem::size_of::<PathOp<DevicePoint>>())) as u64).ok_or_else(geometry_limit)?;
+    if charge>limits.transient_bytes(){return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));}
+    let [lx,ly]=device.layout_scale();let (extra_x,extra_y)=layout.local_scale();
+    let mut paths=Vec::new();paths.try_reserve_exact(count).map_err(|_|RenderError::new(ErrorCode::AllocationFailed,"opaque box geometry allocation"))?;
+    let gs=layout.glyphs();let runs=layout.shaped().runs();let states=layout.shaped().evaluated().runs();
+    let mut segments=0;
+    for line in layout.lines(){
+        let mut start=line.glyph_range().start.max(members.start);let stop=line.glyph_range().end.min(members.end);
+        while start<stop {
+            let state=&states[gs[start].association_index()];
+            let mut end=start+1;
+            while end<stop {
+                let b=&states[gs[end].association_index()];
+                if state.shaping()!=b.shaping() || state.geometry()!=b.geometry() || state.effects()!=b.effects() || state.paint()!=b.paint() || state.karaoke()!=b.karaoke() || gs[start].is_drawing()!=gs[end].is_drawing(){break;}
+                end+=1;
+            }
+            if state.effects().border_style()!=BorderStyle::OpaqueBox {start=end;continue;}
+            let sx=state.geometry().scale_x().get()*extra_x.get();let sy=state.geometry().scale_y().get()*extra_y.get();
+            let mut bounds=None;
+            for g in &gs[start..end] {
+                let run=&runs[g.run_index()];
+                let (x,y,w,a,d)=if let Some(draw)=run.drawing(){(g.position().x().get(),g.position().y().get(),draw.width.get()*sx,draw.ascent.get()*sy,draw.descent.get()*sy)}else{
+                    let glyph=&run.glyphs()[g.glyph_index()];
+                    let m=run.face_metrics().iter().find(|f|f.glyphs.contains(&g.glyph_index())).map_or(run.metrics(),|f|f.metrics);
+                    (g.position().x().get()-glyph.offset_x().get()*sx,g.position().y().get()-glyph.offset_y().get()*sy,(glyph.advance_x().get()+state.shaping().spacing().get())*sx,m.ascent().get()*sy,m.descent().get()*sy)
+                };
+                let b=ScriptBounds::new(x.min(x+w),y-a,x.max(x+w),y+d)?;
+                bounds=Some(if let Some(old)=bounds {ScriptBounds::union(old,b)?}else{b});
+            }
+            if let Some(b)=bounds {
+                let round=|n:f64|->Result<f64,RenderError>{let n=(n+0.5).trunc();if !n.is_finite() || n<i32::MIN as f64 || n>i32::MAX as f64{return Err(geometry_limit());}Ok(n)};
+                let w=round(b.width()*lx*8.0)?/8.0;let h=round(b.height()*ly*8.0)?/8.0;
+                let px=round(state.effects().border_x().get()*if scaled_bas{lx}else{1.0}*8.0)?/8.0;
+                let py=round(state.effects().border_y().get()*if scaled_bas{ly}else{1.0}*8.0)?/8.0;
+                let outline=Arc::new(Outline::new(vec![PathOp::MoveTo(FontPoint::new(-px,py)?),PathOp::LineTo(FontPoint::new(w+px,py)?),PathOp::LineTo(FontPoint::new(w+px,-h-py)?),PathOp::LineTo(FontPoint::new(-px,-h-py)?),PathOp::Close],limits)?);
+                segments+=5;check_path_budget(segments,limits)?;
+                let mapping=GeometryMap::new((finite(sx/lx)?,finite(sy/ly)?),ScriptPoint::new(b.x0(),b.y0()),anchor,origin,state.geometry().rotation_z(),device)?.with_projection(state.geometry());
+                paths.push(map_outline(outline,mapping,limits)?);
+            }
+            start=end;
+        }
+    }
+    Ok(paths)
+}
 #[cfg(feature = "native")]
 pub fn geometry(
     context: &mut taiyou_font::FontContext,
@@ -443,8 +499,9 @@ pub fn geometry(
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
         let [lx,ly]=placement.device.layout_scale();
+        let vertical=state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
         let size = catalog
-            .ass_font_scale(blob.id(), finite(state.shaping().font_size().get()*ly)?)
+            .ass_oriented_font_scale(blob.id(), finite(state.shaping().font_size().get()*ly)?,vertical)
             .map_err(font_error)?
             .get();
         let additional = layout.local_scale();
@@ -461,6 +518,14 @@ pub fn geometry(
         )?
         .with_projection(state.geometry());
         let mut path = outline.outline().clone();
+        if let Some(offset)=glyph.vertical_offset() {
+            let mut ops=Vec::new();
+            ops.try_reserve_exact(path.ops().len()).map_err(|_|RenderError::new(ErrorCode::AllocationFailed,"vertical outline allocation"))?;
+            for op in path.ops() {
+                ops.push(op.try_map(|p| FontPoint::new(offset.x().get()-p.y().get(),p.x().get()+offset.y().get()))?);
+            }
+            path=Arc::new(Outline::new(ops,limits)?);
+        }
         if state.geometry().underline() || state.geometry().strikeout() {
             let metrics = catalog
                 .decoration_metrics(context, blob.id())
@@ -524,7 +589,7 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(decorated, limits)?);
         }
-        let (_, win_ascent, _) = catalog.ass_cell_metrics(blob.id()).map_err(font_error)?;
+        let (_, win_ascent, _) = catalog.ass_oriented_cell_metrics(blob.id(),vertical).map_err(font_error)?;
         let ascent = (f64::from(win_ascent) * size * 64.0 + 0.5).floor() / 64.0;
         let mapping = mapping.with_shear_offset(FontPoint::new(
             (word_advance + glyph.offset_x().get()) * lx / size,

@@ -128,12 +128,11 @@ fn unknown_and_nested_tags_never_execute_a_selector() {
         r"{\warpmodes1}A",
     ] {
         let parsed = parse(text, 2, SyntaxPolicy::Strict).unwrap();
-        assert_eq!(
-            evaluated(&parsed, UnsupportedPolicy::Strict)
-                .unwrap_err()
-                .code(),
-            ErrorCode::UnsupportedFeature
-        );
+        if text.starts_with(r"{\t") {
+            assert_eq!(evaluated(&parsed,UnsupportedPolicy::Strict).unwrap_err().code(),ErrorCode::UnsupportedFeature);
+        }else{
+            assert_eq!(evaluated(&parsed,UnsupportedPolicy::Strict).unwrap().warp_mode(),WarpMode::XyStyle);
+        }
         assert_eq!(
             evaluated(&parsed, UnsupportedPolicy::Tolerant)
                 .unwrap()

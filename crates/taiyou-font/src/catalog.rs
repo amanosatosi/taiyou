@@ -3,6 +3,8 @@ use icu_casemap::CaseMapper;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use taiyou_types::*;
+#[derive(Clone,Copy,Debug)]
+pub(crate) struct VerticalMetrics {pub cff:bool,pub typo_descent:i16,pub ascent:u16,pub descent:u16}
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
 }
@@ -26,8 +28,15 @@ pub struct ValidatedFontCatalog {
     // One entry per validated face; aliases never mint another FontId.
     aliases: Arc<[Arc<[String]>]>,
     cells: Arc<[(u16, u16, u16)]>,
+    verticals: Arc<[VerticalMetrics]>,
 }
 impl ValidatedFontCatalog {
+    pub fn ass_oriented_cell_metrics(&self,font:FontId,vertical:bool)->Result<(u16,u16,u16),FontError>{
+        let horizontal=self.ass_cell_metrics(font)?;
+        if !vertical{return Ok(horizontal);}
+        let index=self.faces().iter().position(|f|f.blob().id()==font).ok_or_else(||error(ErrorCode::InvalidArgument,"font absent"))?;
+        let v=self.verticals[index];Ok((horizontal.0,v.ascent,v.descent))
+    }
     /// Validated face's design-unit decoration centres and thicknesses.
     pub fn decoration_metrics(
         &self,
@@ -57,13 +66,16 @@ impl ValidatedFontCatalog {
     }
     /// Positive GDI cell-height sizing at xy's 64-unit font construction scale.
     pub fn ass_font_scale(&self, font: FontId, size: FiniteF64) -> Result<FiniteF64, FontError> {
+        self.ass_oriented_font_scale(font,size,false)
+    }
+    pub fn ass_oriented_font_scale(&self, font: FontId, size: FiniteF64,vertical:bool) -> Result<FiniteF64, FontError> {
         if size.get() <= 0.0 {
             return Err(error(
                 ErrorCode::InvalidArgument,
                 "ASS cell height must be positive",
             ));
         }
-        let (upem, ascent, descent) = self.ass_cell_metrics(font)?;
+        let (upem, ascent, descent) = self.ass_oriented_cell_metrics(font,vertical)?;
         let height = (size.get() * 64.0 + 0.5).floor();
         if !height.is_finite() || height > f64::from(i32::MAX) {
             return Err(error(
@@ -81,13 +93,9 @@ impl ValidatedFontCatalog {
         }
         FiniteF64::new(em / (64.0 * f64::from(upem))).map_err(|e| error(e.code(), e.detail()))
     }
-    pub(crate) fn ass_line_metrics(
-        &self,
-        font: FontId,
-        size: FiniteF64,
-    ) -> Result<RunMetrics, FontError> {
-        let (upem, ascent, descent) = self.ass_cell_metrics(font)?;
-        let scale = self.ass_font_scale(font, size)?.get();
+    pub(crate) fn ass_oriented_line_metrics(&self,font:FontId,size:FiniteF64,vertical:bool)->Result<RunMetrics,FontError>{
+        let (upem, ascent, descent) = self.ass_oriented_cell_metrics(font,vertical)?;
+        let scale = self.ass_oriented_font_scale(font, size,vertical)?.get();
         let metric = |v: u16| {
             let native = (f64::from(v) * scale * 64.0 + 0.5).floor();
             FiniteF64::new(((native + 4.0) / 8.0).floor() / 8.0)
@@ -95,17 +103,13 @@ impl ValidatedFontCatalog {
         };
         RunMetrics::new(metric(ascent)?, metric(descent)?, FiniteF64::ZERO, upem)
     }
-    pub(crate) fn ass_baseline_offset(
-        &self,
-        font: FontId,
-        size: FiniteF64,
-    ) -> Result<f64, FontError> {
-        let (_, ascent, _) = self.ass_cell_metrics(font)?;
-        let scale = self.ass_font_scale(font, size)?.get();
+    pub(crate) fn ass_oriented_baseline_offset(&self,font:FontId,size:FiniteF64,vertical:bool)->Result<f64,FontError>{
+        let (_, ascent, _) = self.ass_oriented_cell_metrics(font,vertical)?;
+        let scale = self.ass_oriented_font_scale(font, size,vertical)?.get();
         let native_ascent = (f64::from(ascent) * scale * 64.0 + 0.5).floor() / 64.0;
         // GDI TextOut's TA_TOP path contains native tmAscent. CLine::PaintAll
         // aligns word tops using the separately rounded eighth-unit ascent.
-        Ok(native_ascent - self.ass_line_metrics(font, size)?.ascent().get())
+        Ok(native_ascent - self.ass_oriented_line_metrics(font, size,vertical)?.ascent().get())
     }
     pub fn revision(&self) -> CatalogRevision {
         self.inner.revision()
@@ -158,7 +162,8 @@ impl ValidatedFontCatalog {
                     "font absent from validated catalog",
                 )
             })?;
-        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink)
+        let vertical=if request.vertical {Some(self.verticals[self.faces().iter().position(|f|f.blob().id()==font).ok_or_else(||error(ErrorCode::InvalidArgument,"font absent"))?])}else{None};
+        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink,vertical)
     }
 }
 pub(crate) fn check_blob_identity(blob: &FontBlob) -> Result<(), FontError> {
@@ -192,6 +197,7 @@ pub struct FontCatalogBuilder {
     names: u64,
     aliases: Vec<Arc<[String]>>,
     cells: Vec<(u16, u16, u16)>,
+    verticals: Vec<VerticalMetrics>,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -203,6 +209,7 @@ impl FontCatalogBuilder {
             names: 0,
             aliases: Vec::new(),
             cells: Vec::new(),
+            verticals: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -248,7 +255,7 @@ impl FontCatalogBuilder {
             .and_then(|n| n.checked_add(1))
             .and_then(|n| {
                 n.checked_mul(
-                    3 * (std::mem::size_of::<FontRecord>() + std::mem::size_of::<(u16, u16, u16)>())
+                    3 * (std::mem::size_of::<FontRecord>() + std::mem::size_of::<(u16, u16, u16)>()+std::mem::size_of::<VerticalMetrics>())
                         as u64,
                 )
             })
@@ -353,6 +360,7 @@ impl FontCatalogBuilder {
                 "catalog cell metric allocation failed",
             )
         })?;
+        self.verticals.try_reserve(1).map_err(|_|error(ErrorCode::AllocationFailed,"vertical metric allocation failed"))?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -365,6 +373,7 @@ impl FontCatalogBuilder {
         self.records.push(record);
         self.aliases.push(aliases.into());
         self.cells.push(metadata.cell);
+        self.verticals.push(metadata.vertical);
         self.bytes = new_total;
         self.names = names;
         Ok(id)
@@ -399,12 +408,15 @@ impl FontCatalogBuilder {
             )
         })?;
         cells.extend_from_slice(&self.cells);
+        let mut verticals=Vec::new();verticals.try_reserve_exact(self.verticals.len()).map_err(|_|error(ErrorCode::AllocationFailed,"vertical metric snapshot allocation failed"))?;
+        verticals.extend_from_slice(&self.verticals);
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
             inner: ingestion.publish_unverified(records.into())?,
             aliases: aliases.into(),
             cells: cells.into(),
+            verticals: verticals.into(),
         }))
     }
 }
@@ -469,13 +481,7 @@ fn select_family_aliases(
     request: &FontRequest,
     limits: &Limits,
 ) -> Result<FontId, FontError> {
-    if request.vertical() || request.family().starts_with('@') {
-        return Err(error(
-            ErrorCode::UnsupportedFeature,
-            "vertical font requests remain gated",
-        ));
-    }
-    let folded = fold_family(request.family(), limits)?;
+    let folded = fold_family(request.family().strip_prefix('@').unwrap_or(request.family()), limits)?;
     records
         .iter()
         .enumerate()

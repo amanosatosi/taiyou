@@ -6,6 +6,36 @@ on:
 permissions:
   contents: read
 jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: |
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/layout-format.patch"
+          cargo test --locked -p taiyou-ass --test overrides
+          cargo test --locked -p taiyou-cli --test layout_vertical --test warpmode
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python build-support/acquire.py
+          python build-support/build-native.py
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: cargo test --locked -p taiyou-cli --features native --test layout_vertical
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layout-focused-${{ github.sha }}
+          path: ${{ runner.temp }}/layout-format.patch
   gdi:
     runs-on: windows-2022
     timeout-minutes: 10

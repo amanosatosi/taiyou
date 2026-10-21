@@ -198,24 +198,21 @@ fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
 }
 
 #[test]
-fn overrides_unknown_tags_remain_ordered_unsupported() {
+fn overrides_unknown_tags_are_consumed_but_known_unimplemented_tags_remain_explicit() {
     let parsed = parse(r"{\mystery42(1,2)\fe(10)\mysteryclip(0,0,1,1)}A");
     let ops = parsed.track().events()[0].program();
-    assert_eq!(ops.len(), 4);
+    assert_eq!(ops.len(), 2);
     assert!(
-        matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "mystery42" && source.slice(parsed.track().source()) == Some(r"\mystery42(1,2)"))
+        matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "fe" && source.slice(parsed.track().source()) == Some(r"\fe(10)"))
     );
-    assert!(
-        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "fe" && source.slice(parsed.track().source()) == Some(r"\fe(10)"))
-    );
-    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "mysteryclip"));
+    assert!(matches!(&ops[1], TextOp::Text {text,..} if text.as_ref()=="A"));
     assert_eq!(
         parsed
             .diagnostics()
             .iter()
             .filter(|d| d.code() == DiagnosticCode::UnsupportedFeature)
             .count(),
-        3
+        1
     );
 }
 

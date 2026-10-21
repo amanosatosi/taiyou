@@ -98,17 +98,13 @@ fn validate_style(
     policy: UnsupportedPolicy,
     d: &mut DiagnosticBuffer,
 ) -> Result<(), RenderError> {
-    if style.font().vertical()
-        || style.font().family().starts_with('@')
-        || style.encoding() != 1
-        || style.border_style() == BorderStyle::OpaqueBox
-    {
+    if !matches!(style.encoding(),0|1) {
         unsupported(
             event,
             span,
             policy,
             d,
-            "vertical fonts, legacy encoding or opaque boxes require later gates",
+            "legacy font charset selection remains unsupported",
         )?;
     }
     Ok(())
