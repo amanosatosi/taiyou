@@ -188,3 +188,15 @@ This remains an A8 composition backend; source-derived property semantics do
 not establish GDI/xy outline, scan-span, compositing or frozen-pixel identity.
 No authenticated renderer capture or archive/upstream-commit equivalence is
 claimed. Existing blur kernels and all frozen corpus assets remain unchanged.
+
+Coverage-sweep verification: focused Actions run
+[39679050047](https://github.com/amanosatosi/taiyou/actions/runs/39679050047)
+passed 15 parser tests, five evaluator tests, ten native coverage tests, the
+zero-axis widening test, 14 renderer safety tests and native Clippy. This includes
+CFF/TrueType underline and strikeout coverage monotonicity, vector-clip frame
+coordinates, karaoke word boundaries across empty override blocks and seeking.
+The three alpha-clipping frames rendered strictly and remained pixel mismatches
+(zero execution failures); their comparator exit remained nonzero. The formatter
+patch was generated in that Actions run and applied to the candidate. The
+decoration regression locates the existing pinned shaping fonts through
+RUNNER_TEMP so the focused and full native runners use identical font bytes.

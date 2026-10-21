@@ -163,9 +163,21 @@ fn karaoke_words_escapes_and_provenance_survive_partitioning() {
         ),
         (3.0, 6.0)
     );
-    let p=parsed_body(r"{\kf100}A{}B");
-    let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(500000),Profile::CoreV1).unwrap();
-    assert_eq!((e.runs()[0].karaoke().unwrap().start_ms,e.runs()[1].karaoke().unwrap().start_ms),(0,1000));
+    let p = parsed_body(r"{\kf100}A{}B");
+    let e = taiyou_render::evaluate(
+        p.track(),
+        EventId::new(0),
+        TimeUs::from_micros(500000),
+        Profile::CoreV1,
+    )
+    .unwrap();
+    assert_eq!(
+        (
+            e.runs()[0].karaoke().unwrap().start_ms,
+            e.runs()[1].karaoke().unwrap().start_ms
+        ),
+        (0, 1000)
+    );
 }
 
 #[cfg(feature = "native")]
@@ -225,14 +237,36 @@ mod pixels {
             render(r"\pos(60,60)\clip(0,0,60,120)", 0),
             render(r"\pos(60,60)\clip(m 0 0 l 60 0 60 120 0 120)", 0)
         );
-        for (a,b,ms) in [
-            (r"\iclip(0,0,60,120)",r"\iclip(m 0 0 l 60 0 60 120 0 120)",0),
-            (r"\clip(0,0,60,120)",r"\clip(2,m 0 0 l 120 0 120 240 0 240)",0),
-            (r"\clip(0,0,60,120)",r"\clip(0,0,40,120)\t(0,1000,\clip(0,0,80,120))",500),
-            (r"\clip(m 0 0 l 60 0 60 120 0 120)",r"\t(1000,2000,\clip(m 0 0 l 60 0 60 120 0 120))",0),
-            (r"\clip(0,0,60,120)",r"\clip(0,0,60,120)\r",0),
-            ("",r"\clip()",0),
-        ] {assert_eq!(render(&format!(r"\pos(60,60){a}"),ms),render(&format!(r"\pos(60,60){b}"),ms),"{b}");}
+        for (a, b, ms) in [
+            (
+                r"\iclip(0,0,60,120)",
+                r"\iclip(m 0 0 l 60 0 60 120 0 120)",
+                0,
+            ),
+            (
+                r"\clip(0,0,60,120)",
+                r"\clip(2,m 0 0 l 120 0 120 240 0 240)",
+                0,
+            ),
+            (
+                r"\clip(0,0,60,120)",
+                r"\clip(0,0,40,120)\t(0,1000,\clip(0,0,80,120))",
+                500,
+            ),
+            (
+                r"\clip(m 0 0 l 60 0 60 120 0 120)",
+                r"\t(1000,2000,\clip(m 0 0 l 60 0 60 120 0 120))",
+                0,
+            ),
+            (r"\clip(0,0,60,120)", r"\clip(0,0,60,120)\r", 0),
+            ("", r"\clip()", 0),
+        ] {
+            assert_eq!(
+                render(&format!(r"\pos(60,60){a}"), ms),
+                render(&format!(r"\pos(60,60){b}"), ms),
+                "{b}"
+            );
+        }
     }
     #[test]
     fn projection_decorations_and_axis_effects_reach_pixels() {
@@ -258,30 +292,47 @@ mod pixels {
     }
     #[test]
     fn decorations_add_coverage_for_cff_and_truetype_contours() {
-        let latin = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
+        let latin = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+            .join("taiyou-shaping-fonts/latin.otf");
         for path in [latin.clone(), latin.with_file_name("indic.ttf")] {
             let mut context = FontContext::new().unwrap();
             let mut builder = FontCatalogBuilder::new(Limits::default());
-            builder.register(&mut context, &std::fs::read(path).unwrap(), 0).unwrap();
+            builder
+                .register(&mut context, &std::fs::read(path).unwrap(), 0)
+                .unwrap();
             let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
             let family = catalog.faces()[0].family();
             let draw = |tags: &str| {
                 let track = parsed_body(&format!(r"{{\fn{family}\pos(60,60){tags}}}Hgyp"));
-                Renderer::new(Default::default()).unwrap().render_parsed(
-                    &track, catalog.clone(), &RenderRequest {
-                        now: TimeUs::from_micros(0),
-                        viewport: Viewport::full(Size::new(120,120)).unwrap(),
-                        unsupported: UnsupportedPolicy::Strict,
-                    }).unwrap().pixels().to_vec()
+                Renderer::new(Default::default())
+                    .unwrap()
+                    .render_parsed(
+                        &track,
+                        catalog.clone(),
+                        &RenderRequest {
+                            now: TimeUs::from_micros(0),
+                            viewport: Viewport::full(Size::new(120, 120)).unwrap(),
+                            unsupported: UnsupportedPolicy::Strict,
+                        },
+                    )
+                    .unwrap()
+                    .pixels()
+                    .to_vec()
             };
             let plain = draw("");
-            assert!(plain.chunks_exact(4).any(|p|p[3]>0));
-            for tag in [r"\u1",r"\s1",r"\u1\s1"] {
+            assert!(plain.chunks_exact(4).any(|p| p[3] > 0));
+            for tag in [r"\u1", r"\s1", r"\u1\s1"] {
                 let decorated = draw(tag);
-                assert_ne!(plain,decorated,"{family} {tag}");
+                assert_ne!(plain, decorated, "{family} {tag}");
                 // Filled decorations must not cut holes into overlapping ink.
-                assert!(plain.chunks_exact(4).zip(decorated.chunks_exact(4)).all(|(a,b)|b[3]>=a[3]),"{family} {tag}");
-                assert_eq!(decorated,draw(tag));
+                assert!(
+                    plain
+                        .chunks_exact(4)
+                        .zip(decorated.chunks_exact(4))
+                        .all(|(a, b)| b[3] >= a[3]),
+                    "{family} {tag}"
+                );
+                assert_eq!(decorated, draw(tag));
             }
         }
     }
@@ -314,10 +365,10 @@ mod pixels {
         assert_ne!(render(p, 0), render(p, 1000));
         assert_ne!(render(p, 1000), render(p, 2000));
         assert_eq!(render(&p.replace("kf100", "K100"), 1000), render(p, 1000));
-        let instant=r"\pos(60,60)\kt50\k100\bord3";
-        let outline=r"\pos(60,60)\kt50\ko100\bord3";
-        assert_ne!(render(instant,0),render(outline,0));
-        assert_eq!(render(instant,500),render(outline,500));
+        let instant = r"\pos(60,60)\kt50\k100\bord3";
+        let outline = r"\pos(60,60)\kt50\ko100\bord3";
+        assert_ne!(render(instant, 0), render(outline, 0));
+        assert_eq!(render(instant, 500), render(outline, 500));
         let parsed = parsed(p);
         let fonts = fonts();
         let mut r = Renderer::new(Default::default()).unwrap();

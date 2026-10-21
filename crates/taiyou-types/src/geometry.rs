@@ -195,8 +195,13 @@ impl GlyphOutline {
     pub const fn glyph(&self) -> u32 {
         self.glyph
     }
-    pub fn with_clockwise(mut self,clockwise:bool)->Self {self.clockwise=clockwise;self}
-    pub const fn clockwise(&self)->bool {self.clockwise}
+    pub fn with_clockwise(mut self, clockwise: bool) -> Self {
+        self.clockwise = clockwise;
+        self
+    }
+    pub const fn clockwise(&self) -> bool {
+        self.clockwise
+    }
     pub const fn units_per_em(&self) -> u16 {
         self.upem
     }

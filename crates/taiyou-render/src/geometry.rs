@@ -496,8 +496,12 @@ pub fn geometry(
                 );
                 // A decoration is another filled contour, not an opposite-
                 // winding hole where it crosses a TrueType glyph.
-                let (left,right)=(width.min(0.0),width.max(0.0));
-                let (y0,y1)=if outline.clockwise(){(y1,y0)}else{(y0,y1)};
+                let (left, right) = (width.min(0.0), width.max(0.0));
+                let (y0, y1) = if outline.clockwise() {
+                    (y1, y0)
+                } else {
+                    (y0, y1)
+                };
                 decorated.extend([
                     PathOp::MoveTo(FontPoint::new(left, y0)?),
                     PathOp::LineTo(FontPoint::new(right, y0)?),

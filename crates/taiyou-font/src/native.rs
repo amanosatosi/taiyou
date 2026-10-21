@@ -274,8 +274,9 @@ impl FontContext {
                 let owned = Outline::new(state.ops, limits).map_err(|e| {
                     FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure())
                 })?;
-                let clockwise=FT_Outline_Get_Orientation(outline)==0;
-                GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned)).map(|o|o.with_clockwise(clockwise))
+                let clockwise = FT_Outline_Get_Orientation(outline) == 0;
+                GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
+                    .map(|o| o.with_clockwise(clockwise))
             }
         })
     }
@@ -595,7 +596,7 @@ fn outline_funcs() -> OutlineFuncs {
     }
 }
 unsafe extern "C" {
-    fn FT_Outline_Get_Orientation(outline:*const ft::FT_Outline)->ft::FT_Int;
+    fn FT_Outline_Get_Orientation(outline: *const ft::FT_Outline) -> ft::FT_Int;
     fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
     fn FT_Outline_Decompose(
         outline: *const ft::FT_Outline,
