@@ -258,3 +258,20 @@ alpha/fades, clipping, margins and placement use ordinary event machinery.
 Whitespace compaction and blank-line metrics stay unchanged. Collision includes
 visible box geometry and shadow support before final raster quantization, with
 caller limits enforced during the prepass. BorderStyle=1 keeps its existing path.
+
+Phase 1 verification at `8f2f6045e1cae5599da21b8d6886395e91bebc24`:
+[focused Actions 39685908253](https://github.com/amanosatosi/taiyou/actions/runs/39685908253)
+passed parser tests (15), the seven layout/vertical/opaque-box integration tests,
+14 renderer safety tests and native Clippy. The 20-witness external comparison
+was truthfully red: 14 strict pixel mismatches, six blocked by the independently
+deferred non-None YCbCr conversion, no execution failures, infrastructure errors
+or crashes. All eight scaling_playres witnesses (including both opaque boxes),
+all five karaoke-and-runsplits witnesses and the vertical karaoke witness reached
+pixel comparison. The embedded-font, three 357-k-and-kf-desynced and two zero-area
+witnesses still stop at YCbCr; LayoutRes no longer blocks them. The desynced
+fixture also reports an event effect in its tolerant diagnostic attempt. These
+are remaining feature limitations, not successful visual comparisons. The frozen
+187 assets and 104-entry inventory verified unchanged before and after this run.
+The final per-line translucent-box overlap regression also passed in
+[39686721095](https://github.com/amanosatosi/taiyou/actions/runs/39686721095)
+at `7c5f1af73febf2f1c09b06f73f43a8245027bbdc`, with the same 20-case outcomes.
