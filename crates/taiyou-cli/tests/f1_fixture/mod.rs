@@ -1,7 +1,7 @@
 // Test-only typed snapshot of the existing fixed ASS workload. The CLI test
 // compares it to actual parser output; renderer unit tests need no parser edge.
+use super::*;
 use std::sync::Arc;
-use taiyou_types::*;
 
 pub fn track() -> Arc<Track> {
     let source = include_str!(
