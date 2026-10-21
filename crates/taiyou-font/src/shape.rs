@@ -10,16 +10,24 @@ use unicode_script::{Script, UnicodeScript};
 pub struct ShapeOptions {
     direction: Direction,
     language: Arc<str>,
+    layout_scale: [FiniteF64; 2],
 }
 impl Default for ShapeOptions {
     fn default() -> Self {
         Self {
             direction: Direction::Auto,
             language: Arc::from("und"),
+            layout_scale: [FiniteF64::ONE; 2],
         }
     }
 }
 impl ShapeOptions {
+    /// Layout pixels per PlayRes unit; glyph metrics are returned in script units.
+    pub fn with_layout_scale(mut self, scale: [f64; 2]) -> Result<Self, FontError> {
+        if scale.iter().any(|s| !s.is_finite() || *s <= 0.0) { return Err(error(ErrorCode::InvalidArgument,"invalid layout scale")); }
+        self.layout_scale = [FiniteF64::new(scale[0]).map_err(|_|limited())?,FiniteF64::new(scale[1]).map_err(|_|limited())?];
+        Ok(self)
+    }
     pub fn with_direction(mut self, direction: Direction) -> Self {
         self.direction = direction;
         self
@@ -583,13 +591,15 @@ fn shape_item(
             &reshaped
         };
         let ends = boundaries(raw, a, b, limits)?;
+        let [lx,ly] = input.options.layout_scale.map(FiniteF64::get);
+        let cell_size = FiniteF64::new(input.style.font_size().get()*ly).map_err(|_|limited())?;
         let scale = input
             .catalog
-            .ass_font_scale(face.id(), input.style.font_size())?
+            .ass_font_scale(face.id(), cell_size)?
             .get();
         let baseline_offset = input
             .catalog
-            .ass_baseline_offset(face.id(), input.style.font_size())?;
+            .ass_baseline_offset(face.id(), cell_size)? / ly;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
             return Err(error(
                 ErrorCode::NativeFailure,
@@ -605,9 +615,10 @@ fn shape_item(
                     .len()
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
-            metrics: input
-                .catalog
-                .ass_line_metrics(face.id(), input.style.font_size())?,
+            metrics: {
+                let m=input.catalog.ass_line_metrics(face.id(),cell_size)?;
+                RunMetrics::new(finite(m.ascent().get()/ly)?,finite(m.descent().get()/ly)?,finite(m.line_gap().get()/ly)?,m.units_per_em())?
+            },
         });
         if glyphs
             .len()
@@ -623,10 +634,10 @@ fn shape_item(
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
             let position = GlyphPosition::new(
-                finite(f64::from(g.advance_x) * scale)?,
-                finite(-f64::from(g.advance_y) * scale)?,
-                finite(f64::from(g.offset_x) * scale)?,
-                finite(-f64::from(g.offset_y) * scale + baseline_offset)?,
+                finite(f64::from(g.advance_x) * scale / lx)?,
+                finite(-f64::from(g.advance_y) * scale / ly)?,
+                finite(f64::from(g.offset_x) * scale / lx)?,
+                finite(-f64::from(g.offset_y) * scale / ly + baseline_offset)?,
             );
             let ink = if cluster.text().chars().all(char::is_whitespace) {
                 GlyphInk::Empty
@@ -638,10 +649,10 @@ fn shape_item(
                     let (y0, y1) = (-f64::from(y), -(i64::from(y) + i64::from(h)) as f64);
                     GlyphInk::Bounds(
                         ScriptBounds::new(
-                            x0.min(x1) * scale,
-                            y0.min(y1) * scale,
-                            x0.max(x1) * scale,
-                            y0.max(y1) * scale,
+                            x0.min(x1) * scale / lx,
+                            y0.min(y1) * scale / ly,
+                            x0.max(x1) * scale / lx,
+                            y0.max(y1) * scale / ly,
                         )
                         .map_err(|e| error(e.code(), e.detail()))?,
                     )
@@ -979,7 +990,11 @@ fn empty_line_metrics(
                     "font UPEM changed after validation",
                 ));
             }
-            let metrics = catalog.ass_line_metrics(face.id(), style.font_size())?;
+            let ly=options.layout_scale[1].get();
+            let cell=FiniteF64::new(style.font_size().get()*ly).map_err(|_|limited())?;
+            let m = catalog.ass_line_metrics(face.id(), cell)?;
+            let f=|n:f64|FiniteF64::new(n).map_err(|_|limited());
+            let metrics=RunMetrics::new(f(m.ascent().get()/ly)?,f(m.descent().get()/ly)?,f(m.line_gap().get()/ly)?,m.units_per_em())?;
             reserve(&mut result, 1, limits)?;
             result.push(EmptyLineMetrics {
                 decoded: map.decoded_span(start..start)?,

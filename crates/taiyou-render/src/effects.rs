@@ -22,8 +22,8 @@ fn zeros<T: Default + Clone>(n: usize) -> Result<Vec<T>, RenderError> {
 }
 
 /// Resolved target-space filter. Target scale is output/original-video size,
-/// not text scale or SBAS. The standalone renderer has no resampled video host
-/// or admitted LayoutRes, so its production target scale is (1,1).
+/// not text scale or SBAS. LayoutRes overrides the host's original video size;
+/// without either, target scale is (1,1).
 pub struct BlurSpec {
     gaussian: bool,
     sigma: [f64; 2],

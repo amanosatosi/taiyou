@@ -93,7 +93,8 @@ fn script_offset_q6(
     let content = device.content();
     let play = device.play_res();
     let ratio = if !scaled_border_shadow {
-        1.0
+        let [lx,ly]=device.layout_scale();
+        if x_axis {f64::from(content.width())/f64::from(play.width())/lx} else {f64::from(content.height())/f64::from(play.height())/ly}
     } else if x_axis {
         f64::from(content.width()) / f64::from(play.width())
     } else {
@@ -194,7 +195,9 @@ fn prepare_local(
         ctx,
         fonts,
         &evaluated,
-        &Default::default(),
+        &taiyou_font::ShapeOptions::default().with_layout_scale(
+            DeviceMapping::new(track.script().play_res(),request.viewport.content())?.with_layout_res(track.script().layout_res())?.layout_scale()
+        ).map_err(crate::geometry::font_error)?,
         &available(limits, stage_held)?,
     )
     .map_err(crate::geometry::font_error)?;
@@ -437,6 +440,11 @@ impl Renderer {
     ) -> Result<Frame, RenderError> {
         #[cfg(test)]
         PREPARATION_ATTEMPTS.with(|n| n.set(n.get() + 1));
+        let adjusted;
+        let request=if let Some(layout)=track.script().layout_res() {
+            adjusted=RenderRequest {viewport:request.viewport.with_original_size(layout)?,..*request};
+            &adjusted
+        }else{request};
         let limits = &self.config.limits;
         let (_, length) = limits
             .check_output_size(request.viewport.size())
@@ -474,11 +482,10 @@ impl Renderer {
         events.sort_unstable_by_key(|e| (e.layer(), e.id()));
         let mut diagnostics = DiagnosticBuffer::new();
         if count > 0
-            && (track.script().layout_res().is_some()
-                || (!track.script().ycbcr_matrix().is_empty()
-                    && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")))
+            && !track.script().ycbcr_matrix().is_empty()
+            && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")
         {
-            let detail = "T014 uses PlayRes mapping and encoded RGB; LayoutRes and legacy YCbCr emulation are unsupported";
+            let detail = "encoded RGB output does not implement legacy YCbCr emulation";
             if request.unsupported == UnsupportedPolicy::Strict {
                 return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail));
             }
@@ -581,7 +588,7 @@ impl Renderer {
                     anchor: alignment_anchor(placement, track.script().play_res())?,
                     bounds: crate::collision_footprint::collision_footprint(
                         &local,
-                        DeviceMapping::new(track.script().play_res(), request.viewport.content())?,
+                        DeviceMapping::new(track.script().play_res(), request.viewport.content())?.with_layout_res(track.script().layout_res())?,
                         track.script().scaled_border_shadow(),
                         request.unsupported,
                     )?,
@@ -660,7 +667,7 @@ impl Renderer {
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let device =
-                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
+                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?.with_layout_res(track.script().layout_res())?;
                 // xy's integer effect coordinates belong to layout pixels,
                 // before any separately declared raster-target oversampling.
                 let target_scale = request.viewport.target_scale();
@@ -775,7 +782,7 @@ impl Renderer {
                             f64::from(device.content().width())
                                 / f64::from(device.play_res().width())
                         } else {
-                            1.0
+                            request.viewport.target_scale()[0]
                         };
                         q6_pixels(border_value * ratio)?
                     } else {
@@ -786,7 +793,7 @@ impl Renderer {
                             f64::from(device.content().height())
                                 / f64::from(device.play_res().height())
                         } else {
-                            1.0
+                            request.viewport.target_scale()[1]
                         };
                         q6_pixels(state.effects().border_y().get() * ratio)?
                     } else {

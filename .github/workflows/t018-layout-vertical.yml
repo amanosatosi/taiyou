@@ -1,0 +1,30 @@
+name: T018 layout and vertical compatibility focused
+on:
+  push:
+    branches: [task/T018-layout-checks]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gdi:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python build-support/shaping-fixtures.py
+      - shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          & cmd /c "`"$vs/Common7/Tools/VsDevCmd.bat`" -arch=x64 && cl /nologo /W4 /WX build-support/vertical-gdi.c /link gdi32.lib user32.lib /out:vertical-gdi.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./vertical-gdi.exe "$env:RUNNER_TEMP/taiyou-shaping-fonts/cjk.otf" | Tee-Object "$env:RUNNER_TEMP/vertical-gdi.txt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vertical-gdi-${{ github.sha }}
+          path: ${{ runner.temp }}/vertical-gdi.txt

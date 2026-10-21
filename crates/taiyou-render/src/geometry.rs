@@ -16,6 +16,7 @@ fn q6(v: f64) -> Result<Q6, RenderError> {
 pub struct DeviceMapping {
     play_res: Size,
     content: PixelRect,
+    layout_scale: [FiniteF64; 2],
 }
 impl DeviceMapping {
     pub fn new(play_res: Size, content: PixelRect) -> Result<Self, RenderError> {
@@ -25,8 +26,16 @@ impl DeviceMapping {
                 "empty geometry mapping",
             ));
         }
-        Ok(Self { play_res, content })
+        Ok(Self { play_res, content, layout_scale: [FiniteF64::ONE;2] })
     }
+    pub fn with_layout_res(mut self, layout: Option<Size>) -> Result<Self, RenderError> {
+        if let Some(size)=layout {
+            if size.is_empty() {return Err(RenderError::new(ErrorCode::InvalidArgument,"empty layout resolution"));}
+            self.layout_scale=[finite(f64::from(size.width())/f64::from(self.play_res.width()))?,finite(f64::from(size.height())/f64::from(self.play_res.height()))?];
+        }
+        Ok(self)
+    }
+    pub fn layout_scale(self) -> [f64;2] { self.layout_scale.map(FiniteF64::get) }
     pub const fn play_res(self) -> Size {
         self.play_res
     }
@@ -112,9 +121,11 @@ impl GeometryMap {
             270.0 => (-1.0, 0.0),
             _ => angle.to_radians().sin_cos(),
         };
+        let [lx,ly]=self.device.layout_scale();
+        let (x,y)=(x*lx,y*ly);
         let (x, y) = (cos * x + sin * y, -sin * x + cos * y);
         let (x, y) = project_3d(x, y, rx, ry)?;
-        let (x, y) = (x + self.origin.x().get(), y + self.origin.y().get());
+        let (x, y) = (x/lx + self.origin.x().get(), y/ly + self.origin.y().get());
         Ok(DevicePoint::new(
             q6(x * (f64::from(self.device.content.width())
                 / f64::from(self.device.play_res.width()))
@@ -431,15 +442,16 @@ pub fn geometry(
         if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
+        let [lx,ly]=placement.device.layout_scale();
         let size = catalog
-            .ass_font_scale(blob.id(), state.shaping().font_size())
+            .ass_font_scale(blob.id(), finite(state.shaping().font_size().get()*ly)?)
             .map_err(font_error)?
             .get();
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (
-                finite(size * state.geometry().scale_x().get() * additional.0.get())?,
-                finite(size * state.geometry().scale_y().get() * additional.1.get())?,
+                finite(size/lx * state.geometry().scale_x().get() * additional.0.get())?,
+                finite(size/ly * state.geometry().scale_y().get() * additional.1.get())?,
             ),
             positioned.position(),
             placement.anchor,
@@ -481,7 +493,7 @@ pub fn geometry(
             decorated.extend_from_slice(path.ops());
             // GDI TextOut decorations use face metrics and text advance, not
             // glyph ink. Retain the exact same path/effects/composition route.
-            let width = glyph.advance_x().get() / size;
+            let width = glyph.advance_x().get() * lx / size;
             for (enabled, (centre, thickness)) in
                 [state.geometry().underline(), state.geometry().strikeout()]
                     .into_iter()
@@ -515,8 +527,8 @@ pub fn geometry(
         let (_, win_ascent, _) = catalog.ass_cell_metrics(blob.id()).map_err(font_error)?;
         let ascent = (f64::from(win_ascent) * size * 64.0 + 0.5).floor() / 64.0;
         let mapping = mapping.with_shear_offset(FontPoint::new(
-            (word_advance + glyph.offset_x().get()) / size,
-            (ascent - glyph.offset_y().get()) / size,
+            (word_advance + glyph.offset_x().get()) * lx / size,
+            (ascent - glyph.offset_y().get()*ly) / size,
         )?);
         word_advance += glyph.advance_x().get();
         finite(word_advance)?;
