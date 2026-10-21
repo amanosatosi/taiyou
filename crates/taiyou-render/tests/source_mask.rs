@@ -89,3 +89,50 @@ fn expanded_contours_shadow_phase_and_subtraction_use_the_same_scan_units(){
     let error=taiyou_render::stroke::rasterize_expanded_axes_xy(&mut context,&g,Q6::from_ticks(64),Q6::from_ticks(64),Q6::from_ticks(0),Q6::from_ticks(0),1).unwrap_err();
     assert_eq!(error.code(),ErrorCode::LimitExceeded);
 }
+#[test]
+fn supplied_gdi_and_freetype_paths_separate_geometry_from_scan_coverage(){
+    let Ok(root)=std::env::var("TAIYOU_BE_AUDIT_OUTPUT") else {return;};
+    let root=std::path::PathBuf::from(root);let path=root.join("supplied-paths.tsv");
+    if !path.exists(){return;}
+    let input=std::fs::read_to_string(path).unwrap();let mut groups=Vec::new();let mut report=String::new();
+    for row in input.lines(){
+        let (name,values)=row.split_once('\t').unwrap();
+        let points:Vec<Vec<i32>>=values.split(';').map(|s|s.split(',').map(|v|v.parse().unwrap()).collect()).collect();
+        for phase in [0.0,0.125,0.5]{
+            let point=|i:usize|p(f64::from(points[i][1])/64.0+phase,f64::from(points[i][2])/64.0);
+            let mut ops=Vec::new();let mut i=0;
+            while i<points.len(){
+                match points[i][0]{
+                    6=>ops.push(PathOp::MoveTo(point(i))),
+                    2=>ops.push(PathOp::LineTo(point(i))),
+                    4=>{assert_eq!(points[i+1][0],4);assert_eq!(points[i+2][0],4);ops.push(PathOp::CubicTo(point(i),point(i+1),point(i+2)));i+=2;},
+                    _=>panic!("unexpected authenticated path command"),
+                }i+=1;
+            }ops.push(PathOp::Close);
+            let g=group(ops);let mut context=RasterContext::new().unwrap();
+            let ft=rasterize(&mut context,&g).unwrap();let xy=rasterize_xy(&mut context,&g).unwrap();
+            let compare=|a:&Mask,b:&Mask,normalize:bool|{
+                let (a0,b0)=(a.bounds(),b.bounds());let mut changed=0;let mut total=0_u64;let mut max=0;
+                for y in a0.y0().min(b0.y0())..a0.y1().max(b0.y1()) {for x in a0.x0().min(b0.x0())..a0.x1().max(b0.x1()){
+                    let value=|m:&Mask|if normalize {m.coverage_a8_at(i64::from(x),i64::from(y),PixelOffset::default())}else{m.coverage_at(i64::from(x),i64::from(y),PixelOffset::default())};
+                    let d=value(a).abs_diff(value(b));changed+=u64::from(d!=0);total+=u64::from(d);max=max.max(d);
+                }}(changed,total,max)
+            };
+            let (changed,total,max)=compare(&ft,&xy,true);
+            report.push_str(&format!("{{\"path\":\"{name}\",\"phase\":{phase},\"comparison\":\"same-geometry-coverage\",\"changed\":{changed},\"sum_delta\":{total},\"max_delta\":{max}}}\n"));
+            if name.ends_with("gdi") {groups.push((phase,xy));}
+            else {
+                // Find by phase rather than depending on font/text ordering.
+                let reference=groups.iter().rev().find(|(p,_)|*p==phase).map(|(_,m)|m).unwrap();
+                for be in [0.0,1.0,2.0,4.0,8.0,16.0] {
+                    let spec=BlurSpec::new(f(0.0),f(be),[1.0,1.0],&Limits::default()).unwrap();
+                    let a=apply_effects(reference,&spec,&Limits::default()).unwrap();let b=apply_effects(&xy,&spec,&Limits::default()).unwrap();
+                    let (changed,total,max)=compare(&a,&b,false);
+                    report.push_str(&format!("{{\"path\":\"{name}\",\"phase\":{phase},\"be\":{be},\"comparison\":\"same-raster-different-outline\",\"changed\":{changed},\"sum_delta\":{total},\"max_delta\":{max}}}\n"));
+                }
+            }
+        }
+    }
+    assert_eq!(groups.len(),9);
+    std::fs::write(root.join("supplied-path-comparisons.jsonl"),&report).unwrap();println!("SUPPLIED_PATH_COMPARISONS\n{report}");
+}
