@@ -307,47 +307,18 @@ mod pixels {
     #[test]
     fn explicit_origin_and_motion_never_become_collision_obstacles() {
         for tag in [r"\org(0,0)", r"\move(20,40,60,40)"] {
-            let p = parsed(&format!(r"{{\alpha&HFF&{tag}}}Ag"));
-            let original = &p.track().events()[0];
-            let automatic = Event::new(
-                EventId::new(1),
-                original.start(),
-                original.end(),
-                StyleId::new(0),
-                original.source(),
-            )
-            .with_program(std::sync::Arc::from([original
-                .program()
-                .last()
-                .unwrap()
-                .clone()]));
-            let make = |events: Vec<Event>| {
-                TrackIngestor::new()
-                    .ingest(
-                        std::sync::Arc::from(p.track().source()),
-                        p.track().script().clone(),
-                        p.track().styles().to_vec().into(),
-                        events.into(),
-                        &Limits::default(),
-                    )
-                    .unwrap()
-            };
+            // Parse independent dialogue lines so event/source ownership is real.
+            let p = parsed(&format!(
+                "{{\\alpha&HFF&{tag}}}Ag\nDialogue: 0:00:01.00,0:00:03.00,Ag"
+            ));
             let catalog = fonts();
             let a = Renderer::new(Default::default())
                 .unwrap()
-                .render(
-                    make(vec![automatic.clone()]),
-                    catalog.clone(),
-                    &request(500),
-                )
+                .render_parsed(&parsed("Ag"), catalog.clone(), &request(500))
                 .unwrap();
             let b = Renderer::new(Default::default())
                 .unwrap()
-                .render(
-                    make(vec![original.clone(), automatic]),
-                    catalog,
-                    &request(500),
-                )
+                .render_parsed(&p, catalog, &request(500))
                 .unwrap();
             assert_eq!(a.pixels(), b.pixels());
             assert_eq!(a.diagnostics(), b.diagnostics());
