@@ -259,21 +259,41 @@ fn positive_cell_stroke_budget_evidence() {
             let input = effects_track(border);
             let input = if restore_em {
                 let ratio = (f64::from(ascent) + f64::from(descent)) / f64::from(upem);
-                let styles: Vec<_> = input.styles().iter().map(|s| {
-                    s.clone().with_size(FiniteF64::new(s.font_size().get() * ratio).unwrap()).unwrap()
-                }).collect();
-                TrackIngestor::new().ingest(Arc::from(input.source()), input.script().clone(),
-                    styles.into(), input.events().to_vec().into(), &Limits::default()).unwrap()
-            } else { input };
+                let styles: Vec<_> = input
+                    .styles()
+                    .iter()
+                    .map(|s| {
+                        s.clone()
+                            .with_size(FiniteF64::new(s.font_size().get() * ratio).unwrap())
+                            .unwrap()
+                    })
+                    .collect();
+                TrackIngestor::new()
+                    .ingest(
+                        Arc::from(input.source()),
+                        input.script().clone(),
+                        styles.into(),
+                        input.events().to_vec().into(),
+                        &Limits::default(),
+                    )
+                    .unwrap()
+            } else {
+                input
+            };
             PREPARATION_ATTEMPTS.with(|n| n.set(0));
             PREPARE_CALLS.with(|n| n.set(0));
-            let error = Renderer::new(Default::default()).unwrap()
-                .render(input, fonts.clone(), &request(500_000)).unwrap_err();
+            let error = Renderer::new(Default::default())
+                .unwrap()
+                .render(input, fonts.clone(), &request(500_000))
+                .unwrap_err();
             assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
             assert_eq!(error.code(), ErrorCode::LimitExceeded);
             assert_eq!(error.resource_failure(), ResourceFailure::Other);
             assert!(error.detail().contains("check=frame-segments"));
-            report.push_str(&format!("border={border} restore_em={restore_em} prepares={} error={error:?}\n", PREPARE_CALLS.with(Cell::get)));
+            report.push_str(&format!(
+                "border={border} restore_em={restore_em} prepares={} error={error:?}\n",
+                PREPARE_CALLS.with(Cell::get)
+            ));
         }
     }
     eprintln!("CELL_STROKE_BUDGET\n{report}");

@@ -22,6 +22,13 @@ RELEASE_CASES = {"normal-one", "normal-eight", "dense-100", "dense-500", "dense-
 
 def validate(kind, rows, environment, measured):
     assert re.fullmatch(r"[0-9a-f]{40}", measured)
+    cell_policy = environment.get("pixel_identity_policy")
+    assert cell_policy in (None, "positive-cell-height-v2")
+    if cell_policy:
+        assert kind == "optimized"
+        assert environment["cell_identity"]["historical_sha256"] == "9171c7aba2e228f4ea715a86eb8d2108a13d62bc01fbe17cf5a40bbd5511d032"
+        assert environment["cell_identity"]["current_sha256"] == "e99750fabb0ffd5ce301ee971c47100f97c546430f18809fa949feb178538b20"
+        assert environment["cell_identity"]["native_em_q6"] == 884
     expected_cases = DEBUG_CASES if kind == "debug" else RELEASE_CASES
     assert {r["case"] for r in rows} == expected_cases
     assert environment["font"]["sha256"] == FONT
@@ -54,7 +61,10 @@ def validate(kind, rows, environment, measured):
             for reviewed in [r for r in selected if r["implementation"].startswith("reviewed") and r["exit_code"] == 0]:
                 assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"])
         comparable = selected if kind == "debug" else [r for r in selected if not r["implementation"].startswith("earlier") and r["exit_code"] == 0]
-        assert len({r["raw_sha256"] for r in comparable}) <= 1
+        cohorts = [[r for r in comparable if r["implementation"].startswith(prefix)]
+                   for prefix in ("reviewed", "candidate")] if cell_policy else [comparable]
+        for cohort in cohorts:
+            assert len({r["raw_sha256"] for r in cohort}) <= 1
 
 def unchanged(measured, kind):
     subprocess.run(["git", "fetch", "--no-tags", "origin", measured, REVIEWED], cwd=ROOT, check=True, capture_output=True)
