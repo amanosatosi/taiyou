@@ -77,7 +77,10 @@ fn embedded_fixture_isolates_cell_metrics_and_zero_depth_shadow() {
         .unwrap();
         let local = layout(
             &shaped,
-            &LayoutConstraints::new(shaped.placement().alignment()),
+            &LayoutConstraints::new(shaped.placement().alignment())
+                .with_wrap(event.wrap_mode())
+                .with_width(FiniteF64::new(664.0).unwrap())
+                .unwrap(),
         )
         .unwrap();
         evidence.push_str(&format!(

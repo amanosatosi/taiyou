@@ -17,6 +17,7 @@ jobs:
 
     steps:
       - run: |
+          mkdir -p "$RUNNER_TEMP/t018-metric-review"
           echo "TAIYOU_REVIEW_OUTPUT=$RUNNER_TEMP/t018-metric-review" >> "$GITHUB_ENV"
           echo "TAIYOU_RENDER_SAMPLE_DIR=$RUNNER_TEMP/t018-metric-review" >> "$GITHUB_ENV"
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

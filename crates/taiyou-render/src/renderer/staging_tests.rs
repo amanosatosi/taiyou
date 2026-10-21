@@ -286,14 +286,45 @@ fn positive_cell_stroke_budget_evidence() {
                 .unwrap()
                 .render(input, fonts.clone(), &request(500_000))
                 .unwrap_err();
-            eprintln!("CELL_STROKE border={border} restore_em={restore_em} prepares={} error={error:?}", PREPARE_CALLS.with(Cell::get));
+            eprintln!(
+                "CELL_STROKE border={border} restore_em={restore_em} prepares={} error={error:?}",
+                PREPARE_CALLS.with(Cell::get)
+            );
             assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
             assert_eq!(error.code(), ErrorCode::LimitExceeded);
             assert_eq!(error.resource_failure(), ResourceFailure::Other);
+            let expected = match (border == 0.5, restore_em) {
+                (true, false) => (423, 426),
+                (true, true) => (441, 444),
+                (false, false) => (225, 228),
+                (false, true) => (235, 238),
+            };
+            assert_eq!(error.event(), Some(EventId::new(expected.0)));
+            assert_eq!(PREPARE_CALLS.with(Cell::get), expected.1);
+            if restore_em {
+                assert!(error.detail().contains("check=frame-segments"));
+            } else {
+                // Increasing only the caller's frame segment budget moves the
+                // failure forward. Coordinate/transient limits are unchanged.
+                let config = RendererConfig {
+                    limits: Limits::default()
+                        .with_path_segments_per_frame(1_010_000)
+                        .unwrap(),
+                    ..Default::default()
+                };
+                let later = Renderer::new(config)
+                    .unwrap()
+                    .render(effects_track(border), fonts.clone(), &request(500_000))
+                    .unwrap_err();
+                assert_eq!(later.code(), ErrorCode::LimitExceeded);
+                assert_eq!(later.resource_failure(), ResourceFailure::Other);
+                assert!(later.event().unwrap() > EventId::new(expected.0));
+                eprintln!("CELL_STROKE larger_segment_budget={later:?}");
+            }
 
             report.push_str(&format!(
                 "border={border} restore_em={restore_em} prepares={} error={error:?}\n",
-                PREPARE_CALLS.with(Cell::get)
+                expected.1
             ));
         }
     }
@@ -304,7 +335,9 @@ fn positive_cell_stroke_budget_evidence() {
 #[test]
 fn fixed_segment_exhaustion_never_repeats_preparation() {
     let fonts = catalog();
-    for (border, event, prepares) in [(0.5, 441, 444), (3.0, 235, 238)] {
+    // Pre-cell-height geometry exhausted at 441/444 and 235/238. Those
+    // counts were not an ASS contract; the fixed-budget/no-retry invariant is.
+    for (border, event, prepares) in [(0.5, 423, 426), (3.0, 225, 228)] {
         let input = effects_track(border);
         let minimal = Renderer::new(Default::default())
             .unwrap()
@@ -346,7 +379,9 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 error, original,
                 "return the first attempt's complete original error"
             );
-            assert!(error.detail().contains("check=frame-segments"));
+            // With current geometry, the remaining segment allowance is too
+            // small for the next input outline, before FT stroker output.
+            assert_eq!(error.detail(), "geometry coordinate/count/reservation limit");
         }
         let config = RendererConfig {
             limits: Limits::default()
