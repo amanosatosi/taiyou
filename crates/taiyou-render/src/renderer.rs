@@ -791,7 +791,7 @@ impl Renderer {
                         [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let mut fill = rasterize(&mut fill_context, group)?;
+                    let mut fill = rasterize_xy(&mut fill_context, group)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
@@ -890,7 +890,7 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let mask = rasterize(&mut raster, boxes)?;
+                        let mask = rasterize_xy(&mut raster, boxes)?;
                         drop(raster);
                         charge_mask(&mask, &mut held, event_charge, limits)?;
                         let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
@@ -909,7 +909,7 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded_axes(
+                        let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
                             &mut stroke_context,
                             group,
                             border_radius,
@@ -960,7 +960,7 @@ impl Renderer {
                                 add(held, event_charge)?,
                             )?)?;
                             let mask =
-                                crate::stroke::rasterize_translated(&mut raster, boxes, dx, dy)?;
+                                crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
                             Some(filter_mask(
@@ -979,7 +979,7 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let (mask, segments) = crate::stroke::rasterize_expanded_axes(
+                            let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
                                 &mut stroke_context,
                                 group,
                                 border_radius,
@@ -1003,7 +1003,7 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask = crate::stroke::rasterize_translated(
+                            let mask = crate::stroke::rasterize_translated_xy(
                                 &mut shadow_context,
                                 group,
                                 dx,

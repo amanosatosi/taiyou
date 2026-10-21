@@ -120,6 +120,9 @@ pub(crate) fn rasterize(
 pub(crate) fn rasterize_body(ops:&[PathOp<DevicePoint>],limits:&Limits)->Result<Arc<Mask>,RenderError> {
     rasterize_impl(ops,Q6::from_ticks(0),Q6::from_ticks(0),limits.path_segments_per_frame(),limits,true).map(|(mask,_)|mask)
 }
+pub(crate) fn rasterize_axis_xy(ops:&[PathOp<DevicePoint>],rx:Q6,ry:Q6,remaining:u64,limits:&Limits)->Result<(Arc<Mask>,u64),RenderError> {
+    rasterize_impl(ops,rx,ry,remaining,limits,true)
+}
 fn rasterize_impl(ops:&[PathOp<DevicePoint>],rx:Q6,ry:Q6,remaining:u64,limits:&Limits,xy:bool)->Result<(Arc<Mask>,u64),RenderError> {
     check_path_budget(ops.len(),limits)?;
     if rx.ticks()<0 || ry.ticks()<0 {return Err(RenderError::new(ErrorCode::InvalidArgument,"negative span widening"));}
@@ -260,9 +263,10 @@ fn rasterize_impl(ops:&[PathOp<DevicePoint>],rx:Q6,ry:Q6,remaining:u64,limits:&L
         // AlignLeftTop rounds the control hull out in eighth units and includes
         // one extra eighth; Rasterize then includes its extra right/bottom pixel.
         let (a,b,c,d)=hull.ok_or_else(limit)?;
-        x0=a.div_euclid(64);y0=b.div_euclid(64);
+        let pad=(rx.max(ry)+7).div_euclid(8);
+        x0=a.div_euclid(64)-pad;y0=b.div_euclid(64)-pad;
         let end=|n:i64| {let eighth=-(-n).div_euclid(8); -(-(eighth+1)).div_euclid(8)+1};
-        x1=end(c);y1=end(d);
+        x1=end(c)+pad;y1=end(d)+pad;
     }
     let bounds = PixelRect::new(
         i32::try_from(x0).map_err(|_| limit())?,

@@ -64,3 +64,28 @@ fn be_uses_native_scan_units_until_paint_conversion(){
     }
     assert_eq!(Mask::new_xy(PixelRect::new(0,0,1,1).unwrap(),1,Arc::from([65])).unwrap_err().code(),ErrorCode::InvalidArgument);
 }
+#[test]
+fn scan_preflights_bounds_segments_and_transient_publication(){
+    let g=group(rectangle(0.0,0.0,2.0,2.0));
+    for limits in [Limits::default().with_transient_bytes(1).unwrap(),Limits::default().with_max_dimension(1).unwrap(),Limits::default().with_output_pixels(1).unwrap(),Limits::default().with_path_segments_per_frame(1).unwrap()] {
+        let error=rasterize_xy(&mut RasterContext::with_limits(limits).unwrap(),&g).unwrap_err();assert_eq!(error.code(),ErrorCode::LimitExceeded);
+    }
+    let bad=Mask::new_xy(PixelRect::new(0,0,1,1).unwrap(),2,Arc::from([64,1])).unwrap_err();assert_eq!(bad.code(),ErrorCode::InvalidArgument);
+    assert!(scan(vec![]).bounds().is_empty());
+}
+#[test]
+fn expanded_contours_shadow_phase_and_subtraction_use_the_same_scan_units(){
+    let limits=Limits::default();let g=group(rectangle(0.0,0.0,4.0,4.0));let mut context=RasterContext::new().unwrap();
+    let fill=rasterize_xy(&mut context,&g).unwrap();
+    let (expanded,points)=taiyou_render::stroke::rasterize_expanded_axes_xy(&mut context,&g,Q6::from_ticks(64),Q6::from_ticks(64),Q6::from_ticks(0),Q6::from_ticks(0),1_000_000).unwrap();
+    assert!(points>0);assert!(expanded.is_xy_coverage());
+    assert_eq!(expanded.coverage_at(2,2,PixelOffset::default()),64);
+    assert_eq!(expanded.coverage_at(-1,2,PixelOffset::default()),64);
+    let border=taiyou_render::stroke::subtract_coverage(&expanded,&fill,&limits).unwrap();
+    assert!(border.is_xy_coverage());assert_eq!(border.coverage_at(2,2,PixelOffset::default()),0);assert_eq!(border.coverage_at(-1,2,PixelOffset::default()),64);
+    let shadow=taiyou_render::stroke::rasterize_translated_xy(&mut context,&g,Q6::from_ticks(8),Q6::from_ticks(0)).unwrap();
+    assert_eq!(shadow.coverage_at(0,2,PixelOffset::default()),56);assert_eq!(shadow.coverage_at(4,2,PixelOffset::default()),8);
+    assert_eq!(shadow.data().iter().map(|&v|u32::from(v)).sum::<u32>(),4*4*64);
+    let error=taiyou_render::stroke::rasterize_expanded_axes_xy(&mut context,&g,Q6::from_ticks(64),Q6::from_ticks(64),Q6::from_ticks(0),Q6::from_ticks(0),1).unwrap_err();
+    assert_eq!(error.code(),ErrorCode::LimitExceeded);
+}

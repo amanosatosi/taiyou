@@ -83,7 +83,11 @@ pub fn compose(
                 let destination: &mut [u8; 4] = destination.try_into().map_err(|_| {
                     RenderError::new(ErrorCode::InternalError, "invalid pixel extent")
                 })?;
-                let blend=if operation.mask().is_xy_coverage() {crate::paint::blend_xy_pixel} else {blend_pixel};
+                let blend = if operation.mask().is_xy_coverage() {
+                    crate::paint::blend_xy_pixel
+                } else {
+                    blend_pixel
+                };
                 blend(
                     destination,
                     paint,

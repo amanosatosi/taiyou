@@ -280,10 +280,24 @@ pub fn rasterize(ctx: &mut RasterContext, group: &CoverageGroup) -> Result<Arc<M
 /// Source-mask comparison entry point using exactly the same supplied path.
 /// FreeType rasterize above remains available as an independent native control.
 #[cfg(feature = "native")]
-pub fn rasterize_xy(ctx:&mut RasterContext,group:&CoverageGroup)->Result<Arc<Mask>,RenderError>{
-    let ops=coverage_path(group,Q6::from_ticks(0),Q6::from_ticks(0),ctx.limits())?;
-    let bytes=(ops.len() as u64).checked_mul(3*std::mem::size_of::<PathOp<DevicePoint>>() as u64).ok_or_else(limited)?;
-    let available=ctx.limits().transient_bytes().checked_sub(bytes).filter(|&n|n>0).ok_or_else(||limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-    let limits=ctx.limits().clone().with_transient_bytes(available).map_err(|_|limited())?;
-    crate::axis_widen::rasterize_body(&ops,&limits)
+pub fn rasterize_xy(
+    ctx: &mut RasterContext,
+    group: &CoverageGroup,
+) -> Result<Arc<Mask>, RenderError> {
+    let ops = coverage_path(group, Q6::from_ticks(0), Q6::from_ticks(0), ctx.limits())?;
+    let bytes = (ops.len() as u64)
+        .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+        .ok_or_else(limited)?;
+    let available = ctx
+        .limits()
+        .transient_bytes()
+        .checked_sub(bytes)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    let limits = ctx
+        .limits()
+        .clone()
+        .with_transient_bytes(available)
+        .map_err(|_| limited())?;
+    crate::axis_widen::rasterize_body(&ops, &limits)
 }

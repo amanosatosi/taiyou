@@ -31,8 +31,31 @@ jobs:
           LIBZ_SYS_STATIC: '1'
         run: |
           cargo test --locked -p taiyou-render --features native --test source_mask -- --nocapture
+          cargo test --locked -p taiyou-cli --features native --test blur --test ass_coverage_batch --test layout_vertical --test renderer_effect_regressions --test ass_compatibility --test transforms --test drawings
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_BE_AUDIT_CORPUS: ${{ runner.temp }}/taiyou-libass-tests
+          TAIYOU_BE_AUDIT_OUTPUT: ${{ runner.temp }}/source-masks
+        run: cargo test --locked -p taiyou-cli --features native --test be_audit -- --nocapture
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/blurs/be-0500.png --case regression/blurs/be-1500.png --case regression/blurs/be-2500.png --case regression/blurs/be-3500.png --case regression/blurs/blur+t-1000.png --case regression/blurs/blur+t-1100.png --case regression/blurs/blur+t-1200.png --case regression/blurs/blur+t-1300.png --case regression/blurs/blur+t-1400.png --case regression/blurs/blur+t-1500.png --case regression/blurs/blur+t-1600.png --case regression/blurs/blur+t-1700.png --case regression/blurs/blur+t-1800.png --case regression/blurs/blur+t-1900.png --case regression/blurs-anamorphic/blur-0000.png
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: source-mask-${{ github.sha }}
-          path: ${{ runner.temp }}/mask-format.patch
+          path: |
+            ${{ runner.temp }}/mask-format.patch
+            ${{ runner.temp }}/taiyou-comparison/
+            ${{ runner.temp }}/source-masks/
