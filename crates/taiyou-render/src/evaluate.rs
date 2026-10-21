@@ -196,29 +196,55 @@ fn animate_number(
 }
 // RTS.cpp EF_MOVE: sort times, nonpositive pair means full duration, start
 // wins at t1 (also equal times); interpolation is later quantized by MoveSample.
-fn move_progress(times: Option<[i32; 2]>, now: i128, duration: i128) -> Result<FiniteF64, RenderError> {
+fn move_progress(
+    times: Option<[i32; 2]>,
+    now: i128,
+    duration: i128,
+) -> Result<FiniteF64, RenderError> {
     let [a, b] = times.unwrap_or([-1, -1]);
     let (mut a, mut b) = (i128::from(a), i128::from(b));
-    if b < a { std::mem::swap(&mut a, &mut b); }
-    if a <= 0 && b <= 0 { a = 0; b = duration; }
-    let p = if now <= a { 0.0 } else if now < b { (now-a) as f64 / (b-a) as f64 } else { 1.0 };
+    if b < a {
+        std::mem::swap(&mut a, &mut b);
+    }
+    if a <= 0 && b <= 0 {
+        a = 0;
+        b = duration;
+    }
+    let p = if now <= a {
+        0.0
+    } else if now < b {
+        (now - a) as f64 / (b - a) as f64
+    } else {
+        1.0
+    };
     FiniteF64::new(p).map_err(convert)
 }
 // Keep xy's ordered piecewise tests: overlapping fad intervals do not get
 // sorted or multiplied, and empty intervals never divide by zero.
 fn fade_alpha(alpha: [i32; 3], times: [i32; 4], now: i128, duration: i128) -> i32 {
     let [mut a, b, mut c, mut d] = times.map(i128::from);
-    if a == -1 && d == -1 { a = 0; c = duration-c; d = duration; }
+    if a == -1 && d == -1 {
+        a = 0;
+        c = duration - c;
+        d = duration;
+    }
     let interpolate = |from: i32, to: i32, start: i128, end: i128| {
-        let p = (now-start) as f64 / (end-start) as f64;
-        (f64::from(from)*(1.0-p) + f64::from(to)*p) as i32
+        let p = (now - start) as f64 / (end - start) as f64;
+        (f64::from(from) * (1.0 - p) + f64::from(to) * p) as i32
     };
-    if now < a { alpha[0] }
-    else if now >= a && now < b { interpolate(alpha[0], alpha[1], a, b) }
-    else if now >= b && now < c { alpha[1] }
-    else if now >= c && now < d { interpolate(alpha[1], alpha[2], c, d) }
-    else if now >= d { alpha[2] }
-    else { 0 }
+    if now < a {
+        alpha[0]
+    } else if now >= a && now < b {
+        interpolate(alpha[0], alpha[1], a, b)
+    } else if now >= b && now < c {
+        alpha[1]
+    } else if now >= c && now < d {
+        interpolate(alpha[1], alpha[2], c, d)
+    } else if now >= d {
+        alpha[2]
+    } else {
+        0
+    }
 }
 fn one(
     track: &Track,
@@ -611,10 +637,22 @@ fn one(
                         }
                         anchor = Anchor::Explicit(*point);
                     }
-                    OverrideOp::Move { from, to, times_ms, source } => {
+                    OverrideOp::Move {
+                        from,
+                        to,
+                        times_ms,
+                        source,
+                    } => {
                         if anchor == Anchor::Default {
-                            let sample = MoveSample::new(*from, *to, move_progress(*times_ms, local_ms, duration_ms)?)?;
-                            anchor = Anchor::Explicit(sample.script_position().map_err(|e| e.with_context(Some(event.id()), Some(*source)))?);
+                            let sample = MoveSample::new(
+                                *from,
+                                *to,
+                                move_progress(*times_ms, local_ms, duration_ms)?,
+                            )?;
+                            anchor =
+                                Anchor::Explicit(sample.script_position().map_err(|e| {
+                                    e.with_context(Some(event.id()), Some(*source))
+                                })?);
                             motion = Some(sample);
                             changes = changes.with_placement().with_animation();
                         }
@@ -625,7 +663,9 @@ fn one(
                             changes = changes.with_rotation_origin();
                         }
                     }
-                    OverrideOp::Fade { alpha, times_ms, .. } => {
+                    OverrideOp::Fade {
+                        alpha, times_ms, ..
+                    } => {
                         if fade.is_none() {
                             fade = Some((*alpha, *times_ms));
                             changes = changes.with_animation().with_event_paint();
@@ -749,13 +789,17 @@ fn one(
     }
     if let Some((alpha, times)) = fade {
         let alpha = fade_alpha(alpha, times, local_ms, duration_ms);
-        for run in &mut runs { *run = run.clone().with_event_fade(alpha); }
+        for run in &mut runs {
+            *run = run.clone().with_event_fade(alpha);
+        }
     }
     let placement = Placement::new(
         &state.clone().with_alignment(event_alignment),
         event.margins(),
         anchor,
-    ).with_origin(origin).with_motion(motion);
+    )
+    .with_origin(origin)
+    .with_motion(motion);
     let evaluated = EvaluatedEvent::new(
         event.id(),
         EventOrder::new(event.layer(), event.id().ordinal()),
@@ -917,10 +961,16 @@ pub(crate) fn evaluate_event_with_policy(
 /// still runs before rendering and enforces policy/errors independently.
 #[cfg(any(test, feature = "native"))]
 pub(crate) fn collision_eligible(event: &Event) -> bool {
-    !event
-        .program()
-        .iter()
-        .any(|operation| matches!(operation, TextOp::Override(OverrideOp::SetPosition { .. } | OverrideOp::Move { .. } | OverrideOp::SetOrigin { .. })))
+    !event.program().iter().any(|operation| {
+        matches!(
+            operation,
+            TextOp::Override(
+                OverrideOp::SetPosition { .. }
+                    | OverrideOp::Move { .. }
+                    | OverrideOp::SetOrigin { .. }
+            )
+        )
+    })
 }
 
 /// Parsed drawing mode controls whether any visible word needs font services.

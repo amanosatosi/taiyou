@@ -652,12 +652,17 @@ impl Renderer {
                     };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
-                let device = DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
+                let device =
+                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
                 // xy's integer effect coordinates belong to layout pixels,
                 // before any separately declared raster-target oversampling.
                 let target_scale = request.viewport.target_scale();
-                let sx = f64::from(device.content().width()) / f64::from(device.play_res().width()) / target_scale[0];
-                let sy = f64::from(device.content().height()) / f64::from(device.play_res().height()) / target_scale[1];
+                let sx = f64::from(device.content().width())
+                    / f64::from(device.play_res().width())
+                    / target_scale[0];
+                let sy = f64::from(device.content().height())
+                    / f64::from(device.play_res().height())
+                    / target_scale[1];
                 let anchor = if collision_count > 1 && state.collision_eligible() {
                     placements
                         .binary_search_by_key(&event.id(), |p| p.id)

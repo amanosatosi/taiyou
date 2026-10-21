@@ -1085,7 +1085,9 @@ impl TrackIngestor {
                                     .checked_sub(1)
                                     .ok_or_else(|| invalid("unmatched transform end"))?;
                             }
-                            OverrideOp::TransformNumber { property, .. } if transforms == 0 && *property != TransformProperty::RotationZ => {
+                            OverrideOp::TransformNumber { property, .. }
+                                if transforms == 0 && *property != TransformProperty::RotationZ =>
+                            {
                                 return Err(invalid("transform target outside transform"));
                             }
                             _ => (),

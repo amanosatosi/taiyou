@@ -16,6 +16,7 @@ jobs:
     env:
       TAIYOU_FOCUSED_RENDERER: '1'
       RUSTUP_TOOLCHAIN: 1.99.1
+      TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-shaping-fonts/latin.otf
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:

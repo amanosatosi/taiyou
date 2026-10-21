@@ -145,10 +145,16 @@ impl PaintSet {
     fn faded(mut self, alpha: i32) -> Self {
         // RTS.cpp CLine::PaintAll uses signed MulDiv, nearest rounding, then
         // BYTE alpha. A nonpositive event transparency leaves paint alone.
-        if alpha <= 0 { return self; }
+        if alpha <= 0 {
+            return self;
+        }
         let apply = |c: Rgba8| {
             let product = i64::from(c.a()) * (255 - i64::from(alpha));
-            let n = if product >= 0 { (product + 127) / 255 } else { -((-product + 127) / 255) };
+            let n = if product >= 0 {
+                (product + 127) / 255
+            } else {
+                -((-product + 127) / 255)
+            };
             Rgba8::new(c.r(), c.g(), c.b(), n.rem_euclid(256) as u8)
         };
         self.primary = apply(self.primary);
@@ -192,9 +198,16 @@ pub struct MoveSample {
     progress: FiniteF64,
 }
 impl MoveSample {
-    pub fn new(from: ScriptPoint, to: ScriptPoint, progress: FiniteF64) -> Result<Self, RenderError> {
+    pub fn new(
+        from: ScriptPoint,
+        to: ScriptPoint,
+        progress: FiniteF64,
+    ) -> Result<Self, RenderError> {
         if !(0.0..=1.0).contains(&progress.get()) {
-            return Err(RenderError::new(ErrorCode::InvalidArgument, "move progress outside interval"));
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "move progress outside interval",
+            ));
         }
         Ok(Self { from, to, progress })
     }
@@ -202,25 +215,56 @@ impl MoveSample {
     /// truncation is deferred until the caller supplies layout scale.
     pub fn script_position(self) -> Result<ScriptPoint, RenderError> {
         let p = self.progress.get();
-        let axis = |a, b| FiniteF64::new((1.0-p)*a + p*b)
-            .map_err(|_| RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow"));
-        Ok(ScriptPoint::new(axis(self.from.x().get(), self.to.x().get())?, axis(self.from.y().get(), self.to.y().get())?))
+        let axis = |a, b| {
+            FiniteF64::new((1.0 - p) * a + p * b).map_err(|_| {
+                RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow")
+            })
+        };
+        Ok(ScriptPoint::new(
+            axis(self.from.x().get(), self.to.x().get())?,
+            axis(self.from.y().get(), self.to.y().get())?,
+        ))
     }
     pub fn position(self, sx: f64, sy: f64) -> Result<ScriptPoint, RenderError> {
+        let from = [
+            ass_coordinate(self.from.x().get(), sx)?,
+            ass_coordinate(self.from.y().get(), sy)?,
+        ];
+        let to = [
+            ass_coordinate(self.to.x().get(), sx)?,
+            ass_coordinate(self.to.y().get(), sy)?,
+        ];
+        // EF_MOVE bypasses interpolation when the quantized CPoints agree.
+        let stationary = from == to;
         let axis = |a: f64, b: f64, scale: f64| {
-            let a = ass_coordinate(a, scale)?;
-            let b = ass_coordinate(b, scale)?;
             let p = self.progress.get();
-            let n = ((1.0-p)*a + p*b).trunc() / (8.0*scale);
-            FiniteF64::new(n).map_err(|_| RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow"))
+            let n = if stationary {
+                a
+            } else {
+                ((1.0 - p) * a + p * b).trunc()
+            } / (8.0 * scale);
+            FiniteF64::new(n).map_err(|_| {
+                RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow")
+            })
         };
-        Ok(ScriptPoint::new(axis(self.from.x().get(), self.to.x().get(), sx)?, axis(self.from.y().get(), self.to.y().get(), sy)?))
+        Ok(ScriptPoint::new(
+            axis(from[0], to[0], sx)?,
+            axis(from[1], to[1], sy)?,
+        ))
     }
 }
 fn ass_coordinate(value: f64, scale: f64) -> Result<f64, RenderError> {
     let n = value * scale * 8.0;
-    if !scale.is_finite() || scale <= 0.0 || !n.is_finite() || n < f64::from(i32::MIN) || n > f64::from(i32::MAX) {
-        return Err(RenderError::new(ErrorCode::LimitExceeded, "ASS eighth-pixel coordinate exceeds native range"));
+    if !scale.is_finite()
+        || scale <= 0.0
+        || !n.is_finite()
+        || n < f64::from(i32::MIN)
+        || n > f64::from(i32::MAX)
+    {
+        return Err(RenderError::new(
+            ErrorCode::LimitExceeded,
+            "ASS eighth-pixel coordinate exceeds native range",
+        ));
     }
     Ok(n.trunc())
 }
@@ -266,8 +310,13 @@ impl Placement {
         self
     }
     pub fn ass_anchor(&self, sx: f64, sy: f64) -> Result<Option<ScriptPoint>, RenderError> {
-        if let Some(motion) = self.motion { return motion.position(sx, sy).map(Some); }
-        match self.anchor { Anchor::Explicit(p) => ass_point(p, sx, sy).map(Some), Anchor::Default => Ok(None) }
+        if let Some(motion) = self.motion {
+            return motion.position(sx, sy).map(Some);
+        }
+        match self.anchor {
+            Anchor::Explicit(p) => ass_point(p, sx, sy).map(Some),
+            Anchor::Default => Ok(None),
+        }
     }
     pub fn ass_origin(&self, sx: f64, sy: f64) -> Result<Option<ScriptPoint>, RenderError> {
         self.origin.map(|p| ass_point(p, sx, sy)).transpose()
