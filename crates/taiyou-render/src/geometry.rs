@@ -195,8 +195,8 @@ pub fn map_outline(
 }
 
 /// Placement is explicit: layout is local and does not infer viewport margins.
-/// An optional host origin is absolute script space. Current Core parsing has no
-/// org operation; None uses the supplied alignment anchor, never invented offsets.
+/// An optional host/ASS origin is absolute script space. None uses the supplied
+/// alignment anchor; parsed org uses the same map for text and drawing geometry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GeometryPlacement {
     pub anchor: ScriptPoint,

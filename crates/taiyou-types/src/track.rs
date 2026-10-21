@@ -678,7 +678,8 @@ pub enum OverrideOp {
     EndTransform {
         source: SourceSpan,
     },
-    /// Raw numeric targets used inside ASS transforms, before field-specific clamps.
+    /// Raw numeric targets before field-specific clamps. Z rotation also uses
+    /// this property outside transforms; older properties keep their typed ops.
     TransformNumber {
         property: TransformProperty,
         value: Option<FiniteF64>,
@@ -752,6 +753,22 @@ pub enum OverrideOp {
         point: crate::ScriptPoint,
         source: SourceSpan,
     },
+    Move {
+        from: crate::ScriptPoint,
+        to: crate::ScriptPoint,
+        times_ms: Option<[i32; 2]>,
+        source: SourceSpan,
+    },
+    SetOrigin {
+        point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    /// Shared xy EF_FADE slot. [-1,in,out,-1] is the fad sentinel.
+    Fade {
+        alpha: [i32; 3],
+        times_ms: [i32; 4],
+        source: SourceSpan,
+    },
     ResetStyle {
         name: Option<Arc<str>>,
         source: SourceSpan,
@@ -782,6 +799,9 @@ impl OverrideOp {
             | Self::SetOpacity { source, .. }
             | Self::SetAlignment { source, .. }
             | Self::SetPosition { source, .. }
+            | Self::Move { source, .. }
+            | Self::SetOrigin { source, .. }
+            | Self::Fade { source, .. }
             | Self::ResetStyle { source, .. } => *source,
         }
     }
@@ -805,6 +825,7 @@ impl OverrideOp {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransformProperty {
+    RotationZ,
     Size,
     ScaleX,
     ScaleY,
@@ -1064,7 +1085,7 @@ impl TrackIngestor {
                                     .checked_sub(1)
                                     .ok_or_else(|| invalid("unmatched transform end"))?;
                             }
-                            OverrideOp::TransformNumber { .. } if transforms == 0 => {
+                            OverrideOp::TransformNumber { property, .. } if transforms == 0 && *property != TransformProperty::RotationZ => {
                                 return Err(invalid("transform target outside transform"));
                             }
                             _ => (),

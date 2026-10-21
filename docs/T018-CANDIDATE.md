@@ -132,3 +132,18 @@ not an exact match; no fixture-specific correction is justified. Its legacy
 YCbCr metadata blocks strict rendering, so these MAEs are explicitly **tolerant
 diagnostic** measurements and never compatibility passes. The focused test also
 checks that the normal embedded-font path reproduces the current diagnostic bytes.
+## Ordinary placement, rotation and fade batch
+
+The source-established follow-up implements move/org/frz/fr/fad/fade through the
+existing evaluator, GeometryMap and paint/composition paths. Reference is the
+local pinterf pfmod 3.2.0.810 RTS.cpp (SHA-256
+`dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`;
+archive/upstream-commit equivalence remains unverified).
+Parser/effect locations: 2090-2125, 2372-2399, 2446-2453, 2552-2605;
+render timing/slot application: 3157-3229; origin collision exclusion: 3257;
+paint alpha MulDiv: 1258-1264, 1287-1294, 1306-1313.
+C3 describes the exact boundaries, shared/separate first-wins slots, native
+coordinate truncation and fade precedence. This admits no x/y rotation, shear,
+clipping, karaoke or anisotropic border/shadow tags. Frozen references and
+comparison arithmetic remain unchanged. No historical pixel-parity claim follows
+from source inspection or the additive tests.

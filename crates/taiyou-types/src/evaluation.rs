@@ -142,6 +142,21 @@ pub struct PaintSet {
     shadow: Rgba8,
 }
 impl PaintSet {
+    fn faded(mut self, alpha: i32) -> Self {
+        // RTS.cpp CLine::PaintAll uses signed MulDiv, nearest rounding, then
+        // BYTE alpha. A nonpositive event transparency leaves paint alone.
+        if alpha <= 0 { return self; }
+        let apply = |c: Rgba8| {
+            let product = i64::from(c.a()) * (255 - i64::from(alpha));
+            let n = if product >= 0 { (product + 127) / 255 } else { -((-product + 127) / 255) };
+            Rgba8::new(c.r(), c.g(), c.b(), n.rem_euclid(256) as u8)
+        };
+        self.primary = apply(self.primary);
+        self.secondary = apply(self.secondary);
+        self.outline = apply(self.outline);
+        self.shadow = apply(self.shadow);
+        self
+    }
     pub fn from_style(s: &Style) -> Self {
         Self {
             primary: s.primary(),
@@ -168,11 +183,57 @@ pub enum Anchor {
     Default,
     Explicit(ScriptPoint),
 }
+/// An absolute-time ASS move sample. Quantize endpoints after viewport scaling,
+/// then truncate interpolation in xy's integer eighth-pixel coordinate system.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MoveSample {
+    from: ScriptPoint,
+    to: ScriptPoint,
+    progress: FiniteF64,
+}
+impl MoveSample {
+    pub fn new(from: ScriptPoint, to: ScriptPoint, progress: FiniteF64) -> Result<Self, RenderError> {
+        if !(0.0..=1.0).contains(&progress.get()) {
+            return Err(RenderError::new(ErrorCode::InvalidArgument, "move progress outside interval"));
+        }
+        Ok(Self { from, to, progress })
+    }
+    /// Logical script position for evaluation without a viewport. Native
+    /// truncation is deferred until the caller supplies layout scale.
+    pub fn script_position(self) -> Result<ScriptPoint, RenderError> {
+        let p = self.progress.get();
+        let axis = |a, b| FiniteF64::new((1.0-p)*a + p*b)
+            .map_err(|_| RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow"));
+        Ok(ScriptPoint::new(axis(self.from.x().get(), self.to.x().get())?, axis(self.from.y().get(), self.to.y().get())?))
+    }
+    pub fn position(self, sx: f64, sy: f64) -> Result<ScriptPoint, RenderError> {
+        let axis = |a: f64, b: f64, scale: f64| {
+            let a = ass_coordinate(a, scale)?;
+            let b = ass_coordinate(b, scale)?;
+            let p = self.progress.get();
+            let n = ((1.0-p)*a + p*b).trunc() / (8.0*scale);
+            FiniteF64::new(n).map_err(|_| RenderError::new(ErrorCode::LimitExceeded, "ASS move coordinate overflow"))
+        };
+        Ok(ScriptPoint::new(axis(self.from.x().get(), self.to.x().get(), sx)?, axis(self.from.y().get(), self.to.y().get(), sy)?))
+    }
+}
+fn ass_coordinate(value: f64, scale: f64) -> Result<f64, RenderError> {
+    let n = value * scale * 8.0;
+    if !scale.is_finite() || scale <= 0.0 || !n.is_finite() || n < f64::from(i32::MIN) || n > f64::from(i32::MAX) {
+        return Err(RenderError::new(ErrorCode::LimitExceeded, "ASS eighth-pixel coordinate exceeds native range"));
+    }
+    Ok(n.trunc())
+}
+fn ass_point(point: ScriptPoint, sx: f64, sy: f64) -> Result<ScriptPoint, RenderError> {
+    MoveSample::new(point, point, FiniteF64::ZERO)?.position(sx, sy)
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Placement {
     alignment: Alignment,
     margins: Margins,
     anchor: Anchor,
+    origin: Option<ScriptPoint>,
+    motion: Option<MoveSample>,
 }
 impl Placement {
     pub fn new(style: &Style, event_margins: Margins, anchor: Anchor) -> Self {
@@ -180,6 +241,8 @@ impl Placement {
             alignment: style.alignment(),
             margins: event_margins.inherit(style.margins()),
             anchor,
+            origin: None,
+            motion: None,
         }
     }
     pub const fn alignment(&self) -> Alignment {
@@ -192,10 +255,25 @@ impl Placement {
         self.anchor
     }
     pub const fn origin(&self) -> Option<ScriptPoint> {
-        None
+        self.origin
+    }
+    pub fn with_origin(mut self, origin: Option<ScriptPoint>) -> Self {
+        self.origin = origin;
+        self
+    }
+    pub fn with_motion(mut self, motion: Option<MoveSample>) -> Self {
+        self.motion = motion;
+        self
+    }
+    pub fn ass_anchor(&self, sx: f64, sy: f64) -> Result<Option<ScriptPoint>, RenderError> {
+        if let Some(motion) = self.motion { return motion.position(sx, sy).map(Some); }
+        match self.anchor { Anchor::Explicit(p) => ass_point(p, sx, sy).map(Some), Anchor::Default => Ok(None) }
+    }
+    pub fn ass_origin(&self, sx: f64, sy: f64) -> Result<Option<ScriptPoint>, RenderError> {
+        self.origin.map(|p| ass_point(p, sx, sy)).transpose()
     }
     pub fn collision_eligible(&self) -> bool {
-        self.anchor == Anchor::Default
+        self.anchor == Anchor::Default && self.origin.is_none()
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -237,6 +315,15 @@ impl ChangeClass {
     }
     pub fn with_animation(mut self) -> Self {
         self.temporal = true;
+        self
+    }
+    pub fn with_event_paint(mut self) -> Self {
+        self.paint = true;
+        self
+    }
+    pub fn with_rotation_origin(mut self) -> Self {
+        self.geometry = true;
+        self.placement = true;
         self
     }
     pub fn union(self, b: Self) -> Self {
@@ -307,6 +394,10 @@ pub struct EvaluatedRun {
     decoded: Option<DecodedSpan>,
 }
 impl EvaluatedRun {
+    pub fn with_event_fade(mut self, alpha: i32) -> Self {
+        self.paint = self.paint.faded(alpha);
+        self
+    }
     /// Literal spans are exact. Decoded C2 unit escapes use the containing event
     /// span, never invented offsets into decoded text. T009 must preserve that map.
     pub fn new(text: Arc<str>, source: SourceSpan, style: &Style) -> Self {

@@ -259,6 +259,17 @@ fn block(
         } else {
             raw
         };
+        // xy stores placement/origin/fade as event effects, even inside t.
+        match event_effect(raw, span) {
+            Ok(Some(op)) => {
+                if let Some(op) = op {
+                    push(program, TextOp::Override(op), ctx.options.limits().text_bytes_per_event())?;
+                }
+                continue;
+            }
+            Err(error) => { ctx.recover(error, Some(event), span)?; continue; }
+            Ok(None) => (),
+        }
         if !parents.is_empty() {
             let suffix = decode::trim(raw.split_once('(').map_or(raw, |(s, _)| s));
             if (suffix.starts_with('b')
@@ -540,11 +551,55 @@ fn unsupported_name(raw: &str) -> &str {
         .count();
     &raw[..name_end]
 }
+// RTS.cpp 2090-2125 skips empty comma parameters; effect cases accept only
+// their listed arities and otherwise do nothing (no occupied first-wins slot).
+fn event_effect(raw: &str, source: SourceSpan) -> Result<Option<Option<OverrideOp>>, ParseError> {
+    let Some(name) = ["move", "org", "pos", "fade", "fad"].into_iter().find(|n| raw.starts_with(*n)) else { return Ok(None); };
+    let Some((_, body)) = raw.split_once('(') else { return Ok(Some(None)); };
+    let body = body.split_once(')').map_or(body, |(b, _)| b);
+    let mut params = [""; 7];
+    let mut count = 0;
+    for value in body.split(',').map(decode::trim).filter(|p| !p.is_empty()) {
+        if count == params.len() { return Ok(Some(None)); }
+        params[count] = value;
+        count += 1;
+    }
+    let integer = |value: &str| -> Result<i32, ParseError> {
+        let value = value.trim_start_matches([' ', '\t', '\r', '\n']);
+        let sign = usize::from(value.starts_with(['+', '-']));
+        let end = sign + value.as_bytes()[sign..].iter().take_while(|b| b.is_ascii_digit()).count();
+        let n = if end == sign { 0.0 } else { blur_number(&value[..end])? };
+        if n < f64::from(i32::MIN) || n > f64::from(i32::MAX) {
+            return Err(ParseError::new(ErrorCode::LimitExceeded, "ASS effect integer exceeds native range"));
+        }
+        Ok(n as i32)
+    };
+    let point = |i| -> Result<ScriptPoint, ParseError> {
+        Ok(ScriptPoint::new(FiniteF64::new(blur_number(params[i])?)?, FiniteF64::new(blur_number(params[i+1])?)?))
+    };
+    let op = match (name, count) {
+        ("pos", 2) => OverrideOp::SetPosition { point: point(0)?, source },
+        ("org", 2) => OverrideOp::SetOrigin { point: point(0)?, source },
+        ("move", 4 | 6) => OverrideOp::Move { from: point(0)?, to: point(2)?, times_ms: if count == 6 { Some([integer(params[4])?, integer(params[5])?]) } else { None }, source },
+        ("fad" | "fade", 2) => OverrideOp::Fade { alpha: [255, 0, 255], times_ms: [-1, integer(params[0])?, integer(params[1])?, -1], source },
+        ("fad" | "fade", 7) => OverrideOp::Fade { alpha: [integer(params[0])?, integer(params[1])?, integer(params[2])?], times_ms: [integer(params[3])?, integer(params[4])?, integer(params[5])?, integer(params[6])?], source },
+        _ => return Ok(Some(None)),
+    };
+    Ok(Some(Some(op)))
+}
+
 fn parse(
     raw: &str,
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    if !raw.starts_with("frx") && !raw.starts_with("fry") {
+        if let Some(suffix) = raw.strip_prefix("frz").or_else(|| raw.strip_prefix("fr")) {
+            let value = decode::trim(suffix.split_once('(').map_or(suffix, |(s, _)| s));
+            return Ok(Some(OverrideOp::TransformNumber { property: TransformProperty::RotationZ,
+                value: if value.is_empty() { None } else { Some(FiniteF64::new(blur_number(value)?)?) }, relative: false, source }));
+        }
+    }
     for (name, baseline) in [("pbo", true), ("p", false)] {
         if name == "p" && raw.starts_with("pos") {
             continue;
@@ -623,7 +678,7 @@ fn parse(
     }
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "warpmode", "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c",
+        "warpmode", "fscx", "fscy", "alpha", "bord", "shad", "fsp", "1c", "2c", "3c", "4c",
         "1a", "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
@@ -734,19 +789,6 @@ fn parse(
             .map_err(|_| invalid("alignment must be 1..9"))?,
             source,
         },
-        "pos" => {
-            let value = value
-                .strip_prefix('(')
-                .map(|v| v.strip_suffix(')').unwrap_or(v))
-                .ok_or_else(|| invalid("pos requires (x,y)"))?;
-            let (x, y) = value
-                .split_once(',')
-                .ok_or_else(|| invalid("pos requires two coordinates"))?;
-            OverrideOp::SetPosition {
-                point: ScriptPoint::new(decode::number(x)?, decode::number(y)?),
-                source,
-            }
-        }
         "c" | "1c" | "2c" | "3c" | "4c" => OverrideOp::SetPaint {
             channel: channel(name),
             color: Rgba8::from_ass(hex(value, 6)?),

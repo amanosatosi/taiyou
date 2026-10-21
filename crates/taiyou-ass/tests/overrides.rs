@@ -186,17 +186,17 @@ fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
 }
 
 #[test]
-fn overrides_unknown_drawing_and_animated_tags_remain_ordered_unsupported() {
-    let parsed = parse(r"{\mystery42(1,2)\move(0,0,1,1)\org(0,0)}A");
+fn overrides_unknown_tags_remain_ordered_unsupported() {
+    let parsed = parse(r"{\mystery42(1,2)\frx(10)\clip(0,0,1,1)}A");
     let ops = parsed.track().events()[0].program();
     assert_eq!(ops.len(), 4);
     assert!(
         matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "mystery42" && source.slice(parsed.track().source()) == Some(r"\mystery42(1,2)"))
     );
     assert!(
-        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "move" && source.slice(parsed.track().source()) == Some(r"\move(0,0,1,1)"))
+        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "frx" && source.slice(parsed.track().source()) == Some(r"\frx(10)"))
     );
-    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "org"));
+    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "clip"));
     assert_eq!(
         parsed
             .diagnostics()
@@ -215,13 +215,11 @@ fn overrides_invalid_parameters_diagnose_without_setting_state() {
         r"\fs1e2",
         r"\fscx-1",
         r"\an0",
-        r"\pos(1,2,3)",
         r"\c&H1234567&",
         r"\alpha&H123&",
         r"\fn",
         r"\b2",
         r"\i2",
-        r"\pos(1e2,0)",
         r"\fs",
         r"\i",
     ] {

@@ -652,6 +652,12 @@ impl Renderer {
                     };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
+                let device = DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
+                // xy's integer effect coordinates belong to layout pixels,
+                // before any separately declared raster-target oversampling.
+                let target_scale = request.viewport.target_scale();
+                let sx = f64::from(device.content().width()) / f64::from(device.play_res().width()) / target_scale[0];
+                let sy = f64::from(device.content().height()) / f64::from(device.play_res().height()) / target_scale[1];
                 let anchor = if collision_count > 1 && state.collision_eligible() {
                     placements
                         .binary_search_by_key(&event.id(), |p| p.id)
@@ -660,6 +666,8 @@ impl Renderer {
                         .ok_or_else(|| {
                             RenderError::new(ErrorCode::InternalError, "missing eligible placement")
                         })?
+                } else if let Some(point) = state.ass_anchor(sx, sy)? {
+                    point
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
@@ -671,9 +679,7 @@ impl Renderer {
                 let geom_limits = available(limits, held)?
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
-                let device =
-                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
-                let origin = local.shaped().placement().origin();
+                let origin = state.ass_origin(sx, sy)?;
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
