@@ -113,6 +113,22 @@ pub(crate) fn rasterize(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
+    rasterize_impl(ops,rx,ry,remaining,limits,false)
+}
+/// Same supplied geometry, historical scan conversion and native overlay bounds.
+/// This is not an A8-to-64 conversion of an already rasterized mask.
+pub(crate) fn rasterize_body(ops:&[PathOp<DevicePoint>],limits:&Limits)->Result<Arc<Mask>,RenderError> {
+    rasterize_impl(ops,Q6::from_ticks(0),Q6::from_ticks(0),limits.path_segments_per_frame(),limits,true).map(|(mask,_)|mask)
+}
+fn rasterize_impl(ops:&[PathOp<DevicePoint>],rx:Q6,ry:Q6,remaining:u64,limits:&Limits,xy:bool)->Result<(Arc<Mask>,u64),RenderError> {
+    check_path_budget(ops.len(),limits)?;
+    if rx.ticks()<0 || ry.ticks()<0 {return Err(RenderError::new(ErrorCode::InvalidArgument,"negative span widening"));}
+    let mut hull:Option<(i64,i64,i64,i64)>=None;
+    for &op in ops {op.try_map(|p| {
+        let (x,y)=(i64::from(p.x().ticks()),i64::from(p.y().ticks()));
+        hull=Some(hull.map_or((x,y,x,y),|(a,b,c,d)|(a.min(x),b.min(y),c.max(x),d.max(y))));Ok(p)
+    })?;}
+    if hull.is_some_and(|(a,b,c,d)| c-a>i64::from(limits.max_dimension())*64 || d-b>i64::from(limits.max_dimension())*64) {return Err(limit());}
     let mut edges = Vec::new();
     let mut prev = (0.0, 0.0);
     let mut first = prev;
@@ -231,15 +247,23 @@ pub(crate) fn rasterize(
             count,
         ));
     }
-    let x0 = wide
+    let mut x0 = wide
         .iter()
         .map(|s| s.left)
         .min()
         .ok_or_else(limit)?
         .div_euclid(8);
-    let y0 = wide[0].y.div_euclid(8);
-    let x1 = -(-wide.iter().map(|s| s.right).max().ok_or_else(limit)?).div_euclid(8);
-    let y1 = (wide.last().ok_or_else(limit)?.y).div_euclid(8) + 1;
+    let mut y0 = wide[0].y.div_euclid(8);
+    let mut x1 = -(-wide.iter().map(|s| s.right).max().ok_or_else(limit)?).div_euclid(8);
+    let mut y1 = (wide.last().ok_or_else(limit)?.y).div_euclid(8) + 1;
+    if xy {
+        // AlignLeftTop rounds the control hull out in eighth units and includes
+        // one extra eighth; Rasterize then includes its extra right/bottom pixel.
+        let (a,b,c,d)=hull.ok_or_else(limit)?;
+        x0=a.div_euclid(64);y0=b.div_euclid(64);
+        let end=|n:i64| {let eighth=-(-n).div_euclid(8); -(-(eighth+1)).div_euclid(8)+1};
+        x1=end(c);y1=end(d);
+    }
     let bounds = PixelRect::new(
         i32::try_from(x0).map_err(|_| limit())?,
         i32::try_from(y0).map_err(|_| limit())?,
@@ -279,14 +303,15 @@ pub(crate) fn rasterize(
                 .ok_or_else(limit)?;
         }
     }
-    for v in &mut data {
+    if !xy {for v in &mut data {
         *v = ((u16::from(*v) * 255 + 32) / 64) as u8;
-    }
+    }}
     let work = count.checked_add(wide.len() as u64).ok_or_else(limit)?;
     if work > remaining {
         return Err(limit());
     }
-    Ok((Arc::new(Mask::new(bounds, stride, data.into())?), work))
+    let mask=if xy {Mask::new_xy(bounds,stride,data.into())} else {Mask::new(bounds,stride,data.into())}?;
+    Ok((Arc::new(mask), work))
 }
 
 #[cfg(test)]

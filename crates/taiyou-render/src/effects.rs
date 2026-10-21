@@ -233,7 +233,7 @@ fn gaussian(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, 
             output[y * w + x] = (sum + 0.5).floor().clamp(0.0, 255.0) as u8;
         }
     }
-    Ok(Arc::new(Mask::new(bounds, w, output.into())?))
+    Ok(Arc::new(mask.with_data(bounds, w, output.into())?))
 }
 
 fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, RenderError> {
@@ -308,5 +308,5 @@ fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, Rend
             std::mem::swap(&mut data, &mut scratch);
         }
     }
-    Ok(Arc::new(Mask::new(bounds, w, data.into())?))
+    Ok(Arc::new(mask.with_data(bounds, w, data.into())?))
 }

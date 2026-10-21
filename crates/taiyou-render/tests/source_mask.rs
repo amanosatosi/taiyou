@@ -1,0 +1,66 @@
+//! Identical geometry controls: no font matching, shaping or blur parameter tuning.
+#![cfg(feature = "native")]
+use std::sync::Arc;
+use taiyou_render::{geometry::*,raster::*,effects::{apply_effects,BlurSpec}};
+use taiyou_types::*;
+fn f(x:f64)->FiniteF64 {FiniteF64::new(x).unwrap()}
+fn p(x:f64,y:f64)->FontPoint {FontPoint::new(x,-y).unwrap()}
+fn rectangle(x:f64,y:f64,w:f64,h:f64)->Vec<PathOp<FontPoint>> {
+    vec![PathOp::MoveTo(p(x,y)),PathOp::LineTo(p(x+w,y)),PathOp::LineTo(p(x+w,y+h)),PathOp::LineTo(p(x,y+h)),PathOp::Close]
+}
+fn group(ops:Vec<PathOp<FontPoint>>)->CoverageGroup {
+    let limits=Limits::default();
+    let mapping=GeometryMap::new((f(1.0),f(1.0)),ScriptPoint::new(f(0.0),f(0.0)),ScriptPoint::new(f(0.0),f(0.0)),None,f(0.0),DeviceMapping::new(Size::new(1,1),PixelRect::new(0,0,1,1).unwrap()).unwrap()).unwrap();
+    let instance=map_outline(Arc::new(Outline::new(ops,&limits).unwrap()),mapping,&limits).unwrap();
+    CoverageGroup::new(vec![instance],CoveragePass::Fill,Profile::CoreV1,&limits).unwrap()
+}
+fn scan(ops:Vec<PathOp<FontPoint>>)->Arc<Mask> {rasterize_xy(&mut RasterContext::new().unwrap(),&group(ops)).unwrap()}
+#[test]
+fn identical_fractional_rectangle_proves_raster_difference_before_fonts_or_filters(){
+    let g=group(rectangle(1.0/16.0,0.0,1.0,1.0));
+    let mut context=RasterContext::new().unwrap();
+    let ft=rasterize(&mut context,&g).unwrap();
+    let xy=rasterize_xy(&mut context,&g).unwrap();
+    // ScanLineData samples eighth rows, rounds crossings to eighth columns.
+    // A half-eighth left edge rounds up: seven covered cells plus one next pixel.
+    assert_eq!(xy.bounds(),PixelRect::new(0,0,3,3).unwrap());
+    assert_eq!(xy.data(),[56,8,0,0,0,0,0,0,0]);
+    assert!(xy.is_xy_coverage());
+    assert_eq!(ft.data(),[240,16]);
+    assert_eq!(xy.coverage_a8_at(0,0,PixelOffset::default()),223);
+    assert_ne!(ft.coverage_at(0,0,PixelOffset::default()),xy.coverage_a8_at(0,0,PixelOffset::default()));
+    println!("IDENTICAL_PATH_CONTROL ft={:?} xy64={:?} xy_bounds={:?}",ft.data(),xy.data(),xy.bounds());
+}
+#[test]
+fn native_overlay_bounds_nonzero_winding_edge_inclusion_and_translation(){
+    let a=scan(rectangle(0.0,0.0,1.0,1.0));
+    assert_eq!(a.bounds(),PixelRect::new(0,0,3,3).unwrap());
+    assert_eq!(a.data(),[64,0,0,0,0,0,0,0,0]);
+    let mut union=rectangle(0.0,0.0,1.0,1.0);union.extend(rectangle(0.0,0.0,1.0,1.0));
+    assert_eq!(scan(union).data(),a.data());
+    let mut hole=rectangle(0.0,0.0,3.0,3.0);
+    hole.extend([PathOp::MoveTo(p(1.0,1.0)),PathOp::LineTo(p(1.0,2.0)),PathOp::LineTo(p(2.0,2.0)),PathOp::LineTo(p(2.0,1.0)),PathOp::Close]);
+    let mask=scan(hole);assert_eq!(mask.coverage_at(1,1,PixelOffset::default()),0);assert_eq!(mask.coverage_at(0,1,PixelOffset::default()),64);
+    let triangle=scan(vec![PathOp::MoveTo(p(0.0,0.0)),PathOp::LineTo(p(1.0,0.0)),PathOp::LineTo(p(0.0,1.0)),PathOp::Close]);
+    // Diagonal crossings at half-columns round up. 8+7+...+1 eighth cells.
+    assert_eq!(triangle.data()[0],36);
+    for (x,y) in [(0.125,0.0),(0.0,0.125),(0.5,0.5),(-3.875,-2.5)] {
+        let one=scan(rectangle(x,y,1.0,1.0));let two=scan(rectangle(x-7.0,y+3.0,1.0,1.0));
+        assert_eq!(one.data(),two.data());assert_eq!(one.data(),scan(rectangle(x,y,1.0,1.0)).data());
+        assert_eq!(one.data().iter().map(|&v|u32::from(v)).sum::<u32>(),64);
+    }
+}
+#[test]
+fn be_uses_native_scan_units_until_paint_conversion(){
+    let source=scan(rectangle(0.0,0.0,1.0,1.0));
+    for strength in [1.0,2.0,4.0,8.0,16.0] {
+        let spec=BlurSpec::new(f(0.0),f(strength),[1.0,1.0],&Limits::default()).unwrap();
+        let filtered=apply_effects(&source,&spec,&Limits::default()).unwrap();
+        assert!(filtered.is_xy_coverage());assert!(filtered.data().iter().all(|&v|v<=64));
+        assert_eq!(source.data()[0],64);
+        assert_eq!(filtered.data(),apply_effects(&source,&spec,&Limits::default()).unwrap().data());
+        if strength==1.0 {assert_eq!(filtered.coverage_at(0,0,PixelOffset::default()),16);assert_eq!(filtered.coverage_a8_at(0,0,PixelOffset::default()),64);}
+        println!("NATIVE_BE strength={strength} bounds={:?} sum={}",filtered.bounds(),filtered.data().iter().map(|&v|u64::from(v)).sum::<u64>());
+    }
+    assert_eq!(Mask::new_xy(PixelRect::new(0,0,1,1).unwrap(),1,Arc::from([65])).unwrap_err().code(),ErrorCode::InvalidArgument);
+}

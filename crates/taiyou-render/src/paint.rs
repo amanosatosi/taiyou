@@ -12,6 +12,15 @@ pub fn mul255(x: u8, y: u8) -> u8 {
 pub fn blend_pixel(dst: &mut [u8; 4], paint: Rgba8, mask: u8, clip: u8) {
     let coverage = mul255(mask, clip);
     let alpha = mul255(paint.a(), coverage);
+    blend_alpha(dst,paint,alpha);
+}
+/// Rasterizer.cpp FillAlphaMashBody_c: paint alpha is multiplied in native
+/// coverage units after Gaussian/BE truncation. Keep ordinary A8 callers intact.
+pub(crate) fn blend_xy_pixel(dst:&mut [u8;4],paint:Rgba8,mask:u8,clip:u8) {
+    let alpha=((u32::from(mask)*u32::from(paint.a())+32)>>6) as u8;
+    blend_alpha(dst,paint,mul255(alpha,clip));
+}
+fn blend_alpha(dst:&mut [u8;4],paint:Rgba8,alpha:u8) {
     let source = [
         mul255(paint.r(), alpha),
         mul255(paint.g(), alpha),

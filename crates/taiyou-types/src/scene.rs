@@ -18,16 +18,33 @@ fn render_invalid(detail: &str) -> RenderError {
     RenderError::new(ErrorCode::InvalidArgument, detail)
 }
 
-/// Immutable A8 coverage. Padding is initialized zero, bounds are half-open and
+/// Immutable byte coverage. The ordinary constructor uses A8; xy scan coverage
+/// retains its native 0..64 units through filtering. Padding is initialized zero,
+/// bounds are half-open and
 /// may have negative origins. Canonical empty masks have zero width/height/stride.
 #[derive(Clone, Debug)]
 pub struct Mask {
     bounds: PixelRect,
     stride: usize,
     data: Arc<[u8]>,
+    xy_units: bool,
 }
 impl Mask {
     pub fn new(bounds: PixelRect, stride: usize, data: Arc<[u8]>) -> Result<Self, RenderError> {
+        Self::construct(bounds, stride, data, false)
+    }
+    /// Source-derived eighth-grid coverage, not quantized FreeType A8 samples.
+    pub fn new_xy(bounds: PixelRect, stride: usize, data: Arc<[u8]>) -> Result<Self, RenderError> {
+        Self::construct(bounds, stride, data, true)
+    }
+    /// Publish another immutable plane in the same coverage units.
+    pub fn with_data(&self, bounds: PixelRect, stride: usize, data: Arc<[u8]>) -> Result<Self, RenderError> {
+        Self::construct(bounds, stride, data, self.xy_units)
+    }
+    fn construct(bounds: PixelRect, stride: usize, data: Arc<[u8]>, xy_units: bool) -> Result<Self, RenderError> {
+        if xy_units && data.iter().any(|&v| v > 64) {
+            return Err(render_invalid("xy coverage exceeds 64"));
+        }
         let width = usize::try_from(bounds.width())
             .map_err(|_| render_invalid("mask width conversion overflow"))?;
         let height = usize::try_from(bounds.height())
@@ -53,7 +70,14 @@ impl Mask {
             bounds,
             stride,
             data,
+            xy_units,
         })
+    }
+    pub const fn is_xy_coverage(&self) -> bool { self.xy_units }
+    /// A8 conversion is after filtering, never before integer BE passes.
+    pub fn coverage_a8_at(&self, x:i64, y:i64, offset:PixelOffset)->u8 {
+        let value=self.coverage_at(x,y,offset);
+        if self.xy_units { ((u32::from(value)*255+32)>>6) as u8 } else {value}
     }
     pub const fn bounds(&self) -> PixelRect {
         self.bounds
@@ -162,7 +186,7 @@ impl ResolvedClip {
                 offset,
                 inverse,
             } => {
-                let coverage = mask.coverage_at(x, y, *offset);
+                let coverage = mask.coverage_a8_at(x, y, *offset);
                 if *inverse { 255 - coverage } else { coverage }
             }
         }
