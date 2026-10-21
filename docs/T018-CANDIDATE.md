@@ -275,3 +275,36 @@ are remaining feature limitations, not successful visual comparisons. The frozen
 The final per-line translucent-box overlap regression also passed in
 [39686721095](https://github.com/amanosatosi/taiyou/actions/runs/39686721095)
 at `7c5f1af73febf2f1c09b06f73f43a8245027bbdc`, with the same 20-case outcomes.
+
+## Source-mask correction
+
+[Identical-path Actions 39688011319](https://github.com/amanosatosi/taiyou/actions/runs/39688011319)
+at `8c8a08eccde68df9b2be3f595bf772af1bbbb40e` separates geometry from coverage:
+the very same one-pixel rectangle with a 1/16-pixel X edge produces FreeType A8
+`[240,16]`, versus xy's eighth-crossing accumulation `[56,8]` in native 0..64
+units (`[223,32]` only after conversion). A diagonal triangle independently
+exercises the half-column inclusion rule (36 covered eighth cells, not analytic
+half-area). Both results precede fonts or blur. Native allocation includes the
+extra eighth-unit extent and right/bottom pixel; integer BE preserves its actual
+small padding and untouched edges. These differences cannot be fixed by changing
+Gaussian sigma or BE coefficients.
+
+The renderer now independently scan-converts supplied contours, preserving raw
+0..64 coverage until filtering and paint-alpha conversion. This is not an A8
+quantization shim. Shared fill, shadow and opaque-box paths use it; existing
+FreeType stroke contours are also exported as owned paths and passed through it.
+The FreeType outline/stroker geometry is not claimed equivalent to GDI outlines
+or xy's span-region widening. Independent saved GDI observations (run 39454311798,
+artifact 12279509017, exact digest checked by `source-paths.py`) measure that
+remaining geometry difference separately on period/plus/paragraph, at multiple
+phases and BE strengths. No authenticated xy-render capture is claimed.
+
+The owner explicitly authorized replacing only the first-render C oracle's
+disproven FreeType A8 assumption. Its font metrics, outline geometry, ten
+alignment/offscreen placements and C6 blending checks remain independent and
+unchanged. The C oracle implements row sampling/nonzero winding independently
+of the production edge/span implementation and does not call it. Separate
+FreeType-specific raster stage tests remain intact. Rasterizer.cpp source:
+AlignLeftTop 3071–3100; ScanLineData 3112–3358; Rasterize 789–885;
+FillAlphaMashBody_c 2320–2334 (file hash above). Frozen corpus images, metrics,
+tolerances, classifications and the libass oracle are unchanged.
