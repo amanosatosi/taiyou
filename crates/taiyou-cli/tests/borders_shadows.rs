@@ -33,7 +33,7 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
         ass(
             2,
             2,
-            r"{\bord2.5\shad-1.5\3c&H0000FF&\4c&HFF0000&\3a&H20&\4a&H40&\alpha&H10&\1a&HFF&}H",
+            r"{\bord2.5\xshad-1.5\yshad-1.5\3c&H0000FF&\4c&HFF0000&\3a&H20&\4a&H40&\alpha&H10&\1a&HFF&}H",
         ),
     )
     .unwrap();

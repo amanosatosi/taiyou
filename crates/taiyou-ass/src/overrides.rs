@@ -380,7 +380,7 @@ fn block(
                     ctx.options.limits().text_bytes_per_event(),
                 )?;
             }
-            Ok(None) if raw.starts_with("clip")||raw.starts_with("iclip") => {},
+            Ok(None) if raw.starts_with("clip") || raw.starts_with("iclip") => {}
             Ok(None) => {
                 let name = unsupported_name(raw);
                 push(
@@ -566,10 +566,19 @@ fn alpha_number(value: &str) -> Result<Option<i32>, ParseError> {
         (if negative { -n } else { n }).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
     ))
 }
-fn decimal_prefix(value:&str)->Result<f64,ParseError> {
-    let value=value.trim_start();let sign=usize::from(value.starts_with(['+','-']));
-    let end=sign+value.as_bytes()[sign..].iter().take_while(|b|b.is_ascii_digit()).count();
-    if end==sign {Ok(0.0)}else{blur_number(&value[..end])}
+fn decimal_prefix(value: &str) -> Result<f64, ParseError> {
+    let value = value.trim_start();
+    let sign = usize::from(value.starts_with(['+', '-']));
+    let end = sign
+        + value.as_bytes()[sign..]
+            .iter()
+            .take_while(|b| b.is_ascii_digit())
+            .count();
+    if end == sign {
+        Ok(0.0)
+    } else {
+        blur_number(&value[..end])
+    }
 }
 fn unsupported_name(raw: &str) -> &str {
     // Preserve the tag identity for known, deliberately unsupported static
@@ -717,9 +726,14 @@ fn parse(
             return Ok(None);
         };
         let body = body.split_once(')').map_or(body, |(b, _)| b);
-        let mut params=["";4];let mut count=0;
-        for p in body.split(',').map(decode::trim).filter(|s|!s.is_empty()) {
-            if count==params.len(){return Ok(None)}params[count]=p;count+=1;
+        let mut params = [""; 4];
+        let mut count = 0;
+        for p in body.split(',').map(decode::trim).filter(|s| !s.is_empty()) {
+            if count == params.len() {
+                return Ok(None);
+            }
+            params[count] = p;
+            count += 1;
         }
         return Ok(match &params[..count] {
             [a, b, c, d] => Some(OverrideOp::ClipRect {

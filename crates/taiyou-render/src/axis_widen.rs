@@ -82,7 +82,7 @@ fn curve(
     } else {
         1.0
     };
-    let sample = |t:f64| {
+    let sample = |t: f64| {
         (
             (x[0] + t * (x[1] + t * (x[2] + t * x[3]))).trunc(),
             (y[0] + t * (y[1] + t * (y[2] + t * y[3]))).trunc(),

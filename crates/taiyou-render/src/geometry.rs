@@ -82,15 +82,24 @@ impl GeometryMap {
         ];
         self
     }
-    pub fn with_shear_offset(mut self,offset:FontPoint)->Self {self.shear_offset=offset;self}
+    pub fn with_shear_offset(mut self, offset: FontPoint) -> Self {
+        self.shear_offset = offset;
+        self
+    }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
         // Font y-up conversion occurs exactly once, before rotation and viewport.
         let [rx, ry, fx, fy] = self.projection.map(FiniteF64::get);
         // Shear acts on the word's native coordinates before scale/rotation;
         // changing the rotation origin must not change the shear itself.
-        let x = (p.x().get()+fx*(-p.y().get()+self.shear_offset.y().get())) * self.scale.0.get() + self.position.x().get() + self.anchor.x().get()
+        let x = (p.x().get() + fx * (-p.y().get() + self.shear_offset.y().get()))
+            * self.scale.0.get()
+            + self.position.x().get()
+            + self.anchor.x().get()
             - self.origin.x().get();
-        let y = (-p.y().get()+fy*(p.x().get()+self.shear_offset.x().get())) * self.scale.1.get() + self.position.y().get() + self.anchor.y().get()
+        let y = (-p.y().get() + fy * (p.x().get() + self.shear_offset.x().get()))
+            * self.scale.1.get()
+            + self.position.y().get()
+            + self.anchor.y().get()
             - self.origin.y().get();
         finite(x)?;
         finite(y)?;
@@ -119,7 +128,9 @@ impl GeometryMap {
 /// RTS.cpp CWord::Transform: Z, X, Y, then perspective. Native paths use
 /// 64 units/pixel: the source 20000/1000 constants become 312.5/15.625.
 pub(crate) fn project_3d(x: f64, y: f64, rx: f64, ry: f64) -> Result<(f64, f64), RenderError> {
-    if rx.rem_euclid(360.0)==0.0&&ry.rem_euclid(360.0)==0.0 {return Ok((x,y));}
+    if rx.rem_euclid(360.0) == 0.0 && ry.rem_euclid(360.0) == 0.0 {
+        return Ok((x, y));
+    }
     let trig = |a: f64| match a.rem_euclid(360.0) {
         0.0 => (0.0, 1.0),
         90.0 => (1.0, 0.0),
@@ -302,8 +313,8 @@ pub fn geometry(
     }
     let mut glyphs = Vec::new();
     let mut items = Vec::new();
-    let mut word_key=None;
-    let mut word_advance=0.0;
+    let mut word_key = None;
+    let mut word_advance = 0.0;
     items.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
@@ -362,10 +373,15 @@ pub fn geometry(
             continue;
         }
         let glyph = &run.glyphs()[positioned.glyph_index()];
-        let start=positioned.cluster().start() as usize;
-        let word_start=layout.shaped().source_map().text()[..start].rfind([' ','\n']).map_or(0,|i|i+1);
-        let key=(positioned.association_index(),word_start);
-        if word_key!=Some(key){word_key=Some(key);word_advance=0.0;}
+        let start = positioned.cluster().start() as usize;
+        let word_start = layout.shaped().source_map().text()[..start]
+            .rfind([' ', '\n'])
+            .map_or(0, |i| i + 1);
+        let key = (positioned.association_index(), word_start);
+        if word_key != Some(key) {
+            word_key = Some(key);
+            word_advance = 0.0;
+        }
         let blob = catalog
             .faces()
             .iter()
@@ -452,7 +468,9 @@ pub fn geometry(
                 )
                 .ok_or_else(geometry_limit)?;
             if charge > limits.transient_bytes() {
-                return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
             }
             let mut decorated = Vec::new();
             decorated
@@ -486,10 +504,13 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(decorated, limits)?);
         }
-        let (_,win_ascent,_)=catalog.ass_cell_metrics(blob.id()).map_err(font_error)?;
-        let ascent=(f64::from(win_ascent)*size*64.0+0.5).floor()/64.0;
-        let mapping=mapping.with_shear_offset(FontPoint::new((word_advance+glyph.offset_x().get())/size,(ascent-glyph.offset_y().get())/size)?);
-        word_advance+=glyph.advance_x().get();
+        let (_, win_ascent, _) = catalog.ass_cell_metrics(blob.id()).map_err(font_error)?;
+        let ascent = (f64::from(win_ascent) * size * 64.0 + 0.5).floor() / 64.0;
+        let mapping = mapping.with_shear_offset(FontPoint::new(
+            (word_advance + glyph.offset_x().get()) / size,
+            (ascent - glyph.offset_y().get()) / size,
+        )?);
+        word_advance += glyph.advance_x().get();
         finite(word_advance)?;
         let mapped = map_outline(path, mapping, limits)?;
         items.push(GeometryItem {

@@ -831,18 +831,14 @@ fn one(
                         };
                     }
                     OverrideOp::SetShadow { offset, .. } => {
-                        state = if animation.depth == 0 {
-                            state.with_shadow(*offset)
-                        } else {
-                            animate_number(
+                        state = animate_number(
                                 state,
                                 base,
                                 TransformProperty::Shadow,
                                 Some(*offset),
                                 false,
                                 &animation,
-                            )?
-                        };
+                            )?;
                     }
                     OverrideOp::SetAlignment { alignment, .. } => {
                         if !alignment_seen {

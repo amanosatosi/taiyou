@@ -143,7 +143,48 @@ Parser/effect locations: 2090-2125, 2372-2399, 2446-2453, 2552-2605;
 render timing/slot application: 3157-3229; origin collision exclusion: 3257;
 paint alpha MulDiv: 1258-1264, 1287-1294, 1306-1313.
 C3 describes the exact boundaries, shared/separate first-wins slots, native
-coordinate truncation and fade precedence. This admits no x/y rotation, shear,
-clipping, karaoke or anisotropic border/shadow tags. Frozen references and
+coordinate truncation and fade precedence. The subsequent owner-directed batch
+below extends x/y rotation, shear, clipping, karaoke and effect axes. Frozen references and
 comparison arithmetic remain unchanged. No historical pixel-parity claim follows
 from source inspection or the additive tests.
+
+## Ordinary ASS coverage batch
+
+The owner requested working clip/iclip, frx/fry/fax/fay, xbord/ybord/xshad/yshad,
+u/s, SSA a and k/K/kf/ko/kt before pixel-mismatch tuning. All use the existing
+evaluation, geometry, effects and composition stages; fe remains unsupported.
+
+Local pinterf pfmod 3.2.0.810 source locations (RTS.cpp hash recorded above):
+
+| Behaviour | Reference |
+|---|---|
+| Raw signed hexadecimal alpha, narrowing after interpolation | ParseSSATag 2181–2191; CreateSubFromSSATag 2251–2278 |
+| SSA alignment, first alignment slot | CreateSubFromSSATag 2287–2294 |
+| Rectangular clip assignment/animation; first vector clip slot | CreateSubFromSSATag 2330–2364; RenderEx 3520–3564 |
+| X/Y rotation and shear | CreateSubFromSSATag 2400–2444; CWord::Transform 420–556 |
+| Karaoke clock and word ownership | CreateSubFromSSATag 2512–2550; ParseString 1966–2018 |
+| Karaoke paint sweep, ko outline suppression | CLine::PaintAll 1243–1248, 1317–1344 |
+| Decoration switches and independent effect axes | CreateSubFromSSATag 2640–2645, 2679–2725 |
+
+Rectangles animate their device-space integer edges; vector clips are immediate
+and do not rotate/move with text. Both slots intersect during composition, after
+effects. Numeric rotations, shear and effect axes use ordered CalcAnimation;
+decoration, alignment and karaoke commands are immediate inside t. Raw alpha
+targets remain signed native LONG values until the evaluated transparency is
+narrowed to a byte. The three alpha-clipping frames reached strict pixel
+comparison in focused Actions run 39641044733: zero execution failures and three
+pixel mismatches. No visual match is claimed.
+
+The existing FreeType round-stroker baseline is retained for equal radii.
+Positive unequal radii normalize each axis before round stroking and restore it
+before rasterization. A zero axis instead unions nonzero-winding eighth-pixel
+spans along the other axis, before accumulating coverage; it uses neither an
+A8 maximum filter nor an invented small nonzero radius. Relevant source is
+Rasterizer.cpp ScanLineData 3112–3358 and CreateWidenedRegion 3369–3390
+(SHA-256 `29b113f2c927793005afd25d8d0c861a430b55462f6e8e057e1bbaceccf08334`),
+and xy_widen_region.cpp gen_left_arc 452 onward
+(SHA-256 `af0034118448829065a6bdd6748bb8943aac4a62fbf852a59cd869d63486dd7c`).
+This remains an A8 composition backend; source-derived property semantics do
+not establish GDI/xy outline, scan-span, compositing or frozen-pixel identity.
+No authenticated renderer capture or archive/upstream-commit equivalence is
+claimed. Existing blur kernels and all frozen corpus assets remain unchanged.

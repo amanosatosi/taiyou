@@ -225,7 +225,7 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
                     .width()
         );
     }
-    let rotated = source(&row(r"{\bord12\shad-2.25\4a&H00&}H{\bord1\shad3.5}H"))
+    let rotated = source(&row(r"{\bord12\xshad-2.25\yshad-2.25\4a&H00&}H{\bord1\shad3.5}H"))
         .replace(",9,0\n[Events]", ",9,90\n[Events]");
     let (base, support) = footprint(&rotated, &fonts, Size::new(160, 100)).unwrap();
     assert!(support.y0().get() < base.y0().get());

@@ -3,6 +3,7 @@ use crate::geometry::{DeviceMapping, GeometryMap};
 use crate::raster::RasterContext;
 use std::sync::Arc;
 use taiyou_types::*;
+type ResolvedEventClip=(Arc<ResolvedClip>,Option<Arc<Mask>>,u64);
 fn limit() -> RenderError {
     RenderError::new(
         ErrorCode::LimitExceeded,
@@ -13,7 +14,7 @@ pub(crate) fn resolve(
     spec: &AssClip,
     device: DeviceMapping,
     limits: &Limits,
-) -> Result<(Arc<ResolvedClip>, Option<Arc<Mask>>, u64), RenderError> {
+) -> Result<ResolvedEventClip, RenderError> {
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
     let mut result = Arc::new(ResolvedClip::None);
@@ -26,7 +27,7 @@ pub(crate) fn resolve(
         ];
         let mut inverse = false;
         for step in spec.rectangles.iter() {
-            for (i,current) in current.iter_mut().enumerate() {
+            for (i, current) in current.iter_mut().enumerate() {
                 let dst = f64::from(step.coords[i]) * if i % 2 == 0 { sx } else { sy };
                 let value = if (dst - *current).abs() < 0.0001 {
                     dst
