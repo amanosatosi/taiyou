@@ -83,7 +83,7 @@ pub(crate) fn resolve(
             // Polygon words store y-up coordinates relative to their baseline.
             // CClipper places native drawing coordinates at frame (0,0), so
             // undo that storage-only baseline before the viewport map.
-            ScriptPoint::new(FiniteF64::ZERO,drawing.ascent),
+            ScriptPoint::new(FiniteF64::ZERO, drawing.ascent),
             zero,
             None,
             FiniteF64::ZERO,

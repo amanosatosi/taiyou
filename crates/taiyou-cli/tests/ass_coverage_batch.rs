@@ -163,6 +163,9 @@ fn karaoke_words_escapes_and_provenance_survive_partitioning() {
         ),
         (3.0, 6.0)
     );
+    let p=parsed_body(r"{\kf100}A{}B");
+    let e=taiyou_render::evaluate(p.track(),EventId::new(0),TimeUs::from_micros(500000),Profile::CoreV1).unwrap();
+    assert_eq!((e.runs()[0].karaoke().unwrap().start_ms,e.runs()[1].karaoke().unwrap().start_ms),(0,1000));
 }
 
 #[cfg(feature = "native")]
@@ -222,6 +225,14 @@ mod pixels {
             render(r"\pos(60,60)\clip(0,0,60,120)", 0),
             render(r"\pos(60,60)\clip(m 0 0 l 60 0 60 120 0 120)", 0)
         );
+        for (a,b,ms) in [
+            (r"\iclip(0,0,60,120)",r"\iclip(m 0 0 l 60 0 60 120 0 120)",0),
+            (r"\clip(0,0,60,120)",r"\clip(2,m 0 0 l 120 0 120 240 0 240)",0),
+            (r"\clip(0,0,60,120)",r"\clip(0,0,40,120)\t(0,1000,\clip(0,0,80,120))",500),
+            (r"\clip(m 0 0 l 60 0 60 120 0 120)",r"\t(1000,2000,\clip(m 0 0 l 60 0 60 120 0 120))",0),
+            (r"\clip(0,0,60,120)",r"\clip(0,0,60,120)\r",0),
+            ("",r"\clip()",0),
+        ] {assert_eq!(render(&format!(r"\pos(60,60){a}"),ms),render(&format!(r"\pos(60,60){b}"),ms),"{b}");}
     }
     #[test]
     fn projection_decorations_and_axis_effects_reach_pixels() {
@@ -274,6 +285,10 @@ mod pixels {
         assert_ne!(render(p, 0), render(p, 1000));
         assert_ne!(render(p, 1000), render(p, 2000));
         assert_eq!(render(&p.replace("kf100", "K100"), 1000), render(p, 1000));
+        let instant=r"\pos(60,60)\kt50\k100\bord3";
+        let outline=r"\pos(60,60)\kt50\ko100\bord3";
+        assert_ne!(render(instant,0),render(outline,0));
+        assert_eq!(render(instant,500),render(outline,500));
         let parsed = parsed(p);
         let fonts = fonts();
         let mut r = Renderer::new(Default::default()).unwrap();

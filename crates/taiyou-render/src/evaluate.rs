@@ -318,6 +318,7 @@ fn one(
     let mut fade = None;
     let mut karaoke: Option<Karaoke> = None;
     let mut karaoke_word = false;
+    let mut karaoke_raw_end=None;
     let mut clip_rectangles = Vec::new();
     let mut clip_vector = None;
     let mut alignment_seen = false;
@@ -355,6 +356,18 @@ fn one(
     for (index, operation) in event.program().iter().enumerate() {
         if index < consumed {
             continue;
+        }
+        if matches!(operation,TextOp::Text {..}|TextOp::NoBreakSpace|TextOp::HardBreak|TextOp::SoftBreak) {
+            let span=event.operation_sources().and_then(|spans|spans.get(index)).copied().flatten().or_else(||match operation {TextOp::Text {source,..}=>Some(*source),_=>None});
+            if let Some(span)=span {
+                // An empty/ignored override block still ends ParseString's
+                // current word. Escapes have contiguous original source spans.
+                if karaoke_word && karaoke_raw_end.is_some_and(|end|end!=span.start()) {
+                    if let Some(k)=&mut karaoke {k.start_ms=k.end_ms;}
+                    karaoke_word=false;
+                }
+                karaoke_raw_end=Some(span.end());
+            }
         }
         if drawing_mode > 0
             && matches!(
