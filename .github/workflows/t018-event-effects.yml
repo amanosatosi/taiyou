@@ -39,7 +39,9 @@ jobs:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
-        run: cargo test --locked -p taiyou-cli --features native --test ass_event_effects --test transforms --test drawings --test renderer_slice
+        run: |
+          cargo test --locked -p taiyou-render --features native --lib measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors
+          cargo test --locked -p taiyou-cli --features native --test ass_event_effects --test transforms --test drawings --test renderer_slice
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: ${{ runner.temp }}/taiyou-libass-tests

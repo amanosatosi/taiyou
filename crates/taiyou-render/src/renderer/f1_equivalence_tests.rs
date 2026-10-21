@@ -1,17 +1,17 @@
 #![cfg(feature = "native")]
-use std::path::PathBuf;
-use taiyou_render::{
+use crate::{
     collision::{CollisionInput, resolve_collisions},
     collision_footprint::collision_footprint,
     geometry::DeviceMapping,
     renderer::*,
     shaping::shape_event,
 };
+use std::path::PathBuf;
 
 #[test]
 fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
     let source = include_str!(
-        "../../../experiments/t017/results/ae467c9/optimized-initial/adaptive-256-multiglyph.ass"
+        "../../../../experiments/t017/results/ae467c9/optimized-initial/adaptive-256-multiglyph.ass"
     );
     let limits = Limits::default();
     let parsed = taiyou_ass::parse_ass(
@@ -34,7 +34,7 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         .register(&mut context, &std::fs::read(font).unwrap(), 0)
         .unwrap();
     let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-    let evaluated = taiyou_render::evaluate(
+    let evaluated = crate::evaluate(
         track,
         EventId::new(0),
         TimeUs::from_micros(750_000),
@@ -49,7 +49,7 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         &limits,
     )
     .unwrap();
-    let local = taiyou_render::layout(&shaped, &LayoutConstraints::new(Alignment::new(7).unwrap()))
+    let local = crate::layout(&shaped, &LayoutConstraints::new(Alignment::new(7).unwrap()))
         .unwrap();
     // Unit mapping, no rotation/scale, visible fill/outline/shadow, Q6-exact
     // radius .5 and offset (1.25,1.25). Independently union the analytic hulls;
@@ -107,60 +107,38 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
         assert_eq!(placement.anchor.y().get(), y);
         y = (y + expected.y1().get()) - expected.y0().get();
     }
-    let explicit = |bounds: ScriptBounds| {
+    // Continuous collision anchors are internal placement, not ASS \pos:
+    // SetPosition deliberately truncates through native eighth-pixel units.
+    let continuous = |bounds: ScriptBounds| {
         let mut y = 9.0;
-        let events: Vec<_> = track
+        track
             .events()
             .iter()
             .map(|event| {
-                let mut program = event.program().to_vec();
-                program.push(TextOp::Override(OverrideOp::SetPosition {
-                    point: ScriptPoint::new(
-                        FiniteF64::new(13.0).unwrap(),
-                        FiniteF64::new(y).unwrap(),
-                    ),
-                    source: SourceSpan::new(
-                        track.source(),
-                        event.source().end() as usize,
-                        event.source().end() as usize,
-                    )
-                    .unwrap(),
-                }));
+                let point = ScriptPoint::new(
+                    FiniteF64::new(13.0).unwrap(),
+                    FiniteF64::new(y).unwrap(),
+                );
                 y = (y + bounds.y1().get()) - bounds.y0().get();
-                Event::new(
-                    event.id(),
-                    event.start(),
-                    event.end(),
-                    event.style(),
-                    event.source(),
-                )
-                .with_program(program.into())
+                (event.id(), point)
             })
-            .collect();
-        TrackIngestor::new()
-            .ingest(
-                track.source_storage().clone(),
-                track.script().clone(),
-                track.styles().into(),
-                events.into(),
-                &limits,
-            )
-            .unwrap()
+            .collect()
     };
     let request = RenderRequest {
         now: TimeUs::from_micros(750_000),
         viewport: Viewport::full(Size::new(160, 100)).unwrap(),
         unsupported: UnsupportedPolicy::Strict,
     };
-    let render = |track| {
-        Renderer::new(Default::default())
-            .unwrap()
-            .render(track, fonts.clone(), &request)
+    let render = |anchors| {
+        let mut renderer = Renderer::new(Default::default()).unwrap();
+        renderer.continuous_test_anchors = anchors;
+        renderer
+            .render(track.clone(), fonts.clone(), &request)
             .unwrap()
     };
-    let actual = render(track.clone());
-    let f1 = render(explicit(expected));
-    let old_anchors = render(explicit(base));
+    let actual = render(None);
+    let f1 = render(Some(continuous(expected)));
+    let old_anchors = render(Some(continuous(base)));
     assert_eq!(actual.pixels(), f1.pixels());
     assert_eq!(actual.diagnostics(), f1.diagnostics());
     assert_ne!(actual.pixels(), old_anchors.pixels());

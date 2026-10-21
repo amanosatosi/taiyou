@@ -160,6 +160,39 @@ fn move_quantizes_after_scaling_with_native_truncation() {
         ErrorCode::LimitExceeded
     );
 }
+
+#[test]
+fn typed_position_and_origin_use_the_same_native_eighth_pixel_conversion() {
+    let point = |x, y| ScriptPoint::new(FiniteF64::new(x).unwrap(), FiniteF64::new(y).unwrap());
+    let style = Style::core_default();
+    let placement = Placement::new(
+        &style,
+        Margins::default(),
+        Anchor::Explicit(point(10.12, -20.12)),
+    )
+    .with_origin(Some(point(12.12, -22.12)));
+    assert_eq!(
+        placement.ass_anchor(2.0, 4.0).unwrap(),
+        Some(point(10.0625, -20.09375))
+    );
+    assert_eq!(
+        placement.ass_origin(2.0, 4.0).unwrap(),
+        Some(point(12.0625, -22.09375))
+    );
+    assert_eq!(
+        placement.ass_anchor(1.0, 1.0).unwrap(),
+        Some(point(10.0, -20.0))
+    );
+    let parsed = at(r"\pos(10.12,-20.12)\org(12.12,-22.12)", 0);
+    assert_eq!(
+        parsed.placement().ass_anchor(2.0, 4.0).unwrap(),
+        placement.ass_anchor(2.0, 4.0).unwrap()
+    );
+    assert_eq!(
+        parsed.placement().ass_origin(2.0, 4.0).unwrap(),
+        placement.ass_origin(2.0, 4.0).unwrap()
+    );
+}
 #[test]
 fn fad_fade_boundaries_transparency_and_first_effect_wins() {
     for (ms, a) in [
@@ -245,6 +278,28 @@ mod pixels {
             .unwrap()
             .pixels()
             .to_vec()
+    }
+    #[test]
+    fn fractional_position_move_and_origin_quantize_at_unequal_viewport_scale() {
+        let mut request = request(500);
+        request.viewport = Viewport::full(Size::new(320, 400)).unwrap();
+        let catalog = fonts();
+        let render = |tag: &str| {
+            Renderer::new(Default::default())
+                .unwrap()
+                .render_parsed(&parsed(&format!("{{{tag}}}Ag")), catalog.clone(), &request)
+                .unwrap()
+                .pixels()
+                .to_vec()
+        };
+        assert_eq!(
+            render(r"\pos(10.12,20.12)\org(12.12,22.12)\frz30"),
+            render(r"\pos(10.0625,20.09375)\org(12.0625,22.09375)\frz30")
+        );
+        assert_eq!(
+            render(r"\move(10.12,20.12,10.68,20.68,0,1000)"),
+            render(r"\pos(10.3125,20.375)")
+        );
     }
     #[test]
     fn movement_origin_rotation_and_fades_render_through_normal_pipeline() {

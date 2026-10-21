@@ -292,6 +292,10 @@ pub struct Renderer {
     output: OutputBudget,
     #[cfg(feature = "native")]
     attachment_catalogs: CatalogIngestor,
+    // Unit-test injection below ASS coordinate semantics. Never compiled into
+    // a production renderer or exposed through the public rendering API.
+    #[cfg(all(test, feature = "native"))]
+    continuous_test_anchors: Option<Vec<(EventId, ScriptPoint)>>,
     _not_sync: PhantomData<Cell<()>>,
 }
 impl Renderer {
@@ -308,6 +312,8 @@ impl Renderer {
             output,
             #[cfg(feature = "native")]
             attachment_catalogs: CatalogIngestor::new(),
+            #[cfg(all(test, feature = "native"))]
+            continuous_test_anchors: None,
             _not_sync: PhantomData,
         })
     }
@@ -676,6 +682,12 @@ impl Renderer {
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
+                #[cfg(test)]
+                let anchor = self
+                    .continuous_test_anchors
+                    .as_ref()
+                    .and_then(|anchors| anchors.iter().find(|(id, _)| *id == event.id()))
+                    .map_or(anchor, |(_, point)| *point);
                 let remaining_segments = limits
                     .path_segments_per_frame()
                     .checked_sub(total_segments)
@@ -971,3 +983,6 @@ impl Renderer {
 
 #[cfg(all(test, feature = "native"))]
 mod staging_tests;
+
+#[cfg(all(test, feature = "native"))]
+mod f1_equivalence_tests;

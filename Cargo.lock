@@ -454,6 +454,7 @@ dependencies = [
 name = "taiyou-render"
 version = "0.1.0"
 dependencies = [
+ "taiyou-ass",
  "taiyou-font",
  "taiyou-types",
 ]
