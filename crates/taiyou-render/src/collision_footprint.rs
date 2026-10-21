@@ -94,6 +94,7 @@ pub fn collision_footprint(
     }
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
+    let [lx,ly]=device.layout_scale();
     let mut result = local.collision_bounds();
     for positioned in local.glyphs() {
         let run = &local.shaped().runs()[positioned.run_index()];
@@ -149,13 +150,13 @@ pub fn collision_footprint(
                     y + state.geometry().shear_y().get() * x,
                 );
                 let (x, y) = crate::geometry::project_3d(
-                    cos * x + sin * y,
-                    -sin * x + cos * y,
+                    cos * x*lx + sin * y*ly,
+                    -sin * x*lx + cos * y*ly,
                     state.geometry().rotation_x().get(),
                     state.geometry().rotation_y().get(),
                 )?;
-                let dx = finite(x * sx)?.get();
-                let dy = finite(y * sy)?.get();
+                let dx = finite(x * sx/lx)?.get();
+                let dy = finite(y * sy/ly)?.get();
                 include(&mut hull, ScriptBounds::new(dx, dy, dx, dy)?)?;
             }
         }
@@ -163,8 +164,8 @@ pub fn collision_footprint(
             && (state.effects().border_x().get() > 0.0 || state.effects().border_y().get() > 0.0);
         let radius = if border {
             Some((
-                q6(state.effects().border_x().get() * if scaled_border_shadow { sx } else { 1.0 })?,
-                q6(state.effects().border_y().get() * if scaled_border_shadow { sy } else { 1.0 })?,
+                q6(state.effects().border_x().get() * if scaled_border_shadow { sx } else { sx/lx })?,
+                q6(state.effects().border_y().get() * if scaled_border_shadow { sy } else { sy/ly })?,
             ))
         } else {
             None
@@ -175,8 +176,8 @@ pub fn collision_footprint(
             None
         } else {
             Some((
-                q6(state.effects().shadow_x().get() * if scaled_border_shadow { sx } else { 1.0 })?,
-                q6(state.effects().shadow_y().get() * if scaled_border_shadow { sy } else { 1.0 })?,
+                q6(state.effects().shadow_x().get() * if scaled_border_shadow { sx } else { sx/lx })?,
+                q6(state.effects().shadow_y().get() * if scaled_border_shadow { sy } else { sy/ly })?,
             ))
         };
         if let Some(hull) = hull {

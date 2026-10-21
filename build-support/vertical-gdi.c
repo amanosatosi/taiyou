@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 int wmain(int argc, wchar_t **argv) {
-    if (argc != 2) return 2;
+    if (argc != 3) return 2;
     HANDLE file=CreateFileW(argv[1],GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,NULL);
     if(file==INVALID_HANDLE_VALUE) return 3;
     DWORD size=GetFileSize(file,NULL),read=0,count=0;
@@ -14,11 +14,12 @@ int wmain(int argc, wchar_t **argv) {
     HANDLE resource=AddFontMemResourceEx(bytes,size,NULL,&count);
     if(!resource || !count) return 5;
     HDC dc=CreateCompatibleDC(NULL);
+    SetBkMode(dc,TRANSPARENT);
     const wchar_t chars[]=L"A\x65e5\x3042\x3001\x3002\x300c\x30fc\xff21";
     for(int vertical=0;vertical<2;vertical++) {
-        LOGFONTW lf={0}; lf.lfHeight=-1000; lf.lfCharSet=DEFAULT_CHARSET;
+        LOGFONTW lf={0}; lf.lfHeight=1000; lf.lfCharSet=DEFAULT_CHARSET;
         lf.lfOutPrecision=OUT_TT_PRECIS;lf.lfQuality=ANTIALIASED_QUALITY;
-        wcscpy_s(lf.lfFaceName,LF_FACESIZE,vertical?L"@Noto Sans CJK JP":L"Noto Sans CJK JP");
+        swprintf_s(lf.lfFaceName,LF_FACESIZE,vertical?L"@%ls":L"%ls",argv[2]);
         HFONT font=CreateFontIndirectW(&lf);
         if(!font) return 6;
         HGDIOBJ old=SelectObject(dc,font);

@@ -381,6 +381,9 @@ fn block(
                 )?;
             }
             Ok(None) if raw.starts_with("clip") || raw.starts_with("iclip") => {}
+            // CMD_COUNT is consumed by xy without applying a style property.
+            // Recognized but unimplemented commands remain explicit failures.
+            Ok(None) if !raw.starts_with("fe") && !raw.starts_with("fsc") && !raw.starts_with('r') => {}
             Ok(None) => {
                 let name = unsupported_name(raw);
                 push(
@@ -913,6 +916,11 @@ fn parse(
     let nonfinite = ["nan", "inf", "infinity"]
         .iter()
         .any(|v| value.eq_ignore_ascii_case(v));
+    // Longest-prefix dispatch resolves board1 as b + oard1; wcstol has no
+    // decimal prefix, hence FW_NORMAL. Do not invent a board operation.
+    if name=="b" && value.as_bytes().first().is_some_and(u8::is_ascii_alphabetic) && !nonfinite {
+        return Ok(Some(OverrideOp::SetWeight{weight:400,source}));
+    }
     if name != "fn"
         && name != "r"
         && !nonfinite
