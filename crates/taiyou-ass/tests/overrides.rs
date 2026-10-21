@@ -567,11 +567,11 @@ fn override_hless_hex_rejects_malformed_digits_width_and_empty_payloads() {
     for tag in [
         r"\c&GG&",
         r"\1c&1234567&",
-        r"\alpha&123&",
+        r"\alpha&123456789&",
         r"\1a&0xFF&",
         r"\c&H&",
-        r"\1a&&",
-        r"\1a&h&",
+        r"\1a&GG&",
+        r"\1a&hGG&",
         r"\c&12&34&",
     ] {
         let input = hex_fixture(&format!("{{{tag}}}A"));

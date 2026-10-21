@@ -726,14 +726,38 @@ fn one(
                         })
                     }
                     OverrideOp::SetAlpha { channel, value, .. } => {
-                        let channels = [PaintChannel::Primary, PaintChannel::Secondary, PaintChannel::Outline, PaintChannel::Shadow];
+                        let channels = [
+                            PaintChannel::Primary,
+                            PaintChannel::Secondary,
+                            PaintChannel::Outline,
+                            PaintChannel::Shadow,
+                        ];
                         for c in channels {
-                            if channel.is_some_and(|only| only != c) { continue; }
-                            let color = match c { PaintChannel::Primary => state.primary(), PaintChannel::Secondary => state.secondary(), PaintChannel::Outline => state.outline(), PaintChannel::Shadow => state.shadow_color() };
-                            let original = match c { PaintChannel::Primary => base.primary(), PaintChannel::Secondary => base.secondary(), PaintChannel::Outline => base.outline(), PaintChannel::Shadow => base.shadow_color() };
-                            let alpha = match value { Some(target) => animation.calc(f64::from(*target), f64::from(255-color.a()))?.get(), None => f64::from(255-original.a()) };
+                            if channel.is_some_and(|only| only != c) {
+                                continue;
+                            }
+                            let color = match c {
+                                PaintChannel::Primary => state.primary(),
+                                PaintChannel::Secondary => state.secondary(),
+                                PaintChannel::Outline => state.outline(),
+                                PaintChannel::Shadow => state.shadow_color(),
+                            };
+                            let original = match c {
+                                PaintChannel::Primary => base.primary(),
+                                PaintChannel::Secondary => base.secondary(),
+                                PaintChannel::Outline => base.outline(),
+                                PaintChannel::Shadow => base.shadow_color(),
+                            };
+                            let alpha = match value {
+                                Some(target) => animation
+                                    .calc(f64::from(*target), f64::from(255 - color.a()))?
+                                    .get(),
+                                None => f64::from(255 - original.a()),
+                            };
                             let opacity = 255 - alpha.trunc().rem_euclid(256.0) as u8;
-                            state = channel_color(state, c, |color| Rgba8::new(color.r(), color.g(), color.b(), opacity));
+                            state = channel_color(state, c, |color| {
+                                Rgba8::new(color.r(), color.g(), color.b(), opacity)
+                            });
                         }
                     }
                     OverrideOp::SetOpacity {
