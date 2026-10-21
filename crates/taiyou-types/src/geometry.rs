@@ -162,6 +162,7 @@ pub fn check_path_budget(count: usize, limits: &Limits) -> Result<(), RenderErro
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GlyphOutline {
+    clockwise: bool,
     font: FontId,
     glyph: u32,
     upem: u16,
@@ -181,6 +182,7 @@ impl GlyphOutline {
             ));
         }
         Ok(Self {
+            clockwise: false,
             font,
             glyph,
             upem,
@@ -193,6 +195,8 @@ impl GlyphOutline {
     pub const fn glyph(&self) -> u32 {
         self.glyph
     }
+    pub fn with_clockwise(mut self,clockwise:bool)->Self {self.clockwise=clockwise;self}
+    pub const fn clockwise(&self)->bool {self.clockwise}
     pub const fn units_per_em(&self) -> u16 {
         self.upem
     }
