@@ -337,7 +337,10 @@ impl Renderer {
         anchors: Vec<(EventId, ScriptPoint)>,
     ) -> Result<Frame, RenderError> {
         if self.continuous_test_anchors.is_some() {
-            return Err(RenderError::new(ErrorCode::InvalidArgument, "nested test placement"));
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "nested test placement",
+            ));
         }
         self.continuous_test_anchors = Some(anchors);
         let result = self.render(track, fonts, request);

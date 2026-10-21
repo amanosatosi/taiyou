@@ -153,15 +153,34 @@ fn thick_borders_change_real_displacement_but_hidden_effects_do_not_pad() {
         heights.push(support.height());
         // Continuous F1 anchors are not ASS pos coordinates (which truncate
         // through native eighth pixels). Inject below ASS semantics instead.
-        let expected = Renderer::new(Default::default()).unwrap()
+        let expected = Renderer::new(Default::default())
+            .unwrap()
             .render_with_continuous_anchors_for_test(
-                track(&input), fonts.clone(),
-                &RenderRequest { now: TimeUs::from_micros(750_000), viewport: Viewport::full(size).unwrap(), unsupported: UnsupportedPolicy::Strict },
+                track(&input),
+                fonts.clone(),
+                &RenderRequest {
+                    now: TimeUs::from_micros(750_000),
+                    viewport: Viewport::full(size).unwrap(),
+                    unsupported: UnsupportedPolicy::Strict,
+                },
                 vec![
-                    (EventId::new(0), ScriptPoint::new(FiniteF64::new(13.0).unwrap(), FiniteF64::new(9.0).unwrap())),
-                    (EventId::new(1), ScriptPoint::new(FiniteF64::new(13.0).unwrap(), FiniteF64::new(9.0 + support.height()).unwrap())),
+                    (
+                        EventId::new(0),
+                        ScriptPoint::new(
+                            FiniteF64::new(13.0).unwrap(),
+                            FiniteF64::new(9.0).unwrap(),
+                        ),
+                    ),
+                    (
+                        EventId::new(1),
+                        ScriptPoint::new(
+                            FiniteF64::new(13.0).unwrap(),
+                            FiniteF64::new(9.0 + support.height()).unwrap(),
+                        ),
+                    ),
                 ],
-            ).unwrap();
+            )
+            .unwrap();
         assert_eq!(
             render(&input, fonts.clone(), size, Limits::default()).pixels(),
             expected.pixels()
