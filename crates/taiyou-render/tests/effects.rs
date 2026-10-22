@@ -115,9 +115,8 @@ fn gaussian_preserves_native_overlay_units_until_paint_conversion() {
     // Rasterizer::GaussianBlur -> xy_byte_2_float passes overlay bytes as-is.
     // At sigma=1 the independently normalized three-tap kernel gives this
     // rounded 64-unit impulse. Converting to A8 before filtering differs.
-    let source = Arc::new(
-        Mask::new_xy(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([64])).unwrap(),
-    );
+    let source =
+        Arc::new(Mask::new_xy(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([64])).unwrap());
     let output = apply_effects(&source, &spec(1.0, 0.0), &Limits::default()).unwrap();
     assert!(output.is_xy_coverage());
     assert_eq!(output.bounds(), PixelRect::new(-1, -1, 2, 2).unwrap());
