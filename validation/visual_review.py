@@ -136,7 +136,7 @@ class Review:
                     "reference_sha256": record.get("expected", {}).get("sha256"),
                     "raw_sha256": record.get("raw_sha256"), "png_sha256": record.get("png_sha256"),
                     "review": saved})
-        lines.extend(["Full comparison results (authoritative):", json.dumps(report["summary"].get("visual", {}), sort_keys=True),
+        lines.extend(["Comparison results (authoritative; suite identified above):", json.dumps(report["summary"].get("visual", {}), sort_keys=True),
                       "Parser-only probes (no images): " + json.dumps(report["summary"].get("safety", {}), sort_keys=True),
                       "Upstream-disabled sources: " + json.dumps(report["summary"].get("disabled", [])), "",
                       "Per-case results and missing-image reasons: RESULTS.txt / manifest.json.",
