@@ -305,6 +305,93 @@ alignment/offscreen placements and C6 blending checks remain independent and
 unchanged. The C oracle implements row sampling/nonzero winding independently
 of the production edge/span implementation and does not call it. Separate
 FreeType-specific raster stage tests remain intact. Rasterizer.cpp source:
-AlignLeftTop 3071–3100; ScanLineData 3112–3358; Rasterize 789–885;
+AlignLeftTop 3058–3094; ScanLineData 3112–3358; Rasterize 789–885;
 FillAlphaMashBody_c 2320–2334 (file hash above). Frozen corpus images, metrics,
 tolerances, classifications and the libass oracle are unchanged.
+
+## Verified source-mask controls and Gaussian limitation (2026-10-22)
+
+The authorized independent C first-render oracle now compiles with
+`-Wall -Wextra -Werror`. The unused sampling variable was removed; the supplied
+`FT_Outline` control uses the pinned header's `FT_Byte` tags and `FT_UShort`
+contours. No compiler warnings were suppressed. Actions
+[39822252375 / 119976275455](https://github.com/amanosatosi/taiyou/actions/runs/39822252375/job/119976275455)
+at `4c21a74074656fde5bc4e647c8969c360a9fdba1` passes all 14 renderer_slice
+checks, six source-mask tests, the actual supplied-GDI invocation, native
+Clippy, and the focused ordinary ASS/effect/transform/drawing regressions.
+The job is red because the real 15-case comparator returns failure for pixel
+mismatches. Its earlier missing test-font environment was workflow wiring,
+corrected without changing production or test assertions. The first Fast run
+for the new diagnostic test required formatting; the Actions-generated format
+patch was applied to the source.
+
+The additional `gaussian_source` control reconstructs the real frozen blur+t
+path at every selected time with the same evaluated state, geometry and paint:
+
+- Its FreeType-A8 variant exactly reproduces the `5bbde64d` comparator metrics.
+- The native-64 variant equals production RGBA byte for byte.
+- Cropping only zero source padding equals production byte for byte, ruling out
+  that padding as the demonstrated cause of this Gaussian change.
+- Converting the same eighth-grid source to A8 **before** Gaussian reduces much
+  of the additional alpha error, but is a diagnostic counterfactual, not a fix:
+  pinterf `Rasterizer::GaussianBlur` (1086–1165) passes raw overlay bytes;
+  `xy_byte_2_float_c/sse` (xy_filter.cpp 636–716) converts bytes directly to float;
+  `xy_gaussian_blur` (874–940) retains float values between axes and narrows back
+  to byte before paint. There is no x255/64 normalization there.
+
+For example, at 1000 ms, alpha MAE in comparison RGBA16 units is 100.34833 for
+FreeType A8, 109.92961 for native xy coverage, and 103.28027 for the diagnostic
+pre-Gaussian A8 conversion. At 1900 ms those values are 109.21911, 123.39427 and
+112.24261. Thus the native-unit filtering/quantization boundary accounts for
+most of the newly increased Gaussian error; identical-mask zero padding does
+not. Geometry/raster differences account for the remaining counterfactual
+error; these controls do not establish GDI equivalence.
+
+Every frozen blur+t frame contains all 256 eight-bit alpha levels, while the
+current native-unit reconstruction contains 65. This is a measured output
+precision discrepancy, not evidence identifying the binary that created those
+references. Overlapping paint may generate additional levels in other scenes.
+The pinned independent libass oracle reproduces the references; that is not an
+xy rendering capture. Source-only scalar and SIMD Gaussian conversion also
+have different rounding/accumulation paths (xy_filter.cpp 780–871). Exact
+binary/output provenance and reduced identical-overlay captures would be
+needed to decide a conflicting historical-build interpretation. Do not move
+normalization before Gaussian, change sigma, alter BE, or change references
+merely because the counterfactual scores better.
+
+The measured residuals remain real pixel mismatches. Compared with the exact
+`5bbde64df55015f1e94d86236551ca5e1c8ed08d` baseline:
+
+| Frozen frame | Changed pixels before → after | Alpha MAE before → after (RGBA16) |
+|---|---:|---:|
+| be-0500 | 8750 → 9119 | 37.02674 → 31.06648 |
+| be-1500 | 13959 → 12556 | 69.18494 → 45.27965 |
+| be-2500 | 15595 → 13397 | 74.63869 → 29.68564 |
+| be-3500 | 15985 → 13688 | 105.11835 → 31.08683 |
+| blur+t-1000 | 55516 → 56851 | 100.34833 → 109.92961 |
+| blur+t-1100 | 58566 → 59778 | 100.41525 → 110.03187 |
+| blur+t-1200 | 61754 → 63060 | 108.51129 → 117.90089 |
+| blur+t-1300 | 63921 → 65535 | 105.24257 → 116.44349 |
+| blur+t-1400 | 65977 → 67621 | 103.80551 → 115.89094 |
+| blur+t-1500 | 67957 → 69677 | 107.56574 → 119.00813 |
+| blur+t-1600 | 69992 → 71850 | 105.74319 → 118.48824 |
+| blur+t-1700 | 72314 → 73984 | 109.29353 → 122.78175 |
+| blur+t-1800 | 73625 → 75571 | 108.19807 → 121.47051 |
+| blur+t-1900 | 73992 → 76852 | 109.21911 → 123.39427 |
+| anamorphic blur-0000 | 81905 → 82081 | 117.97685 → 124.93585 |
+
+All 15 execute in strict mode: zero exact, 15 mismatches, zero unsupported,
+execution failures, infrastructure errors or crashes. Static BE alpha error
+improves strongly; its first frame's changed-pixel count worsens. Gaussian and
+anamorphic errors worsen and are not described as passes.
+
+Raw frame variants, group bounds/strengths, alpha-level sets and metrics are in
+artifact `12444768351`, SHA-256
+`cabc81079d48c665af8fb9aa919d758b33488f4096a9afbe9b82ad38461a352b`.
+The saved GDI-versus-FreeType outline differences remain at most one Q6 unit for
+the measured glyphs. Shared-raster plus output is identical; period and paragraph
+have small residuals, generally reduced by BE. This does not explain away the
+much larger identical-geometry FreeType-A8/eighth-grid difference. Remaining
+source-mask gaps include exact curve/phase behavior beyond these controls and
+FreeType round-stroker versus xy span-region border widening. No GDI outline
+replacement or filter retuning is claimed.

@@ -34,7 +34,10 @@ fn tight(mask: &Arc<Mask>) -> Arc<Mask> {
             data.push(mask.coverage_at(i64::from(x), i64::from(y), PixelOffset::default()));
         }
     }
-    Arc::new(mask.with_data(bounds, bounds.width() as usize, data.into()).unwrap())
+    Arc::new(
+        mask.with_data(bounds, bounds.width() as usize, data.into())
+            .unwrap(),
+    )
 }
 #[test]
 fn gaussian_source_units_bounds_and_boundary_shapes_are_independent_controls() {
@@ -45,12 +48,20 @@ fn gaussian_source_units_bounds_and_boundary_shapes_are_independent_controls() {
     let root = PathBuf::from(std::env::var("TAIYOU_BE_AUDIT_OUTPUT").unwrap());
     std::fs::create_dir_all(&root).unwrap();
     let source = std::fs::read(corpus.join("regression/blurs/blur+t.ass")).unwrap();
-    let parsed = taiyou_ass::parse_ass(&source, &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
+    let parsed =
+        taiyou_ass::parse_ass(&source, &ParseOptions::default(), &mut TrackIngestor::new())
+            .unwrap();
     let track = parsed.track();
     let limits = Limits::default();
     let mut context = FontContext::new().unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
-    builder.register(&mut context, &std::fs::read(corpus.join("regression/blurs/Aileron-Regular.otf")).unwrap(), 0).unwrap();
+    builder
+        .register(
+            &mut context,
+            &std::fs::read(corpus.join("regression/blurs/Aileron-Regular.otf")).unwrap(),
+            0,
+        )
+        .unwrap();
     let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
     let mut metadata = String::new();
     for ms in (1000..=1900).step_by(100) {
@@ -58,17 +69,40 @@ fn gaussian_source_units_bounds_and_boundary_shapes_are_independent_controls() {
         let event = track.events().iter().find(|e| e.is_active(now)).unwrap();
         let e = taiyou_render::evaluate(track, event.id(), now, Profile::CoreV1).unwrap();
         let shaped = shape_event(&mut context, &catalog, &e, &Default::default(), &limits).unwrap();
-        let local = Arc::new(taiyou_render::layout(&shaped, &LayoutConstraints::new(e.placement().alignment()).with_wrap(e.wrap_mode()).with_width(f(740.0)).unwrap()).unwrap());
-        let geometry = Arc::new(taiyou_render::geometry::geometry(&mut context, &catalog, local, GeometryPlacement {
-            anchor: ScriptPoint::new(f(400.0), f(300.0)),
-            origin: None,
-            device: DeviceMapping::new(Size::new(800, 600), PixelRect::new(0, 0, 800, 600).unwrap()).unwrap(),
-        }, &limits).unwrap());
+        let local = Arc::new(
+            taiyou_render::layout(
+                &shaped,
+                &LayoutConstraints::new(e.placement().alignment())
+                    .with_wrap(e.wrap_mode())
+                    .with_width(f(740.0))
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+        let geometry = Arc::new(
+            taiyou_render::geometry::geometry(
+                &mut context,
+                &catalog,
+                local,
+                GeometryPlacement {
+                    anchor: ScriptPoint::new(f(400.0), f(300.0)),
+                    origin: None,
+                    device: DeviceMapping::new(
+                        Size::new(800, 600),
+                        PixelRect::new(0, 0, 800, 600).unwrap(),
+                    )
+                    .unwrap(),
+                },
+                &limits,
+            )
+            .unwrap(),
+        );
         let groups = coverage_groups(geometry.clone(), &limits).unwrap();
         let mut variants: [Vec<DrawOp>; 4] = std::array::from_fn(|_| Vec::new());
         for (i, group) in groups.iter().enumerate() {
             let member = group.policy().members().start;
-            let state = &geometry.layout().shaped().evaluated().runs()[geometry.items()[member].association];
+            let state = &geometry.layout().shaped().evaluated().runs()
+                [geometry.items()[member].association];
             assert_eq!(state.effects().border_x().get(), 0.0);
             assert_eq!(state.effects().shadow_x().get(), 0.0);
             assert_eq!(state.effects().be().get(), 0.0);
@@ -79,29 +113,89 @@ fn gaussian_source_units_bounds_and_boundary_shapes_are_independent_controls() {
             let mut bytes = Vec::new();
             for y in b.y0()..b.y1() {
                 for x in b.x0()..b.x1() {
-                    bytes.push(xy.coverage_a8_at(i64::from(x), i64::from(y), PixelOffset::default()));
+                    bytes.push(xy.coverage_a8_at(
+                        i64::from(x),
+                        i64::from(y),
+                        PixelOffset::default(),
+                    ));
                 }
             }
             // Diagnostic alternative only: this conversion is NOT what the
             // inspected pinterf byte-to-float Gaussian input does.
             let converted = Arc::new(Mask::new(b, b.width() as usize, bytes.into()).unwrap());
-            let spec = BlurSpec::new(state.effects().blur(), state.effects().be(), [1.0, 1.0], &limits).unwrap();
-            metadata.push_str(&format!("{ms}\t{i}\t{}\t{:?}\t{:?}\n", state.effects().blur().get(), ft.bounds(), xy.bounds()));
-            for (v, mask) in [ft, xy.clone(), converted, tight(&xy)].into_iter().enumerate() {
+            let spec = BlurSpec::new(
+                state.effects().blur(),
+                state.effects().be(),
+                [1.0, 1.0],
+                &limits,
+            )
+            .unwrap();
+            metadata.push_str(&format!(
+                "{ms}\t{i}\t{}\t{:?}\t{:?}\n",
+                state.effects().blur().get(),
+                ft.bounds(),
+                xy.bounds()
+            ));
+            for (v, mask) in [ft, xy.clone(), converted, tight(&xy)]
+                .into_iter()
+                .enumerate()
+            {
                 let mask = apply_effects(&mask, &spec, &limits).unwrap();
-                variants[v].push(DrawOp::new(DrawOrder::new(0, event.id(), 2, i as u32), mask, PixelOffset::default(), Paint::Solid(state.paint().primary()), PaintSpace::GlyphLocal, PaintMap::Identity, Arc::new(ResolvedClip::None)));
+                variants[v].push(DrawOp::new(
+                    DrawOrder::new(0, event.id(), 2, i as u32),
+                    mask,
+                    PixelOffset::default(),
+                    Paint::Solid(state.paint().primary()),
+                    PaintSpace::GlyphLocal,
+                    PaintMap::Identity,
+                    Arc::new(ResolvedClip::None),
+                ));
             }
         }
-        let frames: Vec<_> = variants.iter().map(|ops| compose(Size::new(800, 600), ops, &limits, &mut OutputBudget::new(&limits)).unwrap()).collect();
-        let actual = Renderer::new(Default::default()).unwrap().render_parsed(&parsed, catalog.clone(), &RenderRequest {
-            now,
-            viewport: Viewport::full(Size::new(800, 600)).unwrap(),
-            unsupported: UnsupportedPolicy::Strict,
-        }).unwrap();
-        assert_eq!(frames[1].pixels(), actual.pixels(), "actual source-mask pipeline at {ms}");
-        assert_eq!(frames[1].pixels(), frames[3].pixels(), "zero allocation padding cannot change scalar Gaussian output at {ms}");
-        for (frame, label) in frames.iter().zip(["ft-a8", "xy64", "xy-converted-before-gaussian", "xy-tight"]) {
-            std::fs::write(root.join(format!("gaussian-{ms}-{label}.rgba")), frame.pixels()).unwrap();
+        let frames: Vec<_> = variants
+            .iter()
+            .map(|ops| {
+                compose(
+                    Size::new(800, 600),
+                    ops,
+                    &limits,
+                    &mut OutputBudget::new(&limits),
+                )
+                .unwrap()
+            })
+            .collect();
+        let actual = Renderer::new(Default::default())
+            .unwrap()
+            .render_parsed(
+                &parsed,
+                catalog.clone(),
+                &RenderRequest {
+                    now,
+                    viewport: Viewport::full(Size::new(800, 600)).unwrap(),
+                    unsupported: UnsupportedPolicy::Strict,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            frames[1].pixels(),
+            actual.pixels(),
+            "actual source-mask pipeline at {ms}"
+        );
+        assert_eq!(
+            frames[1].pixels(),
+            frames[3].pixels(),
+            "zero allocation padding cannot change scalar Gaussian output at {ms}"
+        );
+        for (frame, label) in
+            frames
+                .iter()
+                .zip(["ft-a8", "xy64", "xy-converted-before-gaussian", "xy-tight"])
+        {
+            std::fs::write(
+                root.join(format!("gaussian-{ms}-{label}.rgba")),
+                frame.pixels(),
+            )
+            .unwrap();
         }
     }
     std::fs::write(root.join("gaussian-groups.tsv"), metadata).unwrap();

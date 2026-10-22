@@ -109,3 +109,21 @@ fn be_preserves_reference_small_padding_and_unfiltered_allocation_ring() {
     assert_eq!(spec(0.0, 16.0).support(), [2, 2]);
     assert_eq!(source.data(), &[255]);
 }
+
+#[test]
+fn gaussian_preserves_native_overlay_units_until_paint_conversion() {
+    // Rasterizer::GaussianBlur -> xy_byte_2_float passes overlay bytes as-is.
+    // At sigma=1 the independently normalized three-tap kernel gives this
+    // rounded 64-unit impulse. Converting to A8 before filtering differs.
+    let source = Arc::new(
+        Mask::new_xy(PixelRect::new(0, 0, 1, 1).unwrap(), 1, Arc::from([64])).unwrap(),
+    );
+    let output = apply_effects(&source, &spec(1.0, 0.0), &Limits::default()).unwrap();
+    assert!(output.is_xy_coverage());
+    assert_eq!(output.bounds(), PixelRect::new(-1, -1, 2, 2).unwrap());
+    assert_eq!(output.data(), &[5, 8, 5, 8, 13, 8, 5, 8, 5]);
+    assert_eq!(output.coverage_a8_at(-1, -1, PixelOffset::default()), 20);
+    assert_eq!(source.data(), &[64]);
+    let a8 = apply_effects(&impulse(), &spec(1.0, 0.0), &Limits::default()).unwrap();
+    assert_eq!(a8.coverage_at(-1, -1, PixelOffset::default()), 19);
+}
