@@ -434,3 +434,13 @@ equal in nine, and worsen in 22; alpha MAE improves in 11, is equal in three,
 and worsens in 50. These renderer-wide changes are reported explicitly: the
 identical-geometry controls establish the source coverage correction, not a
 universal improvement against the independent frozen libass references.
+
+The first offscreen-release correction restored the exact one-layer workload,
+but the existing mixed-layer staging test correctly exposed an additional
+avoidable retry. After the retained prefix was consumed, its empty lookup Vec
+and reservation remained until frame end. Minimal staging had no such overhead.
+The coordinator now drops that allocation and its exact reservation immediately
+after consuming the last saved layout. This is ownership/accounting cleanup,
+not a new staging policy, budget reduction or eviction strategy. An additive
+native unit test requires one preparation attempt and full/minimal byte and
+diagnostic equality at the existing 32 MiB witness; the prior assertions remain.

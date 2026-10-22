@@ -663,6 +663,7 @@ impl Renderer {
         // IDs are unique. Sorted slots permit O(log N) lookup and O(1) take
         // without moving other entries, independently of layer/paint ordering.
         prepared.sort_unstable_by_key(|p| p.0);
+        let mut prepared_remaining = prepared.len();
         // Ordinary paint order and full effects apply to explicit events too.
         for event in events {
             let result = (|| {
@@ -676,6 +677,16 @@ impl Renderer {
                         })?;
                         debug_assert_eq!(saved.id, event.id());
                         held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                        prepared_remaining =
+                            prepared_remaining.checked_sub(1).ok_or_else(limited)?;
+                        if prepared_remaining == 0 {
+                            // The retained prefix has been consumed. Its empty
+                            // lookup allocation must not crowd out later native
+                            // preparation or provoke a full minimal retry.
+                            drop(std::mem::take(&mut prepared));
+                            held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
+                            prepared_charge = 0;
+                        }
                         diagnostics
                             .extend_finished(&saved.diagnostics)
                             .map_err(convert)?;

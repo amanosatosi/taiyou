@@ -573,3 +573,29 @@ fn allocation_and_transient_classification_preserve_c7_identity() {
         ResourceFailure::TransientMemory
     );
 }
+
+#[test]
+fn consumed_retention_slots_do_not_provoke_a_full_frame_retry() {
+    let fonts = catalog();
+    let input = track(256, 4);
+    let config = RendererConfig {
+        limits: Limits::default()
+            .with_transient_bytes(32 * 1024 * 1024)
+            .unwrap(),
+        ..Default::default()
+    };
+    PREPARATION_ATTEMPTS.with(|n| n.set(0));
+    PREPARE_CALLS.with(|n| n.set(0));
+    let adaptive = Renderer::new(config.clone())
+        .unwrap()
+        .render(input.clone(), fonts.clone(), &request(750_000))
+        .unwrap();
+    assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
+    assert!(PREPARE_CALLS.with(Cell::get) < 2 * 256 + 4);
+    let minimal = Renderer::new(config)
+        .unwrap()
+        .render_staged(input, fonts, &request(750_000), false, &mut false)
+        .unwrap();
+    assert_eq!(adaptive.pixels(), minimal.pixels());
+    assert_eq!(adaptive.diagnostics(), minimal.diagnostics());
+}
