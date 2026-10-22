@@ -1089,6 +1089,44 @@ impl Renderer {
                             sweep = Some((cut, secondary));
                         }
                     }
+                    // Effects have already consumed the complete source masks.
+                    // Retaining wholly offscreen results cannot affect compose,
+                    // but can exhaust later shaping reservations in dense scenes.
+                    // Do not cull geometry or source masks before filtering.
+                    let size = request.viewport.size();
+                    let frame_bounds = PixelRect::new(
+                        0,
+                        0,
+                        i32::try_from(size.width()).map_err(|_| limited())?,
+                        i32::try_from(size.height()).map_err(|_| limited())?,
+                    )
+                    .map_err(convert)?;
+                    let masks = [Some(&fill), border.as_ref(), shadow.as_ref()];
+                    if masks
+                        .iter()
+                        .flatten()
+                        .all(|mask| !mask.bounds().intersects(frame_bounds))
+                    {
+                        for (i, mask) in masks.iter().enumerate() {
+                            let Some(mask) = mask else {
+                                continue;
+                            };
+                            // A coincident shadow or opaque box can share a
+                            // charged mask; release that reservation only once.
+                            if masks[..i]
+                                .iter()
+                                .flatten()
+                                .any(|prior| Arc::ptr_eq(prior, mask))
+                            {
+                                continue;
+                            }
+                            let charge = (mask.data().len() as u64)
+                                .checked_mul(3)
+                                .ok_or_else(limited)?;
+                            held = held.checked_sub(charge).ok_or_else(limited)?;
+                        }
+                        continue;
+                    }
                     group_masks.push(GroupMasks {
                         fill,
                         border,
