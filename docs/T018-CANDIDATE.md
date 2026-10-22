@@ -444,3 +444,14 @@ after consuming the last saved layout. This is ownership/accounting cleanup,
 not a new staging policy, budget reduction or eviction strategy. An additive
 native unit test requires one preparation attempt and full/minimal byte and
 diagnostic equality at the existing 32 MiB witness; the prior assertions remain.
+
+The larger vertical-capable native glyph record also raises the unchanged
+worst-case native shaping reservation. At a constrained prepass boundary, the
+last optional admission can consume the next event's preparation headroom.
+Rather than rerun the complete frame, the prepass now releases only its last
+optional layout, stops further admission and retries that event once. The
+already published compact collision descriptor remains valid; failed-attempt
+diagnostics are discarded. A second failure preserves the original typed error
+and the existing minimal fallback. Native charge formulas, glyph limits and
+caller budgets are unchanged. This also preserves the bounded successful partial
+strategy instead of replacing it with unconditional minimal staging.

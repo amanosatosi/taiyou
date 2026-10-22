@@ -591,8 +591,33 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let (local, local_charge) =
-                    prepare_local(&mut ctx, event, &preparation, held, &mut report).map_err(
+                let mut result =
+                    prepare_local(&mut ctx, event, &preparation, held, &mut report);
+                if result
+                    .as_ref()
+                    .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
+                {
+                    if let Some((_, Some(saved))) = prepared.pop() {
+                        // The last admitted layout consumed the headroom needed
+                        // by this preparation. Reclaim that one optional result,
+                        // stop admission, and retry only this event. Its compact
+                        // collision descriptor has already been published.
+                        held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                        retained_charge = retained_charge
+                            .checked_sub(saved.charge)
+                            .ok_or_else(limited)?;
+                        drop(saved);
+                        admitting = false;
+                        #[cfg(test)]
+                        RETAINED_CALLS.with(|n| n.set(n.get() - 1));
+                        report = DiagnosticBuffer::new();
+                        // If freeing optional state cannot help, preserve the
+                        // original typed error for the existing minimal fallback.
+                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report)
+                            .or(result);
+                    }
+                }
+                let (local, local_charge) = result.map_err(
                         |e| {
                             let id = e.event().or(Some(event.id()));
                             let span = e.span().or(Some(event.source()));
