@@ -465,3 +465,13 @@ single-attempt failure, legitimate transient retry, and the new one-attempt
 and the additive memory/halo integrations also pass. The workflow remains red
 only for the unchanged 15 strict pixel mismatches. Its rustfmt patch is applied
 without semantic edits. No existing benchmark or staging assertion was relaxed.
+
+The owner subsequently authorized only the T017 executor marker/reservation
+repair in `optimized.py` and `measure.py`. They now validate exactly the known
+single-release source or the original release plus the exact typed-memory
+backoff branch, and instrument every genuine release in that shape. Zero,
+extra, duplicated and incomplete release shapes fail closed. No workloads,
+sample counts, budgets, timing methods, output/hash assertions, source/reuse
+checks, thresholds or acceptance rules change. The Linux measurements and
+sanitizer are rerun through the existing native recipe; Windows/macOS already
+passed the identical production source at `e0cf6e6`.

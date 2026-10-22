@@ -12,6 +12,41 @@ import tarfile
 import time
 from fontTools.ttLib import TTFont
 
+def instrument_retained_releases(code, statement):
+    """Owner-authorized recognition of exactly the two known source shapes."""
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());"
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {"
+    assert code.count(original) == 1, "original retained-layout consumption changed"
+    if backoff in code:
+        assert code.count(backoff) == 1 and code.count("prepared.pop()") == 1
+        expected = 2
+    else:
+        assert "prepared.pop()" not in code, "unknown prepass release shape"
+        expected = 1
+    assert code.count(release) == expected, "unknown retained-layout release count"
+    return code.replace(release, release + "\n" + statement)
+
+
+def check_retained_release_shapes():
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());\n" + release
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {\n" + release
+    for code, count in [(original, 1), (backoff + "\n" + original, 2)]:
+        assert instrument_retained_releases(code, "MEASURE_RELEASE;").count("MEASURE_RELEASE;") == count
+    for code in [original.replace(release, ""), original + release,
+                 backoff + original + release, backoff.replace(release, "") + original,
+                 backoff + backoff + original]:
+        try:
+            instrument_retained_releases(code, "MEASURE_RELEASE;")
+        except AssertionError:
+            continue
+        raise AssertionError("unexpected reservation-release source shape accepted")
+    print("T017_RELEASE_SOURCE_SHAPES_VERIFIED: old/new and rejected malformed counts", flush=True)
+
+
+check_retained_release_shapes()
+
 def cell_identity(historical_bytes, current_bytes, upem, cell, advances):
     """This one pinned CJK witness changed units in T018, not glyph identity."""
     pattern = r"(\d+):FiniteF64\(([-0-9.]+)\):FiniteF64\(([-0-9.]+)\);"
@@ -112,9 +147,7 @@ impl Drop for Report {fn drop(&mut self){report();}}
         if label == "candidate":
             marker = "retained_charge = next;"
             code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::retain(next);")
-            marker = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
-            assert code.count(marker) == 1
-            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::release(saved.charge);")
+            code = instrument_retained_releases(code, "taiyou_types::t017_metrics::release(saved.charge);")
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
