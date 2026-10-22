@@ -28,7 +28,7 @@ FAMILIES = {
     "faux-italics/truetype": ("fonts", "faux-italic-truetype", "Synthetic italic outlines in TrueType fonts."),
     "embedded-font/efont": ("fonts", "embedded-font", "ASS embedded font decoding and face selection."),
     "draw-images/drawImg": ("drawings", "drawimg", "ASS vector drawing commands and filled paths."),
-    "zero-area/zero-area": ("drawings", "zero-area", "Degenerate/zero-area geometry and its paint effects."),
+    "zero-area/zero-area": ("positioning", "zero-area", "Collision placement and event order with a zero-advance combining mark."),
     "token-parsing/trimming": ("parsing", "trimming", "Style-name token trimming/lookup, including *** and trailing whitespace."),
     "vsf-quirks-var/alpha-clipping": ("alpha", "alpha-clipping", "Out-of-range alpha targets during interpolation (not geometric clipping)."),
     "ssa/alpha": ("alpha", "ssa-alpha", "Legacy SSA style alpha mapping."),
@@ -60,6 +60,14 @@ def stem(case):
     # Preserve upstream zero padding, including kt's five-digit millisecond names.
     time = Path(case["frames"][0]["expected"]).stem.rsplit("-", 1)[1]
     return family(case)[1] + "-" + time
+
+
+def result_counts(records):
+    counts = Counter(r.get("observed_result", "INFRA_ERROR") for r in records)
+    return ", ".join(f"{counts[k]} {label}" for k, label in (
+        ("PASS_EXACT", "exact"), ("PIXEL_MISMATCH", "mismatch"),
+        ("BLOCKED_BY_UNSUPPORTED_FEATURE", "unsupported"), ("EXECUTION_FAILED", "execution failure"),
+        ("INFRA_ERROR", "infrastructure error"), ("CRASH", "crash")))
 
 
 class Review:
@@ -103,16 +111,16 @@ class Review:
         for folder in folders:
             cases = [c for c in selected if c["kind"] == "regression" and family(c)[0] == folder]
             records = [by_id[c["id"]] for c in cases]
-            counts = Counter(r.get("observed_result", "INFRA_ERROR") for r in records)
             frames = [self.frames[c["id"]] for c in cases if c["id"] in self.frames]
             diagnostic = sum(f["diagnostic"] for f in frames)
             lines.extend([folder, f"  {len(frames)} visual frames with triplets ({len(frames) - diagnostic} strict, {diagnostic} diagnostic/unsupported)",
                 f"  {len(cases)} selected corpus frames",
-                "  results: " + ", ".join(f"{counts[k]} {label}" for k, label in (
-                    ("PASS_EXACT", "exact"), ("PIXEL_MISMATCH", "mismatch"),
-                    ("BLOCKED_BY_UNSUPPORTED_FEATURE", "unsupported"), ("EXECUTION_FAILED", "execution failure"),
-                    ("INFRA_ERROR", "infrastructure error"), ("CRASH", "crash"))),
+                "  results: " + result_counts(records),
                 "  tests: " + ", ".join(sorted({family(c)[1] for c in cases})), ""])
+            for name in sorted({family(c)[1] for c in cases}):
+                lines.append("    " + name + ": " + result_counts(
+                    [by_id[c["id"]] for c in cases if family(c)[1] == name]))
+            lines.append("")
             directory = self.root / folder
             directory.mkdir(exist_ok=True)
             explanations = sorted({family(c)[1] + "-*: " + family(c)[2] for c in cases})
@@ -126,6 +134,7 @@ class Review:
                     "tolerant_exit_code": record.get("tolerant_exit_code"),
                     "diagnostics": record.get("diagnostics"), "metrics": record.get("metrics"),
                     "reference_sha256": record.get("expected", {}).get("sha256"),
+                    "raw_sha256": record.get("raw_sha256"), "png_sha256": record.get("png_sha256"),
                     "review": saved})
         lines.extend(["Full comparison results (authoritative):", json.dumps(report["summary"].get("visual", {}), sort_keys=True),
                       "Parser-only probes (no images): " + json.dumps(report["summary"].get("safety", {}), sort_keys=True),
@@ -140,6 +149,7 @@ class Review:
             for r in manifest) + "\n", encoding="utf-8")
         (self.root / "manifest.json").write_text(json.dumps({"candidate_sha": report["candidate_sha"],
             "frames": manifest, "errors": self.errors}, indent=2) + "\n", encoding="utf-8")
+        (self.root / "comparison-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
 def verify(root):

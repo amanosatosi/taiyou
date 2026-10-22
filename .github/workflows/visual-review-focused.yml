@@ -40,7 +40,7 @@ jobs:
           echo "ACCEPTED_BASELINE=$base" >> "$GITHUB_ENV"
       - run: |
           python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
-      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684

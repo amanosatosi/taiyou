@@ -18,7 +18,7 @@ CASES = [
     ("layoutres", "scaling", [500], "PlayRes 320x160, LayoutRes 640x160, output 640x320, one word."),
     ("scaled-border", "scaling", [500], "PlayRes 320x160, output 640x320; SBAS yes/no paired at runtime."),
     ("alpha", "alpha", [2040, 2560, 4960], "Left: animated 0x1FF alpha target; right: 0xFF control. No geometric clip."),
-    ("faux-italic", "fonts", [0], "Top: synthetic italics; bottom: upright control using the same DejaVu face."),
+    ("faux-italic", "fonts", [0], "Top: synthetic italics; bottom: upright control. Separate DejaVu TrueType and FansubBlock CFF variants."),
     ("drawing", "drawings", [0], "Single unbordered closed rectangle, no font geometry or transforms."),
     ("trimming", "parsing", [0], "Example vs ***Example with trailing style-name spaces; one explicit Example event."),
 ]
@@ -43,8 +43,12 @@ def main():
         if name == "scaled-border":
             variants = [(name + "-yes", variants[0][1]),
                         (name + "-no", variants[0][1].replace("ScaledBorderAndShadow: yes", "ScaledBorderAndShadow: no"))]
+        elif name == "faux-italic":
+            variants.append((name + "-cff", variants[0][1].replace("DejaVu Sans", "FansubBlock-CFF").replace("ABCD", "A")))
         notes.extend([folder + "/witness-" + name + "-*: " + explanation])
         for variant, source in variants:
+            render_font = (args.corpus / "regression/faux-italics/FansubBlock-CFF.otf"
+                           if variant == "faux-italic-cff" else font)
             script = directory / ("witness-" + variant + ".ass")
             script.write_text(source, encoding="utf-8")
             for time in times:
@@ -54,7 +58,7 @@ def main():
                     png, raw = temporary / "actual.png", temporary / "actual.rgba"
                     code, diagnostic = execute([binary, "render", "--input", script.resolve(),
                         "--time-us", str(time * 1000), "--width", "640", "--height", "320",
-                        "--profile", "core-v1", "--font", font, "--output", png, "--raw", raw], temporary)
+                        "--profile", "core-v1", "--font", render_font, "--output", png, "--raw", raw], temporary)
                     notes.append(f"  {output.name}: strict exit {code}")
                     if code == 0:
                         images.raw_rgba(raw, 640, 320)

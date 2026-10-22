@@ -7,7 +7,8 @@ corpus result. No external assets or frozen fixtures are changed.
 
 Run `python scripts/render-review-witnesses.py --review PATH --corpus PATH` in
 GitHub Actions after the existing renderer build. It uses the pinned corpus's
-DejaVu Sans font, strict execution and the existing bounded subprocess adapter.
+DejaVu Sans and FansubBlock CFF fonts, strict execution and the existing bounded
+subprocess adapter.
 Scripts and candidate PNGs go directly into the behavior folders, with one
 shared `WITNESSES.txt`; corpus frame counts exclude them.
 
@@ -19,7 +20,7 @@ shared `WITNESSES.txt`; corpus frame counts exclude them.
 | layoutres.ass | Anisotropic LayoutRes/PlayRes with one word |
 | scaled-border.ass | Same word rendered with SBAS yes/no |
 | alpha.ass | Animated 0x1FF vs 0xFF alpha target, no geometric clip |
-| faux-italic.ass | Synthetic italic vs upright on one face |
+| faux-italic.ass | Synthetic italic vs upright; TrueType and CFF variants |
 | drawing.ass | One closed rectangle, no font geometry |
 | trimming.ass | Example vs ***Example with trailing style-name spaces |
 
