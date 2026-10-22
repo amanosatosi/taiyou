@@ -1,6 +1,5 @@
 """CI-only candidate renders of small, Taiyou-owned visual reductions. No oracle."""
 import argparse
-import json
 from pathlib import Path
 import shutil
 import sys

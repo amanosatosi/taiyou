@@ -1,5 +1,4 @@
 """Supplemental exporter tests. Existing comparison tests remain unchanged."""
-import copy
 from pathlib import Path
 import tempfile
 import unittest

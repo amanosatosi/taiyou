@@ -38,7 +38,8 @@ jobs:
           git archive "$base" validation docs/references.lock.json | tar -x -C "$RUNNER_TEMP/accepted"
           echo "TAIYOU_ACCEPTED=$RUNNER_TEMP/accepted" >> "$GITHUB_ENV"
           echo "ACCEPTED_BASELINE=$base" >> "$GITHUB_ENV"
-      - run: python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - run: rustup toolchain install 1.99.1 --profile minimal
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
