@@ -30,6 +30,9 @@ jobs:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
         if: ${{ !cancelled() }}
         run: |
           cargo test --locked -p taiyou-render --features native --test source_mask -- --nocapture
@@ -52,6 +55,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           cargo test --locked -p taiyou-cli --features native --test be_audit -- --nocapture
+          cargo test --locked -p taiyou-cli --features native --test gaussian_source -- --nocapture
           python experiments/t018-be/source-paths.py
           cargo test --locked -p taiyou-render --features native --test source_mask supplied_gdi -- --nocapture
       - env:
@@ -62,6 +66,11 @@ jobs:
         run: |
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
           cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/blurs/be-0500.png --case regression/blurs/be-1500.png --case regression/blurs/be-2500.png --case regression/blurs/be-3500.png --case regression/blurs/blur+t-1000.png --case regression/blurs/blur+t-1100.png --case regression/blurs/blur+t-1200.png --case regression/blurs/blur+t-1300.png --case regression/blurs/blur+t-1400.png --case regression/blurs/blur+t-1500.png --case regression/blurs/blur+t-1600.png --case regression/blurs/blur+t-1700.png --case regression/blurs/blur+t-1800.png --case regression/blurs/blur+t-1900.png --case regression/blurs-anamorphic/blur-0000.png
+      - if: ${{ !cancelled() }}
+        env:
+          TAIYOU_BE_AUDIT_CORPUS: ${{ runner.temp }}/taiyou-libass-tests
+          TAIYOU_BE_AUDIT_OUTPUT: ${{ runner.temp }}/source-masks
+        run: python experiments/t018-be/gaussian-units.py
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
