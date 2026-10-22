@@ -455,3 +455,13 @@ diagnostics are discarded. A second failure preserves the original typed error
 and the existing minimal fallback. Native charge formulas, glyph limits and
 caller budgets are unchanged. This also preserves the bounded successful partial
 strategy instead of replacing it with unconditional minimal staging.
+
+Focused verification of both reservation fixes:
+[39827195170 / 119993495285](https://github.com/amanosatosi/taiyou/actions/runs/39827195170/job/119993495285)
+at `ebbeda0c9b7f600b276f2d57bff0ba6ee3900024` passes all seven native staging
+tests, including the original full/partial/minimal assertion, fixed-segment
+single-attempt failure, legitimate transient retry, and the new one-attempt
+32 MiB witness. Native Clippy, six source-mask tests, 14 renderer_slice tests,
+and the additive memory/halo integrations also pass. The workflow remains red
+only for the unchanged 15 strict pixel mismatches. Its rustfmt patch is applied
+without semantic edits. No existing benchmark or staging assertion was relaxed.

@@ -591,8 +591,7 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let mut result =
-                    prepare_local(&mut ctx, event, &preparation, held, &mut report);
+                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report);
                 if result
                     .as_ref()
                     .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
@@ -617,13 +616,11 @@ impl Renderer {
                             .or(result);
                     }
                 }
-                let (local, local_charge) = result.map_err(
-                        |e| {
-                            let id = e.event().or(Some(event.id()));
-                            let span = e.span().or(Some(event.source()));
-                            e.with_context(id, span)
-                        },
-                    )?;
+                let (local, local_charge) = result.map_err(|e| {
+                    let id = e.event().or(Some(event.id()));
+                    let span = e.span().or(Some(event.source()));
+                    e.with_context(id, span)
+                })?;
                 let placement = local.shaped().placement();
                 inputs.push(CollisionInput {
                     id: event.id(),
@@ -692,35 +689,35 @@ impl Renderer {
         // Ordinary paint order and full effects apply to explicit events too.
         for event in events {
             let result = (|| {
-                let (local, local_charge) =
-                    if let Ok(index) = prepared.binary_search_by_key(&event.id(), |p| p.0) {
-                        let saved = prepared[index].1.take().ok_or_else(|| {
-                            RenderError::new(
-                                ErrorCode::InternalError,
-                                "prepared event already consumed",
-                            )
-                        })?;
-                        debug_assert_eq!(saved.id, event.id());
-                        held = held.checked_sub(saved.charge).ok_or_else(limited)?;
-                        prepared_remaining =
-                            prepared_remaining.checked_sub(1).ok_or_else(limited)?;
-                        if prepared_remaining == 0 {
-                            // The retained prefix has been consumed. Its empty
-                            // lookup allocation must not crowd out later native
-                            // preparation or provoke a full minimal retry.
-                            drop(std::mem::take(&mut prepared));
-                            held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
-                            prepared_charge = 0;
-                        }
-                        diagnostics
-                            .extend_finished(&saved.diagnostics)
-                            .map_err(convert)?;
-                        // The saved report Vec drops here; the frame's bounded
-                        // diagnostic reservation owns the merged records now.
-                        (saved.local, saved.local_charge)
-                    } else {
-                        prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
-                    };
+                let (local, local_charge) = if let Ok(index) =
+                    prepared.binary_search_by_key(&event.id(), |p| p.0)
+                {
+                    let saved = prepared[index].1.take().ok_or_else(|| {
+                        RenderError::new(
+                            ErrorCode::InternalError,
+                            "prepared event already consumed",
+                        )
+                    })?;
+                    debug_assert_eq!(saved.id, event.id());
+                    held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                    prepared_remaining = prepared_remaining.checked_sub(1).ok_or_else(limited)?;
+                    if prepared_remaining == 0 {
+                        // The retained prefix has been consumed. Its empty
+                        // lookup allocation must not crowd out later native
+                        // preparation or provoke a full minimal retry.
+                        drop(std::mem::take(&mut prepared));
+                        held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
+                        prepared_charge = 0;
+                    }
+                    diagnostics
+                        .extend_finished(&saved.diagnostics)
+                        .map_err(convert)?;
+                    // The saved report Vec drops here; the frame's bounded
+                    // diagnostic reservation owns the merged records now.
+                    (saved.local, saved.local_charge)
+                } else {
+                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
                 let device = device_mapping(&track, request)?;
