@@ -395,3 +395,42 @@ much larger identical-geometry FreeType-A8/eighth-grid difference. Remaining
 source-mask gaps include exact curve/phase behavior beyond these controls and
 FreeType round-stroker versus xy span-region border widening. No GDI outline
 replacement or filter retuning is claimed.
+
+### Dense-scene reservation correction found by final platform validation
+
+Candidate `e32f217` completed the full comparison with 1 exact, 83 pixel
+mismatches, 17 genuinely blocked visual frames, and no execution, infrastructure
+or crash failures. All 104 inventory entries and 187 assets were preserved.
+The independent libass job passed. This is recorded evidence, not a permanent
+count requirement.
+
+That candidate's Linux native workspace test exposed a real resource regression
+in the unchanged `adaptive-256-multiglyph` experiment: both 32 MiB variants
+failed native shaping at EventId(96), source 10461..10566, while 128 MiB full
+and minimal variants completed with equal raw hash
+`362e23a149d753bd00da31fe2b9902a84c4b4cd032808cd93c809b39cb69c8cc`.
+The Windows/macOS adaptive-staging assertion also failed because no successful
+partial-retention result remained in the tested budget table. Those failures
+were not suppressed or reclassified.
+
+The larger source-defined raster extents exposed unnecessary retention of
+finished masks wholly outside the frame. The renderer now releases their
+unique mask reservations after all border/shadow/filter work, before retaining
+the draw list. Collision still receives the entire active set, and all
+preparation, geometry, native work and segment-limit checks still execute.
+An offscreen body is retained if its shadow or filtered halo reaches the frame.
+Shared coincident-shadow/box masks release their reservation only once. No
+limit or protected test assertion changed.
+
+The additive `source_mask_budget` integration tests exercise the exact reduced
+256-event workload, 32/128 MiB output/diagnostic equality, repeated random time
+requests, and offscreen-body witnesses with visible shadow and Gaussian halo.
+Final platform and comparison results must be read at the final candidate;
+`e32f217` remains the preserved before-correction evidence.
+
+Across the 64 visual cases that already rendered at `5bbde64d`, this eighth-grid
+candidate changes 61 raw RGBA hashes. Changed-pixel counts improve in 33, are
+equal in nine, and worsen in 22; alpha MAE improves in 11, is equal in three,
+and worsens in 50. These renderer-wide changes are reported explicitly: the
+identical-geometry controls establish the source coverage correction, not a
+universal improvement against the independent frozen libass references.

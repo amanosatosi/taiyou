@@ -36,6 +36,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           cargo test --locked -p taiyou-render --features native --test source_mask -- --nocapture
+          cargo test --locked -p taiyou-render --features native --lib renderer::staging_tests -- --nocapture
           cargo clippy --locked --workspace --all-targets --features taiyou-cli/native -- -D warnings
           cargo test --locked -p taiyou-cli --features native --test blur --test ass_coverage_batch --test layout_vertical --test renderer_effect_regressions --test ass_compatibility --test transforms --test drawings --test source_mask_budget
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
