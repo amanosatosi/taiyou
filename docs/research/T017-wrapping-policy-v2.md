@@ -9,7 +9,7 @@ provenance, licensing, storage and conformance review. Production limits and
 automatic wrapping remain unapproved/unimplemented.
 F1 is separately approved in
 [ADR-012](../decisions/012-core-collision-footprint.md). This proposal does not
-admit R001 L01–L03 or claim historical xy-VSFilter behavior.
+replace or claim historical xy-VSFilter behavior.
 
 The advances-only API and search tests in this PR are **experiments**, not an
 automatic wrapping implementation. Their full-line equivalence and workload
@@ -348,5 +348,5 @@ raw native-work preflight and a reviewed C7 amendment remain mandatory before
 implementation admission. The32,000/16,000,000 pilot limits are not production
 defaults. No automatic production wrap mode is enabled. Legacy admission separately needs authenticated pinterf
 L01–L03 captures, font/GDI metrics and tie examples with the full environment/
-binary/font/script/timestamp/output provenance specified by R001. Neither this
+binary/font/script/timestamp/output provenance required for any authenticated pixel claim. Neither this
 Core proposal nor libass output supplies that historical evidence.

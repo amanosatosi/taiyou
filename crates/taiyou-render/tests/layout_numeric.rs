@@ -173,16 +173,16 @@ fn layout_numeric_all_nine_alignments_exact_baselines_and_fallback_metrics() {
         let output = layout(&input, &constraints(alignment)).unwrap();
         let h = f64::from((alignment - 1) % 3) * 0.5;
         let v = 1.0 - f64::from((alignment - 1) / 3) * 0.5;
-        let dy = -47.0 * v;
-        assert_eq!(output.lines().len(), 4);
+        let dy = -33.0 * v;
+        assert_eq!(output.lines().len(), 3);
         assert_eq!(
             output.logical_bounds(),
-            ScriptBounds::new(-20.0 * h, dy, 20.0 * (1.0 - h), dy + 47.0).unwrap()
+            ScriptBounds::new(-20.0 * h, dy, 20.0 * (1.0 - h), dy + 33.0).unwrap()
         );
-        for (i, ((baseline, width), (a, d))) in [12.0, 22.0, 34.0, 46.0]
+        for (i, ((baseline, width), (a, d))) in [12.0, 19.0, 30.0]
             .into_iter()
-            .zip([20.0, 0.0, 5.0, 0.0])
-            .zip([(12.0, 4.0), (6.0, 2.0), (10.0, 3.0), (9.0, 1.0)])
+            .zip([20.0, 0.0, 5.0])
+            .zip([(12.0, 4.0), (3.0, 1.0), (10.0, 3.0)])
             .enumerate()
         {
             let line = &output.lines()[i];
@@ -200,7 +200,7 @@ fn layout_numeric_all_nine_alignments_exact_baselines_and_fallback_metrics() {
             );
         }
         assert_eq!(output.lines()[1].glyph_range(), 2..2);
-        assert_eq!(output.lines()[3].glyph_range(), 3..3);
+        assert_eq!(output.lines()[2].glyph_range(), 2..3);
         assert_eq!(output.shaped().runs()[0].glyphs()[1].font(), font(2));
     }
 }
@@ -210,20 +210,27 @@ fn layout_numeric_break_only_and_zero_text_have_actual_empty_metrics() {
         (
             "\n\n",
             vec![(0, 8.0, 2.0), (1, 12.0, 3.0), (2, 6.0, 1.0)],
-            32.0,
+            12.5,
         ),
         ("", vec![(0, 5.0, 2.0)], 7.0),
     ] {
         let e = event(text, vec![], &empty, Style::core_default());
         let l = layout(&e, &constraints(7)).unwrap();
-        assert_eq!(l.lines().len(), empty.len());
+        assert_eq!(
+            l.lines().len(),
+            if text.ends_with('\n') {
+                empty.len() - 1
+            } else {
+                empty.len()
+            }
+        );
         assert_eq!(l.logical_bounds().height(), height);
         assert!(l.glyphs().is_empty());
         assert_eq!(l.ink_bounds(), None);
     }
 }
 #[test]
-fn layout_numeric_spaces_include_advances_but_no_ink() {
+fn layout_numeric_compacts_ascii_edge_but_preserves_nbsp_advance_and_source() {
     let mut a = g(1, 0..1, 3.0);
     a.ink = GlyphInk::Empty;
     let mut b = g(2, 1..3, 4.0);
@@ -237,11 +244,15 @@ fn layout_numeric_spaces_include_advances_but_no_ink() {
     let l = layout(&e, &constraints(7)).unwrap();
     assert_eq!(
         l.logical_bounds(),
-        ScriptBounds::new(0.0, 0.0, 7.0, 10.0).unwrap()
+        ScriptBounds::new(0.0, 0.0, 4.0, 10.0).unwrap()
     );
     assert_eq!(l.ink_bounds(), None);
     assert_eq!(l.collision_bounds(), l.logical_bounds());
-    assert_eq!(l.glyphs()[1].position().x().get(), 3.0);
+    assert_eq!(e.source_map().text(), " \u{a0}");
+    assert_eq!(e.runs()[0].glyphs().len(), 2);
+    assert_eq!(l.glyphs().len(), 1);
+    assert_eq!(l.glyphs()[0].cluster().text(), "\u{a0}");
+    assert_eq!(l.glyphs()[0].position().x().get(), 0.0);
 }
 #[test]
 fn layout_numeric_negative_offsets_and_mark_ink_are_distinct_from_logical_box() {

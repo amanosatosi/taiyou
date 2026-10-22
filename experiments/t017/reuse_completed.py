@@ -22,6 +22,15 @@ RELEASE_CASES = {"normal-one", "normal-eight", "dense-100", "dense-500", "dense-
 
 def validate(kind, rows, environment, measured):
     assert re.fullmatch(r"[0-9a-f]{40}", measured)
+    cell_policy = environment.get("pixel_identity_policy")
+    assert cell_policy in (None, "positive-cell-height-v2")
+    if cell_policy and kind == "debug":
+        assert environment["metric_font"] == {"sha256":FONT, "upem":1000, "win_ascent":1000, "win_descent":326}
+    elif cell_policy:
+        assert kind == "optimized"
+        assert environment["cell_identity"]["historical_sha256"] == "9171c7aba2e228f4ea715a86eb8d2108a13d62bc01fbe17cf5a40bbd5511d032"
+        assert environment["cell_identity"]["current_sha256"] == "e99750fabb0ffd5ce301ee971c47100f97c546430f18809fa949feb178538b20"
+        assert environment["cell_identity"]["native_em_q6"] == 884
     expected_cases = DEBUG_CASES if kind == "debug" else RELEASE_CASES
     assert {r["case"] for r in rows} == expected_cases
     assert environment["font"]["sha256"] == FONT
@@ -54,7 +63,10 @@ def validate(kind, rows, environment, measured):
             for reviewed in [r for r in selected if r["implementation"].startswith("reviewed") and r["exit_code"] == 0]:
                 assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"])
         comparable = selected if kind == "debug" else [r for r in selected if not r["implementation"].startswith("earlier") and r["exit_code"] == 0]
-        assert len({r["raw_sha256"] for r in comparable}) <= 1
+        cohorts = [[r for r in comparable if r["implementation"].startswith(prefix)]
+                   for prefix in (("before", "after") if kind == "debug" else ("reviewed", "candidate"))] if cell_policy else [comparable]
+        for cohort in cohorts:
+            assert len({r["raw_sha256"] for r in cohort}) <= 1
 
 def unchanged(measured, kind):
     subprocess.run(["git", "fetch", "--no-tags", "origin", measured, REVIEWED], cwd=ROOT, check=True, capture_output=True)
@@ -152,7 +164,48 @@ def self_test():
         except AssertionError:
             continue
         raise AssertionError("invalid performance evidence was accepted")
-    print("T017_REUSE_SELF_TEST: missing, duplicate, failed and mismatched raw samples rejected", flush=True)
+    cell_debug = dict(environment, pixel_identity_policy="positive-cell-height-v2",
+                      metric_font={"sha256":FONT, "upem":1000, "win_ascent":1000, "win_descent":326})
+    validate("debug", rows, cell_debug, environment["candidate"])
+    for candidate in broken:
+        try:
+            validate("debug", candidate, cell_debug, environment["candidate"])
+        except AssertionError:
+            continue
+        raise AssertionError("invalid cell-height debug evidence accepted")
+    try:
+        validate("debug", rows, dict(cell_debug, metric_font={}), environment["candidate"])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("unverified metric font accepted")
+    # Old evidence keeps its original checks. The metric revision only permits
+    # cross-policy differences; corruption within the current policy must fail.
+    saved = ROOT / "experiments/t017/results/dc83cab/T017-optimized"
+    release = [json.loads(line) for line in (saved / "samples.jsonl").read_text().splitlines()]
+    env = json.loads((saved / "environment.json").read_text())
+    validate("optimized", release, env, env["versions"]["candidate"])
+    env.update(pixel_identity_policy="positive-cell-height-v2", cell_identity={
+        "historical_sha256":"9171c7aba2e228f4ea715a86eb8d2108a13d62bc01fbe17cf5a40bbd5511d032",
+        "current_sha256":"e99750fabb0ffd5ce301ee971c47100f97c546430f18809fa949feb178538b20",
+        "native_em_q6":884})
+    validate("optimized", release, env, env["versions"]["candidate"])
+    invalid = [release[:-1], release + [release[0]],
+               [dict(r, raw_sha256="0"*64) if r["implementation"] == "candidate" and r["sample"] == 0 else r for r in release],
+               [dict(r, exit_code=32) if r["implementation"] == "candidate" and r["sample"] == 0 else r for r in release]]
+    for bad in invalid:
+        try:
+            validate("optimized", bad, env, env["versions"]["candidate"])
+        except AssertionError:
+            continue
+        raise AssertionError("invalid cell-metric evidence was accepted")
+    for bad_identity in [{}, dict(env["cell_identity"], current_sha256="0"*64), dict(env["cell_identity"], native_em_q6=1280)]:
+        try:
+            validate("optimized", release, dict(env, cell_identity=bad_identity), env["versions"]["candidate"])
+        except (AssertionError, KeyError):
+            continue
+        raise AssertionError("invalid cell identity was accepted")
+    print("T017_REUSE_SELF_TEST: missing, duplicate, failed and mismatched raw samples rejected for both metric policies", flush=True)
 
 if __name__ == "__main__":
     assert os.environ.get("GITHUB_ACTIONS") == "true"

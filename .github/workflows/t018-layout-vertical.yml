@@ -1,0 +1,77 @@
+name: T018 layout and vertical compatibility focused
+on:
+  push:
+    branches: [task/T018-layout-checks]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: |
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/layout-format.patch"
+          cargo test --locked -p taiyou-ass --test overrides
+          cargo test --locked -p taiyou-cli --test layout_vertical --test warpmode
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python build-support/acquire.py
+          python build-support/build-native.py
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: cargo test --locked -p taiyou-cli --features native --test layout_vertical
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/embedded-font/efont-1000.png --case regression/karaoke/357-k-and-kf-desynced-6798.png --case regression/karaoke/357-k-and-kf-desynced-7170.png --case regression/karaoke/357-k-and-kf-desynced-8170.png --case regression/scaling_playres/playresx_sbas-no-0000.png --case regression/scaling_playres/playresx_sbas-no-1000.png --case regression/scaling_playres/playresx_sbas-no-2000.png --case regression/scaling_playres/playresx_sbas-yes-0000.png --case regression/scaling_playres/playresx_sbas-yes-1000.png --case regression/scaling_playres/playresx_sbas-yes-2000.png --case regression/scaling_playres/playresx_sbas-yes-3000.png --case regression/scaling_playres/playresx_sbas-yes-4000.png --case regression/zero-area/zero-area-2000.png --case regression/zero-area/zero-area-8000.png --case regression/karaoke/karaoke-and-runsplits-0000.png --case regression/karaoke/karaoke-and-runsplits-2040.png --case regression/karaoke/karaoke-and-runsplits-2800.png --case regression/karaoke/karaoke-and-runsplits-3120.png --case regression/karaoke/karaoke-and-runsplits-4600.png --case regression/karaoke/216-vertical-2252.png
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layout-focused-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/layout-format.patch
+            ${{ runner.temp }}/taiyou-comparison/
+  gdi:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python build-support/shaping-fixtures.py
+          python build-support/vertical-fixture.py
+      - shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -property installationPath
+          & cmd /c "`"$vs/Common7/Tools/VsDevCmd.bat`" -arch=x64 && cl /nologo /W4 /WX build-support/vertical-gdi.c /link gdi32.lib user32.lib /out:vertical-gdi.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./vertical-gdi.exe "$env:RUNNER_TEMP/taiyou-shaping-fonts/cjk.otf" 'Noto Sans CJK JP' | Tee-Object "$env:RUNNER_TEMP/vertical-gdi.txt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./vertical-gdi.exe "$env:RUNNER_TEMP/taiyou-shaping-fonts/IPAexGothic.ttf" 'IPAexGothic' | Tee-Object -Append "$env:RUNNER_TEMP/vertical-gdi.txt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vertical-gdi-${{ github.sha }}
+          path: ${{ runner.temp }}/vertical-gdi.txt

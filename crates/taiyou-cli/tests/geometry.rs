@@ -11,7 +11,7 @@ fn f(v: f64) -> FiniteF64 {
 #[test]
 fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
     let output = {
-        let input = "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Angle\nStyle: Default,Source Sans 3,20,7,90\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Of{\\c&HFF0000&}f\\N{\\fscx150\\fscy200}é ";
+        let input = "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment,Angle\nStyle: Default,Source Sans 3,20,7,90\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,Of{\\c&HFF0000&}f\\N{\\fscx150\\fscy200}é\\h";
         let options = Default::default();
         let parsed =
             taiyou_ass::parse_ass(input.as_bytes(), &options, &mut Default::default()).unwrap();
@@ -74,7 +74,11 @@ fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
     for (g, positioned) in output.glyphs().iter().zip(output.layout().glyphs()) {
         assert_eq!(&g.cluster, positioned.cluster());
         let run = &output.layout().shaped().evaluated().runs()[g.association];
-        let size = run.shaping().font_size().get() / f64::from(g.outline.units_per_em());
+        // This fixture's Source Sans 3 OS/2 cell is1000+326 at UPEM1000.
+        let native_em = ((run.shaping().font_size().get() * 64.0 + 0.5).floor() * 1000.0 / 1326.0
+            + 0.5)
+            .floor();
+        let size = native_em / 64000.0;
         let point = g.outline.outline().ops().iter().find_map(|op| match op {
             PathOp::MoveTo(p) => Some(*p),
             _ => None,

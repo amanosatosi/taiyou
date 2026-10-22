@@ -1,4 +1,4 @@
-//! Iterative Core tokenization. Legacy malformed/nesting behavior remains R001.
+//! Iterative Core tokenization. Historical malformed/nesting behavior follows pinterf when implemented.
 use crate::{Context, decode, invalid, reserve};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -153,9 +153,28 @@ fn block(
     program: &mut Program,
 ) -> Result<(), ParseError> {
     let mut cursor = 0;
-    while cursor < text.len() {
-        let Some(skip) = text[cursor..].find('\\') else {
+    // Explicit frames avoid recursive parser calls, including hostile nesting.
+    let mut text = text;
+    let mut base = base;
+    let mut parents = Vec::new();
+    loop {
+        if cursor >= text.len() {
+            if let Some((parent, parent_base, next, span)) = parents.pop() {
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::EndTransform { source: span }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
+                text = parent;
+                base = parent_base;
+                cursor = next;
+                continue;
+            }
             break;
+        }
+        let Some(skip) = text[cursor..].find('\\') else {
+            cursor = text.len();
+            continue;
         };
         cursor += skip;
         let start = cursor;
@@ -191,8 +210,166 @@ fn block(
             }
             cursor += 1;
         }
+        // The xy tag reader stops a transform argument at the first closing
+        // parenthesis, not the matching one. Remaining backslash tags belong
+        // to the enclosing list and are evaluated without this transform.
+        if !unstructured && remaining.contains('(') {
+            if let Some(close) = remaining.find(')') {
+                cursor = cursor.min(start + 1 + close + 1);
+            }
+        }
         let span = SourceSpan::new(source, base + start, base + cursor)?;
         let raw = &text[start + 1..cursor];
+        // ParseSSATag stores at most four nonempty comma parameters, stopping
+        // the parameter split at the first embedded backslash. An empty or
+        // overfull transform executes no children; it is not a syntax error.
+        if raw == "t" || raw.starts_with("t(") {
+            if let Some((settings, children, child_base)) = transform(raw, base + start + 1)? {
+                if parents.len() as u32 >= ctx.options.limits().tag_nesting() {
+                    return Err(ParseError::new(
+                        ErrorCode::LimitExceeded,
+                        "transform nesting limit exceeded",
+                    ));
+                }
+                let header = SourceSpan::new(source, base + start, child_base)?;
+                let tail = SourceSpan::new(source, child_base + children.len(), base + cursor)?;
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::BeginTransform {
+                        start_ms: settings.0,
+                        end_ms: settings.1,
+                        accel: settings.2,
+                        source: header,
+                    }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
+                reserve(&mut parents)?;
+                parents.push((text, base, cursor, tail));
+                text = children;
+                base = child_base;
+                cursor = 0;
+            }
+            continue;
+        }
+        // A transform containing a parenthesized command can leave unmatched
+        // ')' characters on the following numeric/hex command. xy's native
+        // suffix conversion ignores them; literal font/reset names do not.
+        let raw = if !unstructured && !raw.contains('(') {
+            raw.trim_end_matches(')')
+        } else {
+            raw
+        };
+        // xy stores placement/origin/fade as event effects, even inside t.
+        match event_effect(raw, span) {
+            Ok(Some(op)) => {
+                if let Some(op) = op {
+                    push(
+                        program,
+                        TextOp::Override(op),
+                        ctx.options.limits().text_bytes_per_event(),
+                    )?;
+                }
+                continue;
+            }
+            Err(error) => {
+                ctx.recover(error, Some(event), span)?;
+                continue;
+            }
+            Ok(None) => (),
+        }
+        if !parents.is_empty() {
+            let suffix = decode::trim(raw.split_once('(').map_or(raw, |(s, _)| s));
+            if (suffix.starts_with('b')
+                && !suffix.starts_with("blur")
+                && !suffix.starts_with("bord")
+                && !suffix.starts_with("be"))
+                || (suffix.starts_with('i') && !suffix.starts_with("iclip"))
+            {
+                let italic = suffix.starts_with('i');
+                let value = decode::trim(&suffix[1..]);
+                let sign = usize::from(value.starts_with(['+', '-']));
+                let end = sign
+                    + value.as_bytes()[sign..]
+                        .iter()
+                        .take_while(|b| b.is_ascii_digit())
+                        .count();
+                let n = if end == sign {
+                    0.0
+                } else {
+                    blur_number(&value[..end])?
+                };
+                let restore = value.is_empty() || (n != 0.0 && n != 1.0 && (italic || n < 100.0));
+                let op = if restore {
+                    OverrideOp::RestoreOriginal {
+                        field: if italic {
+                            OriginalField::Italic
+                        } else {
+                            OriginalField::Weight
+                        },
+                        source: span,
+                    }
+                } else if italic {
+                    OverrideOp::SetItalic {
+                        italic: n == 1.0,
+                        source: span,
+                    }
+                } else {
+                    if n > u16::MAX as f64 {
+                        return Err(ParseError::new(
+                            ErrorCode::LimitExceeded,
+                            "ASS font weight outside supported numeric domain",
+                        ));
+                    }
+                    OverrideOp::SetWeight {
+                        weight: if n == 0.0 {
+                            400
+                        } else if n == 1.0 {
+                            700
+                        } else {
+                            n as u16
+                        },
+                        source: span,
+                    }
+                };
+                push(
+                    program,
+                    TextOp::Override(op),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
+                continue;
+            }
+            let original = match suffix {
+                "fn" | "fn0" => Some(OriginalField::Font),
+                "b" | "b-1" => Some(OriginalField::Weight),
+                "i" | "i-1" => Some(OriginalField::Italic),
+                "c" | "1c" => Some(OriginalField::Paint(PaintChannel::Primary)),
+                "2c" => Some(OriginalField::Paint(PaintChannel::Secondary)),
+                "3c" => Some(OriginalField::Paint(PaintChannel::Outline)),
+                "4c" => Some(OriginalField::Paint(PaintChannel::Shadow)),
+                "alpha" => Some(OriginalField::Opacity(None)),
+                "1a" | "2a" | "3a" | "4a" => Some(OriginalField::Opacity(Some(channel(suffix)))),
+                _ => None,
+            };
+            if let Some(field) = original {
+                push(
+                    program,
+                    TextOp::Override(OverrideOp::RestoreOriginal {
+                        field,
+                        source: span,
+                    }),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
+                continue;
+            }
+            if let Some(op) = transform_number(raw, span)? {
+                push(
+                    program,
+                    TextOp::Override(op),
+                    ctx.options.limits().text_bytes_per_event(),
+                )?;
+                continue;
+            }
+        }
         match parse(raw, span, styles) {
             Ok(Some(op)) => {
                 op.validate()
@@ -203,6 +380,11 @@ fn block(
                     ctx.options.limits().text_bytes_per_event(),
                 )?;
             }
+            Ok(None) if raw.starts_with("clip") || raw.starts_with("iclip") => {}
+            // CMD_COUNT is consumed by xy without applying a style property.
+            // Recognized but unimplemented commands remain explicit failures.
+            Ok(None)
+                if !raw.starts_with("fe") && !raw.starts_with("fsc") && !raw.starts_with('r') => {}
             Ok(None) => {
                 let name = unsupported_name(raw);
                 push(
@@ -226,12 +408,135 @@ fn block(
     Ok(())
 }
 
+type TransformParameters = (i32, i32, FiniteF64);
+fn transform(
+    raw: &str,
+    base: usize,
+) -> Result<Option<(TransformParameters, &str, usize)>, ParseError> {
+    let empty = || Some(((0, 0, FiniteF64::ONE), &raw[raw.len()..], base + raw.len()));
+    let Some(open) = raw.find('(') else {
+        return Ok(empty());
+    };
+    // xy's parameter reader ends at the first ')', including malformed partial
+    // blocks; the child reader receives precisely that substring.
+    let end = raw[open + 1..]
+        .find(')')
+        .map_or(raw.len(), |n| open + 1 + n);
+    let content = &raw[open + 1..end];
+    let child = content.find('\\').unwrap_or(content.len());
+    let mut values = [""; 4];
+    let mut count = 0;
+    for value in content[..child]
+        .split(',')
+        .map(decode::trim)
+        .filter(|s| !s.is_empty())
+    {
+        if count == 4 {
+            return Ok(empty());
+        }
+        values[count] = value;
+        count += 1;
+    }
+    if child < content.len() {
+        if count == 4 {
+            return Ok(empty());
+        }
+        values[count] = &content[child..];
+        count += 1;
+    }
+    if count == 0 {
+        return Ok(empty());
+    }
+    let integer = |s: &str, decimal: bool| -> Result<i32, ParseError> {
+        let n = if decimal {
+            blur_number(s)?
+        } else {
+            let bytes = s.as_bytes();
+            let sign = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+            let end = sign
+                + bytes[sign..]
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            if end == sign {
+                0.0
+            } else {
+                blur_number(&s[..end])?
+            }
+        };
+        if n < i32::MIN as f64 || n > i32::MAX as f64 {
+            return Err(ParseError::new(
+                ErrorCode::LimitExceeded,
+                "transform time exceeds signed milliseconds",
+            ));
+        }
+        Ok(n.trunc() as i32)
+    };
+    let (start, end, accel) = match count {
+        1 => (0, 0, 1.0),
+        2 => (0, 0, blur_number(values[0])?),
+        3 => (integer(values[0], true)?, integer(values[1], true)?, 1.0),
+        _ => (
+            integer(values[0], false)?,
+            integer(values[1], false)?,
+            blur_number(values[2])?,
+        ),
+    };
+    // With no child backslash the reference may parse numeric text as the last
+    // modifier, but it produces no operations.
+    Ok(Some((
+        (start, end, FiniteF64::new(accel)?),
+        &content[child..],
+        base + open + 1 + child,
+    )))
+}
+
+fn transform_number(raw: &str, source: SourceSpan) -> Result<Option<OverrideOp>, ParseError> {
+    if raw.starts_with("fsc") && !raw.starts_with("fscx") && !raw.starts_with("fscy") {
+        return Ok(None);
+    }
+    for (name, property) in [
+        ("fscx", TransformProperty::ScaleX),
+        ("fscy", TransformProperty::ScaleY),
+        ("frx", TransformProperty::RotationX),
+        ("fry", TransformProperty::RotationY),
+        ("fax", TransformProperty::ShearX),
+        ("fay", TransformProperty::ShearY),
+        ("xbord", TransformProperty::BorderX),
+        ("ybord", TransformProperty::BorderY),
+        ("xshad", TransformProperty::ShadowX),
+        ("yshad", TransformProperty::ShadowY),
+        ("fsp", TransformProperty::Spacing),
+        ("fs", TransformProperty::Size),
+        ("bord", TransformProperty::Border),
+        ("shad", TransformProperty::Shadow),
+    ] {
+        if let Some(suffix) = raw.strip_prefix(name) {
+            let suffix = decode::trim(suffix.split_once('(').map_or(suffix, |(s, _)| s));
+            return Ok(Some(OverrideOp::TransformNumber {
+                property,
+                relative: property == TransformProperty::Size && suffix.starts_with(['+', '-']),
+                value: if suffix.is_empty() {
+                    None
+                } else {
+                    Some(FiniteF64::new(blur_number(suffix)?)?)
+                },
+                source,
+            }));
+        }
+    }
+    Ok(None)
+}
+
 fn hex(value: &str, digits: usize) -> Result<u32, ParseError> {
     let value = decode::trim(value);
     let value = value
         .strip_prefix("&H")
         .or_else(|| value.strip_prefix("&h"))
-        .ok_or_else(|| invalid("override color/alpha requires &H hex"))?;
+        // pinterf RTS.cpp ParseSSATag (2181-2191) trims &/H before
+        // base-16 conversion; H-less &hex and an omitted closing & are valid.
+        .or_else(|| value.strip_prefix('&'))
+        .ok_or_else(|| invalid("override color/alpha requires & hex"))?;
     let value = value.strip_suffix('&').unwrap_or(value);
     if value.is_empty() || value.len() > digits || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(invalid("override hex channel out of range"));
@@ -244,6 +549,39 @@ fn channel(name: &str) -> PaintChannel {
         b'3' => PaintChannel::Outline,
         b'4' => PaintChannel::Shadow,
         _ => PaintChannel::Primary,
+    }
+}
+
+// RTS.cpp 2181-2191, 2251-2278: bare hex and signed LONG targets;
+// narrowing happens after CalcAnimation, not in the parser.
+fn alpha_number(value: &str) -> Result<Option<i32>, ParseError> {
+    let value = decode::trim(value).trim_matches(['&', 'H', 'h']);
+    if value.is_empty() {
+        return Ok(None);
+    }
+    let negative = value.starts_with('-');
+    let digits = value.strip_prefix(['-', '+']).unwrap_or(value);
+    if digits.is_empty() || digits.len() > 8 || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(invalid("override hex channel out of range"));
+    }
+    let n =
+        i64::from(u32::from_str_radix(digits, 16).map_err(|_| invalid("invalid override hex"))?);
+    Ok(Some(
+        (if negative { -n } else { n }).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+    ))
+}
+fn decimal_prefix(value: &str) -> Result<f64, ParseError> {
+    let value = value.trim_start();
+    let sign = usize::from(value.starts_with(['+', '-']));
+    let end = sign
+        + value.as_bytes()[sign..]
+            .iter()
+            .take_while(|b| b.is_ascii_digit())
+            .count();
+    if end == sign {
+        Ok(0.0)
+    } else {
+        blur_number(&value[..end])
     }
 }
 fn unsupported_name(raw: &str) -> &str {
@@ -266,11 +604,286 @@ fn unsupported_name(raw: &str) -> &str {
         .count();
     &raw[..name_end]
 }
+// RTS.cpp 2090-2125 skips empty comma parameters; effect cases accept only
+// their listed arities and otherwise do nothing (no occupied first-wins slot).
+fn event_effect(raw: &str, source: SourceSpan) -> Result<Option<Option<OverrideOp>>, ParseError> {
+    let Some(name) = ["move", "org", "pos", "fade", "fad"]
+        .into_iter()
+        .find(|n| raw.starts_with(*n))
+    else {
+        return Ok(None);
+    };
+    let Some((_, body)) = raw.split_once('(') else {
+        return Ok(Some(None));
+    };
+    let body = body.split_once(')').map_or(body, |(b, _)| b);
+    let mut params = [""; 7];
+    let mut count = 0;
+    for value in body.split(',').map(decode::trim).filter(|p| !p.is_empty()) {
+        if count == params.len() {
+            return Ok(Some(None));
+        }
+        params[count] = value;
+        count += 1;
+    }
+    let integer = |value: &str| -> Result<i32, ParseError> {
+        let value = value.trim_start_matches([' ', '\t', '\r', '\n']);
+        let sign = usize::from(value.starts_with(['+', '-']));
+        let end = sign
+            + value.as_bytes()[sign..]
+                .iter()
+                .take_while(|b| b.is_ascii_digit())
+                .count();
+        let n = if end == sign {
+            0.0
+        } else {
+            blur_number(&value[..end])?
+        };
+        if n < f64::from(i32::MIN) || n > f64::from(i32::MAX) {
+            return Err(ParseError::new(
+                ErrorCode::LimitExceeded,
+                "ASS effect integer exceeds native range",
+            ));
+        }
+        Ok(n as i32)
+    };
+    let point = |i| -> Result<ScriptPoint, ParseError> {
+        Ok(ScriptPoint::new(
+            FiniteF64::new(blur_number(params[i])?)?,
+            FiniteF64::new(blur_number(params[i + 1])?)?,
+        ))
+    };
+    let op = match (name, count) {
+        ("pos", 2) => OverrideOp::SetPosition {
+            point: point(0)?,
+            source,
+        },
+        ("org", 2) => OverrideOp::SetOrigin {
+            point: point(0)?,
+            source,
+        },
+        ("move", 4 | 6) => OverrideOp::Move {
+            from: point(0)?,
+            to: point(2)?,
+            times_ms: if count == 6 {
+                Some([integer(params[4])?, integer(params[5])?])
+            } else {
+                None
+            },
+            source,
+        },
+        ("fad" | "fade", 2) => OverrideOp::Fade {
+            alpha: [255, 0, 255],
+            times_ms: [-1, integer(params[0])?, integer(params[1])?, -1],
+            source,
+        },
+        ("fad" | "fade", 7) => OverrideOp::Fade {
+            alpha: [
+                integer(params[0])?,
+                integer(params[1])?,
+                integer(params[2])?,
+            ],
+            times_ms: [
+                integer(params[3])?,
+                integer(params[4])?,
+                integer(params[5])?,
+                integer(params[6])?,
+            ],
+            source,
+        },
+        _ => return Ok(Some(None)),
+    };
+    Ok(Some(Some(op)))
+}
+
 fn parse(
     raw: &str,
     source: SourceSpan,
     styles: &BTreeMap<Arc<str>, usize>,
 ) -> Result<Option<OverrideOp>, ParseError> {
+    for (name, kind) in [
+        ("kt", KaraokeTag::Absolute),
+        ("kf", KaraokeTag::Sweep),
+        ("ko", KaraokeTag::Outline),
+        ("K", KaraokeTag::Sweep),
+        ("k", KaraokeTag::Instant),
+    ] {
+        if let Some(suffix) = raw.strip_prefix(name) {
+            let suffix = suffix.split_once('(').map_or(suffix, |(s, _)| s).trim();
+            return Ok(Some(OverrideOp::Karaoke {
+                kind,
+                value_ms: if suffix.is_empty() {
+                    None
+                } else {
+                    Some(FiniteF64::new(blur_number(suffix)? * 10.0)?)
+                },
+                source,
+            }));
+        }
+    }
+    if let Some(suffix) = raw
+        .strip_prefix("iclip")
+        .or_else(|| raw.strip_prefix("clip"))
+    {
+        let inverse = raw.starts_with("iclip");
+        let Some((_, body)) = suffix.split_once('(') else {
+            return Ok(None);
+        };
+        let body = body.split_once(')').map_or(body, |(b, _)| b);
+        let mut params = [""; 4];
+        let mut count = 0;
+        for p in body.split(',').map(decode::trim).filter(|s| !s.is_empty()) {
+            if count == params.len() {
+                return Ok(None);
+            }
+            params[count] = p;
+            count += 1;
+        }
+        return Ok(match &params[..count] {
+            [a, b, c, d] => Some(OverrideOp::ClipRect {
+                coords: [
+                    FiniteF64::new(blur_number(a)?)?,
+                    FiniteF64::new(blur_number(b)?)?,
+                    FiniteF64::new(blur_number(c)?)?,
+                    FiniteF64::new(blur_number(d)?)?,
+                ],
+                inverse,
+                source,
+            }),
+            [path] => Some(OverrideOp::ClipDrawing {
+                path: Arc::from(*path),
+                scale: 1,
+                inverse,
+                source,
+            }),
+            [scale, path] => {
+                let scale = blur_number(scale)?.trunc().max(1.0);
+                if scale > 31.0 {
+                    return Err(ParseError::new(
+                        ErrorCode::LimitExceeded,
+                        "clip drawing scale exceeds native range",
+                    ));
+                }
+                Some(OverrideOp::ClipDrawing {
+                    path: Arc::from(*path),
+                    scale: scale as u32,
+                    inverse,
+                    source,
+                })
+            }
+            _ => None,
+        });
+    }
+    if (raw.starts_with('u') || raw.starts_with('s')) && !raw.starts_with("shad") {
+        let suffix = raw[1..]
+            .split_once('(')
+            .map_or(&raw[1..], |(s, _)| s)
+            .trim();
+        let value = if suffix.is_empty() {
+            None
+        } else {
+            match decimal_prefix(suffix)? as i32 {
+                0 => Some(false),
+                1 => Some(true),
+                _ => None,
+            }
+        };
+        return Ok(Some(OverrideOp::SetDecoration {
+            strikeout: raw.starts_with('s'),
+            value,
+            source,
+        }));
+    }
+    if raw.starts_with('a') && !raw.starts_with("an") && !raw.starts_with("alpha") {
+        let n = decimal_prefix(&raw[1..])? as i32;
+        let value = if n > 0 && n < 12 {
+            Some(
+                ((((n - 1) & 3) + 1)
+                    + if n & 4 != 0 { 6 } else { 0 }
+                    + if n & 8 != 0 { 3 } else { 0 }) as u8,
+            )
+        } else {
+            None
+        };
+        return Ok(Some(OverrideOp::SetLegacyAlignment { value, source }));
+    }
+    for name in [
+        "frx", "fry", "fax", "fay", "xbord", "ybord", "xshad", "yshad",
+    ] {
+        if raw.starts_with(name) {
+            return transform_number(raw, source);
+        }
+    }
+    if !raw.starts_with("frx") && !raw.starts_with("fry") {
+        if let Some(suffix) = raw.strip_prefix("frz").or_else(|| raw.strip_prefix("fr")) {
+            let value = decode::trim(suffix.split_once('(').map_or(suffix, |(s, _)| s));
+            return Ok(Some(OverrideOp::TransformNumber {
+                property: TransformProperty::RotationZ,
+                value: if value.is_empty() {
+                    None
+                } else {
+                    Some(FiniteF64::new(blur_number(value)?)?)
+                },
+                relative: false,
+                source,
+            }));
+        }
+    }
+    for (name, baseline) in [("pbo", true), ("p", false)] {
+        if name == "p" && raw.starts_with("pos") {
+            continue;
+        }
+        if let Some(suffix) = raw.strip_prefix(name) {
+            // CMD_p/CMD_pbo use wcstol: decimal prefix, no digits -> zero.
+            let value = decode::trim(suffix.split_once('(').map_or(suffix, |(v, _)| v));
+            let sign = usize::from(value.starts_with(['+', '-']));
+            let end = sign
+                + value.as_bytes()[sign..]
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            let n = if end == sign {
+                0.0
+            } else {
+                blur_number(&value[..end])?
+            };
+            if n < i32::MIN as f64 || n > i32::MAX as f64 {
+                return Err(ParseError::new(
+                    ErrorCode::LimitExceeded,
+                    "drawing parameter outside native integer range",
+                ));
+            }
+            return Ok(Some(if baseline {
+                OverrideOp::SetDrawingBaseline {
+                    offset: n as i32,
+                    source,
+                }
+            } else {
+                OverrideOp::SetDrawingMode {
+                    scale: (n as i32).max(0) as u32,
+                    source,
+                }
+            }));
+        }
+    }
+    // pinterf ParseSSATag takes these values from the command suffix,
+    // not parenthesized arguments. wcstod consumes a numeric prefix.
+    for (name, gaussian) in [("blur", true), ("be", false)] {
+        if let Some(suffix) = raw.strip_prefix(name) {
+            let suffix = suffix.split_once('(').map_or(suffix, |(value, _)| value);
+            let suffix = decode::trim(suffix);
+            let value = if suffix.is_empty() {
+                None
+            } else {
+                Some(FiniteF64::new(blur_number(suffix)?)?)
+            };
+            return Ok(Some(if gaussian {
+                OverrideOp::SetBlur { value, source }
+            } else {
+                OverrideOp::SetBe { value, source }
+            }));
+        }
+    }
     // pinterf's q path uses a decimal integer prefix. No digits means zero;
     // empty/out-of-domain values restore Script Info's wrapping style.
     if let Some(value) = raw.strip_prefix('q') {
@@ -294,8 +907,8 @@ fn parse(
     }
     // Longest names first; fn and exact resolved r names consume literal suffixes.
     let names = [
-        "warpmode", "fscx", "fscy", "alpha", "bord", "shad", "fsp", "pos", "1c", "2c", "3c", "4c",
-        "1a", "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
+        "warpmode", "fscx", "fscy", "alpha", "bord", "shad", "fsp", "1c", "2c", "3c", "4c", "1a",
+        "2a", "3a", "4a", "fn", "fs", "an", "b", "i", "c", "r",
     ];
     let Some(name) = names.iter().copied().find(|name| raw.starts_with(name)) else {
         return Ok(None);
@@ -304,6 +917,20 @@ fn parse(
     let nonfinite = ["nan", "inf", "infinity"]
         .iter()
         .any(|v| value.eq_ignore_ascii_case(v));
+    // Longest-prefix dispatch resolves board1 as b + oard1; wcstol has no
+    // decimal prefix, hence FW_NORMAL. Do not invent a board operation.
+    if name == "b"
+        && value
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphabetic)
+        && !nonfinite
+    {
+        return Ok(Some(OverrideOp::SetWeight {
+            weight: 400,
+            source,
+        }));
+    }
     if name != "fn"
         && name != "r"
         && !nonfinite
@@ -405,35 +1032,85 @@ fn parse(
             .map_err(|_| invalid("alignment must be 1..9"))?,
             source,
         },
-        "pos" => {
-            let value = value
-                .strip_prefix('(')
-                .and_then(|v| v.strip_suffix(')'))
-                .ok_or_else(|| invalid("pos requires (x,y)"))?;
-            let (x, y) = value
-                .split_once(',')
-                .ok_or_else(|| invalid("pos requires two coordinates"))?;
-            OverrideOp::SetPosition {
-                point: ScriptPoint::new(decode::number(x)?, decode::number(y)?),
-                source,
-            }
-        }
         "c" | "1c" | "2c" | "3c" | "4c" => OverrideOp::SetPaint {
             channel: channel(name),
             color: Rgba8::from_ass(hex(value, 6)?),
             source,
         },
-        "alpha" | "1a" | "2a" | "3a" | "4a" => OverrideOp::SetOpacity {
-            channel: if name == "alpha" {
+        "alpha" | "1a" | "2a" | "3a" | "4a" => {
+            let channel = if name == "alpha" {
                 None
             } else {
                 Some(channel(name))
-            },
-            opacity: 255
-                - u8::try_from(hex(value, 2)?).map_err(|_| invalid("alpha out of range"))?,
-            source,
-        },
+            };
+            let value = alpha_number(value)?;
+            if let Some(value) = value.filter(|n| (0..=255).contains(n)) {
+                OverrideOp::SetOpacity {
+                    channel,
+                    opacity: 255 - value as u8,
+                    source,
+                }
+            } else {
+                OverrideOp::SetAlpha {
+                    channel,
+                    value,
+                    source,
+                }
+            }
+        }
         _ => return Ok(None),
     };
     Ok(Some(op))
+}
+
+fn blur_number(value: &str) -> Result<f64, ParseError> {
+    let b = value.as_bytes();
+    let mut end = usize::from(matches!(b.first(), Some(b'+' | b'-')));
+    let mut digits = 0;
+    while b.get(end).is_some_and(u8::is_ascii_digit) {
+        end += 1;
+        digits += 1;
+    }
+    if b.get(end) == Some(&b'.') {
+        end += 1;
+        while b.get(end).is_some_and(u8::is_ascii_digit) {
+            end += 1;
+            digits += 1;
+        }
+    }
+    if digits == 0 {
+        if value
+            .trim_start_matches(['+', '-'])
+            .to_ascii_lowercase()
+            .starts_with("inf")
+            || value
+                .trim_start_matches(['+', '-'])
+                .to_ascii_lowercase()
+                .starts_with("nan")
+        {
+            return Err(invalid("blur strength must be finite"));
+        }
+        return Ok(0.0);
+    }
+    if matches!(b.get(end), Some(b'e' | b'E')) {
+        let exponent = end;
+        end += 1;
+        if matches!(b.get(end), Some(b'+' | b'-')) {
+            end += 1;
+        }
+        let start = end;
+        while b.get(end).is_some_and(u8::is_ascii_digit) {
+            end += 1;
+        }
+        if start == end {
+            end = exponent;
+        }
+    }
+    let number = value[..end]
+        .parse::<f64>()
+        .map_err(|_| invalid("invalid blur value"))?;
+    if !number.is_finite() {
+        return Err(invalid("blur strength must be finite"));
+    }
+    Ok(number)
 }

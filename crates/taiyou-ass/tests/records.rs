@@ -210,7 +210,7 @@ fn encoding_resolution_and_resource_errors_are_always_fatal() {
     );
     for input in [
         "[Script Info]\nPlayResX: 640",
-        "[Script Info]\nLayoutResY: 720",
+        "[Script Info]\nPlayResY: 360",
     ] {
         assert_eq!(
             parse_ass(

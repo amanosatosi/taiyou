@@ -86,6 +86,32 @@ fn pos(x: f64, y: f64, text: &str) -> String {
     format!("{{\\pos({x},{y})}}{text}")
 }
 
+fn continuous_frame(
+    input: &str,
+    fonts: Arc<ValidatedFontCatalog>,
+    size: Size,
+    points: [(f64, f64); 2],
+) -> Frame {
+    let anchors = points
+        .into_iter()
+        .enumerate()
+        .map(|(id, (x, y))| {
+            (
+                EventId::new(id as u32),
+                ScriptPoint::new(FiniteF64::new(x).unwrap(), FiniteF64::new(y).unwrap()),
+            )
+        })
+        .collect();
+    renderer()
+        .render_with_continuous_anchors_for_test(
+            track(input),
+            fonts,
+            &request(750_000, size),
+            anchors,
+        )
+        .unwrap()
+}
+
 #[test]
 fn real_pipeline_all_alignments_stack_with_local_metrics_and_preserve_effect_passes() {
     let fonts = catalog();
@@ -105,17 +131,11 @@ fn real_pipeline_all_alignments_stack_with_local_metrics_and_preserve_effect_pas
             assert!(height > 0.0);
             let (x, y) = anchor(alignment);
             let dy = if alignment <= 3 { -height } else { height };
-            let explicit = source(
-                alignment,
-                &format!(
-                    "{}{}",
-                    row(0, "0:00:00.00", "0:00:02.00", &pos(x, y, text)),
-                    row(0, "0:00:00.00", "0:00:02.00", &pos(x, y + dy, text))
-                ),
-            );
             for size in [Size::new(160, 100), Size::new(320, 300)] {
                 let actual = frame(&input, fonts.clone(), size);
-                let expected = frame(&explicit, fonts.clone(), size);
+                // This oracle supplies continuous collision anchors, not ASS
+                // pos values, which have different native quantization.
+                let expected = continuous_frame(&input, fonts.clone(), size, [(x, y), (x, y + dy)]);
                 assert_eq!(
                     actual.pixels(),
                     expected.pixels(),
@@ -146,17 +166,15 @@ fn start_order_differs_from_source_paint_order_and_equal_start_uses_id() {
                 row(0, "0:00:00.00", "0:00:02.00", blue)
             ),
         );
-        let explicit = source(
-            7,
-            &format!(
-                "{}{}",
-                row(0, start, "0:00:02.00", &pos(13.0, first_y, red)),
-                row(0, "0:00:00.00", "0:00:02.00", &pos(13.0, second_y, blue))
-            ),
-        );
         assert_eq!(
             frame(&actual, fonts.clone(), Size::new(160, 100)).pixels(),
-            frame(&explicit, fonts.clone(), Size::new(160, 100)).pixels()
+            continuous_frame(
+                &actual,
+                fonts.clone(),
+                Size::new(160, 100),
+                [(13.0, first_y), (13.0, second_y)]
+            )
+            .pixels()
         );
     }
 }

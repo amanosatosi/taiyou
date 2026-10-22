@@ -89,7 +89,7 @@ fn rgba(mask: &[u8], color: [u8; 4]) -> Vec<u8> {
 #[test]
 fn renderer_slice_timing_seeks_owned_pixels() {
     let fonts = catalog(false);
-    let track = track(&dialogue("H"));
+    let track = track(&dialogue("{\\fs40}H"));
     let mut renderer = renderer(limits());
     let first = renderer
         .render(track.clone(), fonts.clone(), &request(100_000))
@@ -198,7 +198,7 @@ fn renderer_slice_layer_source_order_and_paint_boundaries() {
     assert_ne!(source_order.pixels(), two.pixels());
     let painted = renderer
         .render(
-            track(&dialogue("H{\\1c&HFF0000&}H")),
+            track(&dialogue("{\\fs40}H{\\1c&HFF0000&}H")),
             fonts,
             &request(500_000),
         )
@@ -253,7 +253,7 @@ fn renderer_slice_position_breaks_fallback_and_clipping() {
 fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
     let fonts = catalog(false);
     let mut r = renderer(limits());
-    for text in ["{\\blur2}H", "{\\move(1,2,3,4)}H", "{\\k20}H"] {
+    for text in ["{\\fe128}H", "{\\fe30}H", "{\\fe20}H"] {
         let t = track(&dialogue(text));
         let e = r
             .render(t.clone(), fonts.clone(), &request(500_000))
@@ -512,7 +512,7 @@ fn renderer_slice_parsed_diagnostics_and_header_capabilities() {
             .iter()
             .any(|d| d.code() == DiagnosticCode::MalformedRecord)
     );
-    for header in ["LayoutResX: 160\nLayoutResY: 100", "YCbCr Matrix: TV.601"] {
+    for header in ["YCbCr Matrix: TV.601", "YCbCr Matrix: TV.709"] {
         let text =
             source(&dialogue("H")).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
         let parsed = taiyou_ass::parse_ass(

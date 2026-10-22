@@ -312,7 +312,7 @@ impl FontRequest {
     }
 }
 
-/// OpaqueBox can be recorded but its rendering remains R001/R002-gated.
+/// OpaqueBox can be recorded; rendering remains unsupported until its pinterf behavior is implemented and tested.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum BorderStyle {
     Outline,
@@ -335,9 +335,17 @@ pub struct Style {
     scale_y: FiniteF64,
     spacing: FiniteF64,
     angle: FiniteF64,
+    rotation_x: FiniteF64,
+    rotation_y: FiniteF64,
+    shear_x: FiniteF64,
+    shear_y: FiniteF64,
     border_style: BorderStyle,
     border: FiniteF64,
+    border_y: FiniteF64,
     shadow: FiniteF64,
+    shadow_y: FiniteF64,
+    blur: FiniteF64,
+    be: FiniteF64,
     alignment: Alignment,
     margins: Margins,
     encoding: i32,
@@ -359,9 +367,17 @@ impl Style {
             scale_y: FiniteF64::ONE,
             spacing: FiniteF64::ZERO,
             angle: FiniteF64::ZERO,
+            rotation_x: FiniteF64::ZERO,
+            rotation_y: FiniteF64::ZERO,
+            shear_x: FiniteF64::ZERO,
+            shear_y: FiniteF64::ZERO,
             border_style: BorderStyle::Outline,
             border: FiniteF64::CORE_BORDER,
+            border_y: FiniteF64::CORE_BORDER,
             shadow: FiniteF64::CORE_BORDER,
+            shadow_y: FiniteF64::CORE_BORDER,
+            blur: FiniteF64::ZERO,
+            be: FiniteF64::ZERO,
             alignment: Alignment(2),
             margins: Margins::new(10, 10, 10),
             encoding: 1,
@@ -395,6 +411,7 @@ impl Style {
             return Err(invalid("style border must be nonnegative"));
         }
         self.border = border;
+        self.border_y = border;
         Ok(self)
     }
     pub fn with_colors(
@@ -429,7 +446,74 @@ impl Style {
     }
     pub fn with_shadow(mut self, shadow: FiniteF64) -> Self {
         self.shadow = shadow;
+        self.shadow_y = shadow;
         self
+    }
+    pub fn with_axis_border(
+        mut self,
+        axis: ScaleAxis,
+        value: FiniteF64,
+    ) -> Result<Self, ParseError> {
+        if value.get() < 0.0 {
+            return Err(invalid("negative border"));
+        }
+        match axis {
+            ScaleAxis::X => self.border = value,
+            ScaleAxis::Y => self.border_y = value,
+        }
+        Ok(self)
+    }
+    pub fn with_axis_shadow(mut self, axis: ScaleAxis, value: FiniteF64) -> Self {
+        match axis {
+            ScaleAxis::X => self.shadow = value,
+            ScaleAxis::Y => self.shadow_y = value,
+        }
+        self
+    }
+    pub fn with_projection(mut self, property: TransformProperty, value: FiniteF64) -> Self {
+        match property {
+            TransformProperty::RotationX => self.rotation_x = value,
+            TransformProperty::RotationY => self.rotation_y = value,
+            TransformProperty::ShearX => self.shear_x = value,
+            TransformProperty::ShearY => self.shear_y = value,
+            _ => {}
+        }
+        self
+    }
+    pub const fn rotation_x(&self) -> FiniteF64 {
+        self.rotation_x
+    }
+    pub const fn rotation_y(&self) -> FiniteF64 {
+        self.rotation_y
+    }
+    pub const fn shear_x(&self) -> FiniteF64 {
+        self.shear_x
+    }
+    pub const fn shear_y(&self) -> FiniteF64 {
+        self.shear_y
+    }
+    pub const fn border_y(&self) -> FiniteF64 {
+        self.border_y
+    }
+    pub const fn shadow_y(&self) -> FiniteF64 {
+        self.shadow_y
+    }
+    pub fn with_blur(mut self, blur: FiniteF64) -> Result<Self, ParseError> {
+        if blur.get() < 0.0 {
+            return Err(invalid("style Gaussian blur must be nonnegative"));
+        }
+        self.blur = blur;
+        Ok(self)
+    }
+    pub fn with_be(mut self, be: FiniteF64) -> Self {
+        self.be = be;
+        self
+    }
+    pub const fn blur(&self) -> FiniteF64 {
+        self.blur
+    }
+    pub const fn be(&self) -> FiniteF64 {
+        self.be
     }
     pub fn with_alignment(mut self, alignment: Alignment) -> Self {
         self.alignment = alignment;
@@ -635,6 +719,69 @@ impl WarpMode {
 /// include the original backslash. Publication validates host-created operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OverrideOp {
+    Karaoke {
+        kind: KaraokeTag,
+        value_ms: Option<FiniteF64>,
+        source: SourceSpan,
+    },
+    ClipRect {
+        coords: [FiniteF64; 4],
+        inverse: bool,
+        source: SourceSpan,
+    },
+    ClipDrawing {
+        path: Arc<str>,
+        scale: u32,
+        inverse: bool,
+        source: SourceSpan,
+    },
+    SetDecoration {
+        strikeout: bool,
+        value: Option<bool>,
+        source: SourceSpan,
+    },
+    SetLegacyAlignment {
+        value: Option<u8>,
+        source: SourceSpan,
+    },
+    RestoreOriginal {
+        field: OriginalField,
+        source: SourceSpan,
+    },
+    SetDrawingMode {
+        scale: u32,
+        source: SourceSpan,
+    },
+    SetDrawingBaseline {
+        offset: i32,
+        source: SourceSpan,
+    },
+    /// Flat, bounded transform delimiters. Children retain their own source spans.
+    BeginTransform {
+        start_ms: i32,
+        end_ms: i32,
+        accel: FiniteF64,
+        source: SourceSpan,
+    },
+    EndTransform {
+        source: SourceSpan,
+    },
+    /// Raw numeric targets before field-specific clamps. Z rotation also uses
+    /// this property outside transforms; older properties keep their typed ops.
+    TransformNumber {
+        property: TransformProperty,
+        value: Option<FiniteF64>,
+        relative: bool,
+        source: SourceSpan,
+    },
+    SetBlur {
+        value: Option<FiniteF64>,
+        source: SourceSpan,
+    },
+    SetBe {
+        value: Option<FiniteF64>,
+        source: SourceSpan,
+    },
     SetWrapMode {
         mode: Option<WrapMode>,
         source: SourceSpan,
@@ -686,12 +833,34 @@ pub enum OverrideOp {
         opacity: u8,
         source: SourceSpan,
     },
+    /// Native signed hexadecimal target, converted to BYTE after animation.
+    SetAlpha {
+        channel: Option<PaintChannel>,
+        value: Option<i32>,
+        source: SourceSpan,
+    },
     SetAlignment {
         alignment: Alignment,
         source: SourceSpan,
     },
     SetPosition {
         point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    Move {
+        from: crate::ScriptPoint,
+        to: crate::ScriptPoint,
+        times_ms: Option<[i32; 2]>,
+        source: SourceSpan,
+    },
+    SetOrigin {
+        point: crate::ScriptPoint,
+        source: SourceSpan,
+    },
+    /// Shared xy EF_FADE slot. [-1,in,out,-1] is the fad sentinel.
+    Fade {
+        alpha: [i32; 3],
+        times_ms: [i32; 4],
         source: SourceSpan,
     },
     ResetStyle {
@@ -702,7 +871,20 @@ pub enum OverrideOp {
 impl OverrideOp {
     pub fn source(&self) -> SourceSpan {
         match self {
-            Self::SetWrapMode { source, .. }
+            Self::Karaoke { source, .. }
+            | Self::ClipRect { source, .. }
+            | Self::ClipDrawing { source, .. }
+            | Self::SetDecoration { source, .. }
+            | Self::SetLegacyAlignment { source, .. }
+            | Self::RestoreOriginal { source, .. }
+            | Self::SetDrawingMode { source, .. }
+            | Self::SetDrawingBaseline { source, .. }
+            | Self::BeginTransform { source, .. }
+            | Self::EndTransform { source }
+            | Self::TransformNumber { source, .. }
+            | Self::SetBlur { source, .. }
+            | Self::SetBe { source, .. }
+            | Self::SetWrapMode { source, .. }
             | Self::SetWarpMode { source, .. }
             | Self::SetFont { source, .. }
             | Self::SetSize { source, .. }
@@ -714,8 +896,12 @@ impl OverrideOp {
             | Self::SetShadow { source, .. }
             | Self::SetPaint { source, .. }
             | Self::SetOpacity { source, .. }
+            | Self::SetAlpha { source, .. }
             | Self::SetAlignment { source, .. }
             | Self::SetPosition { source, .. }
+            | Self::Move { source, .. }
+            | Self::SetOrigin { source, .. }
+            | Self::Fade { source, .. }
             | Self::ResetStyle { source, .. } => *source,
         }
     }
@@ -725,7 +911,7 @@ impl OverrideOp {
             Self::SetSize { size, .. } => size.get() > 0.0,
             Self::SetScale { factor, .. } => factor.get() >= 0.0,
             Self::SetBorder { width, .. } => width.get() >= 0.0,
-            Self::SetWeight { weight, .. } => matches!(weight, 400 | 700),
+            Self::SetWeight { weight, .. } => *weight >= 100,
             Self::SetPaint { color, .. } => color.a() == 255,
             _ => true,
         };
@@ -735,6 +921,41 @@ impl OverrideOp {
             Err(invalid("override parameter outside Core bounds"))
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransformProperty {
+    RotationZ,
+    RotationX,
+    RotationY,
+    ShearX,
+    ShearY,
+    BorderX,
+    BorderY,
+    ShadowX,
+    ShadowY,
+    Size,
+    ScaleX,
+    ScaleY,
+    Spacing,
+    Border,
+    Shadow,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KaraokeTag {
+    Instant,
+    Sweep,
+    Outline,
+    Absolute,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OriginalField {
+    Font,
+    Weight,
+    Italic,
+    Paint(PaintChannel),
+    Opacity(Option<PaintChannel>),
 }
 
 /// Static event with immutable ordered text operations. Nonpositive intervals are
@@ -959,11 +1180,28 @@ impl TrackIngestor {
             }
             validate_event_provenance(event, &source)?;
             let mut text_end = event.source.start();
+            let mut transforms = 0_u32;
             for operation in event.program.iter() {
                 let (text, span) = match operation {
                     TextOp::Text { text, source } => (Some(text), *source),
                     TextOp::Override(op) => {
                         op.validate()?;
+                        match op {
+                            OverrideOp::BeginTransform { .. } => {
+                                transforms = transforms
+                                    .checked_add(1)
+                                    .ok_or_else(|| limit("transform depth overflow"))?;
+                                if transforms > limits.tag_nesting() {
+                                    return Err(limit("transform nesting limit exceeded"));
+                                }
+                            }
+                            OverrideOp::EndTransform { .. } => {
+                                transforms = transforms
+                                    .checked_sub(1)
+                                    .ok_or_else(|| invalid("unmatched transform end"))?;
+                            }
+                            _ => (),
+                        }
                         (None, op.source())
                     }
                     TextOp::Unsupported { source, .. } => (None, *source),
@@ -984,6 +1222,9 @@ impl TrackIngestor {
                 text_bytes = text_bytes
                     .checked_add(length)
                     .ok_or_else(|| limit("text byte count overflow"))?;
+            }
+            if transforms != 0 {
+                return Err(invalid("unclosed transform"));
             }
             if text_bytes > limits.text_bytes_per_event {
                 return Err(limit("event text byte limit exceeded"));

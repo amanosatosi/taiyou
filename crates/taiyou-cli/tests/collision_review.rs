@@ -151,14 +151,39 @@ fn thick_borders_change_real_displacement_but_hidden_effects_do_not_pad() {
         let input = source(&row(&text).repeat(2));
         let (_, support) = footprint(&input, &fonts, size).unwrap();
         heights.push(support.height());
-        let expected = source(&format!(
-            "{}{}",
-            row(&format!("{{\\pos(13,9)}}{text}")),
-            row(&format!("{{\\pos(13,{})}}{text}", 9.0 + support.height()))
-        ));
+        // Continuous F1 anchors are not ASS pos coordinates (which truncate
+        // through native eighth pixels). Inject below ASS semantics instead.
+        let expected = Renderer::new(Default::default())
+            .unwrap()
+            .render_with_continuous_anchors_for_test(
+                track(&input),
+                fonts.clone(),
+                &RenderRequest {
+                    now: TimeUs::from_micros(750_000),
+                    viewport: Viewport::full(size).unwrap(),
+                    unsupported: UnsupportedPolicy::Strict,
+                },
+                vec![
+                    (
+                        EventId::new(0),
+                        ScriptPoint::new(
+                            FiniteF64::new(13.0).unwrap(),
+                            FiniteF64::new(9.0).unwrap(),
+                        ),
+                    ),
+                    (
+                        EventId::new(1),
+                        ScriptPoint::new(
+                            FiniteF64::new(13.0).unwrap(),
+                            FiniteF64::new(9.0 + support.height()).unwrap(),
+                        ),
+                    ),
+                ],
+            )
+            .unwrap();
         assert_eq!(
             render(&input, fonts.clone(), size, Limits::default()).pixels(),
-            render(&expected, fonts.clone(), size, Limits::default()).pixels()
+            expected.pixels()
         );
     }
     assert!(heights[1] > heights[0]);
@@ -186,10 +211,10 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
                 footprint(&b, &fonts, size).unwrap().1
             );
         } else {
-            assert_eq!(
-                footprint(&b, &fonts, size).unwrap_err().code(),
-                ErrorCode::UnsupportedFeature
-            );
+            let unscaled = footprint(&a, &fonts, size).unwrap().1;
+            let scaled = footprint(&b, &fonts, size).unwrap().1;
+            assert_eq!(scaled.width(), unscaled.width());
+            assert!(scaled.height() > unscaled.height());
         }
         let shadow = source(&row(r"{\bord0\shad30.5\4a&H00&}H"));
         assert!(
@@ -200,8 +225,10 @@ fn effect_coordinate_spaces_rotation_multiple_runs_and_offscreen_geometry() {
                     .width()
         );
     }
-    let rotated = source(&row(r"{\bord12\shad-2.25\4a&H00&}H{\bord1\shad3.5}H"))
-        .replace(",9,0\n[Events]", ",9,90\n[Events]");
+    let rotated = source(&row(
+        r"{\bord12\xshad-2.25\yshad-2.25\4a&H00&}H{\bord1\shad3.5}H",
+    ))
+    .replace(",9,0\n[Events]", ",9,90\n[Events]");
     let (base, support) = footprint(&rotated, &fonts, Size::new(160, 100)).unwrap();
     assert!(support.y0().get() < base.y0().get());
     let explicit = source(&row(r"{\pos(-2,-3)\bord12\shad3.5\4a&H00&}H"));

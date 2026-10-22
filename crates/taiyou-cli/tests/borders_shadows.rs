@@ -33,7 +33,7 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
         ass(
             2,
             2,
-            r"{\bord2.5\shad-1.5\3c&H0000FF&\4c&HFF0000&\3a&H20&\4a&H40&\alpha&H10&\1a&HFF&}H",
+            r"{\bord2.5\xshad-1.5\yshad-1.5\3c&H0000FF&\4c&HFF0000&\3a&H20&\4a&H40&\alpha&H10&\1a&HFF&}H",
         ),
     )
     .unwrap();
@@ -98,7 +98,7 @@ fn cli_renders_style_and_override_borders_and_shadows_to_png_and_raw_rgba() {
 }
 
 #[test]
-fn cli_keeps_anisotropic_overrides_unsupported_in_strict_and_tolerant_modes() {
+fn cli_keeps_unimplemented_encoding_unsupported_in_strict_and_tolerant_modes() {
     let directory = std::env::temp_dir().join(format!("taiyou-t016-policy-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let input = directory.join("unsupported.ass");
@@ -107,7 +107,7 @@ fn cli_keeps_anisotropic_overrides_unsupported_in_strict_and_tolerant_modes() {
     let font = PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
         .join("taiyou-shaping-fonts")
         .join("latin.otf");
-    std::fs::write(&input, ass(0, 0, r"{\xbord2\yshad1}H")).unwrap();
+    std::fs::write(&input, ass(0, 0, r"{\fe128}H")).unwrap();
     let base = [
         "render",
         "--input",

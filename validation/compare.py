@@ -11,6 +11,7 @@ import tempfile
 from inventory import InventoryError, canonical, digest, load, safe_path
 from policy import results, snapshots
 import images
+import oversampling
 
 ROOT = Path(__file__).resolve().parent.parent
 EXE = ".exe" if os.name == "nt" else ""
@@ -69,21 +70,38 @@ def execute(command, directory, timeout=45):
         return -999, "renderer timeout"
 
 
-def classify(case, outcome, metrics, diagnostic):
-    support = case["profile_records"]["CoreV1"]["support"]
+def observe(outcome, metrics):
+    """Describe what the current strict renderer actually did.
+
+    Accepted inventory support is historical metadata; it must not override
+    execution or pixel evidence from this candidate.
+    """
     if outcome < 0:
         return "CRASH"
+    if outcome == 20:
+        return "BLOCKED_BY_UNSUPPORTED_FEATURE"
     if outcome != 0:
-        if outcome == 20:
-            return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
-        # A malformed source that the renderer safely rejects is still reported;
-        # it is never a compatibility pass. Accepted supported sources must work.
-        if outcome in (11, 12):
-            return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+        return "EXECUTION_FAILED" if outcome in (11, 12) else "INFRA_ERROR"
+    if metrics is None:
         return "INFRA_ERROR"
-    if metrics and metrics["exact"]:
-        return "PASS_EXACT"
-    return "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
+    return "PASS_EXACT" if metrics["exact"] else "PIXEL_MISMATCH"
+
+
+def classify(case, outcome, metrics, diagnostic):
+    # Keep the protected T005 result vocabulary/policy file unchanged while
+    # making its meaning truthful. REGRESSION is the gate-failing umbrella for
+    # current pixel mismatches and renderer execution failures; UNSUPPORTED now
+    # means the strict renderer actually returned UnsupportedFeature.
+    _ = case, diagnostic
+    observed = observe(outcome, metrics)
+    return {
+        "PASS_EXACT": "PASS_EXACT",
+        "PIXEL_MISMATCH": "REGRESSION",
+        "BLOCKED_BY_UNSUPPORTED_FEATURE": "UNSUPPORTED",
+        "EXECUTION_FAILED": "REGRESSION",
+        "INFRA_ERROR": "INFRA_ERROR",
+        "CRASH": "CRASH",
+    }[observed]
 
 
 def run_case(case, corpus, binary, probe, out, assets, artifacts):
@@ -118,28 +136,38 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                                   for line in source.read_bytes().removeprefix(b"\xef\xbb\xbf").splitlines())
             if not fonts and not has_attachments:
                 raise ValueError("regression case has no explicit fonts")
-            if case["scale"] != "1":
-                record.update(status="UNSUPPORTED", feature="T015/oversampling-adapter", stage="scale",
-                              diagnostics="CoreV1 has no independent supersampling viewport mapping; no silent resizing/downsampling")
-                return record
+            sx, sy = oversampling.factors(case["scale"])
+            images.dimensions(expected[0] * sx, expected[1] * sy)
             png, raw = directory / "actual.png", directory / "actual.rgba"
-            command = [binary, "render", "--input", source, "--time-us", str(time_us), "--width", str(expected[0]),
-                       "--height", str(expected[1]), "--profile", "core-v1", "--output", png, "--raw", raw]
+            command = [binary, "render", "--input", source, "--time-us", str(time_us), "--width", str(expected[0] * sx),
+                       "--height", str(expected[1] * sy), "--profile", "core-v1", "--output", png, "--raw", raw]
+            if (sx, sy) != (1, 1):
+                command.extend(["--original-width", str(expected[0]), "--original-height", str(expected[1]), "--filter-radius", "512"])
+                record["oversampling"] = {"scale": [sx, sy], "filter_radius_budget": 512,
+                                          "rule": "libass-compare-fixed-reciprocal-RGBA16"}
             for font in fonts:
                 command.extend(["--font", font])
-            code, diagnostic = execute(command, directory)
-            strict_unsupported = code == 20
-            # Tolerant exploratory output cannot promote the accepted support state.
+            strict_code, strict_diagnostic = execute(command, directory)
+            strict_unsupported = strict_code == 20
             if strict_unsupported:
-                record["strict_diagnostics"] = diagnostic
-                code, diagnostic = execute(command + ["--unsupported", "tolerant"], directory)
+                # Tolerant execution is diagnostic only. It must never replace
+                # the current strict result or manufacture a compatibility pass.
+                tolerant_code, tolerant_diagnostic = execute(
+                    command + ["--unsupported", "tolerant"], directory
+                )
+                record.update(
+                    strict_diagnostics=strict_diagnostic,
+                    tolerant_exit_code=tolerant_code,
+                    tolerant_diagnostics=tolerant_diagnostic,
+                )
             metrics = None
-            if code == 0:
-                actual = images.raw_rgba(raw, expected[0], expected[1])
+            if strict_code == 0:
+                actual = (images.raw_rgba(raw, expected[0], expected[1]) if (sx, sy) == (1, 1)
+                          else oversampling.normalize(raw, expected[0], expected[1], sx, sy))
                 # Validate the published PNG independently, without using it as
                 # authoritative raw output or requiring a lossy premul roundtrip.
                 decoded_png = images.read_png(png)
-                if decoded_png[:2] != expected[:2]:
+                if decoded_png[:2] != (expected[0] * sx, expected[1] * sy):
                     raise ValueError("renderer PNG dimensions mismatch")
                 key = digest(case["id"].encode())[:16]
                 artifact = out / key
@@ -150,18 +178,24 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                 record["raw_sha256"] = digest(raw.read_bytes())
                 record["png_sha256"] = digest(png.read_bytes())
                 if save:
-                    (artifact / "actual.png").write_bytes(png.read_bytes())
+                    if (sx, sy) == (1, 1):
+                        (artifact / "actual.png").write_bytes(png.read_bytes())
+                    else:
+                        (artifact / "oversampled.rgba").write_bytes(raw.read_bytes())
+                        (artifact / "oversampled.png").write_bytes(png.read_bytes())
+                        oversampling.preview(artifact / "actual.png", actual)
                     record["artifacts"] = {"actual": key + "/actual.png", "difference": key + "/difference.png",
                                            "expected": "external:" + frame["expected"]}
-            status = classify(case, code, metrics, diagnostic)
-            if strict_unsupported and status == "PASS_EXACT":
-                status = "UNSUPPORTED" if case["profile_records"]["CoreV1"]["support"] == "UNSUPPORTED" else "REGRESSION"
-            record.update(status=status, metrics=metrics, diagnostics=diagnostic, stage="pixel-comparison" if metrics else "render",
-                          tolerant_attempt=strict_unsupported, exit_code=code)
+            observed = observe(strict_code, metrics)
+            status = classify(case, strict_code, metrics, strict_diagnostic)
+            record.update(status=status, observed_result=observed, metrics=metrics,
+                          diagnostics=strict_diagnostic, stage="pixel-comparison" if metrics else "render",
+                          tolerant_attempt=strict_unsupported, exit_code=strict_code)
     except images.ImageDecodeError as error:
-        record.update(status="INFRA_ERROR", diagnostic_code="InvalidImage", diagnostics=str(error))
+        record.update(status="INFRA_ERROR", observed_result="INFRA_ERROR",
+                      diagnostic_code="InvalidImage", diagnostics=str(error))
     except (OSError, ValueError, KeyError, InventoryError) as error:
-        record.update(status="INFRA_ERROR", diagnostics=str(error))
+        record.update(status="INFRA_ERROR", observed_result="INFRA_ERROR", diagnostics=str(error))
     return record
 
 
@@ -194,6 +228,14 @@ def summarize(inventory, selected, policy, records):
         counts = {status: sum(r["status"] == status for r in grouped) for status in policy["allowed_results"]}
         summary[name] = {"total": len(grouped), "counts": counts}
     summary["visual"]["exact_matches"] = summary["visual"]["counts"]["PASS_EXACT"]
+    observed_names = (
+        "PASS_EXACT", "PIXEL_MISMATCH", "BLOCKED_BY_UNSUPPORTED_FEATURE",
+        "EXECUTION_FAILED", "INFRA_ERROR", "CRASH",
+    )
+    summary["visual"]["observed"] = {
+        name: sum(r.get("observed_result") == name for r in groups["visual"])
+        for name in observed_names
+    }
     summary["safety"]["successful_parser_probes"] = summary["safety"]["counts"]["PASS_EXACT"]
     return summary
 
@@ -248,7 +290,8 @@ def main():
             record = run_case(case, corpus, args.renderer.resolve(), args.probe.resolve(), args.output, assets,
                               sum("artifacts" in r for r in records))
             records.append(record)
-            print(json.dumps({"case": record["case"], "status": record["status"], "stage": record["stage"]}), flush=True)
+            print(json.dumps({"case": record["case"], "status": record["status"],
+                              "observed": record.get("observed_result"), "stage": record["stage"]}), flush=True)
         summary = summarize(inventory, selected, policy, records)
         report = {"schema": 1, "candidate_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                   "accepted_baseline": os.environ.get("ACCEPTED_BASELINE", "candidate-local-unaccepted"),

@@ -16,7 +16,7 @@ fn catalog() -> Arc<ValidatedFontCatalog> {
 }
 fn source(scaled: bool, text: &str) -> String {
     // Intentionally retain the pre-T016 format without BackColour. Its opaque
-    // default shadow must be tested, rather than hidden by a transparent style.
+    // shadow paint is tested with explicit positive depth below one Q6 tick.
     format!(
         "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\nScaledBorderAndShadow: {}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,&H00FFFFFF,0,0,7,10,10,10\n[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 0,0:00:00.10,0:00:01.00,Default,{text}",
         if scaled { "yes" } else { "no" }
@@ -73,7 +73,7 @@ fn over(dst: &mut [u8], coverage: u8, color: [u8; 4]) {
 }
 
 #[test]
-fn prior_fill_reference_and_opaque_default_shadow_are_independently_preserved() {
+fn prior_fill_reference_and_positive_coincident_shadow_are_independently_preserved() {
     let fonts = catalog();
     let size = Size::new(160, 100);
     for alignment in 1..=9 {
@@ -101,7 +101,7 @@ fn prior_fill_reference_and_opaque_default_shadow_are_independently_preserved() 
         let visible_default = ordinary(
             &source(
                 false,
-                &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&}}H"),
+                &format!("{{\\an{alignment}\\1c&H2850C8&\\alpha&H7F&\\shad0.001}}H"),
             ),
             fonts.clone(),
             size,
@@ -133,7 +133,7 @@ fn prior_fill_reference_and_opaque_default_shadow_are_independently_preserved() 
         assert_eq!(
             visible_default.pixels(),
             expected_effect,
-            "zero-offset default shadow {alignment}"
+            "positive coincident shadow {alignment}"
         );
         assert_ne!(visible_default.pixels(), fill_only.pixels());
     }
@@ -172,11 +172,11 @@ fn transparent_shadow_needs_no_offset_raster_or_additional_segment_budget() {
 }
 
 #[test]
-fn visible_zero_offset_shadow_is_not_disabled_by_transparent_fill() {
+fn positive_shadow_quantized_to_zero_offset_preserves_transparent_fill_behavior() {
     let fonts = catalog();
     let size = Size::new(160, 100);
     let shadow = ordinary(
-        &source(false, r"{\bord0\shad0\1a&HFF&\4c&HFF0000&\4a&H00&}H"),
+        &source(false, r"{\bord0\shad0.001\1a&HFF&\4c&HFF0000&\4a&H00&}H"),
         fonts.clone(),
         size,
     );
@@ -214,7 +214,7 @@ fn shadow_and_border_sbas_only_scale_effect_parameters_when_enabled() {
     // Unequal x/y ratios: shadow scales independently, even while isotropic
     // border expansion with unequal axes remains unsupported.
     let size = Size::new(320, 300);
-    let zero_tags = r"{\bord0\shad0\1a&HFF&\4a&H00&}H";
+    let zero_tags = r"{\bord0\shad0\1c&H000000&\1a&H00&\4a&HFF&}H";
     let tags = r"{\bord0\shad1\1a&HFF&\4a&H00&}H";
     let base = ordinary(&source(false, zero_tags), fonts.clone(), size);
     for (scaled, dx, dy) in [(false, 1usize, 1usize), (true, 2, 3)] {
@@ -232,7 +232,7 @@ fn shadow_and_border_sbas_only_scale_effect_parameters_when_enabled() {
 }
 
 #[test]
-fn prior_layer_order_keeps_visible_default_shadows_and_fill_coverage() {
+fn prior_layer_order_keeps_positive_shadows_and_fill_coverage() {
     let fonts = catalog();
     let size = Size::new(160, 100);
     let pure = ordinary(&source(false, r"{\4a&HFF&}H"), fonts.clone(), size);
@@ -243,7 +243,7 @@ fn prior_layer_order_keeps_visible_default_shadows_and_fill_coverage() {
         .unwrap()
         .to_owned();
     let input = format!(
-        "{header}[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\1c&HFF0000&}}H\nDialogue: -1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\1c&H0000FF&\\alpha&H7F&}}H"
+        "{header}[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\shad0.001\\1c&HFF0000&}}H\nDialogue: -1,0:00:00.10,0:00:01.00,Default,{{\\pos(10,10)\\shad0.001\\1c&H0000FF&\\alpha&H7F&}}H"
     );
     for (input, front_blue) in [
         (&input, true),

@@ -12,7 +12,7 @@ Custom Rust shaping/font parser; Platform-specific GDI/DirectWrite/CoreText shap
 
 ## Decision
 
-HarfBuzz shapes from immutable font bytes; FreeType extracts unhinted outlines and provides initial grayscale raster/stroker support. Worker-local native contexts. Rust Unicode analysis. R002 chooses whether a separate compatibility coverage algorithm is needed.
+HarfBuzz shapes from immutable font bytes; FreeType extracts unhinted outlines and provides initial grayscale raster/stroker support. Worker-local native contexts. Rust Unicode analysis. A separate compatibility coverage path is justified only when pinterf/source and frozen-reference evidence demonstrate the current raster path cannot match.
 
 ## Reasons
 
@@ -24,8 +24,8 @@ Native packaging, FFI safety, version-dependent output and GDI metric difference
 
 ## Revisit when
 
-R002 proves unacceptable error on the approved supported suite, native packaging becomes unsustainable, or a maintained Rust alternative passes identical feature/performance/license gates.
+source/frozen-reference evidence proves unacceptable compatibility error, native packaging becomes unsustainable, or a maintained Rust alternative passes identical feature/performance/license gates.
 
 ## Implementation gate
 
-Tasks: T002/T008/T009/T012/R002. See [contract and evidence](../SOURCES.md). No unmeasured performance claim accompanies this decision.
+Tasks: T002/T008/T009/T012. See [contract and evidence](../SOURCES.md). No unmeasured performance claim accompanies this decision.

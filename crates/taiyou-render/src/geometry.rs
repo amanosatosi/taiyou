@@ -16,6 +16,8 @@ fn q6(v: f64) -> Result<Q6, RenderError> {
 pub struct DeviceMapping {
     play_res: Size,
     content: PixelRect,
+    layout_scale: [FiniteF64; 2],
+    has_layout: bool,
 }
 impl DeviceMapping {
     pub fn new(play_res: Size, content: PixelRect) -> Result<Self, RenderError> {
@@ -25,7 +27,41 @@ impl DeviceMapping {
                 "empty geometry mapping",
             ));
         }
-        Ok(Self { play_res, content })
+        Ok(Self {
+            play_res,
+            content,
+            layout_scale: [FiniteF64::ONE; 2],
+            has_layout: false,
+        })
+    }
+    pub fn with_layout_res(mut self, layout: Option<Size>) -> Result<Self, RenderError> {
+        if let Some(size) = layout {
+            self.has_layout = true;
+            if size.is_empty() {
+                return Err(RenderError::new(
+                    ErrorCode::InvalidArgument,
+                    "empty layout resolution",
+                ));
+            }
+            self.layout_scale = [
+                finite(f64::from(size.width()) / f64::from(self.play_res.width()))?,
+                finite(f64::from(size.height()) / f64::from(self.play_res.height()))?,
+            ];
+        }
+        Ok(self)
+    }
+    pub fn layout_scale(self) -> [f64; 2] {
+        self.layout_scale.map(FiniteF64::get)
+    }
+    pub fn target_scale(self) -> [f64; 2] {
+        if !self.has_layout {
+            return [1.0, 1.0];
+        }
+        let [x, y] = self.layout_scale();
+        [
+            f64::from(self.content.width()) / f64::from(self.play_res.width()) / x,
+            f64::from(self.content.height()) / f64::from(self.play_res.height()) / y,
+        ]
     }
     pub const fn play_res(self) -> Size {
         self.play_res
@@ -43,6 +79,8 @@ pub struct GeometryMap {
     anchor: ScriptPoint,
     origin: ScriptPoint,
     rotation: FiniteF64,
+    projection: [FiniteF64; 4],
+    shear_offset: FontPoint,
     device: DeviceMapping,
 }
 impl GeometryMap {
@@ -66,14 +104,43 @@ impl GeometryMap {
             anchor,
             origin: origin.unwrap_or(anchor),
             rotation,
+            projection: [FiniteF64::ZERO; 4],
+            shear_offset: FontPoint::ZERO,
             device,
         })
     }
+    pub fn with_projection(mut self, style: &GeometryStyle) -> Self {
+        self.projection = [
+            style.rotation_x(),
+            style.rotation_y(),
+            style.shear_x(),
+            style.shear_y(),
+        ];
+        self
+    }
+    pub fn with_shear_offset(mut self, offset: FontPoint) -> Self {
+        self.shear_offset = offset;
+        self
+    }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
+        let (x, y) = self.precise_point(p)?;
+        Ok(DevicePoint::new(q6(x)?, q6(y)?))
+    }
+    /// Continuous geometric support before the final raster Q6 conversion.
+    pub fn precise_point(self, p: FontPoint) -> Result<(f64, f64), RenderError> {
         // Font y-up conversion occurs exactly once, before rotation and viewport.
-        let x = p.x().get() * self.scale.0.get() + self.position.x().get() + self.anchor.x().get()
+        let [rx, ry, fx, fy] = self.projection.map(FiniteF64::get);
+        // Shear acts on the word's native coordinates before scale/rotation;
+        // changing the rotation origin must not change the shear itself.
+        let x = (p.x().get() + fx * (-p.y().get() + self.shear_offset.y().get()))
+            * self.scale.0.get()
+            + self.position.x().get()
+            + self.anchor.x().get()
             - self.origin.x().get();
-        let y = -p.y().get() * self.scale.1.get() + self.position.y().get() + self.anchor.y().get()
+        let y = (-p.y().get() + fy * (p.x().get() + self.shear_offset.x().get()))
+            * self.scale.1.get()
+            + self.position.y().get()
+            + self.anchor.y().get()
             - self.origin.y().get();
         finite(x)?;
         finite(y)?;
@@ -86,19 +153,46 @@ impl GeometryMap {
             270.0 => (-1.0, 0.0),
             _ => angle.to_radians().sin_cos(),
         };
+        let [lx, ly] = self.device.layout_scale();
+        let (x, y) = (x * lx, y * ly);
+        let (x, y) = (cos * x + sin * y, -sin * x + cos * y);
+        let (x, y) = project_3d(x, y, rx, ry)?;
         let (x, y) = (
-            cos * x + sin * y + self.origin.x().get(),
-            -sin * x + cos * y + self.origin.y().get(),
+            x / lx + self.origin.x().get(),
+            y / ly + self.origin.y().get(),
         );
-        Ok(DevicePoint::new(
-            q6(x * (f64::from(self.device.content.width())
-                / f64::from(self.device.play_res.width()))
-                + f64::from(self.device.content.x0()))?,
-            q6(y * (f64::from(self.device.content.height())
-                / f64::from(self.device.play_res.height()))
-                + f64::from(self.device.content.y0()))?,
-        ))
+        let x = x
+            * (f64::from(self.device.content.width()) / f64::from(self.device.play_res.width()))
+            + f64::from(self.device.content.x0());
+        let y = y
+            * (f64::from(self.device.content.height()) / f64::from(self.device.play_res.height()))
+            + f64::from(self.device.content.y0());
+        finite(x)?;
+        finite(y)?;
+        Ok((x, y))
     }
+}
+/// RTS.cpp CWord::Transform: Z, X, Y, then perspective. Native paths use
+/// 64 units/pixel: the source 20000/1000 constants become 312.5/15.625.
+pub(crate) fn project_3d(x: f64, y: f64, rx: f64, ry: f64) -> Result<(f64, f64), RenderError> {
+    if rx.rem_euclid(360.0) == 0.0 && ry.rem_euclid(360.0) == 0.0 {
+        return Ok((x, y));
+    }
+    let trig = |a: f64| match a.rem_euclid(360.0) {
+        0.0 => (0.0, 1.0),
+        90.0 => (1.0, 0.0),
+        180.0 => (0.0, -1.0),
+        270.0 => (-1.0, 0.0),
+        a => a.to_radians().sin_cos(),
+    };
+    let (sx, cx) = trig(rx);
+    let (sy, cy) = trig(ry);
+    let z = sx * y;
+    let denom = (312.5 + sy * x - cy * z).max(15.625);
+    let out = ((cy * x + sy * z) * 312.5 / denom, cx * y * 312.5 / denom);
+    finite(out.0)?;
+    finite(out.1)?;
+    Ok(out)
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeviceBounds {
@@ -195,8 +289,8 @@ pub fn map_outline(
 }
 
 /// Placement is explicit: layout is local and does not infer viewport margins.
-/// An optional host origin is absolute script space. Current Core parsing has no
-/// org operation; None uses the supplied alignment anchor, never invented offsets.
+/// An optional host/ASS origin is absolute script space. None uses the supplied
+/// alignment anchor; parsed org uses the same map for text and drawing geometry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GeometryPlacement {
     pub anchor: ScriptPoint,
@@ -214,6 +308,14 @@ pub struct GeometryGlyph {
 pub struct GeometryEvent {
     layout: Arc<LocalLayout>,
     glyphs: Arc<[GeometryGlyph]>,
+    items: Arc<[GeometryItem]>,
+}
+/// Paint-ordered geometry, including drawings without a fabricated font face.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeometryItem {
+    pub geometry: GeometryInstance,
+    pub cluster: DecodedSpan,
+    pub association: usize,
 }
 impl GeometryEvent {
     pub fn layout(&self) -> &LocalLayout {
@@ -221,6 +323,9 @@ impl GeometryEvent {
     }
     pub fn glyphs(&self) -> &[GeometryGlyph] {
         &self.glyphs
+    }
+    pub fn items(&self) -> &[GeometryItem] {
+        &self.items
     }
 }
 #[cfg(feature = "native")]
@@ -233,6 +338,148 @@ pub(crate) fn font_error(e: FontError) -> RenderError {
     }
     result
 }
+/// RTS.cpp CreateOpaqueBox: a polygon per compatible word segment on each
+/// finalized line, using text advance/cell height, not glyph ink. Its copied
+/// style applies scale/shear/rotation again, including the historical double
+/// scale of already measured word dimensions. Drawings use the same path.
+pub fn opaque_box_paths(
+    layout: &LocalLayout,
+    members: std::ops::Range<usize>,
+    device: DeviceMapping,
+    anchor: ScriptPoint,
+    origin: Option<ScriptPoint>,
+    scaled_bas: bool,
+    limits: &Limits,
+) -> Result<Vec<GeometryInstance>, RenderError> {
+    let count = members
+        .end
+        .checked_sub(members.start)
+        .ok_or_else(geometry_limit)?;
+    let charge = (count as u64)
+        .checked_mul(
+            3 * (std::mem::size_of::<GeometryInstance>()
+                + 5 * (std::mem::size_of::<PathOp<FontPoint>>()
+                    + std::mem::size_of::<PathOp<DevicePoint>>())) as u64,
+        )
+        .ok_or_else(geometry_limit)?;
+    if charge > limits.transient_bytes() {
+        return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
+    }
+    let [lx, ly] = device.layout_scale();
+    let (extra_x, extra_y) = layout.local_scale();
+    let mut paths = Vec::new();
+    paths.try_reserve_exact(count).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "opaque box geometry allocation",
+        )
+    })?;
+    let gs = layout.glyphs();
+    let runs = layout.shaped().runs();
+    let states = layout.shaped().evaluated().runs();
+    let mut segments = 0usize;
+    for line in layout.lines() {
+        let mut start = line.glyph_range().start.max(members.start);
+        let stop = line.glyph_range().end.min(members.end);
+        while start < stop {
+            let state = &states[gs[start].association_index()];
+            let mut end = start + 1;
+            while end < stop {
+                let b = &states[gs[end].association_index()];
+                if state.shaping() != b.shaping()
+                    || state.geometry() != b.geometry()
+                    || state.effects() != b.effects()
+                    || state.paint() != b.paint()
+                    || state.karaoke() != b.karaoke()
+                    || gs[start].is_drawing() != gs[end].is_drawing()
+                {
+                    break;
+                }
+                end += 1;
+            }
+            if state.effects().border_style() != BorderStyle::OpaqueBox {
+                start = end;
+                continue;
+            }
+            let sx = state.geometry().scale_x().get() * extra_x.get();
+            let sy = state.geometry().scale_y().get() * extra_y.get();
+            let mut bounds = None;
+            for g in &gs[start..end] {
+                let run = &runs[g.run_index()];
+                let (x, y, w, a, d) = if let Some(draw) = run.drawing() {
+                    (
+                        g.position().x().get(),
+                        g.position().y().get(),
+                        draw.width.get() * sx,
+                        draw.ascent.get() * sy,
+                        draw.descent.get() * sy,
+                    )
+                } else {
+                    let glyph = &run.glyphs()[g.glyph_index()];
+                    let m = run
+                        .face_metrics()
+                        .iter()
+                        .find(|f| f.glyphs.contains(&g.glyph_index()))
+                        .map_or(run.metrics(), |f| f.metrics);
+                    (
+                        g.position().x().get() - glyph.offset_x().get() * sx,
+                        g.position().y().get() - glyph.offset_y().get() * sy,
+                        (glyph.advance_x().get() + state.shaping().spacing().get()) * sx,
+                        m.ascent().get() * sy,
+                        m.descent().get() * sy,
+                    )
+                };
+                let b = ScriptBounds::new(x.min(x + w), y - a, x.max(x + w), y + d)?;
+                bounds = Some(if let Some(old) = bounds {
+                    ScriptBounds::union(old, b)?
+                } else {
+                    b
+                });
+            }
+            if let Some(b) = bounds {
+                let round = |n: f64| -> Result<f64, RenderError> {
+                    let n = (n + 0.5).trunc();
+                    if !n.is_finite() || n < i32::MIN as f64 || n > i32::MAX as f64 {
+                        return Err(geometry_limit());
+                    }
+                    Ok(n)
+                };
+                let w = round(b.width() * lx * 8.0)? / 8.0;
+                let h = round(b.height() * ly * 8.0)? / 8.0;
+                let px = round(
+                    state.effects().border_x().get() * if scaled_bas { lx } else { 1.0 } * 8.0,
+                )? / 8.0;
+                let py = round(
+                    state.effects().border_y().get() * if scaled_bas { ly } else { 1.0 } * 8.0,
+                )? / 8.0;
+                let outline = Arc::new(Outline::new(
+                    vec![
+                        PathOp::MoveTo(FontPoint::new(-px, py)?),
+                        PathOp::LineTo(FontPoint::new(w + px, py)?),
+                        PathOp::LineTo(FontPoint::new(w + px, -h - py)?),
+                        PathOp::LineTo(FontPoint::new(-px, -h - py)?),
+                        PathOp::Close,
+                    ],
+                    limits,
+                )?);
+                segments = segments.checked_add(5).ok_or_else(geometry_limit)?;
+                check_path_budget(segments, limits)?;
+                let mapping = GeometryMap::new(
+                    (finite(sx / lx)?, finite(sy / ly)?),
+                    ScriptPoint::new(b.x0(), b.y0()),
+                    anchor,
+                    origin,
+                    state.geometry().rotation_z(),
+                    device,
+                )?
+                .with_projection(state.geometry());
+                paths.push(map_outline(outline, mapping, limits)?);
+            }
+            start = end;
+        }
+    }
+    Ok(paths)
+}
 #[cfg(feature = "native")]
 pub fn geometry(
     context: &mut taiyou_font::FontContext,
@@ -243,7 +490,9 @@ pub fn geometry(
 ) -> Result<GeometryEvent, RenderError> {
     let count = layout.glyphs().len();
     let mut charge = (count as u64)
-        .checked_mul(3 * std::mem::size_of::<GeometryGlyph>() as u64)
+        .checked_mul(
+            3 * (std::mem::size_of::<GeometryGlyph>() + std::mem::size_of::<GeometryItem>()) as u64,
+        )
         .ok_or_else(geometry_limit)?;
     if count as u64 > limits.glyphs_per_event() {
         return Err(geometry_limit());
@@ -252,6 +501,15 @@ pub fn geometry(
         return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut glyphs = Vec::new();
+    let mut items = Vec::new();
+    let mut word_key = None;
+    let mut word_advance = 0.0;
+    items.try_reserve_exact(count).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "geometry item allocation failed",
+        )
+    })?;
     glyphs.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
             ErrorCode::AllocationFailed,
@@ -261,8 +519,58 @@ pub fn geometry(
     let mut total = 0usize;
     for positioned in layout.glyphs() {
         let run = &layout.shaped().runs()[positioned.run_index()];
-        let glyph = &run.glyphs()[positioned.glyph_index()];
         let state = &layout.shaped().evaluated().runs()[positioned.association_index()];
+        if let Some(drawing) = run.drawing() {
+            total = total
+                .checked_add(drawing.outline.ops().len())
+                .ok_or_else(geometry_limit)?;
+            check_path_budget(total, limits)?;
+            charge = charge
+                .checked_add(
+                    (drawing.outline.ops().len() as u64)
+                        .checked_mul(
+                            4 * (std::mem::size_of::<PathOp<FontPoint>>()
+                                + std::mem::size_of::<PathOp<DevicePoint>>())
+                                as u64,
+                        )
+                        .ok_or_else(geometry_limit)?,
+                )
+                .ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() {
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
+            }
+            let additional = layout.local_scale();
+            let mapping = GeometryMap::new(
+                (
+                    finite(state.geometry().scale_x().get() * additional.0.get())?,
+                    finite(state.geometry().scale_y().get() * additional.1.get())?,
+                ),
+                positioned.position(),
+                placement.anchor,
+                placement.origin,
+                state.geometry().rotation_z(),
+                placement.device,
+            )?
+            .with_projection(state.geometry());
+            items.push(GeometryItem {
+                geometry: map_outline(drawing.outline.clone(), mapping, limits)?,
+                cluster: positioned.cluster().clone(),
+                association: positioned.association_index(),
+            });
+            continue;
+        }
+        let glyph = &run.glyphs()[positioned.glyph_index()];
+        let start = positioned.cluster().start() as usize;
+        let word_start = layout.shaped().source_map().text()[..start]
+            .rfind([' ', '\n'])
+            .map_or(0, |i| i + 1);
+        let key = (positioned.association_index(), word_start);
+        if word_key != Some(key) {
+            word_key = Some(key);
+            word_advance = 0.0;
+        }
         let blob = catalog
             .faces()
             .iter()
@@ -312,20 +620,125 @@ pub fn geometry(
         if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
-        let size = state.shaping().font_size().get() / f64::from(outline.units_per_em());
+        let [lx, ly] = placement.device.layout_scale();
+        let vertical =
+            state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
+        let size = catalog
+            .ass_oriented_font_scale(
+                blob.id(),
+                finite(state.shaping().font_size().get() * ly)?,
+                vertical,
+            )
+            .map_err(font_error)?
+            .get();
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (
-                finite(size * state.geometry().scale_x().get() * additional.0.get())?,
-                finite(size * state.geometry().scale_y().get() * additional.1.get())?,
+                finite(size / lx * state.geometry().scale_x().get() * additional.0.get())?,
+                finite(size / ly * state.geometry().scale_y().get() * additional.1.get())?,
             ),
             positioned.position(),
             placement.anchor,
             placement.origin.or(layout.shaped().placement().origin()),
             state.geometry().rotation_z(),
             placement.device,
-        )?;
-        let mapped = map_outline(outline.outline().clone(), mapping, limits)?;
+        )?
+        .with_projection(state.geometry());
+        let mut path = outline.outline().clone();
+        if let Some(offset) = glyph.vertical_offset() {
+            let mut ops = Vec::new();
+            ops.try_reserve_exact(path.ops().len()).map_err(|_| {
+                RenderError::new(ErrorCode::AllocationFailed, "vertical outline allocation")
+            })?;
+            for op in path.ops() {
+                ops.push(op.try_map(|p| {
+                    FontPoint::new(
+                        offset.x().get() - p.y().get(),
+                        p.x().get() + offset.y().get(),
+                    )
+                })?);
+            }
+            path = Arc::new(Outline::new(ops, limits)?);
+        }
+        if state.geometry().underline() || state.geometry().strikeout() {
+            let metrics = catalog
+                .decoration_metrics(context, blob.id())
+                .map_err(font_error)?;
+            let extra = 5
+                * (usize::from(state.geometry().underline())
+                    + usize::from(state.geometry().strikeout()));
+            total = total.checked_add(extra).ok_or_else(geometry_limit)?;
+            check_path_budget(total, limits)?;
+            charge = charge
+                .checked_add(
+                    (extra as u64 + path.ops().len() as u64)
+                        * 4
+                        * (std::mem::size_of::<PathOp<FontPoint>>()
+                            + std::mem::size_of::<PathOp<DevicePoint>>())
+                            as u64,
+                )
+                .ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() {
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
+            }
+            let mut decorated = Vec::new();
+            decorated
+                .try_reserve_exact(path.ops().len() + extra)
+                .map_err(|_| {
+                    RenderError::new(ErrorCode::AllocationFailed, "decoration path allocation")
+                })?;
+            decorated.extend_from_slice(path.ops());
+            // GDI TextOut decorations use face metrics and text advance, not
+            // glyph ink. Retain the exact same path/effects/composition route.
+            let width = glyph.advance_x().get() * lx / size;
+            for (enabled, (centre, thickness)) in
+                [state.geometry().underline(), state.geometry().strikeout()]
+                    .into_iter()
+                    .zip(metrics)
+            {
+                if !enabled || thickness <= 0 {
+                    continue;
+                }
+                let (y0, y1) = (
+                    f64::from(centre) - f64::from(thickness) / 2.0,
+                    f64::from(centre) + f64::from(thickness) / 2.0,
+                );
+                // A decoration is another filled contour, not an opposite-
+                // winding hole where it crosses a TrueType glyph.
+                let (left, right) = (width.min(0.0), width.max(0.0));
+                let (y0, y1) = if outline.clockwise() {
+                    (y1, y0)
+                } else {
+                    (y0, y1)
+                };
+                decorated.extend([
+                    PathOp::MoveTo(FontPoint::new(left, y0)?),
+                    PathOp::LineTo(FontPoint::new(right, y0)?),
+                    PathOp::LineTo(FontPoint::new(right, y1)?),
+                    PathOp::LineTo(FontPoint::new(left, y1)?),
+                    PathOp::Close,
+                ]);
+            }
+            path = Arc::new(Outline::new(decorated, limits)?);
+        }
+        let (_, win_ascent, _) = catalog
+            .ass_oriented_cell_metrics(blob.id(), vertical)
+            .map_err(font_error)?;
+        let ascent = (f64::from(win_ascent) * size * 64.0 + 0.5).floor() / 64.0;
+        let mapping = mapping.with_shear_offset(FontPoint::new(
+            (word_advance + glyph.offset_x().get()) * lx / size,
+            (ascent - glyph.offset_y().get() * ly) / size,
+        )?);
+        word_advance += glyph.advance_x().get();
+        finite(word_advance)?;
+        let mapped = map_outline(path, mapping, limits)?;
+        items.push(GeometryItem {
+            geometry: mapped.clone(),
+            cluster: positioned.cluster().clone(),
+            association: positioned.association_index(),
+        });
         glyphs.push(GeometryGlyph {
             outline,
             geometry: mapped,
@@ -336,5 +749,6 @@ pub fn geometry(
     Ok(GeometryEvent {
         layout,
         glyphs: glyphs.into(),
+        items: items.into(),
     })
 }

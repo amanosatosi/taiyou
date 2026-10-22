@@ -76,6 +76,14 @@ pub struct Outline {
     ops: Arc<[PathOp<FontPoint>]>,
     bounds: Option<FontBounds>,
 }
+/// ASS polygon geometry in local y-up script units. No synthetic font identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AssDrawing {
+    pub outline: Arc<Outline>,
+    pub width: FiniteF64,
+    pub ascent: FiniteF64,
+    pub descent: FiniteF64,
+}
 impl Outline {
     pub fn new(ops: Vec<PathOp<FontPoint>>, limits: &Limits) -> Result<Self, RenderError> {
         check_path_budget(ops.len(), limits)?;
@@ -154,6 +162,7 @@ pub fn check_path_budget(count: usize, limits: &Limits) -> Result<(), RenderErro
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GlyphOutline {
+    clockwise: bool,
     font: FontId,
     glyph: u32,
     upem: u16,
@@ -173,6 +182,7 @@ impl GlyphOutline {
             ));
         }
         Ok(Self {
+            clockwise: false,
             font,
             glyph,
             upem,
@@ -184,6 +194,13 @@ impl GlyphOutline {
     }
     pub const fn glyph(&self) -> u32 {
         self.glyph
+    }
+    pub fn with_clockwise(mut self, clockwise: bool) -> Self {
+        self.clockwise = clockwise;
+        self
+    }
+    pub const fn clockwise(&self) -> bool {
+        self.clockwise
     }
     pub const fn units_per_em(&self) -> u16 {
         self.upem

@@ -203,17 +203,41 @@ class AccountingTests(unittest.TestCase):
         self.assertEqual(compare.classify(case, 30, None, "font absent"), "INFRA_ERROR")
         self.assertEqual(compare.classify(case, -9, None, "killed"), "CRASH")
         self.assertEqual(compare.classify(case, -999, None, "timeout"), "CRASH")
-        self.assertEqual(compare.classify(case, 0, {"exact": False}, ""), "UNSUPPORTED")
+        self.assertEqual(compare.classify(case, 0, {"exact": False}, ""), "REGRESSION")
+        self.assertEqual(compare.observe(0, {"exact": False}), "PIXEL_MISMATCH")
+        self.assertEqual(compare.classify(case, 0, {"exact": True}, ""), "PASS_EXACT")
         supported = copy.deepcopy(case)
         supported["profile_records"]["CoreV1"]["support"] = "SUPPORTED"
-        self.assertEqual(compare.classify(supported, 0, {"exact": False}, ""), "REGRESSION")
-        self.assertEqual(compare.classify(supported, 20, None, "tag"), "REGRESSION")
+        self.assertEqual(compare.classify(supported, 20, None, "tag"), "UNSUPPORTED")
+        self.assertEqual(compare.observe(20, None), "BLOCKED_BY_UNSUPPORTED_FEATURE")
 
     def test_renderer_errors_cannot_be_hidden_by_message_substrings(self):
         case = next(c for c in self.inventory["cases"] if c["kind"] == "regression")
         self.assertEqual(compare.classify(case, 80, None, "fake UnsupportedFeature"), "INFRA_ERROR")
         self.assertEqual(compare.classify(case, 34, None, "taiyou: UnsupportedFeature: fake"), "INFRA_ERROR")
         self.assertEqual(compare.classify(case, 20, None, "any diagnostic wording"), "UNSUPPORTED")
+
+    def test_strict_unsupported_is_not_promoted_by_tolerant_diagnostics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "test.ass").write_text("synthetic")
+            (root / "font.ttf").write_text("synthetic")
+            images.write_png(root / "test-0000.png", 1, 1, bytes(4))
+            case = {
+                "id": "test-0000.png", "kind": "regression", "source": "test.ass",
+                "fonts": ["font.ttf"], "scale": "1",
+                "profile_records": {"CoreV1": {"support": "UNSUPPORTED", "reason": "historical"}},
+                "frames": [{"expected": "test-0000.png", "timestamp_ms": 0, "reference_size": [1, 1]}],
+            }
+            assets = {p: {"path": p} for p in ("test.ass", "font.ttf", "test-0000.png")}
+            with patch.object(compare, "execute", side_effect=[(20, "strict unsupported"), (0, "tolerant rendered")]):
+                record = compare.run_case(case, root, root / "renderer", root / "probe", root, assets, 0)
+            self.assertEqual(record["status"], "UNSUPPORTED")
+            self.assertEqual(record["observed_result"], "BLOCKED_BY_UNSUPPORTED_FEATURE")
+            self.assertEqual(record["exit_code"], 20)
+            self.assertEqual(record["tolerant_exit_code"], 0)
+            self.assertIsNone(record["metrics"])
+            self.assertEqual(record["stage"], "render")
 
     def test_missing_explicit_fonts_are_infrastructure_error(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -230,13 +254,13 @@ class AccountingTests(unittest.TestCase):
     def test_visual_and_parser_safety_subtotals_preserve_policy_counts(self):
         records = [{"case": c["id"], "frame": c["frames"][0]["expected"] if c["frames"] else None,
                     "profile": "CoreV1", "kind": c["kind"], "status": "UNSUPPORTED", "feature": "synthetic",
-                    "stage": "render", "metrics": None}
+                    "stage": "render", "metrics": None, "observed_result": "BLOCKED_BY_UNSUPPORTED_FEATURE"}
                    for c in self.inventory["cases"] if c["kind"] != "disabled-upstream"]
         for record in records:
             if record["kind"] == "crash":
                 record.update(status="PASS_EXACT", stage="parser-safety-probe", safety_only=True)
         visual = next(r for r in records if r["kind"] == "regression")
-        visual.update(status="PASS_EXACT", stage="pixel-comparison", metrics={"exact": True})
+        visual.update(status="PASS_EXACT", observed_result="PASS_EXACT", stage="pixel-comparison", metrics={"exact": True})
         summary = compare.summarize(self.inventory, self.inventory["cases"], self.policy, records)
         self.assertEqual(summary["counts"]["PASS_EXACT"], 3)  # Unchanged T005 aggregate.
         self.assertEqual(summary["visual"]["exact_matches"], 1)
@@ -273,10 +297,20 @@ class AccountingTests(unittest.TestCase):
             output = root / "report"
             argv = ["compare", "--suite", "full", "--profile", "core-v1", "--corpus", str(root),
                     "--output", str(output), "--renderer", str(root / "renderer"), "--probe", str(root / "probe")]
+            def synthetic_execute(command, directory):
+                if command[1] == "render":
+                    width = int(command[command.index("--width") + 1])
+                    height = int(command[command.index("--height") + 1])
+                    png = command[command.index("--output") + 1]
+                    raw = command[command.index("--raw") + 1]
+                    pixels = bytes(width * height * 4)
+                    images.write_png(png, width, height, pixels)
+                    Path(raw).write_bytes(pixels)
+                return 0, "SAFETY_ONLY"
             with patch("sys.argv", argv), patch.object(compare, "accepted_snapshot", return_value=(root, inventory, self.policy)), \
                  patch.object(compare.subprocess, "run") as verification, \
                  patch.object(compare.subprocess, "check_output", return_value="0" * 40), \
-                 patch.object(compare, "execute", return_value=(0, "SAFETY_ONLY")), contextlib.redirect_stdout(io.StringIO()):
+                 patch.object(compare, "execute", side_effect=synthetic_execute), contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(compare.main(), 1)
             self.assertEqual(verification.call_count, 2)  # Before and after.
             report = load(output / "report.json")
@@ -304,7 +338,8 @@ class FullReportInvariantTests(unittest.TestCase):
             case["profile_records"] = {"CoreV1": {"support": "UNSUPPORTED"}}
         self.records = [
             {"case": "test-0000.png", "frame": "test-0000.png", "profile": "CoreV1", "kind": "regression",
-             "status": "INFRA_ERROR", "exit_code": 30, "stage": "render", "metrics": None, "feature": "synthetic"},
+             "status": "INFRA_ERROR", "observed_result": "INFRA_ERROR", "exit_code": 30,
+             "stage": "render", "metrics": None, "feature": "synthetic"},
             {"case": "probe.ass", "frame": None, "profile": "CoreV1", "kind": "crash", "status": "PASS_EXACT",
              "exit_code": 0, "stage": "parser-safety-probe", "safety_only": True, "metrics": None}]
 
@@ -326,7 +361,8 @@ class FullReportInvariantTests(unittest.TestCase):
             raw.write_bytes(bytes([255, 0, 0, 255]))
             images.write_png(png, 1, 1, bytes([255, 0, 0, 255]))
             records = copy.deepcopy(self.records)
-            records[0].update(status="PASS_EXACT", exit_code=0, stage="pixel-comparison",
+            records[0].update(status="PASS_EXACT", observed_result="PASS_EXACT", exit_code=0,
+                              stage="pixel-comparison",
                               metrics=images.compare(images.read_png(png), images.raw_rgba(raw, 1, 1)),
                               raw_sha256=digest(raw.read_bytes()), png_sha256=digest(png.read_bytes()))
             return records
@@ -437,10 +473,10 @@ def validate_full_report(report, inventory, policy, candidate_sha):
                     raise AssertionError("exact flag contradicts pixel metrics")
                 if any(not re.fullmatch(r"[0-9a-f]{64}", record.get(key, "")) for key in ("raw_sha256", "png_sha256")):
                     raise AssertionError("pixel evidence lacks output identities")
+            observed = compare.observe(code, record["metrics"])
+            if record.get("observed_result") != observed:
+                raise AssertionError("observed result contradicts strict execution evidence")
             required = compare.classify(case, code, record["metrics"], record.get("diagnostics", ""))
-            if record.get("tolerant_attempt") and required == "PASS_EXACT":
-                support = case["profile_records"]["CoreV1"]["support"]
-                required = "UNSUPPORTED" if support == "UNSUPPORTED" else "REGRESSION"
         if status != required:
             raise AssertionError("status contradicts execution evidence")
         if status in ("REGRESSION", "CRASH"):

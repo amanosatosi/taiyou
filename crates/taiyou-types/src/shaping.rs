@@ -85,6 +85,7 @@ pub struct FaceMetrics {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedGlyph {
+    vertical_offset: Option<FontPoint>,
     ink: GlyphInk,
     font: FontId,
     glyph: u32,
@@ -94,6 +95,7 @@ pub struct ShapedGlyph {
 impl ShapedGlyph {
     pub fn new(font: FontId, glyph: u32, cluster: DecodedSpan, position: GlyphPosition) -> Self {
         Self {
+            vertical_offset: None,
             ink: GlyphInk::Unknown,
             font,
             glyph,
@@ -103,6 +105,13 @@ impl ShapedGlyph {
     }
     pub const fn font(&self) -> FontId {
         self.font
+    }
+    pub fn with_vertical_offset(mut self, offset: Option<FontPoint>) -> Self {
+        self.vertical_offset = offset;
+        self
+    }
+    pub const fn vertical_offset(&self) -> Option<FontPoint> {
+        self.vertical_offset
     }
     pub fn with_ink(mut self, ink: GlyphInk) -> Self {
         self.ink = ink;
@@ -135,6 +144,7 @@ impl ShapedGlyph {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ShapedRun {
+    drawing: Option<Arc<AssDrawing>>,
     glyphs: Arc<[ShapedGlyph]>,
     metrics: RunMetrics,
     face_metrics: Arc<[FaceMetrics]>,
@@ -166,6 +176,7 @@ impl ShapedRun {
             }
         }
         Ok(Self {
+            drawing: None,
             glyphs,
             metrics,
             face_metrics: Arc::from([]),
@@ -178,6 +189,19 @@ impl ShapedRun {
     }
     pub fn glyphs(&self) -> &[ShapedGlyph] {
         &self.glyphs
+    }
+    pub fn with_drawing(mut self, drawing: Arc<AssDrawing>) -> Result<Self, FontError> {
+        if !self.glyphs.is_empty() {
+            return Err(FontError::new(
+                ErrorCode::InvalidArgument,
+                "drawing run contains font glyphs",
+            ));
+        }
+        self.drawing = Some(drawing);
+        Ok(self)
+    }
+    pub fn drawing(&self) -> Option<&Arc<AssDrawing>> {
+        self.drawing.as_ref()
     }
     pub fn with_face_metrics(mut self, metrics: Arc<[FaceMetrics]>) -> Result<Self, FontError> {
         if metrics.is_empty() || metrics[0].metrics != self.metrics {
@@ -385,7 +409,7 @@ impl ShapedEvent {
     pub fn placement(&self) -> &Placement {
         self.evaluated.placement()
     }
-    pub const fn clip(&self) -> ClipSpec {
+    pub fn clip(&self) -> ClipSpec {
         self.evaluated.clip()
     }
     /// Original decoded ranges retain geometry, effects and paint associations.

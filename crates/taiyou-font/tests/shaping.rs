@@ -110,7 +110,8 @@ fn reference(id: &str) -> Expected {
 }
 fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
     let expected = reference(id);
-    let scale = size / expected.upem;
+    assert!(expected.metrics[0] > expected.metrics[1]);
+    let (scale, ascent, descent, baseline_offset) = cell_reference(id, size);
     assert_eq!(f64::from(run.metrics().units_per_em()), expected.upem);
     assert!(run.face_metrics().iter().all(|m| {
         run.glyphs().iter().any(|g| g.font() == m.font) && m.metrics.units_per_em() != 0
@@ -139,23 +140,35 @@ fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
                 raw[2] as f64 * scale,
                 -(raw[3] as f64) * scale,
                 raw[4] as f64 * scale,
-                -(raw[5] as f64) * scale
+                -(raw[5] as f64) * scale + baseline_offset
             ],
             "{id}"
         );
     }
-    assert_eq!(
-        run.metrics().ascent().get(),
-        f64::from(expected.metrics[0]) * scale
-    );
-    assert_eq!(
-        run.metrics().descent().get(),
-        -f64::from(expected.metrics[1]) * scale
-    );
-    assert_eq!(
-        run.metrics().line_gap().get(),
-        f64::from(expected.metrics[2]) * scale
-    );
+    assert_eq!(run.metrics().ascent().get(), ascent);
+    assert_eq!(run.metrics().descent().get(), descent);
+    assert_eq!(run.metrics().line_gap().get(), 0.0);
+}
+fn cell_reference(id: &str, size: f64) -> (f64, f64, f64, f64) {
+    let path =
+        PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv");
+    let contents = std::fs::read_to_string(path).unwrap();
+    let input = contents
+        .lines()
+        .find(|l| l.split_whitespace().next() == Some(format!("case:{id}").as_str()))
+        .unwrap();
+    let values: Vec<f64> = input
+        .split_whitespace()
+        .skip(1)
+        .map(|s| s.parse().unwrap())
+        .collect();
+    let native_em =
+        (((size * 64.0 + 0.5).floor() * values[0] / (values[1] + values[2])) + 0.5).floor();
+    let scale = native_em / (64.0 * values[0]);
+    let metric = |v: f64| (((v * native_em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
+    let ascent = metric(values[1]);
+    let baseline_offset = (values[1] * native_em / values[0] + 0.5).floor() / 64.0 - ascent;
+    (scale, ascent, metric(values[2]), baseline_offset)
 }
 #[test]
 fn shaping_exact_provisional_native_sequences_metrics_and_advances() {
@@ -339,7 +352,7 @@ fn shaping_arabic_style_boundary_retains_neighboring_joining_context() {
             assert_eq!(glyph.glyph(), raw[0] as u32);
             assert_eq!(
                 glyph.advance_x().get(),
-                raw[2] as f64 * (size / expected.upem)
+                raw[2] as f64 * cell_reference("joining", size).0
             );
         }
     }

@@ -106,23 +106,40 @@ pub fn coverage_groups(
     event: Arc<GeometryEvent>,
     limits: &Limits,
 ) -> Result<Vec<CoverageGroup>, RenderError> {
-    group_budget(event.glyphs().len(), limits)?;
+    group_budget(event.items().len(), limits)?;
     let mut groups = Vec::new();
-    groups
-        .try_reserve_exact(event.glyphs().len())
-        .map_err(|_| {
-            RenderError::new(
-                ErrorCode::AllocationFailed,
-                "coverage groups allocation failed",
-            )
-        })?;
+    groups.try_reserve_exact(event.items().len()).map_err(|_| {
+        RenderError::new(
+            ErrorCode::AllocationFailed,
+            "coverage groups allocation failed",
+        )
+    })?;
     let state =
-        |i: usize| &event.layout().shaped().evaluated().runs()[event.glyphs()[i].association];
+        |i: usize| &event.layout().shaped().evaluated().runs()[event.items()[i].association];
     let mut start = 0;
     let mut total = 0usize;
-    while start < event.glyphs().len() {
+    let mut line_index = 0;
+    while start < event.items().len() {
+        while event
+            .layout()
+            .lines()
+            .get(line_index)
+            .is_some_and(|l| l.glyph_range().end <= start)
+        {
+            line_index += 1;
+        }
+        let opaque = state(start).effects().border_style() == BorderStyle::OpaqueBox;
+        let line_end = if opaque {
+            event
+                .layout()
+                .lines()
+                .get(line_index)
+                .map_or(event.items().len(), |l| l.glyph_range().end)
+        } else {
+            event.items().len()
+        };
         let mut end = start + 1;
-        while end < event.glyphs().len() {
+        while end < line_end {
             let (a, b) = (state(start), state(end));
             // C3 classifies shape changes as geometry changes as well. Fallback
             // faces under the same request stay compatible; per-glyph position
@@ -131,6 +148,8 @@ pub fn coverage_groups(
                 || a.geometry() != b.geometry()
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
+                || a.karaoke() != b.karaoke()
+                || (opaque && a.drawing().is_some() != b.drawing().is_some())
             {
                 break;
             }
@@ -143,7 +162,7 @@ pub fn coverage_groups(
                 "coverage membership allocation failed",
             )
         })?;
-        for glyph in &event.glyphs()[start..end] {
+        for glyph in &event.items()[start..end] {
             total = total
                 .checked_add(glyph.geometry.ops().len())
                 .ok_or_else(limited)?;
@@ -257,4 +276,28 @@ pub fn rasterize(ctx: &mut RasterContext, group: &CoverageGroup) -> Result<Arc<M
         bounds,
         usize::try_from(bounds.width()).map_err(|_| limited())?,
     )
+}
+/// Source-mask comparison entry point using exactly the same supplied path.
+/// FreeType rasterize above remains available as an independent native control.
+#[cfg(feature = "native")]
+pub fn rasterize_xy(
+    ctx: &mut RasterContext,
+    group: &CoverageGroup,
+) -> Result<Arc<Mask>, RenderError> {
+    let ops = coverage_path(group, Q6::from_ticks(0), Q6::from_ticks(0), ctx.limits())?;
+    let bytes = (ops.len() as u64)
+        .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+        .ok_or_else(limited)?;
+    let available = ctx
+        .limits()
+        .transient_bytes()
+        .checked_sub(bytes)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    let limits = ctx
+        .limits()
+        .clone()
+        .with_transient_bytes(available)
+        .map_err(|_| limited())?;
+    crate::axis_widen::rasterize_body(&ops, &limits)
 }

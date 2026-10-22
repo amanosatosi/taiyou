@@ -1,0 +1,104 @@
+name: T018 four-case BE audit
+on:
+  push:
+    branches: [task/T018-be-audit, task/T018-be-fixes, task/T018-ass-blur]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cell_metrics:
+    runs-on: windows-2022
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python validation/acquire.py
+      - shell: pwsh
+        run: ./experiments/t018-be/font_cell_probe.ps1
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: t018-cell-metrics-${{ github.sha }}
+          path: ${{ runner.temp }}/t018-gdi-cell-probe.json
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      CANDIDATE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: echo "TAIYOU_BE_AUDIT_OUTPUT=$RUNNER_TEMP/t018-be-audit" >> "$GITHUB_ENV"
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          python -m unittest discover -s validation -p test_oversampling.py
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: |
+          cargo +1.99.1 fmt --all
+          git diff --binary > "$RUNNER_TEMP/t018-be-format.patch"
+          cargo +1.99.1 test --locked -p taiyou-ass -p taiyou-types -p taiyou-render
+          cargo +1.99.1 test --locked -p taiyou-cli --test transforms --test drawings
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Focused ASS compatibility and blur rendering regressions
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: |
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test ass_compatibility --test blur --test transforms --test drawings --test line_compaction --test automatic_wrapping --test renderer_effect_regressions --test geometry --test layout_pipeline
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test adaptive_wrapping_width_experiment
+          cargo +1.99.1 test --locked -p taiyou-font --features native --test shaping
+          cargo +1.99.1 test --locked -p taiyou-render --features native --test layout_fixed_font
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - name: Independent size-dependent outline observations
+        run: |
+          mkdir -p "$TAIYOU_BE_AUDIT_OUTPUT"
+          cc -std=c11 -Wall -Wextra -Werror -I"$RUNNER_TEMP/taiyou-native-install/include/freetype2" experiments/t018-be/outline-probe.c -L"$RUNNER_TEMP/taiyou-native-install/lib" -lfreetype -lm -o "$RUNNER_TEMP/t018-outline-probe"
+          "$RUNNER_TEMP/t018-outline-probe" "$TAIYOU_CORPUS/regression/.fonts/Aileron-Regular.otf" > "$TAIYOU_BE_AUDIT_OUTPUT/freetype-scaled-outlines.json"
+      - name: Reproduce exactly the four frozen BE frames
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cargo +1.99.1 build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo +1.99.1 run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/blurs/be-0500.png --case regression/blurs/be-1500.png --case regression/blurs/be-2500.png --case regression/blurs/be-3500.png
+      - name: Actual frozen ASS stage masks and independent BE equation
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          export TAIYOU_BE_AUDIT_CORPUS="$TAIYOU_CORPUS"
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test be_audit -- --nocapture
+          python experiments/t018-be/audit.py
+      - name: Ten frozen animated Gaussian frames
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          python validation/compare.py --suite focused --profile core-v1 --output "$RUNNER_TEMP/t018-transforms" --case regression/blurs/blur+t-1000.png --case regression/blurs/blur+t-1100.png --case regression/blurs/blur+t-1200.png --case regression/blurs/blur+t-1300.png --case regression/blurs/blur+t-1400.png --case regression/blurs/blur+t-1500.png --case regression/blurs/blur+t-1600.png --case regression/blurs/blur+t-1700.png --case regression/blurs/blur+t-1800.png --case regression/blurs/blur+t-1900.png
+      - name: Frozen anamorphic drawing and Gaussian frame
+        run: python validation/compare.py --suite focused --profile core-v1 --output "$RUNNER_TEMP/t018-anamorphic" --case regression/blurs-anamorphic/blur-0000.png
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: t018-be-audit-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/t018-be-audit/
+            ${{ runner.temp }}/taiyou-comparison/
+            ${{ runner.temp }}/t018-be-format.patch
+            ${{ runner.temp }}/t018-transforms/
+            ${{ runner.temp }}/t018-anamorphic/

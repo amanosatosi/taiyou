@@ -56,19 +56,32 @@ struct GroupMasks {
     border: Option<Arc<Mask>>,
     shadow: Option<Arc<Mask>>,
     fill_paint: Rgba8,
+    sweep: Option<(i32, Rgba8)>,
     border_paint: Rgba8,
     shadow_paint: Rgba8,
 }
 #[cfg(feature = "native")]
-fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
-    Q6::from_pixels(FiniteF64::new(value).map_err(convert)?).map_err(convert)
+fn filter_mask(
+    mask: Arc<Mask>,
+    spec: &crate::effects::BlurSpec,
+    held: &mut u64,
+    event_charge: u64,
+    limits: &Limits,
+) -> Result<Arc<Mask>, RenderError> {
+    let filtered =
+        crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+    if !Arc::ptr_eq(&mask, &filtered) {
+        charge_mask(&filtered, held, event_charge, limits)?;
+        let old = (mask.data().len() as u64)
+            .checked_mul(3)
+            .ok_or_else(limited)?;
+        *held = held.checked_sub(old).ok_or_else(limited)?;
+    }
+    Ok(filtered)
 }
 #[cfg(feature = "native")]
-fn equal_device_scale(device: DeviceMapping) -> bool {
-    let content = device.content();
-    let play = device.play_res();
-    u64::from(content.width()).checked_mul(u64::from(play.height()))
-        == u64::from(content.height()).checked_mul(u64::from(play.width()))
+fn q6_pixels(value: f64) -> Result<Q6, RenderError> {
+    Q6::from_pixels(FiniteF64::new(value).map_err(convert)?).map_err(convert)
 }
 #[cfg(feature = "native")]
 fn script_offset_q6(
@@ -80,7 +93,12 @@ fn script_offset_q6(
     let content = device.content();
     let play = device.play_res();
     let ratio = if !scaled_border_shadow {
-        1.0
+        let [lx, ly] = device.layout_scale();
+        if x_axis {
+            f64::from(content.width()) / f64::from(play.width()) / lx
+        } else {
+            f64::from(content.height()) / f64::from(play.height()) / ly
+        }
     } else if x_axis {
         f64::from(content.width()) / f64::from(play.width())
     } else {
@@ -105,6 +123,7 @@ fn charge_mask(
     Ok(())
 }
 #[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
 fn push_operation(
     operations: &mut Vec<DrawOp>,
     held: &mut u64,
@@ -113,8 +132,9 @@ fn push_operation(
     order: DrawOrder,
     mask: Arc<Mask>,
     paint: Rgba8,
+    clip: Arc<ResolvedClip>,
 ) -> Result<(), RenderError> {
-    let future = add(*held, bytes::<DrawOp>(1)?)?;
+    let future = add(*held, add(bytes::<DrawOp>(1)?, bytes::<ResolvedClip>(3)?)?)?;
     available(limits, add(future, event_charge)?)?;
     operations.try_reserve_exact(1).map_err(|_| {
         RenderError::new(ErrorCode::AllocationFailed, "draw list allocation failed")
@@ -126,7 +146,7 @@ fn push_operation(
         Paint::Solid(paint),
         PaintSpace::Device,
         PaintMap::Identity,
-        Arc::new(ResolvedClip::None),
+        clip,
     ));
     *held = future;
     Ok(())
@@ -137,6 +157,17 @@ struct Preparation<'a> {
     track: &'a Track,
     request: &'a RenderRequest,
     config: &'a RendererConfig,
+}
+#[cfg(feature = "native")]
+fn device_mapping(track: &Track, request: &RenderRequest) -> Result<DeviceMapping, RenderError> {
+    DeviceMapping::new(track.script().play_res(), request.viewport.content())?.with_layout_res(
+        Some(
+            track
+                .script()
+                .layout_res()
+                .unwrap_or(request.viewport.original_size()),
+        ),
+    )
 }
 #[cfg(feature = "native")]
 struct PreparedLocal {
@@ -175,30 +206,13 @@ fn prepare_local(
     )?;
     diagnostics.extend_finished(&report).map_err(convert)?;
     let stage_held = add(held, eval_charge)?;
-    // Static Core borders/shadows are rendered below. Decorations
-    // remain explicitly unsupported and are omitted in tolerant mode.
-    for state in evaluated.runs() {
-        if state.geometry().underline() || state.geometry().strikeout() {
-            let detail = "underline and strikeout decorations require a later Core stage";
-            if request.unsupported == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
-                    .with_context(Some(event.id()), Some(state.source())));
-            }
-            diagnostics
-                .push(Diagnostic::new(
-                    DiagnosticCode::UnsupportedFeature,
-                    Some(event.id()),
-                    Some(state.source()),
-                    detail,
-                ))
-                .map_err(convert)?;
-        }
-    }
     let shaped = taiyou_font::shape_event(
         ctx,
         fonts,
         &evaluated,
-        &Default::default(),
+        &taiyou_font::ShapeOptions::default()
+            .with_layout_scale(device_mapping(track, request)?.layout_scale())
+            .map_err(crate::geometry::font_error)?,
         &available(limits, stage_held)?,
     )
     .map_err(crate::geometry::font_error)?;
@@ -273,6 +287,10 @@ pub struct Renderer {
     output: OutputBudget,
     #[cfg(feature = "native")]
     attachment_catalogs: CatalogIngestor,
+    // Regression injection below ASS coordinate semantics, absent from normal
+    // optimized builds. Always None for ordinary rendering.
+    #[cfg(all(any(test, debug_assertions), feature = "native"))]
+    continuous_test_anchors: Option<Vec<(EventId, ScriptPoint)>>,
     _not_sync: PhantomData<Cell<()>>,
 }
 impl Renderer {
@@ -289,6 +307,8 @@ impl Renderer {
             output,
             #[cfg(feature = "native")]
             attachment_catalogs: CatalogIngestor::new(),
+            #[cfg(all(any(test, debug_assertions), feature = "native"))]
+            continuous_test_anchors: None,
             _not_sync: PhantomData,
         })
     }
@@ -297,6 +317,30 @@ impl Renderer {
     }
     pub fn retained_output_bytes(&self) -> u64 {
         self.output.retained_bytes()
+    }
+
+    /// Internal regression helper, not a supported host placement API. Accepts
+    /// already-resolved continuous anchors below ASS pos/move quantization.
+    /// Debug builds only; injection is cleared on both success and error.
+    #[cfg(all(feature = "native", debug_assertions))]
+    #[doc(hidden)]
+    pub fn render_with_continuous_anchors_for_test(
+        &mut self,
+        track: Arc<Track>,
+        fonts: Arc<ValidatedFontCatalog>,
+        request: &RenderRequest,
+        anchors: Vec<(EventId, ScriptPoint)>,
+    ) -> Result<Frame, RenderError> {
+        if self.continuous_test_anchors.is_some() {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "nested test placement",
+            ));
+        }
+        self.continuous_test_anchors = Some(anchors);
+        let result = self.render(track, fonts, request);
+        self.continuous_test_anchors = None;
+        result
     }
 
     /// Parsed-input convenience boundary: retain ingestion diagnostics in the
@@ -411,6 +455,16 @@ impl Renderer {
     ) -> Result<Frame, RenderError> {
         #[cfg(test)]
         PREPARATION_ATTEMPTS.with(|n| n.set(n.get() + 1));
+        let adjusted;
+        let request = if let Some(layout) = track.script().layout_res() {
+            adjusted = RenderRequest {
+                viewport: request.viewport.with_original_size(layout)?,
+                ..*request
+            };
+            &adjusted
+        } else {
+            request
+        };
         let limits = &self.config.limits;
         let (_, length) = limits
             .check_output_size(request.viewport.size())
@@ -448,11 +502,10 @@ impl Renderer {
         events.sort_unstable_by_key(|e| (e.layer(), e.id()));
         let mut diagnostics = DiagnosticBuffer::new();
         if count > 0
-            && (track.script().layout_res().is_some()
-                || (!track.script().ycbcr_matrix().is_empty()
-                    && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")))
+            && !track.script().ycbcr_matrix().is_empty()
+            && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")
         {
-            let detail = "T014 uses PlayRes mapping and encoded RGB; LayoutRes and legacy YCbCr emulation are unsupported";
+            let detail = "encoded RGB output does not implement legacy YCbCr emulation";
             if request.unsupported == UnsupportedPolicy::Strict {
                 return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail));
             }
@@ -467,7 +520,7 @@ impl Renderer {
         }
         let mut operations = Vec::new();
         let mut total_segments = 0_u64;
-        if !events.is_empty() && fonts.faces().is_empty() {
+        if events.iter().any(|event| crate::requires_font(event)) && fonts.faces().is_empty() {
             return Err(RenderError::new(
                 ErrorCode::FontUnavailable,
                 "an explicit validated font is required",
@@ -538,14 +591,36 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let (local, local_charge) =
-                    prepare_local(&mut ctx, event, &preparation, held, &mut report).map_err(
-                        |e| {
-                            let id = e.event().or(Some(event.id()));
-                            let span = e.span().or(Some(event.source()));
-                            e.with_context(id, span)
-                        },
-                    )?;
+                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report);
+                if result
+                    .as_ref()
+                    .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
+                {
+                    if let Some((_, Some(saved))) = prepared.pop() {
+                        // The last admitted layout consumed the headroom needed
+                        // by this preparation. Reclaim that one optional result,
+                        // stop admission, and retry only this event. Its compact
+                        // collision descriptor has already been published.
+                        held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                        retained_charge = retained_charge
+                            .checked_sub(saved.charge)
+                            .ok_or_else(limited)?;
+                        drop(saved);
+                        admitting = false;
+                        #[cfg(test)]
+                        RETAINED_CALLS.with(|n| n.set(n.get() - 1));
+                        report = DiagnosticBuffer::new();
+                        // If freeing optional state cannot help, preserve the
+                        // original typed error for the existing minimal fallback.
+                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report)
+                            .or(result);
+                    }
+                }
+                let (local, local_charge) = result.map_err(|e| {
+                    let id = e.event().or(Some(event.id()));
+                    let span = e.span().or(Some(event.source()));
+                    e.with_context(id, span)
+                })?;
                 let placement = local.shaped().placement();
                 inputs.push(CollisionInput {
                     id: event.id(),
@@ -553,11 +628,12 @@ impl Renderer {
                     start: event.start(),
                     alignment: placement.alignment(),
                     anchor: alignment_anchor(placement, track.script().play_res())?,
-                    bounds: crate::collision_footprint::collision_footprint(
+                    bounds: crate::collision_footprint::collision_footprint_with_limits(
                         &local,
-                        DeviceMapping::new(track.script().play_res(), request.viewport.content())?,
+                        device_mapping(&track, request)?,
                         track.script().scaled_border_shadow(),
                         request.unsupported,
+                        &available(limits, add(held, local_charge)?)?,
                     )?,
                     eligible: true,
                 });
@@ -609,30 +685,51 @@ impl Renderer {
         // IDs are unique. Sorted slots permit O(log N) lookup and O(1) take
         // without moving other entries, independently of layer/paint ordering.
         prepared.sort_unstable_by_key(|p| p.0);
+        let mut prepared_remaining = prepared.len();
         // Ordinary paint order and full effects apply to explicit events too.
         for event in events {
             let result = (|| {
-                let (local, local_charge) =
-                    if let Ok(index) = prepared.binary_search_by_key(&event.id(), |p| p.0) {
-                        let saved = prepared[index].1.take().ok_or_else(|| {
-                            RenderError::new(
-                                ErrorCode::InternalError,
-                                "prepared event already consumed",
-                            )
-                        })?;
-                        debug_assert_eq!(saved.id, event.id());
-                        held = held.checked_sub(saved.charge).ok_or_else(limited)?;
-                        diagnostics
-                            .extend_finished(&saved.diagnostics)
-                            .map_err(convert)?;
-                        // The saved report Vec drops here; the frame's bounded
-                        // diagnostic reservation owns the merged records now.
-                        (saved.local, saved.local_charge)
-                    } else {
-                        prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
-                    };
+                let (local, local_charge) = if let Ok(index) =
+                    prepared.binary_search_by_key(&event.id(), |p| p.0)
+                {
+                    let saved = prepared[index].1.take().ok_or_else(|| {
+                        RenderError::new(
+                            ErrorCode::InternalError,
+                            "prepared event already consumed",
+                        )
+                    })?;
+                    debug_assert_eq!(saved.id, event.id());
+                    held = held.checked_sub(saved.charge).ok_or_else(limited)?;
+                    prepared_remaining = prepared_remaining.checked_sub(1).ok_or_else(limited)?;
+                    if prepared_remaining == 0 {
+                        // The retained prefix has been consumed. Its empty
+                        // lookup allocation must not crowd out later native
+                        // preparation or provoke a full minimal retry.
+                        drop(std::mem::take(&mut prepared));
+                        held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
+                        prepared_charge = 0;
+                    }
+                    diagnostics
+                        .extend_finished(&saved.diagnostics)
+                        .map_err(convert)?;
+                    // The saved report Vec drops here; the frame's bounded
+                    // diagnostic reservation owns the merged records now.
+                    (saved.local, saved.local_charge)
+                } else {
+                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
+                let device = device_mapping(&track, request)?;
+                // xy's integer effect coordinates belong to layout pixels,
+                // before any separately declared raster-target oversampling.
+                let target_scale = request.viewport.target_scale();
+                let sx = f64::from(device.content().width())
+                    / f64::from(device.play_res().width())
+                    / target_scale[0];
+                let sy = f64::from(device.content().height())
+                    / f64::from(device.play_res().height())
+                    / target_scale[1];
                 let anchor = if collision_count > 1 && state.collision_eligible() {
                     placements
                         .binary_search_by_key(&event.id(), |p| p.id)
@@ -641,9 +738,17 @@ impl Renderer {
                         .ok_or_else(|| {
                             RenderError::new(ErrorCode::InternalError, "missing eligible placement")
                         })?
+                } else if let Some(point) = state.ass_anchor(sx, sy)? {
+                    point
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
+                #[cfg(any(test, debug_assertions))]
+                let anchor = self
+                    .continuous_test_anchors
+                    .as_ref()
+                    .and_then(|anchors| anchors.iter().find(|(id, _)| *id == event.id()))
+                    .map_or(anchor, |(_, point)| *point);
                 let remaining_segments = limits
                     .path_segments_per_frame()
                     .checked_sub(total_segments)
@@ -652,9 +757,7 @@ impl Renderer {
                 let geom_limits = available(limits, held)?
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
-                let device =
-                    DeviceMapping::new(track.script().play_res(), request.viewport.content())?;
-                let origin = local.shaped().placement().origin();
+                let origin = state.ass_origin(sx, sy)?;
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
@@ -666,17 +769,21 @@ impl Renderer {
                     },
                     &geom_limits,
                 )?);
-                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?;
+                let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?
+                    .checked_add(bytes::<crate::geometry::GeometryItem>(
+                        placed.items().len(),
+                    )?)
+                    .ok_or_else(limited)?;
                 geom_charge = add(
                     geom_charge,
-                    bytes::<GeometryInstance>(placed.glyphs().len())?,
+                    bytes::<GeometryInstance>(placed.items().len())?,
                 )?;
-                for g in placed.glyphs() {
+                for g in placed.items() {
                     total_segments = add(total_segments, g.geometry.ops().len() as u64)?;
                     geom_charge = add(
                         geom_charge,
                         add(
-                            bytes::<PathOp<FontPoint>>(g.outline.outline().ops().len())?,
+                            bytes::<PathOp<FontPoint>>(g.geometry.outline().ops().len())?,
                             bytes::<PathOp<DevicePoint>>(g.geometry.ops().len())?,
                         )?,
                     )?;
@@ -684,8 +791,20 @@ impl Renderer {
                 if total_segments > limits.path_segments_per_frame() {
                     return Err(limited());
                 }
-                geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.glyphs().len())?)?;
+                geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
+                let (event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
+                    placed.layout().shaped().evaluated().ass_clip(),
+                    device,
+                    &available(limits, add(held, event_charge)?)?,
+                )?;
+                total_segments = add(total_segments, clip_segments)?;
+                if total_segments > limits.path_segments_per_frame() {
+                    return Err(limited());
+                }
+                if let Some(mask) = clip_mask {
+                    charge_mask(&mask, &mut held, event_charge, limits)?;
+                }
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -702,49 +821,119 @@ impl Renderer {
                 for group in &groups {
                     let first = group.policy().members().start;
                     let state = &placed.layout().shaped().evaluated().runs()
-                        [placed.glyphs()[first].association];
+                        [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let fill = rasterize(&mut fill_context, group)?;
+                    let mut fill = rasterize_xy(&mut fill_context, group)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
-                    let mut border_enabled = state.effects().border_style() == BorderStyle::Outline;
+                    let border_enabled = state.effects().border_style() == BorderStyle::Outline;
+                    let opaque = state.effects().border_style() == BorderStyle::OpaqueBox;
                     let border_value = state.effects().border_x().get();
-                    if border_enabled
-                        && border_value > 0.0
-                        && track.script().scaled_border_shadow()
-                        && !equal_device_scale(device)
-                    {
-                        let detail = "Core isotropic border scaling requires equal device/script x and y ratios";
-                        if request.unsupported == UnsupportedPolicy::Strict {
-                            return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail)
-                                .with_context(Some(event.id()), Some(state.source())));
-                        }
-                        diagnostics
-                            .push(Diagnostic::new(
-                                DiagnosticCode::UnsupportedFeature,
-                                Some(event.id()),
-                                Some(state.source()),
-                                detail,
-                            ))
-                            .map_err(convert)?;
-                        border_enabled = false;
-                    }
                     let border_radius = if border_enabled {
                         let ratio = if track.script().scaled_border_shadow() {
                             f64::from(device.content().width())
                                 / f64::from(device.play_res().width())
                         } else {
-                            1.0
+                            request.viewport.target_scale()[0]
                         };
                         q6_pixels(border_value * ratio)?
                     } else {
                         Q6::from_ticks(0)
                     };
-                    let border_exists = border_enabled && border_value > 0.0;
+                    let border_radius_y = if border_enabled {
+                        let ratio = if track.script().scaled_border_shadow() {
+                            f64::from(device.content().height())
+                                / f64::from(device.play_res().height())
+                        } else {
+                            request.viewport.target_scale()[1]
+                        };
+                        q6_pixels(state.effects().border_y().get() * ratio)?
+                    } else {
+                        Q6::from_ticks(0)
+                    };
+                    let border_exists = border_enabled
+                        && (border_value > 0.0 || state.effects().border_y().get() > 0.0);
+                    let blur_spec = crate::effects::BlurSpec::new(
+                        state.effects().blur(),
+                        state.effects().be(),
+                        request.viewport.target_scale(),
+                        limits,
+                    )?;
+                    let br = if track.script().scaled_border_shadow() {
+                        [sx * target_scale[0], sy * target_scale[1]]
+                    } else {
+                        target_scale
+                    };
+                    let box_outline = (state.effects().border_x().get() * br[0] * 8.0 + 0.5 >= 1.0
+                        || state.effects().border_y().get() * br[1] * 8.0 + 0.5 >= 1.0)
+                        && !state.karaoke().is_some_and(|k| {
+                            k.kind == KaraokeTag::Outline && k.now_ms < i64::from(k.start_ms)
+                        });
+                    let mut box_charge = 0;
+                    let box_group = if opaque
+                        && ((box_outline && state.paint().outline().a() != 0)
+                            || (state.paint().shadow().a() != 0
+                                && (state.effects().shadow_x().get() != 0.0
+                                    || state.effects().shadow_y().get() != 0.0)))
+                    {
+                        let instances = opaque_box_paths(
+                            placed.layout(),
+                            group.policy().members(),
+                            device,
+                            anchor,
+                            origin,
+                            track.script().scaled_border_shadow(),
+                            &available(limits, add(held, event_charge)?)?,
+                        )?;
+                        let segments = instances
+                            .iter()
+                            .try_fold(0u64, |n, g| add(n, g.ops().len() as u64))?;
+                        total_segments = add(total_segments, segments)?;
+                        if total_segments > limits.path_segments_per_frame() {
+                            return Err(limited());
+                        }
+                        box_charge = add(
+                            bytes::<GeometryInstance>(instances.len())?,
+                            segments
+                                .checked_mul(
+                                    4 * (std::mem::size_of::<PathOp<FontPoint>>()
+                                        + std::mem::size_of::<PathOp<DevicePoint>>())
+                                        as u64,
+                                )
+                                .ok_or_else(limited)?,
+                        )?;
+                        event_charge = add(event_charge, box_charge)?;
+                        Some(CoverageGroup::new(
+                            instances,
+                            CoveragePass::Fill,
+                            Profile::CoreV1,
+                            &available(limits, add(held, event_charge)?)?,
+                        )?)
+                    } else {
+                        None
+                    };
+                    if opaque || !border_exists {
+                        fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
+                    }
                     let mut expanded: Option<Arc<Mask>> = None;
-                    let border = if border_exists {
+                    let mut border = if let Some(boxes) = box_group.as_ref() {
+                        let mut raster = RasterContext::with_limits(available(
+                            limits,
+                            add(held, event_charge)?,
+                        )?)?;
+                        let mask = rasterize_xy(&mut raster, boxes)?;
+                        drop(raster);
+                        charge_mask(&mask, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        expanded = Some(mask.clone());
+                        if box_outline && state.paint().outline().a() != 0 {
+                            Some(mask)
+                        } else {
+                            None
+                        }
+                    } else if border_exists {
                         let remaining = limits
                             .path_segments_per_frame()
                             .checked_sub(total_segments)
@@ -753,10 +942,11 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded(
+                        let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
                             &mut stroke_context,
                             group,
                             border_radius,
+                            border_radius_y,
                             Q6::from_ticks(0),
                             Q6::from_ticks(0),
                             remaining,
@@ -764,6 +954,7 @@ impl Renderer {
                         drop(stroke_context);
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
                         let subtraction_limits = available(limits, add(held, event_charge)?)?;
                         let border_mask =
                             crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
@@ -774,10 +965,12 @@ impl Renderer {
                         None
                     };
 
-                    // Alpha zero proves this pass cannot affect any pixel. Do
-                    // not quantize offsets, stroke, rasterize or reserve masks.
-                    // Visible zero-offset shadows still use the coincident E/F.
-                    let shadow = if state.paint().shadow().a() == 0 {
+                    // RTS.cpp1243 tests the ASS depths before quantization.
+                    // A zero-depth style has no shadow, even with opaque paint.
+                    let shadow = if state.paint().shadow().a() == 0
+                        || (state.effects().shadow_x().get() == 0.0
+                            && state.effects().shadow_y().get() == 0.0)
+                    {
                         None
                     } else {
                         let dx = script_offset_q6(
@@ -794,6 +987,22 @@ impl Renderer {
                         )?;
                         if dx.ticks() == 0 && dy.ticks() == 0 {
                             Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
+                        } else if let Some(boxes) = box_group.as_ref() {
+                            let mut raster = RasterContext::with_limits(available(
+                                limits,
+                                add(held, event_charge)?,
+                            )?)?;
+                            let mask =
+                                crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
+                            drop(raster);
+                            charge_mask(&mask, &mut held, event_charge, limits)?;
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -803,10 +1012,11 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let (mask, segments) = crate::stroke::rasterize_expanded(
+                            let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
                                 &mut stroke_context,
                                 group,
                                 border_radius,
+                                border_radius_y,
                                 dx,
                                 dy,
                                 remaining,
@@ -814,13 +1024,19 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(mask)
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask = crate::stroke::rasterize_translated(
+                            let mask = crate::stroke::rasterize_translated_xy(
                                 &mut shadow_context,
                                 group,
                                 dx,
@@ -828,10 +1044,18 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(mask)
+                            Some(filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                            )?)
                         }
                     };
-                    if border_exists
+                    drop(box_group);
+                    event_charge = event_charge.checked_sub(box_charge).ok_or_else(limited)?;
+                    if (border_exists || (opaque && border.is_none()))
                         && shadow
                             .as_ref()
                             .zip(expanded.as_ref())
@@ -845,11 +1069,103 @@ impl Renderer {
                             held = held.checked_sub(charge).ok_or_else(limited)?;
                         }
                     }
+                    let mut fill_paint = state.paint().primary();
+                    let mut sweep = None;
+                    if let Some(k) = state.karaoke() {
+                        let mut progress = if k.now_ms < i64::from(k.start_ms) {
+                            0.0
+                        } else if k.kind == KaraokeTag::Sweep && k.now_ms < i64::from(k.end_ms) {
+                            (k.now_ms - i64::from(k.start_ms)) as f64
+                                / (i64::from(k.end_ms) - i64::from(k.start_ms)) as f64
+                        } else {
+                            1.0
+                        };
+                        if k.kind == KaraokeTag::Outline && k.now_ms < i64::from(k.start_ms) {
+                            border = None;
+                        }
+                        if progress <= 0.0 {
+                            fill_paint = state.paint().secondary();
+                        } else if progress < 1.0 {
+                            let angle = state.geometry().rotation_z().get() % 360.0;
+                            let mut secondary = state.paint().secondary();
+                            if angle > 90.0 && angle < 270.0 {
+                                progress = 1.0 - progress;
+                                std::mem::swap(&mut fill_paint, &mut secondary);
+                            }
+                            let mut width = 0.0;
+                            for i in group.policy().members().clone() {
+                                let g = &placed.layout().glyphs()[i];
+                                let run = &placed.layout().shaped().runs()[g.run_index()];
+                                width += if let Some(d) = run.drawing() {
+                                    d.width.get()
+                                } else {
+                                    run.glyphs()[g.glyph_index()].advance_x().get()
+                                };
+                            }
+                            width *= state.geometry().scale_x().get()
+                                * placed.layout().local_scale().0.get()
+                                * sx;
+                            let native = ((state.effects().border_x().get() + progress * width)
+                                * 8.0)
+                                .trunc();
+                            if !native.is_finite()
+                                || native < f64::from(i32::MIN)
+                                || native > f64::from(i32::MAX)
+                            {
+                                return Err(limited());
+                            }
+                            let cut = fill
+                                .bounds()
+                                .x0()
+                                .checked_add((native as i32) >> 3)
+                                .ok_or_else(limited)?;
+                            sweep = Some((cut, secondary));
+                        }
+                    }
+                    // Effects have already consumed the complete source masks.
+                    // Retaining wholly offscreen results cannot affect compose,
+                    // but can exhaust later shaping reservations in dense scenes.
+                    // Do not cull geometry or source masks before filtering.
+                    let size = request.viewport.size();
+                    let frame_bounds = PixelRect::new(
+                        0,
+                        0,
+                        i32::try_from(size.width()).map_err(|_| limited())?,
+                        i32::try_from(size.height()).map_err(|_| limited())?,
+                    )
+                    .map_err(convert)?;
+                    let masks = [Some(&fill), border.as_ref(), shadow.as_ref()];
+                    if masks
+                        .iter()
+                        .flatten()
+                        .all(|mask| !mask.bounds().intersects(frame_bounds))
+                    {
+                        for (i, mask) in masks.iter().enumerate() {
+                            let Some(mask) = mask else {
+                                continue;
+                            };
+                            // A coincident shadow or opaque box can share a
+                            // charged mask; release that reservation only once.
+                            if masks[..i]
+                                .iter()
+                                .flatten()
+                                .any(|prior| Arc::ptr_eq(prior, mask))
+                            {
+                                continue;
+                            }
+                            let charge = (mask.data().len() as u64)
+                                .checked_mul(3)
+                                .ok_or_else(limited)?;
+                            held = held.checked_sub(charge).ok_or_else(limited)?;
+                        }
+                        continue;
+                    }
                     group_masks.push(GroupMasks {
                         fill,
                         border,
                         shadow,
-                        fill_paint: state.paint().primary(),
+                        fill_paint,
+                        sweep,
                         border_paint: state.paint().outline(),
                         shadow_paint: state.paint().shadow(),
                     });
@@ -872,6 +1188,45 @@ impl Renderer {
                         let Some((mask, paint)) = selected else {
                             continue;
                         };
+                        if selector == 2 {
+                            if let Some((cut, secondary)) = masks.sweep {
+                                for (side, color) in [(0_u32, paint), (1, secondary)] {
+                                    let rect = if side == 0 {
+                                        PixelRect::new(i32::MIN, i32::MIN, cut, i32::MAX)
+                                    } else {
+                                        PixelRect::new(cut, i32::MIN, i32::MAX, i32::MAX)
+                                    }
+                                    .map_err(convert)?;
+                                    let clip = Arc::new(ResolvedClip::Intersection(
+                                        event_clip.clone(),
+                                        Arc::new(ResolvedClip::Rectangle {
+                                            bounds: rect,
+                                            inverse: false,
+                                        }),
+                                    ));
+                                    push_operation(
+                                        &mut operations,
+                                        &mut held,
+                                        event_charge,
+                                        limits,
+                                        DrawOrder::new(
+                                            event.layer(),
+                                            event.id(),
+                                            selector,
+                                            u32::try_from(ordinal)
+                                                .map_err(|_| limited())?
+                                                .checked_mul(2)
+                                                .and_then(|v| v.checked_add(side))
+                                                .ok_or_else(limited)?,
+                                        ),
+                                        mask.clone(),
+                                        color,
+                                        clip,
+                                    )?;
+                                }
+                                continue;
+                            }
+                        }
                         push_operation(
                             &mut operations,
                             &mut held,
@@ -881,10 +1236,14 @@ impl Renderer {
                                 event.layer(),
                                 event.id(),
                                 selector,
-                                u32::try_from(ordinal).map_err(|_| limited())?,
+                                u32::try_from(ordinal)
+                                    .map_err(|_| limited())?
+                                    .checked_mul(2)
+                                    .ok_or_else(limited)?,
                             ),
                             mask,
                             paint,
+                            event_clip.clone(),
                         )?;
                     }
                 }
@@ -913,3 +1272,9 @@ impl Renderer {
 
 #[cfg(all(test, feature = "native"))]
 mod staging_tests;
+
+#[cfg(all(test, feature = "native"))]
+mod f1_equivalence_tests;
+
+#[cfg(all(test, feature = "native"))]
+mod f1_fixture;

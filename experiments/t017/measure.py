@@ -17,6 +17,42 @@ import sys
 import tarfile
 import threading
 import time
+from fontTools.ttLib import TTFont
+
+def instrument_retained_releases(code, statement):
+    """Owner-authorized recognition of exactly the two known source shapes."""
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());"
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {"
+    assert code.count(original) == 1, "original retained-layout consumption changed"
+    if backoff in code:
+        assert code.count(backoff) == 1 and code.count("prepared.pop()") == 1
+        expected = 2
+    else:
+        assert "prepared.pop()" not in code, "unknown prepass release shape"
+        expected = 1
+    assert code.count(release) == expected, "unknown retained-layout release count"
+    return code.replace(release, release + "\n" + statement)
+
+
+def check_retained_release_shapes():
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());\n" + release
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {\n" + release
+    for code, count in [(original, 1), (backoff + "\n" + original, 2)]:
+        assert instrument_retained_releases(code, "MEASURE_RELEASE;").count("MEASURE_RELEASE;") == count
+    for code in [original.replace(release, ""), original + release,
+                 backoff + original + release, backoff.replace(release, "") + original,
+                 backoff + backoff + original]:
+        try:
+            instrument_retained_releases(code, "MEASURE_RELEASE;")
+        except AssertionError:
+            continue
+        raise AssertionError("unexpected reservation-release source shape accepted")
+    print("T017_RELEASE_SOURCE_SHAPES_VERIFIED: old/new and rejected malformed counts", flush=True)
+
+
+check_retained_release_shapes()
 
 if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
     raise SystemExit("measurement is restricted to Linux GitHub Actions")
@@ -31,6 +67,12 @@ subprocess.run(["git", "fetch", "--no-tags", "origin", base], cwd=root, check=Tr
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
+# This pinned workload changed from em20 to positive-cell20 in T018.
+# Verify the physical font metrics; do not refresh historical output hashes.
+with TTFont(font, recalcTimestamp=False) as sfnt:
+    metric_font = {"sha256":pin["sha256"], "upem":sfnt["head"].unitsPerEm,
+                   "win_ascent":sfnt["OS/2"].usWinAscent, "win_descent":sfnt["OS/2"].usWinDescent}
+assert metric_font == {"sha256":pin["sha256"], "upem":1000, "win_ascent":1000, "win_descent":326}
 
 def snapshot(label, sha):
     destination = temp / label
@@ -65,9 +107,7 @@ def snapshot(label, sha):
         code = code.replace(marker, 'BENCH_LOCAL.fetch_max(BENCH_RETAINED.load(std::sync::atomic::Ordering::Relaxed) + stage_held.checked_sub(held).ok_or_else(limited)?, std::sync::atomic::Ordering::Relaxed);\n    ' + marker)
         if "retained_charge = next;" in code:
             code = code.replace("retained_charge = next;", "retained_charge = next;\nBENCH_RETAINED.store(next, std::sync::atomic::Ordering::Relaxed);")
-            marker = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
-            assert code.count(marker) == 1
-            code = code.replace(marker, marker + "\nBENCH_RETAINED.fetch_sub(saved.charge, std::sync::atomic::Ordering::Relaxed);")
+            code = instrument_retained_releases(code, "BENCH_RETAINED.fetch_sub(saved.charge, std::sync::atomic::Ordering::Relaxed);")
     marker = "        .with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = code.replace(marker, marker + '.inspect(|_| { eprintln!("T017_BENCH={} {} {}", BENCH_HELD.load(std::sync::atomic::Ordering::Relaxed), BENCH_LOCAL.load(std::sync::atomic::Ordering::Relaxed), BENCH_SHAPES.load(std::sync::atomic::Ordering::Relaxed)); })')
@@ -144,8 +184,11 @@ def measure_case(case):
                 with (out / "samples.jsonl").open("a") as samples:
                     samples.write(json.dumps(record) + "\n")
             print("T017_MEMORY_SAMPLE=" + json.dumps(record), flush=True)
-    hashes = {r["raw_sha256"] for r in records if r["case"] == name}
-    assert len(hashes) == 1, f"ordinary no-effects pixels changed for {name}"
+    # Cross-generation equality encoded obsolete em sizing. Keep all repeats,
+    # inputs and saved hashes, requiring exact equality within each policy.
+    for label in ["before", "after"]:
+        hashes = {r["raw_sha256"] for r in records if r["case"] == name and r["implementation"] == label}
+        assert len(hashes) == 1, f"repeated {label} pixels changed for {name}"
     return records
 
 # Keep every original case and all three before/after pairs. Two bounded case
@@ -156,6 +199,7 @@ with ThreadPoolExecutor(max_workers=2) as workers:
     records = [record for group in workers.map(measure_case, cases) for record in group]
 (out / "samples.json").write_text(json.dumps(records, indent=2) + "\n")
 environment = {"base": base, "candidate": head, "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "font": pin, "profile": "debug, identical pinned native prefix, three atomic counters per process", "benchmark_case_workers": 2, "concurrency_semantics": "two cases concurrently, each case's three pairs sequential; other correctness tests may share the runner; do not compare wall times directly with the original sequential experiment", "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "memory_semantics": "RSS is process high-water KiB; reservation bytes are conservative logical accounting, not allocator/RSS claims", "limits": "unchanged CLI defaults"}
+environment.update(pixel_identity_policy="positive-cell-height-v2", metric_font=metric_font)
 (out / "environment.json").write_text(json.dumps(environment, indent=2) + "\n")
 from reuse_completed import validate
 validate("debug", records, environment, head)

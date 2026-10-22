@@ -26,14 +26,21 @@ Every key includes a stage schema/policy revision and profile when semantics dif
 | Glyph geometry | font bytes digest+face index, glyph ID, variations, synthetic bold/italic/decorations, outline extraction flags/version | design-unit outline; no color or absolute position |
 | Drawing geometry | normalized command sequence, p scale, baseline offset and fill rule | path; no paint |
 | Transformed geometry | outline identity, full mapping including origin/3D parameters, size, viewport scaling, profile | Q6 contours with integer translation factored out only when equivalent |
-| Fill raster | transformed geometry key, fill rule, coverage grouping identity, fractional x/y phase, raster backend/version/settings | A8 local mask |
+| Fill raster | transformed geometry key, fill rule, coverage grouping identity, fractional x/y phase, raster backend/version/settings, coverage unit identity | native xy 0..64 local mask (A8 stage separately tagged) |
 | Border | base transformed geometry or base outline as selected by stroke policy, x/y widths in that space, joins/caps, stroke policy, phase, group union policy | expanded/outline mask; no paint color |
-| Effects | source mask identities, group policy, exact be count, Gaussian coefficients/support, pass selection/order, fractional shadow offset | filtered A8 mask and support bounds |
+| Effects | source mask identities and coverage units, group policy, exact real BE strength and resolved passes/fractional coefficients, Gaussian coefficients/support, target scale, pass selection/order, fractional shadow offset, effect policy revision | filtered mask with unchanged coverage unit identity and support bounds |
 | Clip | rectangle/path commands, inverse flag, clip mapping, viewport bounds for inverse, raster revision/phase | resolved clip mask/rect; not clipped source coverage |
 | Paint plan | paint values/stops, alpha, paint space/map, karaoke boundary and cluster partition, color policy | solid parameters initially; no RGBA mask copy |
 | Frame plan | ordered DrawOps, all placements/clips/paints/passes, viewport, profile | tile indices and structural changed-state; one previous plan retained within quota |
 
 Shape outputs may use design units internally, but size is conservatively in the shape key until T009 proves a smaller dependency safe (e.g. optical sizing can be size-dependent). Initial geometry caches can store unhinted design-unit outlines across sizes; hinting remains off. Persistent hashes alone never identify font content: font registration verifies bytes and collection face index. Replacing a same-named font produces a new FontId/catalog revision.
+
+LayoutRes adds the resolved layout/PlayRes ratios to shaping and metric identity,
+and output/layout ratios to effects/geometry. Vertical @ state, native vertical
+metrics and substitutions are distinct from horizontal shaping of the same face;
+stripping @ for family lookup never permits reusing horizontal shaped geometry.
+Opaque-box geometry depends on finalized line/word dimensions and copied style
+transforms/padding, independently of its outline paint color.
 
 ## K3. Change matrix
 
@@ -68,3 +75,5 @@ No “dirty everything” flag replaces this table. No “only repaint” heuris
 5. Eviction/admission occurs at this barrier. Downstream jobs receive Arcs directly.
 
 One renderer has one in-flight frame. This intentionally avoids a general concurrent map/single-flight framework initially. Read-only hit snapshots can be shared with workers if measurements justify it; sharding and locks require evidence of a bottleneck. Tests use identical misses across hundreds of events, tiny capacities, retained frames, forced eviction, failed producers and worker counts 1/2/4/8.
+
+T018 policy identity: ShapeStyle::metric_policy() is 2 for validated positive-cell-height font sizing, eighth-pixel line metrics and native baseline rounding. This differs from the former em-sized policy 1. Transform evaluation is request-local and temporal; drawing geometry retains its original source owner. Explicit output/original-video target scale belongs in effect-stage identities, independently of PlayRes/SBAS. No T019 cache is implemented here.

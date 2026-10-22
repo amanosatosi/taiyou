@@ -24,13 +24,13 @@ Gate: fixed-font ASS → raw premultiplied RGBA and PNG at requested time; posit
 
 ## P3. Establish historical rules and static effects
 
-Tasks: [R001](tasks/R001.md) approved legacy behavior; [R002](tasks/R002.md) raster/stroke/blur decision → [T016](tasks/T016.md) borders/shadows → [T017](tasks/T017.md) wrapping/collision and [T018](tasks/T018.md) scalar effects. [R004](tasks/R004.md) resolves complex transforms in a separate research lane after R001/T011.
+Tasks: [T016](tasks/T016.md) borders/shadows → [T017](tasks/T017.md) wrapping/collision and [T018](tasks/T018.md) scalar effects. Implement ordinary ASS behavior directly from pinterf/xy-VSFilter with focused tests and frozen-reference comparisons. [R004](tasks/R004.md) remains only for transform questions that cannot be resolved from source.
 
-Gate: each enabled LegacyXyV1 family has an approved rule, capture/source provenance and fixtures; borders, shadows, blur and collisions obey that subset. R002 may keep some coverage families unsupported instead of forcing an incorrect algorithm. Research that lacks its environment produces a documented open gate, not invented answers. No concurrency yet.
+Gate: source-established behavior is implementation work, not a research admission process. If the source is ambiguous, record the smallest unresolved question and run a narrow targeted investigation. No concurrency yet.
 
 ## P4. Reuse and timed ASS behavior
 
-Tasks: [T019](tasks/T019.md) caches → [T020](tasks/T020.md) move/fade/t → [T022](tasks/T022.md) karaoke. [T021](tasks/T021.md) drawings/clips after T011/T018/R001; [T023](tasks/T023.md) complex transforms after R004/T019; [T026](tasks/T026.md) SSA/explicit decoding after R001/T006/T008. [T027](tasks/T027.md) integrates the headless supported subset.
+Tasks: [T019](tasks/T019.md) caches → [T020](tasks/T020.md) move/fade/t → [T022](tasks/T022.md) karaoke. [T021](tasks/T021.md) drawings/clips after T011/T018; [T023](tasks/T023.md) complex transforms after R004/T019; [T026](tasks/T026.md) SSA/explicit decoding after T006/T008. [T027](tasks/T027.md) integrates the headless supported subset.
 
 Gate: all cache mutation rows match fresh-renderer output; timed sequences match random seeks; masks survive color/clip-only changes as specified; all supported ASS/SSA examples run headless on each platform. Full compatibility report exposes remaining unsupported features. This is the single-worker usable candidate and required baseline before optimizing execution.
 
@@ -59,14 +59,14 @@ flowchart LR
   T012 --> T014
   T013 --> T014
   T001 --> T005 --> T015
-  T014 --> T015 --> R001 --> R002 --> T016
-  R001 --> R004 --> T023
+  T014 --> T015 --> T016
+  T011 --> R004 --> T023
   T016 --> T017
   T016 --> T018
   T017 --> T019
   T018 --> T019 --> T020 --> T022
   T018 --> T021
-  R001 --> T026
+  T006 --> T026
   T019 --> T023
   T020 --> T027
   T021 --> T027

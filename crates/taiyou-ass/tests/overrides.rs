@@ -149,24 +149,39 @@ fn static_border_and_shadow_tags_keep_q6_source_values_and_spans() {
 }
 
 #[test]
-fn anisotropic_border_shadow_and_blur_prefixes_remain_unsupported() {
+fn anisotropic_border_shadow_and_blur_prefixes_are_typed() {
     let parsed = parse(r"{\xbord2\ybord3\xshad1\yshad-1\be2}A");
     let ops = parsed.track().events()[0].program();
-    let names: Vec<_> = ops
+    let properties: Vec<_> = ops
         .iter()
         .filter_map(|op| match op {
-            TextOp::Unsupported { name, .. } => Some(name.as_ref()),
+            TextOp::Override(OverrideOp::TransformNumber {
+                property,
+                value: Some(value),
+                ..
+            }) => Some((*property, value.get())),
             _ => None,
         })
         .collect();
-    assert_eq!(names, ["xbord", "ybord", "xshad", "yshad", "be"]);
+    assert_eq!(
+        properties,
+        [
+            (TransformProperty::BorderX, 2.0),
+            (TransformProperty::BorderY, 3.0),
+            (TransformProperty::ShadowX, 1.0),
+            (TransformProperty::ShadowY, -1.0)
+        ]
+    );
+    assert!(
+        matches!(&ops[4], TextOp::Override(OverrideOp::SetBe { value: Some(value), .. }) if value.get() == 2.0)
+    );
     assert_eq!(
         parsed
             .diagnostics()
             .iter()
             .filter(|d| d.code() == DiagnosticCode::UnsupportedFeature)
             .count(),
-        5
+        0
     );
 }
 
@@ -183,24 +198,21 @@ fn overrides_escapes_empty_blocks_and_literal_whitespace_are_preserved() {
 }
 
 #[test]
-fn overrides_unknown_drawing_and_animated_tags_remain_ordered_unsupported() {
-    let parsed = parse(r"{\mystery42(1,2)\t(0,100,\fs40)\p1}A");
+fn overrides_unknown_tags_are_consumed_but_known_unimplemented_tags_remain_explicit() {
+    let parsed = parse(r"{\mystery42(1,2)\fe(10)\mysteryclip(0,0,1,1)}A");
     let ops = parsed.track().events()[0].program();
-    assert_eq!(ops.len(), 4);
+    assert_eq!(ops.len(), 2);
     assert!(
-        matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "mystery42" && source.slice(parsed.track().source()) == Some(r"\mystery42(1,2)"))
+        matches!(&ops[0], TextOp::Unsupported { name, source } if name.as_ref() == "fe" && source.slice(parsed.track().source()) == Some(r"\fe(10)"))
     );
-    assert!(
-        matches!(&ops[1], TextOp::Unsupported { name, source } if name.as_ref() == "t" && source.slice(parsed.track().source()) == Some(r"\t(0,100,\fs40)"))
-    );
-    assert!(matches!(&ops[2], TextOp::Unsupported { name, .. } if name.as_ref() == "p1"));
+    assert!(matches!(&ops[1], TextOp::Text {text,..} if text.as_ref()=="A"));
     assert_eq!(
         parsed
             .diagnostics()
             .iter()
             .filter(|d| d.code() == DiagnosticCode::UnsupportedFeature)
             .count(),
-        3
+        1
     );
 }
 
@@ -212,13 +224,11 @@ fn overrides_invalid_parameters_diagnose_without_setting_state() {
         r"\fs1e2",
         r"\fscx-1",
         r"\an0",
-        r"\pos(1,2,3)",
         r"\c&H1234567&",
-        r"\alpha&H123&",
+        r"\alpha&HGG&",
         r"\fn",
         r"\b2",
         r"\i2",
-        r"\pos(1e2,0)",
         r"\fs",
         r"\i",
     ] {
@@ -470,4 +480,139 @@ fn overrides_reset_matching_uses_final_exact_style_names_and_retains_unknown_nam
             .iter()
             .any(|d| d.code() == DiagnosticCode::DuplicateStyle)
     );
+}
+
+fn hex_fixture(text: &str) -> String {
+    format!(
+        "[V4+ Styles]\nFormat: Name,Fontsize\nStyle: Default,20\n{}",
+        script(text)
+    )
+}
+#[test]
+fn override_hex_prefix_variants_preserve_values_and_source() {
+    for (name, hex, expected) in [
+        ("c", "FFFFFF", [255, 255, 255, 255]),
+        ("1c", "112233", [51, 34, 17, 255]),
+        ("2c", "aBcDeF", [239, 205, 171, 255]),
+    ] {
+        for prefix in ["&H", "&h", "&"] {
+            for suffix in ["&", ""] {
+                let tag = format!("\\{name}{prefix}{hex}{suffix}");
+                let input = hex_fixture(&format!("{{{tag}}}A"));
+                let strict = ParseOptions::new(
+                    InputEncoding::Utf8,
+                    Profile::CoreV1,
+                    Limits::default(),
+                    SyntaxPolicy::Strict,
+                );
+                let parsed =
+                    parse_ass(input.as_bytes(), &strict, &mut TrackIngestor::new()).unwrap();
+                assert!(parsed.diagnostics().is_empty(), "{tag}");
+                let TextOp::Override(op) = &parsed.track().events()[0].program()[0] else {
+                    panic!("missing color: {tag}");
+                };
+                let OverrideOp::SetPaint { color, channel, .. } = op else {
+                    panic!("not typed color: {tag}");
+                };
+                assert_eq!(color.channels(), expected, "{tag}");
+                assert_eq!(
+                    *channel,
+                    if name == "2c" {
+                        PaintChannel::Secondary
+                    } else {
+                        PaintChannel::Primary
+                    }
+                );
+                assert_eq!(
+                    op.source().slice(parsed.track().source()),
+                    Some(tag.as_str())
+                );
+            }
+        }
+    }
+    for (name, hex, expected) in [("alpha", "80", 127), ("1a", "FF", 0), ("4a", "aF", 80)] {
+        for prefix in ["&H", "&h", "&"] {
+            for suffix in ["&", ""] {
+                let tag = format!("\\{name}{prefix}{hex}{suffix}");
+                let input = hex_fixture(&format!("{{{tag}}}A"));
+                let strict = ParseOptions::new(
+                    InputEncoding::Utf8,
+                    Profile::CoreV1,
+                    Limits::default(),
+                    SyntaxPolicy::Strict,
+                );
+                let parsed =
+                    parse_ass(input.as_bytes(), &strict, &mut TrackIngestor::new()).unwrap();
+                assert!(parsed.diagnostics().is_empty(), "{tag}");
+                let TextOp::Override(op) = &parsed.track().events()[0].program()[0] else {
+                    panic!("missing alpha: {tag}");
+                };
+                let OverrideOp::SetOpacity {
+                    opacity, channel, ..
+                } = op
+                else {
+                    panic!("not typed alpha: {tag}");
+                };
+                assert_eq!(*opacity, expected, "{tag}");
+                assert_eq!(
+                    *channel,
+                    match name {
+                        "alpha" => None,
+                        "1a" => Some(PaintChannel::Primary),
+                        _ => Some(PaintChannel::Shadow),
+                    }
+                );
+                assert_eq!(
+                    op.source().slice(parsed.track().source()),
+                    Some(tag.as_str())
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn override_hless_hex_rejects_malformed_digits_width_and_empty_payloads() {
+    for tag in [
+        r"\c&GG&",
+        r"\1c&1234567&",
+        r"\alpha&123456789&",
+        r"\1a&0xFF&",
+        r"\c&H&",
+        r"\1a&GG&",
+        r"\1a&hGG&",
+        r"\c&12&34&",
+    ] {
+        let input = hex_fixture(&format!("{{{tag}}}A"));
+        let recovered = parse_ass(
+            input.as_bytes(),
+            &ParseOptions::default(),
+            &mut TrackIngestor::new(),
+        )
+        .unwrap();
+        assert_eq!(recovered.track().events()[0].program().len(), 1, "{tag}");
+        assert!(
+            matches!(&recovered.track().events()[0].program()[0], TextOp::Text { text, .. } if text.as_ref() == "A")
+        );
+        assert!(
+            recovered
+                .diagnostics()
+                .iter()
+                .any(|d| d.code() == DiagnosticCode::MalformedRecord),
+            "{tag}"
+        );
+        let strict = ParseOptions::new(
+            InputEncoding::Utf8,
+            Profile::CoreV1,
+            Limits::default(),
+            SyntaxPolicy::Strict,
+        );
+        assert_eq!(
+            parse_ass(input.as_bytes(), &strict, &mut TrackIngestor::new())
+                .unwrap_err()
+                .code(),
+            ErrorCode::InvalidScript,
+            "{tag}"
+        );
+    }
 }

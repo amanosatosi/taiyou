@@ -248,6 +248,7 @@ impl Line {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PositionedGlyph {
+    drawing: bool,
     run: usize,
     glyph: usize,
     position: ScriptPoint,
@@ -263,6 +264,7 @@ impl PositionedGlyph {
         association: usize,
     ) -> Self {
         Self {
+            drawing: false,
             run,
             glyph,
             position,
@@ -272,6 +274,13 @@ impl PositionedGlyph {
     }
     pub const fn run_index(&self) -> usize {
         self.run
+    }
+    pub fn as_drawing(mut self) -> Self {
+        self.drawing = true;
+        self
+    }
+    pub const fn is_drawing(&self) -> bool {
+        self.drawing
     }
     pub const fn glyph_index(&self) -> usize {
         self.glyph
@@ -332,11 +341,19 @@ impl LocalLayout {
             )
         };
         let automatic = input.evaluated().wrap_mode().get() != 2;
+        let terminal_break = input
+            .breaks()
+            .last()
+            .is_some_and(|b| b.end() as usize == input.source_map().text().len());
+        let hard_lines = input
+            .breaks()
+            .len()
+            .checked_add(usize::from(!terminal_break))
+            .ok_or_else(invalid)?;
         if local_scale.0.get() < 0.0
             || local_scale.1.get() < 0.0
             || lines.is_empty()
-            || (!automatic
-                && lines.len() != input.breaks().len().checked_add(1).ok_or_else(invalid)?)
+            || (!automatic && lines.len() != hard_lines)
         {
             return Err(invalid());
         }
@@ -382,11 +399,15 @@ impl LocalLayout {
             return Err(invalid());
         }
         for g in glyphs.iter() {
-            let actual = input
-                .runs()
-                .get(g.run)
-                .and_then(|r| r.glyphs().get(g.glyph))
-                .ok_or_else(invalid)?;
+            let run = input.runs().get(g.run).ok_or_else(invalid)?;
+            let actual = if g.drawing {
+                if run.drawing().is_none() || g.glyph != 0 {
+                    return Err(invalid());
+                }
+                run.decoded()
+            } else {
+                run.glyphs().get(g.glyph).ok_or_else(invalid)?.cluster()
+            };
             let association = input
                 .evaluated()
                 .runs()
@@ -394,7 +415,7 @@ impl LocalLayout {
                 .and_then(|r| r.decoded())
                 .ok_or_else(invalid)?;
             if !g.cluster.belongs_to(input.source_map())
-                || g.cluster != *actual.cluster()
+                || g.cluster != *actual
                 || g.cluster.start() < association.start()
                 || g.cluster.start() >= association.end()
             {

@@ -88,16 +88,26 @@ fn layout_fixed_font_real_empty_lines_and_owned_lifetime() {
         let s = shaped(&mut context, &catalog, "\nA\n\nB\n");
         layout(&s, &constraints()).unwrap()
     };
-    assert_eq!(layout.lines().len(), 5);
-    let descent = 326.0 * (20.0 / 1000.0);
-    let height = 20.0 + descent;
+    assert_eq!(layout.lines().len(), 4);
+    // Source Sans 3: independently observed GDI cell metrics at height1280.
+    let ascent: f64 = 15.125;
+    let descent: f64 = 4.875;
+    let height = ascent + descent;
+    let mut top = 0.0;
     for (i, line) in layout.lines().iter().enumerate() {
-        assert_eq!(line.ascent().get(), 20.0);
-        assert_eq!(line.descent().get(), descent);
-        assert!((line.baseline().y().get() - (20.0 + i as f64 * height)).abs() < 1e-12);
+        let (a, d) = if i % 2 == 0 {
+            ((ascent * 4.0).floor() / 8.0, (descent * 4.0).floor() / 8.0)
+        } else {
+            (ascent, descent)
+        };
+        assert_eq!(line.ascent().get(), a);
+        assert_eq!(line.descent().get(), d);
+        assert!((line.baseline().y().get() - (top + a)).abs() < 1e-12);
+        top += a + d;
     }
-    assert!((layout.logical_bounds().height() - 5.0 * height).abs() < 1e-12);
-    for i in [0, 2, 4] {
+    assert!((layout.logical_bounds().height() - top).abs() < 1e-12);
+    assert!(top < 4.0 * height);
+    for i in [0, 2] {
         assert_eq!(layout.lines()[i].ink_bounds(), None);
         assert!(layout.lines()[i].glyph_range().is_empty());
     }
@@ -121,10 +131,19 @@ fn layout_fixed_font_space_advance_and_real_ink_are_separate() {
         .runs()
         .iter()
         .flat_map(|r| r.glyphs())
+        .filter(|g| g.cluster().text() == "\u{a0}")
         .map(|g| g.advance_x().get())
         .sum::<f64>();
     assert_eq!(l.lines()[0].advance().get(), advance);
     assert!(advance > 0.0);
+    assert_eq!(s.source_map().text(), "   \u{a0}");
+    assert!(
+        s.runs()
+            .iter()
+            .flat_map(|r| r.glyphs())
+            .any(|g| g.cluster().text() == " ")
+    );
+    assert!(l.glyphs().iter().all(|g| g.cluster().text() == "\u{a0}"));
     assert_eq!(l.ink_bounds(), None);
     let s = shaped(&mut ctx, &catalog, "Aj\u{301}");
     let l = layout(&s, &constraints()).unwrap();
@@ -150,15 +169,16 @@ fn layout_fixed_font_mixed_bidi_and_trailing_whitespace_l1() {
     for text in ["سلام abc ", "abc سلام "] {
         let s = shaped(&mut ctx, &catalog, text);
         let l = layout(&s, &constraints()).unwrap();
-        if text.starts_with('س') {
-            assert_eq!(l.glyphs()[0].cluster().start(), text.len() as u32 - 1);
-            assert_eq!(l.glyphs()[1].cluster().text(), "a");
-        } else {
-            assert_eq!(
-                l.glyphs().last().unwrap().cluster().start(),
-                text.len() as u32 - 1
-            );
-        }
+        assert_eq!(s.source_map().text(), text);
+        let trailing = text.len() as u32 - 1;
+        assert!(
+            s.runs()
+                .iter()
+                .flat_map(|r| r.glyphs())
+                .any(|g| g.cluster().start() == trailing)
+        );
+        assert!(l.glyphs().iter().all(|g| g.cluster().start() != trailing));
+        assert_eq!(l.glyphs()[0].cluster().text(), "a");
         for r in 0..s.runs().len() {
             let native: Vec<_> = l
                 .glyphs()
@@ -166,7 +186,16 @@ fn layout_fixed_font_mixed_bidi_and_trailing_whitespace_l1() {
                 .filter(|g| g.run_index() == r)
                 .map(|g| g.glyph_index())
                 .collect();
-            assert_eq!(native, (0..s.runs()[r].glyphs().len()).collect::<Vec<_>>());
+            assert_eq!(
+                native,
+                s.runs()[r]
+                    .glyphs()
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, g)| g.cluster().start() != trailing)
+                    .map(|(i, _)| i)
+                    .collect::<Vec<_>>()
+            );
         }
         assert_eq!(l, layout(&s, &constraints()).unwrap());
     }
@@ -177,8 +206,31 @@ fn layout_fixed_font_maximal_metrics_include_all_fallback_faces() {
     let s = shaped(&mut ctx, &catalog, "A日本語कि");
     let l = layout(&s, &constraints()).unwrap();
     assert!(s.missing().is_empty());
-    assert_eq!(l.lines()[0].ascent().get(), 1160.0 * (20.0 / 1000.0));
-    assert_eq!(l.lines()[0].descent().get(), 408.0 * (20.0 / 1000.0));
+    let inputs = std::fs::read_to_string(
+        PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-ass-cell-inputs.tsv"),
+    )
+    .unwrap();
+    let mut maxima = [0.0_f64; 2];
+    for font in ["latin", "cjk", "indic"] {
+        let prefix = format!("font:{font}");
+        let line = inputs
+            .lines()
+            .find(|l| l.split_whitespace().next() == Some(prefix.as_str()))
+            .unwrap();
+        let values: Vec<f64> = line
+            .split_whitespace()
+            .skip(1)
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let em = (1280.0 * values[0] / (values[1] + values[2]) + 0.5).floor();
+        for axis in 0..2 {
+            let value =
+                (((values[axis + 1] * em / values[0] + 0.5).floor() + 4.0) / 8.0).floor() / 8.0;
+            maxima[axis] = maxima[axis].max(value);
+        }
+    }
+    assert_eq!(l.lines()[0].ascent().get(), maxima[0]);
+    assert_eq!(l.lines()[0].descent().get(), maxima[1]);
     assert!(
         l.glyphs()
             .iter()

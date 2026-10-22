@@ -1,8 +1,11 @@
 use taiyou_render::renderer::*;
 
 fn parsed(text: &str, q: u8, event_margin: u32) -> ParsedTrack {
+    // Owner-authorized metric-fixture adjustment: 26.52 cell pixels selects
+    // exactly 20 em pixels in this pinned Source Sans 3 (Win cell 1326/UPEM1000).
+    // Preserve every original word-width, margin and seek assertion below.
     let source = format!(
-        "[Script Info]\nPlayResX: 90\nPlayResY: 120\nWrapStyle: {q}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,20,0,0,7,10,10,5\n[Events]\nFormat: Start,End,MarginL,MarginR,Text\nDialogue: 0:00:00.00,0:00:02.00,{event_margin},{event_margin},{text}"
+        "[Script Info]\nPlayResX: 90\nPlayResY: 120\nWrapStyle: {q}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,26.52,0,0,7,10,10,5\n[Events]\nFormat: Start,End,MarginL,MarginR,Text\nDialogue: 0:00:00.00,0:00:02.00,{event_margin},{event_margin},{text}"
     );
     taiyou_ass::parse_ass(
         source.as_bytes(),

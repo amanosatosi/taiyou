@@ -1,0 +1,83 @@
+name: T018 scalar blur focused checks
+on:
+  push:
+    branches: [task/T018-ass-blur]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt
+      - run: |
+          cargo +1.99.1 fmt --all
+          git diff --binary > "$RUNNER_TEMP/t018-format.patch"
+          cargo +1.99.1 test --locked -p taiyou-ass -p taiyou-types -p taiyou-render
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: t018-format-${{ github.sha }}
+          path: ${{ runner.temp }}/t018-format.patch
+  native:
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      CANDIDATE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Actual mask and ASS pipeline tests
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+        run: |
+          cargo +1.99.1 test --locked -p taiyou-render --features native --test effects --test evaluate_blur
+          cargo +1.99.1 test --locked -p taiyou-cli --features native --test blur
+      - name: Supplemental exact-target font ASan and UBSan
+        # Keep this independent of the historical T017 benchmark executor.
+        # The required native matrix and its sanitizer path remain unchanged.
+        env:
+          RUSTUP_TOOLCHAIN: 1.99.1
+          PKG_CONFIG: pkgconf
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: python build-support/font-sanitizer.py
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - name: Frozen blur cases through existing comparator
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          cat "$TAIYOU_CORPUS/regression/blurs/be.ass"
+          cat "$TAIYOU_CORPUS/regression/blurs/blur+t.ass"
+          cargo +1.99.1 build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+          cargo +1.99.1 run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/blurs/be-0500.png --case regression/blurs/be-1500.png --case regression/blurs/be-2500.png --case regression/blurs/be-3500.png --case regression/blurs/blur+t-1000.png --case regression/blurs/blur+t-1100.png --case regression/blurs/blur+t-1200.png --case regression/blurs/blur+t-1300.png --case regression/blurs/blur+t-1400.png --case regression/blurs/blur+t-1500.png --case regression/blurs/blur+t-1600.png --case regression/blurs/blur+t-1700.png --case regression/blurs/blur+t-1800.png --case regression/blurs/blur+t-1900.png
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: t018-focused-${{ github.sha }}
+          path: ${{ runner.temp }}/taiyou-comparison/

@@ -14,7 +14,7 @@ fn limited() -> RenderError {
 }
 
 #[cfg(feature = "native")]
-fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError> {
+pub(crate) fn bounds_for_path(ops: &[PathOp<DevicePoint>]) -> Result<PixelRect, RenderError> {
     let mut bounds: Option<(i64, i64, i64, i64)> = None;
     let mut point = |p: DevicePoint| {
         let (x, y) = (i64::from(p.x().ticks()), i64::from(p.y().ticks()));
@@ -74,6 +74,31 @@ pub fn rasterize_translated(
     let stride = usize::try_from(bounds.width()).map_err(|_| limited())?;
     context.rasterize_path(&ops, bounds, stride)
 }
+#[cfg(feature = "native")]
+pub fn rasterize_translated_xy(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    dx: Q6,
+    dy: Q6,
+) -> Result<Arc<Mask>, RenderError> {
+    check_group(group)?;
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+    let available = context
+        .limits()
+        .transient_bytes()
+        .checked_sub(charge)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    crate::axis_widen::rasterize_body(
+        &ops,
+        &context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?,
+    )
+}
 
 /// Expand the combined group's transformed contours with the worker-local
 /// FreeType stroker. Returns E and the number of generated native path points
@@ -101,6 +126,81 @@ pub fn rasterize_expanded(
     }
     context.stroke_rasterize_path(&ops, radius, remaining_segments)
 }
+#[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
+pub fn rasterize_expanded_axes(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    rx: Q6,
+    ry: Q6,
+    dx: Q6,
+    dy: Q6,
+    remaining: u64,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    check_group(group)?;
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
+        let charge = (ops.len() as u64)
+            .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+            .ok_or_else(limited)?;
+        let available = context
+            .limits()
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|n| *n > 0)
+            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+        let limits = context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?;
+        return crate::axis_widen::rasterize(&ops, rx, ry, remaining, &limits);
+    }
+    context.stroke_rasterize_path_axes(&ops, rx, ry, remaining)
+}
+/// Use the same round-stroker contours, with historical scan coverage instead
+/// of analytically rasterizing them into A8 before integer filtering.
+#[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
+pub fn rasterize_expanded_axes_xy(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    rx: Q6,
+    ry: Q6,
+    dx: Q6,
+    dy: Q6,
+    remaining: u64,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    check_group(group)?;
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
+        let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+        let available = context
+            .limits()
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|&n| n > 0)
+            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+        return crate::axis_widen::rasterize_axis_xy(
+            &ops,
+            rx,
+            ry,
+            remaining,
+            &context
+                .limits()
+                .clone()
+                .with_transient_bytes(available)
+                .map_err(|_| limited())?,
+        );
+    }
+    context.stroke_rasterize_path_axes_with_coverage(
+        &ops,
+        rx,
+        ry,
+        remaining,
+        crate::axis_widen::rasterize_body,
+    )
+}
 
 /// Core outline coverage B=max(E-F,0), using saturating A8 subtraction.
 /// The result retains E's full support bounds and initialized row padding.
@@ -109,6 +209,7 @@ pub fn subtract_coverage(
     fill: &Mask,
     limits: &Limits,
 ) -> Result<Arc<Mask>, RenderError> {
+    let same_units = expanded.is_xy_coverage() == fill.is_xy_coverage();
     let bounds = expanded.bounds();
     if bounds.is_empty() {
         return Ok(Arc::new(Mask::new(bounds, 0, Arc::from([]))?));
@@ -138,11 +239,15 @@ pub fn subtract_coverage(
     })?;
     for y in i64::from(bounds.y0())..i64::from(bounds.y1()) {
         for x in i64::from(bounds.x0())..i64::from(bounds.x1()) {
-            data.push(
+            data.push(if same_units {
                 expanded
                     .coverage_at(x, y, PixelOffset::default())
-                    .saturating_sub(fill.coverage_at(x, y, PixelOffset::default())),
-            );
+                    .saturating_sub(fill.coverage_at(x, y, PixelOffset::default()))
+            } else {
+                expanded
+                    .coverage_a8_at(x, y, PixelOffset::default())
+                    .saturating_sub(fill.coverage_a8_at(x, y, PixelOffset::default()))
+            });
         }
     }
     if data.iter().all(|&coverage| coverage == 0) {
@@ -152,5 +257,9 @@ pub fn subtract_coverage(
             Arc::from([]),
         )?));
     }
-    Ok(Arc::new(Mask::new(bounds, width, data.into())?))
+    Ok(Arc::new(if same_units {
+        expanded.with_data(bounds, width, data.into())
+    } else {
+        Mask::new(bounds, width, data.into())
+    }?))
 }

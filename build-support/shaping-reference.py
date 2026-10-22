@@ -6,6 +6,7 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
+from fontTools.ttLib import TTFont
 
 root = Path(__file__).resolve().parent.parent
 temporary = Path(os.environ["RUNNER_TEMP"])
@@ -22,6 +23,7 @@ records = json.loads((root / "build-support/shaping-cases.proposed.json").read_t
 fonts = json.loads((root / "build-support/shaping-fonts.proposed.json").read_text(encoding="utf-8"))["fonts"]
 discover = sys.argv[1:] == ["--discover"]
 lines = []
+cells = []
 for case in records:
     record = next((f for f in fonts if f["id"] == case["font"]), None)
     if record is None and case["font"] != "collection":
@@ -39,7 +41,16 @@ for case in records:
     lines.append("case " + case["id"] + " " + " ".join(map(str, [observed["upem"], *observed["metrics"]])))
     lines.extend("glyph " + " ".join(map(str, glyph)) for glyph in observed["glyphs"])
     lines.append("end")
+    with TTFont(font, fontNumber=case.get("face", 0), recalcTimestamp=False) as sfnt:
+        cells.append("case:" + case["id"] + " " + " ".join(map(str, [sfnt["head"].unitsPerEm, sfnt["OS/2"].usWinAscent, sfnt["OS/2"].usWinDescent])))
 destination = temporary / "taiyou-shaping-reference.tsv"
 destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
+# Separate input metadata for cell-height normalization. Native design-unit
+# observations and every frozen expected glyph/metric record above are intact.
+for record in fonts:
+    font = temporary / "taiyou-shaping-fonts" / (record["id"] + Path(record["path"]).suffix)
+    with TTFont(font, recalcTimestamp=False) as sfnt:
+        cells.append("font:" + record["id"] + " " + " ".join(map(str, [sfnt["head"].unitsPerEm, sfnt["OS/2"].usWinAscent, sfnt["OS/2"].usWinDescent])))
+(temporary / "taiyou-ass-cell-inputs.tsv").write_text("\n".join(cells) + "\n", encoding="utf-8")
 print("SHAPING_REFERENCE_CLIENT_SHA256=" + hashlib.sha256(source.read_bytes()).hexdigest(), flush=True)
 print("SHAPING_REFERENCES_PROVISIONAL=" + str(destination), flush=True)

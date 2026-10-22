@@ -1,6 +1,6 @@
 # Implementation task index
 
-T001 and T003 are integrated, and the owner accepted ADR-008 and the integrated T003 parser baseline. Other tasks remain planned until their implementation and acceptance evidence is recorded. Cargo commands run on Actions only. Read the task's linked contracts before implementation; unresolved research prerequisites remain real gates. Owner acceptance is not independent-review or T005 protection evidence.
+T001 and T003 are integrated, and the owner accepted ADR-008 and the integrated T003 parser baseline. Other tasks remain planned until their implementation and acceptance evidence is recorded. Cargo commands run on Actions only. Read the task's linked contracts before implementation; source-established ASS behavior is normal implementation work; narrow research is reserved for genuinely ambiguous questions. Owner acceptance is not independent-review or T005 protection evidence.
 
 **Verification runs in GitHub Actions.** Do not compile or install build dependencies on the user's PC. All Cargo/native/test commands below target CI runners; local work is editing and lightweight documentation/hash checks. Read the [execution policy](../DEVELOPMENT.md#d0-execution-location-and-local-storage), provide candidate SHA and Actions run/job links, and report unrun checks as pending. T001 supplies the initial remote source-check lane; this policy does not mean workflows already exist or have passed.
 
@@ -27,18 +27,16 @@ Every task requires its Objective, Prerequisites, Files and modules, Technical c
 | [T013](T013.md) | Scalar paint and ordered RGBA composition | Luna 6 | T003 |
 | [T014](T014.md) | Single-worker vertical slice CLI | Sol 6.1 | T007, T010, T012, T013 |
 | [T015](T015.md) | Reference adapters and full comparison reports | Sol 6.1 | T005, T014 |
-| [R001](R001.md) | Freeze the first legacy behavior profile | Astra; Sol may collect evidence | T015 |
-| [R002](R002.md) | Choose compatible coverage, stroke and blur policies | Astra; Sol experiment assistance | R001, T012 |
-| [T016](T016.md) | Borders and shadows for the approved subset | Sol 6.1 | R002, T014 |
-| [T017](T017.md) | Approved wrapping and deterministic collision | Sol 6.1 | R001, T010, T016 |
-| [T018](T018.md) | Bounded scalar blur and edge blur | Sol 6.1 | R002, T016 |
+| [T016](T016.md) | Borders and shadows | Sol 6.1 | T014 |
+| [T017](T017.md) | xy wrapping and deterministic collision | Sol 6.1 | T010, T016 |
+| [T018](T018.md) | Bounded scalar blur and edge blur | Sol 6.1 | T016 |
 | [T019](T019.md) | Typed caches and accountable memory | Sol 6.1; architect key review | T017, T018 |
-| [T020](T020.md) | Move, fades and numeric transforms | Sol 6.1 | T019, R001 |
-| [T021](T021.md) | ASS vector drawings and independent clipping | Sol 6.1 | T011, T018, R001 |
+| [T020](T020.md) | Move, fades and numeric transforms | Sol 6.1 | T019 |
+| [T021](T021.md) | ASS vector drawings and independent clipping | Sol 6.1 | T011, T018 |
 | [T022](T022.md) | Cluster-aware basic karaoke | Sol 6.1; typography review | T020, T009 |
-| [R004](R004.md) | Freeze complex transform and aspect policies | Astra | R001, T011 |
+| [R004](R004.md) | Resolve ambiguous complex transform/aspect behavior | Astra | T011 |
 | [T023](T023.md) | Approved 3D transforms and aspect mapping | Sol 6.1 | R004, T019 |
-| [T026](T026.md) | Common SSA and explicit decoding support | Sol 6.1 | R001, T006, T008 |
+| [T026](T026.md) | Common SSA and explicit decoding support | Sol 6.1 | T006, T008 |
 | [T027](T027.md) | Usable single-worker headless renderer integration | Sol 6.1 | T019, T020, T021, T022, T023, T026 |
 | [T029](T029.md) | Reproducible KFX and performance corpus | Sol 6.1 | T027 |
 | [R003](R003.md) | Measure scheduling, memory and tile granularity | Astra | T029 |

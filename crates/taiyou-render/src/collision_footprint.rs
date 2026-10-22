@@ -30,21 +30,38 @@ pub fn effect_bounds(
     fill_visible: bool,
     border_visible: bool,
 ) -> Result<Option<ScriptBounds>, RenderError> {
+    effect_bounds_axes(
+        ink,
+        border.map(|r| (r, r)),
+        shadow,
+        fill_visible,
+        border_visible,
+    )
+}
+pub fn effect_bounds_axes(
+    ink: ScriptBounds,
+    border: Option<(Q6, Q6)>,
+    shadow: Option<(Q6, Q6)>,
+    fill_visible: bool,
+    border_visible: bool,
+) -> Result<Option<ScriptBounds>, RenderError> {
     if ink.width() == 0.0 || ink.height() == 0.0 {
         return Ok(None);
     }
-    let radius = border.map_or(0.0, |r| f64::from(r.ticks()) / 64.0);
-    if radius < 0.0 {
+    let (rx, ry) = border.map_or((0.0, 0.0), |(x, y)| {
+        (f64::from(x.ticks()) / 64.0, f64::from(y.ticks()) / 64.0)
+    });
+    if rx < 0.0 || ry < 0.0 {
         return Err(RenderError::new(
             ErrorCode::InvalidArgument,
             "negative collision border radius",
         ));
     }
     let expanded = ScriptBounds::new(
-        ink.x0().get() - radius,
-        ink.y0().get() - radius,
-        ink.x1().get() + radius,
-        ink.y1().get() + radius,
+        ink.x0().get() - rx,
+        ink.y0().get() - ry,
+        ink.x1().get() + rx,
+        ink.y1().get() + ry,
     )?;
     let mut result = None;
     if fill_visible {
@@ -69,6 +86,21 @@ pub fn collision_footprint(
     scaled_border_shadow: bool,
     policy: UnsupportedPolicy,
 ) -> Result<ScriptBounds, RenderError> {
+    collision_footprint_with_limits(
+        local,
+        device,
+        scaled_border_shadow,
+        policy,
+        &Limits::default(),
+    )
+}
+pub fn collision_footprint_with_limits(
+    local: &LocalLayout,
+    device: DeviceMapping,
+    scaled_border_shadow: bool,
+    _policy: UnsupportedPolicy,
+    limits: &Limits,
+) -> Result<ScriptBounds, RenderError> {
     if local.shaped().placement().origin().is_some() {
         return Err(RenderError::new(
             ErrorCode::UnsupportedFeature,
@@ -77,13 +109,25 @@ pub fn collision_footprint(
     }
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
-    let equal_scale = u64::from(device.content().width()) * u64::from(device.play_res().height())
-        == u64::from(device.content().height()) * u64::from(device.play_res().width());
+    let [lx, ly] = device.layout_scale();
+    let target = device.target_scale();
     let mut result = local.collision_bounds();
     for positioned in local.glyphs() {
-        let glyph =
-            &local.shaped().runs()[positioned.run_index()].glyphs()[positioned.glyph_index()];
-        let ink = match glyph.ink() {
+        let run = &local.shaped().runs()[positioned.run_index()];
+        let glyph_ink = if let Some(drawing) = run.drawing() {
+            match drawing.outline.bounds() {
+                Some(b) => GlyphInk::Bounds(ScriptBounds::new(
+                    b.min().x().get(),
+                    -b.max().y().get(),
+                    b.max().x().get(),
+                    -b.min().y().get(),
+                )?),
+                None => GlyphInk::Empty,
+            }
+        } else {
+            run.glyphs()[positioned.glyph_index()].ink()
+        };
+        let ink = match glyph_ink {
             GlyphInk::Bounds(bounds) => bounds,
             GlyphInk::Empty => continue,
             GlyphInk::Unknown => {
@@ -117,40 +161,48 @@ pub fn collision_footprint(
         let mut hull = None;
         for x in [ink.x0().get(), ink.x1().get()] {
             for y in [ink.y0().get(), ink.y1().get()] {
-                let dx = finite((cos * x + sin * y) * sx)?.get();
-                let dy = finite((-sin * x + cos * y) * sy)?.get();
+                let (x, y) = (
+                    x + state.geometry().shear_x().get() * y,
+                    y + state.geometry().shear_y().get() * x,
+                );
+                let (x, y) = crate::geometry::project_3d(
+                    cos * x * lx + sin * y * ly,
+                    -sin * x * lx + cos * y * ly,
+                    state.geometry().rotation_x().get(),
+                    state.geometry().rotation_y().get(),
+                )?;
+                let dx = finite(x * sx / lx)?.get();
+                let dy = finite(y * sy / ly)?.get();
                 include(&mut hull, ScriptBounds::new(dx, dy, dx, dy)?)?;
             }
         }
-        let mut border = state.effects().border_style() == BorderStyle::Outline
-            && state.effects().border_x().get() > 0.0;
-        if border && scaled_border_shadow && !equal_scale {
-            if policy == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(
-                    ErrorCode::UnsupportedFeature,
-                    "Core isotropic border scaling requires equal device/script x and y ratios",
-                ));
-            }
-            // Match the ordinary renderer's diagnosed omission in tolerant mode.
-            border = false;
-        }
+        let border = state.effects().border_style() == BorderStyle::Outline
+            && (state.effects().border_x().get() > 0.0 || state.effects().border_y().get() > 0.0);
         let radius = if border {
-            Some(q6(
-                state.effects().border_x().get() * if scaled_border_shadow { sx } else { 1.0 }
-            )?)
+            Some((
+                q6(state.effects().border_x().get()
+                    * if scaled_border_shadow { sx } else { target[0] })?,
+                q6(state.effects().border_y().get()
+                    * if scaled_border_shadow { sy } else { target[1] })?,
+            ))
         } else {
             None
         };
-        let shadow = if state.paint().shadow().a() == 0 {
+        let shadow = if state.paint().shadow().a() == 0
+            || state.effects().border_style() == BorderStyle::OpaqueBox
+            || (state.effects().shadow_x().get() == 0.0 && state.effects().shadow_y().get() == 0.0)
+        {
             None
         } else {
             Some((
-                q6(state.effects().shadow_x().get() * if scaled_border_shadow { sx } else { 1.0 })?,
-                q6(state.effects().shadow_y().get() * if scaled_border_shadow { sy } else { 1.0 })?,
+                q6(state.effects().shadow_x().get()
+                    * if scaled_border_shadow { sx } else { target[0] })?,
+                q6(state.effects().shadow_y().get()
+                    * if scaled_border_shadow { sy } else { target[1] })?,
             ))
         };
         if let Some(hull) = hull {
-            if let Some(support) = effect_bounds(
+            if let Some(support) = effect_bounds_axes(
                 hull,
                 radius,
                 shadow,
@@ -160,6 +212,75 @@ pub fn collision_footprint(
                 result = result.union(support.scaled(1.0 / sx, 1.0 / sy)?)?;
             }
         }
+    }
+    let mut start = 0;
+    while start < local.glyphs().len() {
+        let state = &local.shaped().evaluated().runs()[local.glyphs()[start].association_index()];
+        let mut end = start + 1;
+        while end < local.glyphs().len() {
+            let b = &local.shaped().evaluated().runs()[local.glyphs()[end].association_index()];
+            if state.shaping() != b.shaping()
+                || state.geometry() != b.geometry()
+                || state.effects() != b.effects()
+                || state.paint() != b.paint()
+                || state.karaoke() != b.karaoke()
+            {
+                break;
+            }
+            end += 1;
+        }
+        if state.effects().border_style() == BorderStyle::OpaqueBox {
+            let zero = ScriptPoint::new(FiniteF64::ZERO, FiniteF64::ZERO);
+            let boxes = crate::geometry::opaque_box_paths(
+                local,
+                start..end,
+                device,
+                zero,
+                None,
+                scaled_border_shadow,
+                limits,
+            )?;
+            for path in boxes {
+                let mut precise = None;
+                for op in path.outline().ops() {
+                    let _: PathOp<FontPoint> = op.try_map(|p| {
+                        let (x, y) = path.mapping().precise_point(p)?;
+                        include(&mut precise, ScriptBounds::new(x, y, x, y)?)?;
+                        Ok::<_, RenderError>(p)
+                    })?;
+                }
+                if let Some(b) = precise {
+                    let bound = b.translated(
+                        -f64::from(device.content().x0()),
+                        -f64::from(device.content().y0()),
+                    )?;
+                    let visible = (state.effects().border_x().get() > 0.0
+                        || state.effects().border_y().get() > 0.0)
+                        && state.paint().outline().a() != 0;
+                    if visible {
+                        result = result.union(bound.scaled(1.0 / sx, 1.0 / sy)?)?;
+                    }
+                    if state.paint().shadow().a() != 0
+                        && (state.effects().shadow_x().get() != 0.0
+                            || state.effects().shadow_y().get() != 0.0)
+                    {
+                        let dx = q6(state.effects().shadow_x().get()
+                            * if scaled_border_shadow { sx } else { target[0] })?;
+                        let dy = q6(state.effects().shadow_y().get()
+                            * if scaled_border_shadow { sy } else { target[1] })?;
+                        result = result.union(
+                            bound
+                                .translated(
+                                    f64::from(dx.ticks()) / 64.0,
+                                    f64::from(dy.ticks()) / 64.0,
+                                )?
+                                .scaled(1.0 / sx, 1.0 / sy)?,
+                        )?;
+                    }
+                }
+            }
+        }
+        start = end;
     }
     Ok(result)
 }

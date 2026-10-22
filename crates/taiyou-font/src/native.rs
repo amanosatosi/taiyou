@@ -72,6 +72,42 @@ impl Drop for HbBuffer {
 }
 
 impl FontContext {
+    pub(crate) fn decoration_metrics_authenticated(
+        &mut self,
+        blob: &FontBlob,
+    ) -> Result<[(i16, i16); 2], FontError> {
+        self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
+            // SAFETY: a validated worker-local face and a bounded fixed SFNT
+            // buffer remain live throughout these synchronous reads.
+            unsafe {
+                let underline = (
+                    (*face.raw).underline_position,
+                    (*face.raw).underline_thickness,
+                );
+                let mut table = [0_u8; 30];
+                let mut len = table.len() as ft::FT_ULong;
+                if FT_Load_Sfnt_Table(
+                    face.raw,
+                    u32::from_be_bytes(*b"OS/2") as ft::FT_ULong,
+                    0,
+                    table.as_mut_ptr(),
+                    &mut len,
+                ) != 0
+                    || len != 30
+                {
+                    return Err(FontError::new(
+                        ErrorCode::FontUnavailable,
+                        "strikeout OS/2 metrics unavailable",
+                    ));
+                }
+                let strike = (
+                    i16::from_be_bytes([table[28], table[29]]),
+                    i16::from_be_bytes([table[26], table[27]]),
+                );
+                Ok([underline, strike])
+            }
+        })
+    }
     /// Extract an owned, unhinted y-up vector path. This reauthenticates the blob,
     /// checks the collection face and glyph, and never publishes a native handle.
     pub fn outline(
@@ -238,7 +274,9 @@ impl FontContext {
                 let owned = Outline::new(state.ops, limits).map_err(|e| {
                     FontError::new(e.code(), e.detail()).with_resource_failure(e.resource_failure())
                 })?;
+                let clockwise = FT_Outline_Get_Orientation(outline) == 0;
                 GlyphOutline::new(blob.id(), glyph, record.units_per_EM, Arc::new(owned))
+                    .map(|o| o.with_clockwise(clockwise))
             }
         })
     }
@@ -261,7 +299,7 @@ impl FontContext {
         request: &NativeRequest<'_>,
         limits: &Limits,
     ) -> Result<RawRun, FontError> {
-        self.shape_authenticated_with_ink(blob, request, limits, true)
+        self.shape_authenticated_with_ink(blob, request, limits, true, None)
     }
 
     pub(crate) fn shape_authenticated_with_ink(
@@ -270,6 +308,7 @@ impl FontContext {
         request: &NativeRequest<'_>,
         limits: &Limits,
         collect_ink: bool,
+        vertical: Option<crate::catalog::VerticalMetrics>,
     ) -> Result<RawRun, FontError> {
         self.check_bytes(blob.bytes())?;
         let invalid = || {
@@ -450,6 +489,8 @@ impl FontContext {
                 feature(u32::from_be_bytes(*b"kern"), 1),
                 feature(u32::from_be_bytes(*b"liga"), u32::from(request.ligatures)),
                 feature(u32::from_be_bytes(*b"clig"), u32::from(request.ligatures)),
+                feature(u32::from_be_bytes(*b"vert"), u32::from(request.vertical)),
+                feature(u32::from_be_bytes(*b"vkna"), u32::from(request.vertical)),
             ];
             let shapers = [c"ot".as_ptr(), ptr::null()];
             if hb::hb_shape_full(
@@ -496,7 +537,32 @@ impl FontContext {
                 {
                     return Err(failed());
                 }
+                let rotated = vertical.filter(|v| {
+                    v.cff
+                        || request.text[cluster as usize..]
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c >= '\u{2e80}')
+                });
+                let advance = if rotated.is_some() {
+                    hb::hb_font_get_glyph_v_advance(font.raw, g.codepoint)
+                        .checked_neg()
+                        .ok_or_else(limited)?
+                } else {
+                    p.x_advance
+                };
+                let vertical_offset = if let Some(v) = rotated {
+                    Some([
+                        advance
+                            .checked_add(i32::from(v.typo_descent))
+                            .ok_or_else(limited)?,
+                        i32::from(v.typo_descent),
+                    ])
+                } else {
+                    None
+                };
                 glyphs.push(RawGlyph {
+                    vertical_offset,
                     ink: {
                         let mut extents: hb::hb_glyph_extents_t = std::mem::zeroed();
                         if collect_ink
@@ -515,7 +581,7 @@ impl FontContext {
                     },
                     glyph: g.codepoint,
                     cluster,
-                    advance_x: p.x_advance,
+                    advance_x: advance,
                     advance_y: p.y_advance,
                     offset_x: p.x_offset,
                     offset_y: p.y_offset,
@@ -523,13 +589,7 @@ impl FontContext {
             }
             // Keep ownership explicit until after the last native read.
             let _ = font.face.raw;
-            Ok(RawRun {
-                glyphs,
-                upem,
-                ascent: extents.ascender,
-                descent: extents.descender,
-                line_gap: extents.line_gap,
-            })
+            Ok(RawRun { glyphs, upem })
         }
     }
 }
@@ -564,6 +624,8 @@ fn outline_funcs() -> OutlineFuncs {
     }
 }
 unsafe extern "C" {
+    fn FT_Get_Font_Format(face: ft::FT_Face) -> *const std::ffi::c_char;
+    fn FT_Outline_Get_Orientation(outline: *const ft::FT_Outline) -> ft::FT_Int;
     fn FT_Outline_Check(outline: *const ft::FT_Outline) -> ft::FT_Error;
     fn FT_Outline_Decompose(
         outline: *const ft::FT_Outline,
@@ -722,6 +784,13 @@ unsafe extern "C" {
     fn FT_Get_Sfnt_Name_Count(face: ft::FT_Face) -> u32;
     fn FT_Get_Sfnt_Name(face: ft::FT_Face, index: u32, name: *mut SfntName) -> ft::FT_Error;
     fn FT_Get_Sfnt_Table(face: ft::FT_Face, tag: i32) -> *mut std::ffi::c_void;
+    fn FT_Load_Sfnt_Table(
+        face: ft::FT_Face,
+        tag: ft::FT_ULong,
+        offset: ft::FT_Long,
+        buffer: *mut ft::FT_Byte,
+        length: *mut ft::FT_ULong,
+    ) -> ft::FT_Error;
 }
 fn native_error(code: ft::FT_Error, detail: &str) -> FontError {
     FontError::new(ErrorCode::NativeFailure, detail).with_native_code(i64::from(code))
@@ -731,6 +800,7 @@ std::thread_local! {
     static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 struct Library(ft::FT_Library);
+type CoverageRasterizer = fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>;
 /// Per-call-worker raster owner, neither Send nor Sync. No native handle escapes.
 /// ```compile_fail
 /// fn require_send<T: Send>() {}
@@ -1016,6 +1086,46 @@ impl RasterContext {
         radius: Q6,
         remaining_segments: u64,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
+        self.stroke_rasterize_path_axes(ops, radius, radius, remaining_segments)
+    }
+    /// Elliptical round joins: normalize the device-space axes before the
+    /// scalar round stroker, then restore them before coverage rasterization.
+    pub fn stroke_rasterize_path_axes(
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        self.stroke_rasterize_path_axes_impl(ops, radius_x, radius_y, remaining_segments, None)
+    }
+    /// Keep the validated round-stroker geometry while supplying a separate
+    /// coverage rasterizer. Only owned path values cross the native boundary.
+    pub fn stroke_rasterize_path_axes_with_coverage(
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+        coverage: CoverageRasterizer,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        self.stroke_rasterize_path_axes_impl(
+            ops,
+            radius_x,
+            radius_y,
+            remaining_segments,
+            Some(coverage),
+        )
+    }
+    fn stroke_rasterize_path_axes_impl(
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+        coverage: Option<CoverageRasterizer>,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        let radius = radius_x.max(radius_y);
         let invalid =
             || RenderError::new(ErrorCode::InvalidArgument, "invalid stroke path or radius");
         let evidence = std::cell::Cell::new(StrokeLimitEvidence {
@@ -1043,7 +1153,7 @@ impl RasterContext {
         };
         let limits = &self.owner.limits;
         check_path_budget(ops.len(), limits)?;
-        if radius.ticks() < 0 {
+        if radius_x.ticks() < 0 || radius_y.ticks() < 0 {
             return Err(invalid());
         }
         if ops.is_empty() {
@@ -1124,10 +1234,19 @@ impl RasterContext {
         let input_bounds =
             PixelRect::new(input_x0, input_y0, input_x1, input_y1).map_err(|_| invalid())?;
         if radius == 0 {
+            if let Some(coverage) = coverage {
+                return coverage(ops, limits).map(|mask| (mask, 0));
+            }
             let stride = usize::try_from(input_bounds.width()).map_err(|_| limit())?;
             return self
                 .rasterize_path(ops, input_bounds, stride)
                 .map(|mask| (mask, 0));
+        }
+        if radius_x.ticks() == 0 || radius_y.ticks() == 0 {
+            return Err(RenderError::new(
+                ErrorCode::UnsupportedFeature,
+                "degenerate single-axis outline widening",
+            ));
         }
         let mut bounds = PixelRect::new(
             floor_pixel(min_x.checked_sub(radius).ok_or_else(limit)?)?,
@@ -1237,6 +1356,15 @@ impl RasterContext {
                 PathOp::Close => {
                     contours.push(i16::try_from(points.len() - 1).map_err(|_| limit())?)
                 }
+            }
+        }
+        let axes = (i128::from(radius_x.ticks()), i128::from(radius_y.ticks()));
+        if radius_x != radius_y {
+            for p in &mut points {
+                p.x = ft::FT_Pos::try_from(i128::from(p.x) * i128::from(radius) / axes.0)
+                    .map_err(|_| limit())?;
+                p.y = ft::FT_Pos::try_from(i128::from(p.y) * i128::from(radius) / axes.1)
+                    .map_err(|_| limit())?;
             }
         }
         let mut outline = ft::FT_Outline {
@@ -1389,6 +1517,14 @@ impl RasterContext {
                 "FT_Stroker_ExportBorder count mismatch",
             ));
         }
+        if radius_x != radius_y {
+            for p in &mut expanded_points {
+                p.x = ft::FT_Pos::try_from(i128::from(p.x) * axes.0 / i128::from(radius))
+                    .map_err(|_| limit())?;
+                p.y = ft::FT_Pos::try_from(i128::from(p.y) * axes.1 / i128::from(radius))
+                    .map_err(|_| limit())?;
+            }
+        }
         let x_shift = (i64::from(input_bounds.x0()) - i64::from(bounds.x0())) * 64;
         let y_shift = (i64::from(bounds.y1()) - i64::from(input_bounds.y1())) * 64;
         let exported_hull = expanded_points.iter().fold(None, |hull, p| {
@@ -1497,6 +1633,73 @@ impl RasterContext {
                 "expanded FT_Outline_Check failed",
             )
             .with_native_code(i64::from(code)));
+        }
+        if let Some(coverage) = coverage {
+            let capacity = output_point_count
+                .checked_mul(2)
+                .and_then(|n| n.checked_add(output_contour_count * 2 + 1))
+                .ok_or_else(limit)?;
+            let copy_charge = (capacity as u64)
+                .checked_mul(
+                    3 * (std::mem::size_of::<PathOp<FontPoint>>()
+                        + std::mem::size_of::<PathOp<DevicePoint>>())
+                        as u64,
+                )
+                .ok_or_else(limit)?;
+            let live = evidence
+                .get()
+                .export_reservation
+                .checked_sub((length as u64) * 3)
+                .and_then(|n| n.checked_add(copy_charge))
+                .ok_or_else(limit)?;
+            let available = limits
+                .transient_bytes()
+                .checked_sub(live)
+                .filter(|&n| n > 0)
+                .ok_or_else(|| limit().with_resource_failure(ResourceFailure::TransientMemory))?;
+            let mut state = OutlineCopy {
+                ops: Vec::new(),
+                failed: false,
+                open: false,
+            };
+            state.ops.try_reserve_exact(capacity).map_err(|_| alloc())?;
+            let funcs = outline_funcs();
+            // SAFETY: checked exported arrays and initialized callback storage
+            // remain exclusively owned throughout synchronous decomposition.
+            let code = unsafe {
+                FT_Outline_Decompose(&expanded, &funcs, (&mut state as *mut OutlineCopy).cast())
+            };
+            state.close();
+            if code != 0 || state.failed {
+                return Err(RenderError::new(
+                    ErrorCode::NativeFailure,
+                    "stroked outline copy failed",
+                )
+                .with_native_code(i64::from(code)));
+            }
+            let mut path = Vec::new();
+            path.try_reserve_exact(state.ops.len())
+                .map_err(|_| alloc())?;
+            for op in state.ops {
+                path.push(op.try_map(|p| {
+                    let x = f64::from(bounds.x0()) + p.x().get() / 64.0;
+                    let y = f64::from(bounds.y1()) - p.y().get() / 64.0;
+                    let q = |v| {
+                        FiniteF64::new(v)
+                            .and_then(Q6::from_pixels)
+                            .map_err(|_| limit())
+                    };
+                    Ok(DevicePoint::new(q(x)?, q(y)?))
+                })?);
+            }
+            let mask = coverage(
+                &path,
+                &limits
+                    .clone()
+                    .with_transient_bytes(available)
+                    .map_err(|_| limit())?,
+            )?;
+            return Ok((mask, output_point_count as u64));
         }
         let mut state = SpanCopy {
             data: Vec::new(),
@@ -1741,6 +1944,8 @@ pub(crate) struct Metadata {
     pub weight: u16,
     pub italic: bool,
     pub glyphs: u32,
+    pub cell: (u16, u16, u16),
+    pub vertical: crate::catalog::VerticalMetrics,
 }
 /// Experimental cumulative native-work budgets, never production C7 defaults.
 /// Context/range UTF-8 bytes and calls are charged before each native attempt,
@@ -2104,12 +2309,82 @@ impl FontContext {
                 let glyphs = u32::try_from((*face.raw).num_glyphs).map_err(|_| {
                     FontError::new(ErrorCode::FontUnavailable, "invalid glyph count")
                 })?;
+                // FreeType validates the SFNT directory. Read only the fixed
+                // OS/2 Windows metrics bytes; no native TT_OS2 layout assumption.
+                let mut table = [0_u8; 78];
+                let mut length = table.len() as ft::FT_ULong;
+                let valid_win = FT_Load_Sfnt_Table(
+                    face.raw,
+                    u32::from_be_bytes(*b"OS/2") as ft::FT_ULong,
+                    0,
+                    table.as_mut_ptr(),
+                    &mut length,
+                ) == 0
+                    && length == 78;
+                let (ascent, descent) = if valid_win {
+                    (
+                        u16::from_be_bytes([table[74], table[75]]),
+                        u16::from_be_bytes([table[76], table[77]]),
+                    )
+                } else {
+                    // Non-SFNT faces retain their validated native cell metrics.
+                    // This fallback is not a claim about GDI's font mapper.
+                    (
+                        u16::try_from((*face.raw).ascender)
+                            .map_err(|_| native_error(0, "invalid cell ascent"))?,
+                        u16::try_from(-i32::from((*face.raw).descender))
+                            .map_err(|_| native_error(0, "invalid cell descent"))?,
+                    )
+                };
+                let upem = (*face.raw).units_per_EM;
+                let typo_descent = if valid_win {
+                    i16::from_be_bytes([table[70], table[71]])
+                } else {
+                    (*face.raw).descender
+                };
+                let format = FT_Get_Font_Format(face.raw);
+                let cff = !format.is_null() && CStr::from_ptr(format).to_bytes() == b"CFF";
+                let (va, vd) = if cff {
+                    (
+                        u16::try_from(
+                            (*face.raw)
+                                .bbox
+                                .xMax
+                                .checked_add(typo_descent as ft::FT_Pos)
+                                .ok_or_else(|| native_error(0, "vertical cell overflow"))?
+                                .max(0),
+                        )
+                        .map_err(|_| native_error(0, "vertical cell ascent"))?,
+                        u16::try_from(
+                            (*face.raw)
+                                .bbox
+                                .xMin
+                                .checked_add(typo_descent as ft::FT_Pos)
+                                .and_then(|n| n.checked_neg())
+                                .ok_or_else(|| native_error(0, "vertical cell overflow"))?
+                                .max(0),
+                        )
+                        .map_err(|_| native_error(0, "vertical cell descent"))?,
+                    )
+                } else {
+                    (ascent, descent)
+                };
+                if upem == 0 || u32::from(ascent) + u32::from(descent) == 0 {
+                    return Err(native_error(0, "invalid ASS font cell metrics"));
+                }
                 Ok(Metadata {
                     family,
                     aliases,
                     weight,
                     italic: (*face.raw).style_flags & ft::FT_STYLE_FLAG_ITALIC != 0,
                     glyphs,
+                    cell: (upem, ascent, descent),
+                    vertical: crate::catalog::VerticalMetrics {
+                        cff,
+                        typo_descent,
+                        ascent: va,
+                        descent: vd,
+                    },
                 })
             }
         })
@@ -2308,6 +2583,7 @@ mod tests {
                 script: u32::from_be_bytes(script),
                 language: "und",
                 ligatures: true,
+                vertical: false,
             }
         }
         let retained = {
@@ -2540,6 +2816,7 @@ mod tests {
             script: u32::from_be_bytes(*b"Latn"),
             language: "en",
             ligatures: true,
+            vertical: false,
         };
         let retained = {
             let mut context = FontContext::new().unwrap();

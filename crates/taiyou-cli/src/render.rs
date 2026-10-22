@@ -39,6 +39,8 @@ struct Arguments {
     time: i64,
     width: u32,
     height: u32,
+    original: Option<Size>,
+    filter_radius: Option<u32>,
     output: PathBuf,
     raw: Option<PathBuf>,
     policy: UnsupportedPolicy,
@@ -56,6 +58,9 @@ impl Arguments {
                 "--time-us",
                 "--width",
                 "--height",
+                "--original-width",
+                "--original-height",
+                "--filter-radius",
                 "--profile",
                 "--output",
                 "--raw",
@@ -121,6 +126,18 @@ impl Arguments {
             time: number(get("--time-us")?)?,
             width: number(get("--width")?)?,
             height: number(get("--height")?)?,
+            original: match (
+                values.get("--original-width"),
+                values.get("--original-height"),
+            ) {
+                (None, None) => None,
+                (Some(w), Some(h)) => Some(Size::new(number(w)?, number(h)?)),
+                _ => return Err(invalid("both original video dimensions are required")),
+            },
+            filter_radius: values
+                .get("--filter-radius")
+                .map(|n| number(n))
+                .transpose()?,
             output,
             raw,
             policy,
@@ -217,11 +234,24 @@ pub fn write_png<W: Write>(frame: &Frame, writer: W, limits: &Limits) -> Result<
 }
 pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let args = Arguments::parse(args)?;
-    let config = RendererConfig::default();
+    let mut config = RendererConfig::default();
+    if let Some(radius) = args.filter_radius {
+        if args.original.is_none() {
+            return Err(invalid(
+                "explicit comparison filter budget requires original video dimensions",
+            ));
+        }
+        config.limits = config.limits.with_filter_radius(radius);
+    }
     let limits = &config.limits;
     let request = RenderRequest {
         now: TimeUs::from_micros(args.time),
-        viewport: Viewport::full(Size::new(args.width, args.height))?,
+        viewport: match args.original {
+            Some(original) => {
+                Viewport::full(Size::new(args.width, args.height))?.with_original_size(original)?
+            }
+            None => Viewport::full(Size::new(args.width, args.height))?,
+        },
         unsupported: args.policy,
     };
     limits
@@ -245,14 +275,20 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         .unwrap_or(&source)
         .split(|b| matches!(b, b'\r' | b'\n'))
         .any(|line| line.trim_ascii().eq_ignore_ascii_case(b"[Fonts]"));
-    if args.fonts.is_empty() && !has_attachments {
+    let parsed = taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new());
+    if args.fonts.is_empty()
+        && !has_attachments
+        && !parsed.as_ref().is_ok_and(|p| {
+            !p.track().events().is_empty()
+                && !p.track().events().iter().any(taiyou_render::requires_font)
+        })
+    {
         return Err(RenderError::new(
             ErrorCode::FontUnavailable,
             "at least one explicit --font or ASS embedded font is required",
         ));
     }
-    let parsed =
-        taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new()).map_err(parse_error)?;
+    let parsed = parsed.map_err(parse_error)?;
     let mut context = FontContext::with_limits(limits.clone()).map_err(font_error)?;
     let mut builder = FontCatalogBuilder::new(limits.clone());
     for path in &args.fonts {

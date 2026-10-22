@@ -23,6 +23,7 @@ _Static_assert(sizeof(FT_UInt) == sizeof(uint32_t), "FT_UInt width");
 _Static_assert(sizeof(FT_Int) == sizeof(int32_t), "FT_Int width");
 _Static_assert(offsetof(TT_OS2, usWeightClass) == 4, "OS/2 weight prefix offset");
 _Static_assert(FT_SFNT_OS2 == 2, "OS/2 native table selector");
+_Static_assert(_Generic(&FT_Load_Sfnt_Table, FT_Error (*)(FT_Face, FT_ULong, FT_Long, FT_Byte *, FT_ULong *): 1, default: 0), "SFNT bounded table read ABI");
 _Static_assert(sizeof(hb_glyph_info_t) == 20, "HarfBuzz glyph-info ABI");
 _Static_assert(offsetof(hb_glyph_info_t, cluster) == 8, "HarfBuzz cluster offset");
 _Static_assert(sizeof(hb_glyph_position_t) == 20, "HarfBuzz positions ABI");

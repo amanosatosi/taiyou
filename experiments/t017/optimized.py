@@ -10,6 +10,63 @@ import subprocess
 import sys
 import tarfile
 import time
+from fontTools.ttLib import TTFont
+
+def instrument_retained_releases(code, statement):
+    """Owner-authorized recognition of exactly the two known source shapes."""
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());"
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {"
+    assert code.count(original) == 1, "original retained-layout consumption changed"
+    if backoff in code:
+        assert code.count(backoff) == 1 and code.count("prepared.pop()") == 1
+        expected = 2
+    else:
+        assert "prepared.pop()" not in code, "unknown prepass release shape"
+        expected = 1
+    assert code.count(release) == expected, "unknown retained-layout release count"
+    return code.replace(release, release + "\n" + statement)
+
+
+def check_retained_release_shapes():
+    release = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
+    original = "debug_assert_eq!(saved.id, event.id());\n" + release
+    backoff = "if let Some((_, Some(saved))) = prepared.pop() {\n" + release
+    for code, count in [(original, 1), (backoff + "\n" + original, 2)]:
+        assert instrument_retained_releases(code, "MEASURE_RELEASE;").count("MEASURE_RELEASE;") == count
+    for code in [original.replace(release, ""), original + release,
+                 backoff + original + release, backoff.replace(release, "") + original,
+                 backoff + backoff + original]:
+        try:
+            instrument_retained_releases(code, "MEASURE_RELEASE;")
+        except AssertionError:
+            continue
+        raise AssertionError("unexpected reservation-release source shape accepted")
+    print("T017_RELEASE_SOURCE_SHAPES_VERIFIED: old/new and rejected malformed counts", flush=True)
+
+
+check_retained_release_shapes()
+
+def cell_identity(historical_bytes, current_bytes, upem, cell, advances):
+    """This one pinned CJK witness changed units in T018, not glyph identity."""
+    pattern = r"(\d+):FiniteF64\(([-0-9.]+)\):FiniteF64\(([-0-9.]+)\);"
+    def parse(data):
+        text = data.decode().strip()
+        parts = re.findall(pattern, text)
+        assert parts and "".join(f"{g}:FiniteF64({a}):FiniteF64({o});" for g,a,o in parts) == text
+        return [(int(g),float(a),float(o)) for g,a,o in parts]
+    before, after = parse(historical_bytes), parse(current_bytes)
+    assert hashlib.sha256(historical_bytes).hexdigest() == "9171c7aba2e228f4ea715a86eb8d2108a13d62bc01fbe17cf5a40bbd5511d032"
+    assert len(before) == len(after) == 202
+    em_q6 = int(20 * 64 * upem / cell + 0.5)
+    for old, new in zip(before,after):
+        assert old[0] == new[0] and old[2] == new[2]
+        assert old[1] == advances[old[0]] * 20 / upem
+        assert new[1] == advances[new[0]] * em_q6 / (64 * upem)
+    assert hashlib.sha256(current_bytes).hexdigest() == "e99750fabb0ffd5ce301ee971c47100f97c546430f18809fa949feb178538b20"
+    return {"upem":upem,"win_cell":cell,"requested_cell":20,"native_em_q6":em_q6,
+            "historical_sha256":hashlib.sha256(historical_bytes).hexdigest(),
+            "current_sha256":hashlib.sha256(current_bytes).hexdigest(),"glyphs":len(after)}
 
 assert os.environ.get("GITHUB_ACTIONS") == "true" and platform.system() == "Linux"
 root = Path(__file__).resolve().parents[2]
@@ -90,13 +147,11 @@ impl Drop for Report {fn drop(&mut self){report();}}
         if label == "candidate":
             marker = "retained_charge = next;"
             code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::retain(next);")
-            marker = "held = held.checked_sub(saved.charge).ok_or_else(limited)?;"
-            assert code.count(marker) == 1
-            code = code.replace(marker, marker + "\ntaiyou_types::t017_metrics::release(saved.charge);")
+            code = instrument_retained_releases(code, "taiyou_types::t017_metrics::release(saved.charge);")
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
-    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0 \{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
+    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0(?:\s*\|\|\s*\(state\.effects\(\)\.shadow_x\(\)\.get\(\) == 0\.0\s*&& state\.effects\(\)\.shadow_y\(\)\.get\(\) == 0\.0\))?\s*\{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
     assert shadow_scopes == 1
     if label == "candidate":
         marker = "        let limits = &self.config.limits;"
@@ -107,8 +162,9 @@ impl Drop for Report {fn drop(&mut self){report();}}
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
     cli_path = destination / "crates/taiyou-cli/src/render.rs"
     cli_original = cli_path.read_text()
-    marker = "let config = RendererConfig::default();"
-    assert cli_original.count(marker) == 1
+    markers = ("let config = RendererConfig::default();", "let mut config = RendererConfig::default();")
+    assert sum(cli_original.count(value) for value in markers) == 1
+    marker = next(value for value in markers if value in cli_original)
     cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();} if let Ok(segments) = std::env::var("TAIYOU_EXPERIMENT_SEGMENTS") {config.limits = config.limits.with_path_segments_per_frame(segments.parse().unwrap()).unwrap();}')
     cli_path.write_text(cli_code)
     modifications[str(cli_path.relative_to(destination))] = {"original": hashlib.sha256(cli_original.encode()).hexdigest(), "instrumented": hashlib.sha256(cli_code.encode()).hexdigest(), "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"}
@@ -147,6 +203,8 @@ println!("{identity}"); taiyou_render::renderer::t017_metrics::report();
         subprocess.run(["cargo", "build", "--release", "--locked", "-p", "taiyou-cli", "--features", "native", "--bin", "taiyou", "--bin", "t017-width-profile", "--target-dir", str(temp / "target")], cwd=destination, stdout=log, stderr=subprocess.STDOUT, check=True)
     assert "Compiling taiyou-font" in (out / (label + "-build.log")).read_text(), "font crate must compile from each measured snapshot"
     profile = subprocess.run([str(temp / "target/release/t017-width-profile")], capture_output=True, timeout=30, check=True)
+    repeated = subprocess.run([str(temp / "target/release/t017-width-profile")], capture_output=True, timeout=30, check=True)
+    assert profile.stdout == repeated.stdout, "current CJK identity must repeat byte-for-byte"
     (out / (label + "-cjk-profile.stderr.txt")).write_bytes(profile.stderr)
     (out / (label + "-cjk-shape-identity.txt")).write_bytes(profile.stdout)
     print("T017_CJK_PROFILE=" + label + " " + profile.stderr.decode(), flush=True)
@@ -159,7 +217,24 @@ negative_tests()
 history = historical("optimized",out)
 binaries = {"candidate": build("candidate",head)}
 profiles = [out / (("historical/" + label if label != "candidate" else label) + "-cjk-shape-identity.txt") for label in versions]
-assert len({hashlib.sha256(path.read_bytes()).hexdigest() for path in profiles}) == 1, "CJK glyph/advance/offset identity changed"
+assert profiles[0].read_bytes() == profiles[1].read_bytes(), "historical evidence changed"
+cjk = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/cjk.otf"
+cjk_pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "cjk")
+assert hashlib.sha256(cjk.read_bytes()).hexdigest() == cjk_pin["sha256"]
+with TTFont(cjk, recalcTimestamp=False) as sfnt:
+    upem = sfnt["head"].unitsPerEm
+    cell = sfnt["OS/2"].usWinAscent + sfnt["OS/2"].usWinDescent
+    advances = {i:sfnt["hmtx"].metrics[name][0] for i,name in enumerate(sfnt.getGlyphOrder())}
+identity = cell_identity(profiles[0].read_bytes(), profiles[2].read_bytes(), upem, cell, advances)
+for bad in [b"", profiles[2].read_bytes()[:-10], profiles[2].read_bytes().replace(b"13.8125",b"20.0",1),
+            profiles[2].read_bytes().replace(b"FiniteF64(0.0)",b"FiniteF64(1.0)",1), profiles[2].read_bytes()*2]:
+    try:
+        cell_identity(profiles[0].read_bytes(), bad, upem, cell, advances)
+    except (AssertionError,UnicodeError):
+        pass
+    else:
+        raise AssertionError("corrupt/mismatched CJK evidence accepted")
+(out / "cell-identity.json").write_text(json.dumps(identity,indent=2)+"\n")
 font = Path(os.environ["RUNNER_TEMP"]) / "taiyou-shaping-fonts/latin.otf"
 pin = next(f for f in json.loads((root / "build-support/shaping-fonts.proposed.json").read_text())["fonts"] if f["id"] == "latin")
 assert hashlib.sha256(font.read_bytes()).hexdigest() == pin["sha256"]
@@ -222,9 +297,16 @@ for name, events in cases:
     selected = [r for r in records if r["case"] == name]
     for reviewed in [r for r in selected if r["implementation"].startswith("reviewed") and r["exit_code"] == 0]:
         assert all(r["exit_code"] == 0 for r in selected if r["implementation"].startswith("candidate") and r["path_segments_per_frame"] == reviewed["path_segments_per_frame"]), "new candidate failure: " + name
-    successful = [r for r in selected if r["exit_code"] == 0 and (r["implementation"].startswith("reviewed") or r["implementation"].startswith("candidate"))]
-    assert len({r["raw_sha256"] for r in successful}) <= 1, name
+    # The old em-size and current cell-size pipelines intentionally differ.
+    # Never overwrite historical hashes; retain equality within each policy,
+    # including every current full/partial/minimal staging variant and repeat.
+    for revision in ("reviewed", "candidate"):
+        successful = [r for r in selected if r["exit_code"] == 0 and r["implementation"].startswith(revision)]
+        assert len({r["raw_sha256"] for r in successful}) <= 1, name
 (out / "samples.jsonl").write_text("".join(json.dumps(r)+"\n" for r in records))
 (out / "environment.json").write_text(json.dumps({"versions": versions, "font": pin, "profile": "release default opt-level=3, sequential paired three-sample processes; inclusive timers", "platform": platform.platform(), "runner_image": os.environ.get("ImageVersion"), "cpuinfo": Path("/proc/cpuinfo").read_text(), "rustc": subprocess.check_output(["rustc", "--version", "--verbose"], text=True), "native_prefix": os.environ.get("PKG_CONFIG_LIBDIR"), "limitations": "timers overlap/nest, other correctness tests may share the runner; not isolated playback throughput; no retry of original four-glyph 180-second timeout"}, indent=2))
 from reuse_completed import validate
-validate("optimized", records, json.loads((out / "environment.json").read_text()), head)
+environment = json.loads((out / "environment.json").read_text())
+environment.update(pixel_identity_policy="positive-cell-height-v2", cell_identity=identity)
+(out / "environment.json").write_text(json.dumps(environment,indent=2)+"\n")
+validate("optimized", records, environment, head)

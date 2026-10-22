@@ -108,6 +108,47 @@ struct DraftLine {
     glyphs: std::ops::Range<usize>,
 }
 
+/// CLine::Compact applies after GetNextLine even when q2 disables wrapping.
+/// Keep source ranges immutable; only complete edge-space clusters disappear
+/// from positioned contents. Drawing words and NBSP are never space words.
+fn compact_edges(input: &ShapedEvent, start: u32, end: u32) -> (u32, u32) {
+    let bytes = input.source_map().text().as_bytes();
+    let (mut left, mut right) = (start, end);
+    while left < right && bytes[left as usize] == b' ' {
+        left += 1;
+    }
+    while right > left && bytes[right as usize - 1] == b' ' {
+        right -= 1;
+    }
+    let first = input.runs().partition_point(|r| r.decoded().end() <= start);
+    for run in input.runs()[first..]
+        .iter()
+        .take_while(|r| r.decoded().start() < end)
+    {
+        if run.drawing().is_some() {
+            if run.decoded().start() < left && left <= run.decoded().end() {
+                left = run.decoded().start();
+            }
+            if run.decoded().start() <= right && right < run.decoded().end() {
+                right = run.decoded().end();
+            }
+        } else {
+            // A backend cluster containing a non-space mark/ligature remains
+            // indivisible. Never remove its visible content with an edge space.
+            for glyph in run.glyphs() {
+                let c = glyph.cluster();
+                if c.start() < left && left < c.end() {
+                    left = c.start();
+                }
+                if c.start() < right && right < c.end() {
+                    right = c.end();
+                }
+            }
+        }
+    }
+    (left, right)
+}
+
 fn xy_plan(
     input: &ShapedEvent,
     constraints: &LayoutConstraints,
@@ -135,7 +176,16 @@ fn xy_plan(
     points.push(0_u32);
     points.push(text.len() as u32);
     for (at, ch) in text.char_indices() {
-        if ch == ' ' {
+        let run_index = input
+            .evaluated()
+            .runs()
+            .partition_point(|r| r.decoded().is_some_and(|d| d.end() <= at as u32));
+        let in_drawing = input
+            .evaluated()
+            .runs()
+            .get(run_index)
+            .is_some_and(|r| r.drawing().is_some());
+        if ch == ' ' && !in_drawing {
             points.push(at as u32);
             points.push(at as u32 + 1);
         }
@@ -159,6 +209,15 @@ fn xy_plan(
     reserve(&mut widths, points.len())?;
     widths.resize(points.len(), 0.0_f64);
     for run in input.runs() {
+        if let Some(drawing) = run.drawing() {
+            let i = points
+                .partition_point(|&p| p <= run.decoded().start())
+                .checked_sub(1)
+                .ok_or_else(limited)?;
+            let state = &input.evaluated().runs()[association(input, run.decoded().start())?];
+            let scale = state.geometry().scale_x().get() * constraints.scale_x().get();
+            widths[i] += drawing.width.get() * scale;
+        }
         for (g, glyph) in run.glyphs().iter().enumerate() {
             let i = points
                 .partition_point(|&p| p <= glyph.cluster().start())
@@ -231,10 +290,21 @@ pub fn layout(
         None
     };
     let count = input.runs().iter().try_fold(0_usize, |n, r| {
-        n.checked_add(r.glyphs().len()).ok_or_else(limited)
+        n.checked_add(r.glyphs().len() + usize::from(r.drawing().is_some()))
+            .ok_or_else(limited)
     })?;
     let lines = plan.as_ref().map_or_else(
-        || input.breaks().len().checked_add(1).ok_or_else(limited),
+        || {
+            let terminal_break = input
+                .breaks()
+                .last()
+                .is_some_and(|b| b.end() as usize == input.source_map().text().len());
+            input
+                .breaks()
+                .len()
+                .checked_add(usize::from(!terminal_break))
+                .ok_or_else(limited)
+        },
         |p| Ok(p.len()),
     )?;
     let bytes = count
@@ -313,8 +383,10 @@ pub fn layout(
             },
             |p| p.end,
         );
-        let visible_start = proposed.map_or(start, |p| p.visible_start);
-        let visible_end = proposed.map_or(end, |p| p.visible_end);
+        let (visible_start, visible_end) = proposed.map_or_else(
+            || compact_edges(input, start, end),
+            |p| (p.visible_start, p.visible_end),
+        );
         let decoded = input
             .source_map()
             .decoded_span(start..end)
@@ -322,7 +394,7 @@ pub fn layout(
         order.clear();
         while run_cursor < input.runs().len() && input.runs()[run_cursor].decoded().start() < end {
             let run = &input.runs()[run_cursor];
-            if automatic
+            if (automatic || visible_start < visible_end)
                 && (run.decoded().end() <= visible_start || run.decoded().start() >= visible_end)
             {
                 run_cursor += 1;
@@ -351,6 +423,21 @@ pub fn layout(
                 let sy = metrics.scale_y.get() * constraints.scale_y().get();
                 ascent = metrics.metrics.ascent().get() * sy;
                 descent = metrics.metrics.descent().get() * sy;
+            } else if !automatic && start < end {
+                // Compact returns early for an all-space line, retaining its
+                // original full metrics. It does not turn it into a half line.
+                for &r in &order {
+                    let run = &input.runs()[r];
+                    let state =
+                        &input.evaluated().runs()[association(input, run.decoded().start())?];
+                    let sy = state.geometry().scale_y().get() * constraints.scale_y().get();
+                    ascent = ascent.max(run.metrics().ascent().get() * sy);
+                    descent = descent.max(run.metrics().descent().get() * sy);
+                    for group in run.face_metrics() {
+                        ascent = ascent.max(group.metrics.ascent().get() * sy);
+                        descent = descent.max(group.metrics.descent().get() * sy);
+                    }
+                }
             } else if automatic {
                 let run = input
                     .runs()
@@ -371,6 +458,48 @@ pub fn layout(
         for &r in &order {
             let run = &input.runs()[r];
             let mut group = 0;
+            if let Some(drawing) = run.drawing() {
+                let a = association(input, run.decoded().start())?;
+                let state = &input.evaluated().runs()[a];
+                let sx = state.geometry().scale_x().get() * constraints.scale_x().get();
+                let sy = state.geometry().scale_y().get() * constraints.scale_y().get();
+                let metric = |v: f64| ((v * 64.0).trunc() + 4.0).div_euclid(8.0) / 8.0;
+                let da = metric(drawing.ascent.get() * sy);
+                let dd = metric(drawing.descent.get() * sy);
+                ascent = ascent.max(da - pen_y);
+                descent = descent.max(dd + pen_y);
+                let y = pen_y + drawing.ascent.get() * sy - da;
+                let ink = drawing
+                    .outline
+                    .bounds()
+                    .map(|b| {
+                        ScriptBounds::new(
+                            b.min().x().get() * sx,
+                            -b.max().y().get() * sy,
+                            b.max().x().get() * sx,
+                            -b.min().y().get() * sy,
+                        )
+                    })
+                    .transpose()?
+                    .map(|b| b.translated(pen_x, y))
+                    .transpose()?;
+                if let Some(b) = ink {
+                    check(b, limits)?;
+                }
+                drafts.push(DraftGlyph {
+                    run: r,
+                    glyph: 0,
+                    association: a,
+                    x: pen_x,
+                    y,
+                    ink,
+                });
+                pen_x += metric(drawing.width.get() * sx);
+                finite(pen_x)?;
+                min = min.min(pen_x);
+                max = max.max(pen_x);
+                continue;
+            }
             if run.glyphs().is_empty() {
                 let a = association(input, run.decoded().start())?;
                 let sy = input.evaluated().runs()[a].geometry().scale_y().get()
@@ -379,6 +508,12 @@ pub fn layout(
                 descent = descent.max(run.metrics().descent().get() * sy);
             }
             for (g, glyph) in run.glyphs().iter().enumerate() {
+                if !automatic
+                    && (glyph.cluster().end() <= visible_start
+                        || glyph.cluster().start() >= visible_end)
+                {
+                    continue;
+                }
                 let a = association(input, glyph.cluster().start())?;
                 let state = &input.evaluated().runs()[a];
                 // A cluster cannot express two different scale transforms. Report
@@ -449,6 +584,19 @@ pub fn layout(
                 max = max.max(pen_x);
             }
         }
+        // GetNextLine halves the integer eighth-pixel metrics only when
+        // the next word is itself a hard break. Compacted spaces are not an
+        // empty line. MakeLines creates no extra line after a terminal break.
+        if start == end
+            && input
+                .breaks()
+                .binary_search_by_key(&end, |b| b.start())
+                .is_ok()
+        {
+            let half = |v: f64| finite(((v * 8.0).trunc() * 0.5).floor() / 8.0);
+            ascent = half(ascent)?.get();
+            descent = half(descent)?.get();
+        }
         finite(ascent)?;
         finite(descent)?;
         total_height += ascent + descent;
@@ -507,14 +655,18 @@ pub fn layout(
                 check(b, limits)?;
                 include(&mut line_ink, b)?;
             }
-            let glyph = &input.runs()[g.run].glyphs()[g.glyph];
-            positioned.push(PositionedGlyph::new(
-                g.run,
-                g.glyph,
-                p,
-                glyph.cluster().clone(),
-                g.association,
-            ));
+            let run = &input.runs()[g.run];
+            let cluster = if run.drawing().is_some() {
+                run.decoded()
+            } else {
+                run.glyphs()[g.glyph].cluster()
+            };
+            let item = PositionedGlyph::new(g.run, g.glyph, p, cluster.clone(), g.association);
+            positioned.push(if run.drawing().is_some() {
+                item.as_drawing()
+            } else {
+                item
+            });
         }
         if let Some(b) = line_ink {
             include(&mut ink, b)?;

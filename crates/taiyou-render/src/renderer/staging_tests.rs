@@ -249,9 +249,95 @@ fn effects_track(border: f64) -> Arc<Track> {
 }
 
 #[test]
+fn positive_cell_stroke_budget_evidence() {
+    let fonts = catalog();
+    let font = fonts.faces()[0].blob().id();
+    let (upem, ascent, descent) = fonts.ass_cell_metrics(font).unwrap();
+    let mut report = format!("cell={upem},{ascent},{descent}\n");
+    for border in [0.5, 3.0] {
+        for restore_em in [false, true] {
+            let input = effects_track(border);
+            let input = if restore_em {
+                let ratio = (f64::from(ascent) + f64::from(descent)) / f64::from(upem);
+                let styles: Vec<_> = input
+                    .styles()
+                    .iter()
+                    .map(|s| {
+                        s.clone()
+                            .with_size(FiniteF64::new(s.font_size().get() * ratio).unwrap())
+                            .unwrap()
+                    })
+                    .collect();
+                TrackIngestor::new()
+                    .ingest(
+                        Arc::from(input.source()),
+                        input.script().clone(),
+                        styles.into(),
+                        input.events().to_vec().into(),
+                        &Limits::default(),
+                    )
+                    .unwrap()
+            } else {
+                input
+            };
+            PREPARATION_ATTEMPTS.with(|n| n.set(0));
+            PREPARE_CALLS.with(|n| n.set(0));
+            let error = Renderer::new(Default::default())
+                .unwrap()
+                .render(input, fonts.clone(), &request(500_000))
+                .unwrap_err();
+            eprintln!(
+                "CELL_STROKE border={border} restore_em={restore_em} prepares={} error={error:?}",
+                PREPARE_CALLS.with(Cell::get)
+            );
+            assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
+            assert_eq!(error.code(), ErrorCode::LimitExceeded);
+            assert_eq!(error.resource_failure(), ResourceFailure::Other);
+            let expected = match (border == 0.5, restore_em) {
+                (true, false) => (423, 426),
+                (true, true) => (441, 444),
+                (false, false) => (225, 228),
+                (false, true) => (235, 238),
+            };
+            assert_eq!(error.event(), Some(EventId::new(expected.0)));
+            assert_eq!(PREPARE_CALLS.with(Cell::get), expected.1);
+            if restore_em {
+                assert!(error.detail().contains("check=frame-segments"));
+            } else {
+                // Increasing only the caller's frame segment budget moves the
+                // failure forward. Coordinate/transient limits are unchanged.
+                let config = RendererConfig {
+                    limits: Limits::default()
+                        .with_path_segments_per_frame(1_010_000)
+                        .unwrap(),
+                    ..Default::default()
+                };
+                let later = Renderer::new(config)
+                    .unwrap()
+                    .render(effects_track(border), fonts.clone(), &request(500_000))
+                    .unwrap_err();
+                assert_eq!(later.code(), ErrorCode::LimitExceeded);
+                assert_eq!(later.resource_failure(), ResourceFailure::Other);
+                assert!(later.event().unwrap() > EventId::new(expected.0));
+                eprintln!("CELL_STROKE larger_segment_budget={later:?}");
+            }
+
+            report.push_str(&format!(
+                "border={border} restore_em={restore_em} prepares={} error={error:?}\n",
+                expected.1
+            ));
+        }
+    }
+    eprintln!("CELL_STROKE_BUDGET\n{report}");
+    report_p0("cell-stroke", &report);
+}
+
+#[test]
 fn fixed_segment_exhaustion_never_repeats_preparation() {
     let fonts = catalog();
-    for (border, event, prepares) in [(0.5, 441, 444), (3.0, 235, 238)] {
+    // Pre-cell-height geometry exhausted at 441/444 and 235/238. Those
+    // counts were not an ASS contract; the fixed-budget/no-retry invariant is.
+    for (border, event, prepares) in [(0.5, 423, 426), (3.0, 225, 228)] {
         let input = effects_track(border);
         let minimal = Renderer::new(Default::default())
             .unwrap()
@@ -293,7 +379,12 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 error, original,
                 "return the first attempt's complete original error"
             );
-            assert!(error.detail().contains("check=frame-segments"));
+            // With current geometry, the remaining segment allowance is too
+            // small for the next input outline, before FT stroker output.
+            assert_eq!(
+                error.detail(),
+                "geometry coordinate/count/reservation limit"
+            );
         }
         let config = RendererConfig {
             limits: Limits::default()
@@ -481,4 +572,30 @@ fn allocation_and_transient_classification_preserve_c7_identity() {
         RenderError::transient_limit("same text").resource_failure(),
         ResourceFailure::TransientMemory
     );
+}
+
+#[test]
+fn consumed_retention_slots_do_not_provoke_a_full_frame_retry() {
+    let fonts = catalog();
+    let input = track(256, 4);
+    let config = RendererConfig {
+        limits: Limits::default()
+            .with_transient_bytes(32 * 1024 * 1024)
+            .unwrap(),
+        ..Default::default()
+    };
+    PREPARATION_ATTEMPTS.with(|n| n.set(0));
+    PREPARE_CALLS.with(|n| n.set(0));
+    let adaptive = Renderer::new(config.clone())
+        .unwrap()
+        .render(input.clone(), fonts.clone(), &request(750_000))
+        .unwrap();
+    assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
+    assert!(PREPARE_CALLS.with(Cell::get) < 2 * 256 + 4);
+    let minimal = Renderer::new(config)
+        .unwrap()
+        .render_staged(input, fonts, &request(750_000), false, &mut false)
+        .unwrap();
+    assert_eq!(adaptive.pixels(), minimal.pixels());
+    assert_eq!(adaptive.diagnostics(), minimal.diagnostics());
 }

@@ -109,6 +109,6 @@ for actual_path in sorted(folder.glob("align*.actual.rgba")):
     (folder/(stem+".actual-alpha.pgm")).write_bytes(header+actual[3::4])
     (folder/(stem+".expected-alpha.pgm")).write_bytes(header+expected[3::4])
     (folder/(stem+".difference.pgm")).write_bytes(header+bytes(max(diff[i:i+4]) for i in range(0,len(diff),4)))
-(folder/"alignment-comparison.json").write_text(json.dumps({"candidate":candidate,"reference":"independent C FreeType metrics/outline/bitmap; C6 integer paint expectations", "reference_source_sha256":digest((root/"build-support/renderer-reference.c").read_bytes()),"cases":comparisons,"status":"not run on this platform" if not comparisons else "exact candidate-side checks, pending numeric review"},indent=2)+"\n",encoding="utf-8")
+(folder/"alignment-comparison.json").write_text(json.dumps({"candidate":candidate,"reference":"independent C FreeType metrics/outline; xy eighth-grid coverage; C6 integer paint expectations", "reference_source_sha256":digest((root/"build-support/renderer-reference.c").read_bytes()),"cases":comparisons,"status":"not run on this platform" if not comparisons else "exact candidate-side checks, pending numeric review"},indent=2)+"\n",encoding="utf-8")
 if any(item["mismatch_count"] for item in comparisons): raise RuntimeError("fixed-font reference pixels differ: zero tolerance")
 print("T014_ALIGNMENT_COMPARISONS="+json.dumps(comparisons),flush=True)

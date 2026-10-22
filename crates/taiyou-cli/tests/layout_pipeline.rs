@@ -37,7 +37,7 @@ fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coales
         let l = layout(&s, &LayoutConstraints::new(s.placement().alignment())).unwrap();
         assert_eq!(l.glyphs().len(), glyph_count);
         if glyph_count == 2 {
-            let advance = 292.0 * (20.0 / 1000.0);
+            let advance = 292.0 * (965.0 / 64000.0);
             assert_eq!(l.glyphs()[1].position().x().get(), advance);
             assert_eq!(l.lines()[0].advance().get(), advance + advance * 2.0);
         }
@@ -83,11 +83,21 @@ fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
             )
             .unwrap()
         };
-        assert_eq!(output.lines().len(), 5);
+        assert_eq!(output.lines().len(), 4);
         assert!(output.lines()[0].glyph_range().is_empty());
         assert!(output.lines()[2].glyph_range().is_empty());
-        assert!(output.lines()[4].glyph_range().is_empty());
-        assert_eq!(output.lines()[4].ascent().get(), 40.0);
+        assert!(!output.lines()[3].glyph_range().is_empty());
+        assert_eq!(
+            output
+                .shaped()
+                .empty_lines()
+                .last()
+                .unwrap()
+                .metrics
+                .ascent()
+                .get(),
+            30.125
+        );
         let ligature = output
             .glyphs()
             .iter()
@@ -156,7 +166,13 @@ fn layout_pipeline_empty_and_break_only_events_have_real_metrics() {
         assert!(l.logical_bounds().height() > 0.0);
         assert_eq!(
             l.lines()[0].ascent().get(),
-            if text.contains("40") { 40.0 } else { 20.0 }
+            if text.contains("40") {
+                30.125
+            } else if text.contains("\\N") {
+                7.5
+            } else {
+                15.125
+            }
         );
     }
 }
