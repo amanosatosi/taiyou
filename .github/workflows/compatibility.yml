@@ -66,6 +66,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - run: python validation/test_compare.py
+      - run: python validation/test_visual_review.py
       - run: python validation/policy.py self-test
       - run: python scripts/check-unsafe.py
   compare:
@@ -135,7 +136,7 @@ jobs:
         # A smoke failure cannot suppress the full run. Build failure/cancellation
         # remains a real failure; neither permits a false comparison pass.
         if: ${{ !cancelled() && steps.comparison_build.outcome == 'success' }}
-        run: cargo run --locked -p xtask -- compare --suite full --profile core-v1
+        run: cargo run --locked -p xtask -- compare --suite full --profile core-v1 --visual-review "$RUNNER_TEMP/visual-review"
       - name: Verify full-corpus accounting and evidence invariants
         if: always()
         run: python validation/test_compare.py --report "$RUNNER_TEMP/taiyou-comparison/report.json"
@@ -144,6 +145,19 @@ jobs:
         run: |
           python "$TAIYOU_ACCEPTED/validation/inventory.py" verify --corpus "$TAIYOU_CORPUS" --manifest "$TAIYOU_ACCEPTED/validation/inventory.json"
           git diff --exit-code -- validation/inventory.json validation/policy.json docs/references.lock.json Cargo.lock
+      - name: Verify shallow visual review and render Taiyou-owned reduced witnesses
+        if: ${{ !cancelled() && steps.full_comparison.outcome != 'skipped' }}
+        run: |
+          python validation/visual_review.py --verify "$RUNNER_TEMP/visual-review"
+          python scripts/render-review-witnesses.py --review "$RUNNER_TEMP/visual-review" --corpus "$TAIYOU_CORPUS"
+      - name: Archive one complete visual review download, including exact matches
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: visual-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/visual-review/
+          if-no-files-found: error
+          retention-days: 7
       - name: Archive actual candidate comparison and bounded difference images
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
