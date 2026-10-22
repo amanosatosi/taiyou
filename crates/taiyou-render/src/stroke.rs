@@ -75,12 +75,29 @@ pub fn rasterize_translated(
     context.rasterize_path(&ops, bounds, stride)
 }
 #[cfg(feature = "native")]
-pub fn rasterize_translated_xy(context:&mut RasterContext,group:&CoverageGroup,dx:Q6,dy:Q6)->Result<Arc<Mask>,RenderError>{
+pub fn rasterize_translated_xy(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    dx: Q6,
+    dy: Q6,
+) -> Result<Arc<Mask>, RenderError> {
     check_group(group)?;
-    let ops=coverage_path(group,dx,dy,context.limits())?;
-    let charge=(ops.len() as u64)*3*std::mem::size_of::<PathOp<DevicePoint>>() as u64;
-    let available=context.limits().transient_bytes().checked_sub(charge).filter(|&n|n>0).ok_or_else(||limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-    crate::axis_widen::rasterize_body(&ops,&context.limits().clone().with_transient_bytes(available).map_err(|_|limited())?)
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+    let available = context
+        .limits()
+        .transient_bytes()
+        .checked_sub(charge)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    crate::axis_widen::rasterize_body(
+        &ops,
+        &context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?,
+    )
 }
 
 /// Expand the combined group's transformed contours with the worker-local
@@ -145,15 +162,44 @@ pub fn rasterize_expanded_axes(
 /// of analytically rasterizing them into A8 before integer filtering.
 #[cfg(feature = "native")]
 #[allow(clippy::too_many_arguments)]
-pub fn rasterize_expanded_axes_xy(context:&mut RasterContext,group:&CoverageGroup,rx:Q6,ry:Q6,dx:Q6,dy:Q6,remaining:u64)->Result<(Arc<Mask>,u64),RenderError>{
+pub fn rasterize_expanded_axes_xy(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    rx: Q6,
+    ry: Q6,
+    dx: Q6,
+    dy: Q6,
+    remaining: u64,
+) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
-    let ops=coverage_path(group,dx,dy,context.limits())?;
-    if rx!=ry && (rx.ticks()==0 || ry.ticks()==0) {
-        let charge=(ops.len() as u64)*3*std::mem::size_of::<PathOp<DevicePoint>>() as u64;
-        let available=context.limits().transient_bytes().checked_sub(charge).filter(|&n|n>0).ok_or_else(||limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-        return crate::axis_widen::rasterize_axis_xy(&ops,rx,ry,remaining,&context.limits().clone().with_transient_bytes(available).map_err(|_|limited())?);
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
+        let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+        let available = context
+            .limits()
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|&n| n > 0)
+            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+        return crate::axis_widen::rasterize_axis_xy(
+            &ops,
+            rx,
+            ry,
+            remaining,
+            &context
+                .limits()
+                .clone()
+                .with_transient_bytes(available)
+                .map_err(|_| limited())?,
+        );
     }
-    context.stroke_rasterize_path_axes_with_coverage(&ops,rx,ry,remaining,crate::axis_widen::rasterize_body)
+    context.stroke_rasterize_path_axes_with_coverage(
+        &ops,
+        rx,
+        ry,
+        remaining,
+        crate::axis_widen::rasterize_body,
+    )
 }
 
 /// Core outline coverage B=max(E-F,0), using saturating A8 subtraction.
@@ -163,7 +209,7 @@ pub fn subtract_coverage(
     fill: &Mask,
     limits: &Limits,
 ) -> Result<Arc<Mask>, RenderError> {
-    let same_units=expanded.is_xy_coverage()==fill.is_xy_coverage();
+    let same_units = expanded.is_xy_coverage() == fill.is_xy_coverage();
     let bounds = expanded.bounds();
     if bounds.is_empty() {
         return Ok(Arc::new(Mask::new(bounds, 0, Arc::from([]))?));
@@ -197,7 +243,11 @@ pub fn subtract_coverage(
                 expanded
                     .coverage_at(x, y, PixelOffset::default())
                     .saturating_sub(fill.coverage_at(x, y, PixelOffset::default()))
-            } else { expanded.coverage_a8_at(x,y,PixelOffset::default()).saturating_sub(fill.coverage_a8_at(x,y,PixelOffset::default())) });
+            } else {
+                expanded
+                    .coverage_a8_at(x, y, PixelOffset::default())
+                    .saturating_sub(fill.coverage_a8_at(x, y, PixelOffset::default()))
+            });
         }
     }
     if data.iter().all(|&coverage| coverage == 0) {
@@ -207,5 +257,9 @@ pub fn subtract_coverage(
             Arc::from([]),
         )?));
     }
-    Ok(Arc::new(if same_units {expanded.with_data(bounds,width,data.into())}else{Mask::new(bounds, width, data.into())}?))
+    Ok(Arc::new(if same_units {
+        expanded.with_data(bounds, width, data.into())
+    } else {
+        Mask::new(bounds, width, data.into())
+    }?))
 }

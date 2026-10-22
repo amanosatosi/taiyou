@@ -34,7 +34,7 @@ static void eighth_grid(const FT_Outline *outline,unsigned char *data) {
     Crossing *edges=malloc((size_t)outline->n_points*sizeof(*edges));require(edges!=NULL);
     memset(data,0,160*100);
     for(int row=0;row<100*8;row++) {
-        int used=0,first=0;int64_t sample=(int64_t)row*8+4;
+        int used=0,first=0;
         for(int contour=0;contour<outline->n_contours;contour++) {
             int last=outline->contours[contour];require(last>=first && last<outline->n_points);
             for(int i=first;i<=last;i++) {
@@ -71,7 +71,7 @@ static void eighth_grid(const FT_Outline *outline,unsigned char *data) {
 }
 static void identical_path_control(void) {
     FT_Vector points[4]={{4,6400},{68,6400},{68,6336},{4,6336}};
-    char tags[4]={1,1,1,1};short contours[1]={3};
+    FT_Byte tags[4]={1,1,1,1};FT_UShort contours[1]={3};
     FT_Outline outline={1,4,points,tags,contours,0};
     unsigned char bytes[160*100];eighth_grid(&outline,bytes);
     require(bytes[0]==223 && bytes[1]==32);

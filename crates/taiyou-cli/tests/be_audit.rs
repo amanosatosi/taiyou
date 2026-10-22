@@ -215,7 +215,7 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
         );
         let groups = coverage_groups(geometry.clone(), &limits).unwrap();
         let mut fills = Vec::new();
-        let mut xy_fills=Vec::new();
+        let mut xy_fills = Vec::new();
         let mut unit_control = Vec::new();
         let mut doubles = Vec::new();
         for (i, group) in groups.iter().enumerate() {
@@ -279,14 +279,47 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
                 group,
             )
             .unwrap();
-            let xy=taiyou_render::raster::rasterize_xy(&mut taiyou_render::raster::RasterContext::with_limits(limits.clone()).unwrap(),group).unwrap();
-            save(&root,&format!("{ms}-g{i}-xy-before"),&xy,&mut metadata);
-            for pass in [1,2,4,8,16] {
-                let filtered=apply_effects(&xy,&BlurSpec::new(FiniteF64::ZERO,FiniteF64::new(f64::from(pass)).unwrap(),[1.0,1.0],&limits).unwrap(),&limits).unwrap();
-                if !xy.bounds().is_empty(){assert_eq!(filtered.data(),integer_oracle(&xy,pass));}
-                save(&root,&format!("{ms}-g{i}-xy-be{pass}"),&filtered,&mut metadata);
+            let xy = taiyou_render::raster::rasterize_xy(
+                &mut taiyou_render::raster::RasterContext::with_limits(limits.clone()).unwrap(),
+                group,
+            )
+            .unwrap();
+            save(&root, &format!("{ms}-g{i}-xy-before"), &xy, &mut metadata);
+            for pass in [1, 2, 4, 8, 16] {
+                let filtered = apply_effects(
+                    &xy,
+                    &BlurSpec::new(
+                        FiniteF64::ZERO,
+                        FiniteF64::new(f64::from(pass)).unwrap(),
+                        [1.0, 1.0],
+                        &limits,
+                    )
+                    .unwrap(),
+                    &limits,
+                )
+                .unwrap();
+                if !xy.bounds().is_empty() {
+                    assert_eq!(filtered.data(), integer_oracle(&xy, pass));
+                }
+                save(
+                    &root,
+                    &format!("{ms}-g{i}-xy-be{pass}"),
+                    &filtered,
+                    &mut metadata,
+                );
             }
-            xy_fills.push(draw(event.id(),i,2,apply_effects(&xy,&BlurSpec::new(FiniteF64::ZERO,state.effects().be(),[1.0,1.0],&limits).unwrap(),&limits).unwrap()));
+            xy_fills.push(draw(
+                event.id(),
+                i,
+                2,
+                apply_effects(
+                    &xy,
+                    &BlurSpec::new(FiniteF64::ZERO, state.effects().be(), [1.0, 1.0], &limits)
+                        .unwrap(),
+                    &limits,
+                )
+                .unwrap(),
+            ));
             // Counterfactual only: demonstrate whether unit conversion ALONE
             // can explain the residual. It does not reconstruct xy geometry,
             // sampling, bounds or phase and must never become a renderer shim.
@@ -373,7 +406,13 @@ fn frozen_be_ass_stages_and_independent_integer_equation() {
             .unwrap();
         // The production scanner now retains native 0..64 coverage. Keep the
         // FreeType A8 controls and their independent filter assertions above.
-        let xy_frame=compose(Size::new(800,600),&xy_fills,&limits,&mut OutputBudget::new(&limits)).unwrap();
+        let xy_frame = compose(
+            Size::new(800, 600),
+            &xy_fills,
+            &limits,
+            &mut OutputBudget::new(&limits),
+        )
+        .unwrap();
         assert_eq!(
             xy_frame.pixels(),
             actual.pixels(),

@@ -800,6 +800,7 @@ std::thread_local! {
     static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 struct Library(ft::FT_Library);
+type CoverageRasterizer = fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>;
 /// Per-call-worker raster owner, neither Send nor Sync. No native handle escapes.
 /// ```compile_fail
 /// fn require_send<T: Send>() {}
@@ -1096,21 +1097,34 @@ impl RasterContext {
         radius_y: Q6,
         remaining_segments: u64,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
-        self.stroke_rasterize_path_axes_impl(ops,radius_x,radius_y,remaining_segments,None)
+        self.stroke_rasterize_path_axes_impl(ops, radius_x, radius_y, remaining_segments, None)
     }
     /// Keep the validated round-stroker geometry while supplying a separate
     /// coverage rasterizer. Only owned path values cross the native boundary.
     pub fn stroke_rasterize_path_axes_with_coverage(
-        &mut self,ops:&[PathOp<DevicePoint>],radius_x:Q6,radius_y:Q6,remaining_segments:u64,
-        coverage:fn(&[PathOp<DevicePoint>],&Limits)->Result<Arc<Mask>,RenderError>,
-    )->Result<(Arc<Mask>,u64),RenderError>{
-        self.stroke_rasterize_path_axes_impl(ops,radius_x,radius_y,remaining_segments,Some(coverage))
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+        coverage: CoverageRasterizer,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
+        self.stroke_rasterize_path_axes_impl(
+            ops,
+            radius_x,
+            radius_y,
+            remaining_segments,
+            Some(coverage),
+        )
     }
-    #[allow(clippy::type_complexity)]
     fn stroke_rasterize_path_axes_impl(
-        &mut self,ops:&[PathOp<DevicePoint>],radius_x:Q6,radius_y:Q6,remaining_segments:u64,
-        coverage:Option<fn(&[PathOp<DevicePoint>],&Limits)->Result<Arc<Mask>,RenderError>>,
-    )->Result<(Arc<Mask>,u64),RenderError>{
+        &mut self,
+        ops: &[PathOp<DevicePoint>],
+        radius_x: Q6,
+        radius_y: Q6,
+        remaining_segments: u64,
+        coverage: Option<CoverageRasterizer>,
+    ) -> Result<(Arc<Mask>, u64), RenderError> {
         let radius = radius_x.max(radius_y);
         let invalid =
             || RenderError::new(ErrorCode::InvalidArgument, "invalid stroke path or radius");
@@ -1220,7 +1234,9 @@ impl RasterContext {
         let input_bounds =
             PixelRect::new(input_x0, input_y0, input_x1, input_y1).map_err(|_| invalid())?;
         if radius == 0 {
-            if let Some(coverage)=coverage {return coverage(ops,limits).map(|mask|(mask,0));}
+            if let Some(coverage) = coverage {
+                return coverage(ops, limits).map(|mask| (mask, 0));
+            }
             let stride = usize::try_from(input_bounds.width()).map_err(|_| limit())?;
             return self
                 .rasterize_path(ops, input_bounds, stride)
@@ -1618,30 +1634,72 @@ impl RasterContext {
             )
             .with_native_code(i64::from(code)));
         }
-        if let Some(coverage)=coverage {
-            let capacity=output_point_count.checked_mul(2).and_then(|n|n.checked_add(output_contour_count*2+1)).ok_or_else(limit)?;
-            let copy_charge=(capacity as u64).checked_mul(3*(std::mem::size_of::<PathOp<FontPoint>>()+std::mem::size_of::<PathOp<DevicePoint>>()) as u64).ok_or_else(limit)?;
-            let live=evidence.get().export_reservation.checked_sub((length as u64)*3).and_then(|n|n.checked_add(copy_charge)).ok_or_else(limit)?;
-            let available=limits.transient_bytes().checked_sub(live).filter(|&n|n>0).ok_or_else(||limit().with_resource_failure(ResourceFailure::TransientMemory))?;
-            let mut state=OutlineCopy {ops:Vec::new(),failed:false,open:false};
-            state.ops.try_reserve_exact(capacity).map_err(|_|alloc())?;
-            let funcs=outline_funcs();
+        if let Some(coverage) = coverage {
+            let capacity = output_point_count
+                .checked_mul(2)
+                .and_then(|n| n.checked_add(output_contour_count * 2 + 1))
+                .ok_or_else(limit)?;
+            let copy_charge = (capacity as u64)
+                .checked_mul(
+                    3 * (std::mem::size_of::<PathOp<FontPoint>>()
+                        + std::mem::size_of::<PathOp<DevicePoint>>())
+                        as u64,
+                )
+                .ok_or_else(limit)?;
+            let live = evidence
+                .get()
+                .export_reservation
+                .checked_sub((length as u64) * 3)
+                .and_then(|n| n.checked_add(copy_charge))
+                .ok_or_else(limit)?;
+            let available = limits
+                .transient_bytes()
+                .checked_sub(live)
+                .filter(|&n| n > 0)
+                .ok_or_else(|| limit().with_resource_failure(ResourceFailure::TransientMemory))?;
+            let mut state = OutlineCopy {
+                ops: Vec::new(),
+                failed: false,
+                open: false,
+            };
+            state.ops.try_reserve_exact(capacity).map_err(|_| alloc())?;
+            let funcs = outline_funcs();
             // SAFETY: checked exported arrays and initialized callback storage
             // remain exclusively owned throughout synchronous decomposition.
-            let code=unsafe {FT_Outline_Decompose(&expanded,&funcs,(&mut state as *mut OutlineCopy).cast())};
+            let code = unsafe {
+                FT_Outline_Decompose(&expanded, &funcs, (&mut state as *mut OutlineCopy).cast())
+            };
             state.close();
-            if code!=0 || state.failed {return Err(RenderError::new(ErrorCode::NativeFailure,"stroked outline copy failed").with_native_code(i64::from(code)));}
-            let mut path=Vec::new();path.try_reserve_exact(state.ops.len()).map_err(|_|alloc())?;
+            if code != 0 || state.failed {
+                return Err(RenderError::new(
+                    ErrorCode::NativeFailure,
+                    "stroked outline copy failed",
+                )
+                .with_native_code(i64::from(code)));
+            }
+            let mut path = Vec::new();
+            path.try_reserve_exact(state.ops.len())
+                .map_err(|_| alloc())?;
             for op in state.ops {
-                path.push(op.try_map(|p|{
-                    let x=f64::from(bounds.x0())+p.x().get()/64.0;
-                    let y=f64::from(bounds.y1())-p.y().get()/64.0;
-                    let q=|v|FiniteF64::new(v).and_then(Q6::from_pixels).map_err(|_|limit());
-                    Ok(DevicePoint::new(q(x)?,q(y)?))
+                path.push(op.try_map(|p| {
+                    let x = f64::from(bounds.x0()) + p.x().get() / 64.0;
+                    let y = f64::from(bounds.y1()) - p.y().get() / 64.0;
+                    let q = |v| {
+                        FiniteF64::new(v)
+                            .and_then(Q6::from_pixels)
+                            .map_err(|_| limit())
+                    };
+                    Ok(DevicePoint::new(q(x)?, q(y)?))
                 })?);
             }
-            let mask=coverage(&path,&limits.clone().with_transient_bytes(available).map_err(|_|limit())?)?;
-            return Ok((mask,output_point_count as u64));
+            let mask = coverage(
+                &path,
+                &limits
+                    .clone()
+                    .with_transient_bytes(available)
+                    .map_err(|_| limit())?,
+            )?;
+            return Ok((mask, output_point_count as u64));
         }
         let mut state = SpanCopy {
             data: Vec::new(),
