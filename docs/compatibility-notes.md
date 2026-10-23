@@ -104,12 +104,18 @@ independent coverage even when their styles match. Pinterf
 `RTS.cpp:CPolygon::Append` always returns false; libass
 `ass_render.c:split_style_runs` breaks on either side of a drawing. Taiyou's
 former contour union erased fractional-position seams and changed translucent
-overlaps in `draw-images/drawImg`. Coverage grouping now preserves these
+overlaps in reduced polygon fixtures. Coverage grouping now preserves these
 boundaries, including drawing/text boundaries. Multiple contours within one
 drawing still use nonzero winding. The reduced native regression compares the
 complete buffer with separately positioned polygons at eighth/half-pixel
-phases and opaque/translucent paint. External pixel equality remains subject
-to the focused comparison; no rasterizer substitution is involved.
+phases and opaque/translucent paint. These native tests pass in
+[focused CI at 84c5d1e](https://github.com/amanosatosi/taiyou/actions/runs/40004530517/job/120589048112).
+The frozen `drawImg` raw output remains unchanged, with 1,048 differing pixels.
+Its move samples x=953.1 before quantization: pinterf's EF_MOVE truncates to
+953.0 in eighth-pixel coordinates, while libass's `quantize_transform` rounds
+the raster phase to 953.125. The resulting fractional rectangle seams explain
+the regular bands; copying that libass phase would violate the xy motion rule.
+This external frame remains a mismatch, not a completed pixel-compatibility fix.
 
 Pinterf CPolygon::ParseStr derives polygon advance from bounds; CText's
 `fontSpacing` is absent from that path. The existing four-square reduced native
