@@ -213,6 +213,14 @@ fn collision_border_reservation_uses_first_and_last_line_and_keeps_empty_lines()
     let (base, support) = footprint(&spaces, &fonts, size).unwrap();
     assert_eq!(support.y0().get(), base.y0().get() - 12.0);
     assert_eq!(support.y1().get(), base.y1().get() + 12.0);
+    let reference = source(&row(r"{\bord3\3a&HFF&}H"));
+    let edge_spaces = source(&row(r"{\bord80\3a&HFF&}   {\bord3}H{\bord80}   "));
+    assert_eq!(footprint(&reference, &fonts, size).unwrap(),
+        footprint(&edge_spaces, &fonts, size).unwrap());
+    let two_lines = source(&row(r"{\bord3\3a&HFF&}H\NH"));
+    let break_style = source(&row(r"{\bord3\3a&HFF&}H{\bord80}\N{\bord3}H"));
+    assert_eq!(footprint(&two_lines, &fonts, size).unwrap(),
+        footprint(&break_style, &fonts, size).unwrap());
 }
 
 #[test]

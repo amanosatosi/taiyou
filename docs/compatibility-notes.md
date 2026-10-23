@@ -80,7 +80,9 @@ Inspected RTS.cpp SHA-256:
 `dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`.
 Taiyou now supplements its geometric footprint with that logical vertical border
 reservation, using nearest eighth-pixel border widths and existing SBAS mapping.
-Compacted whitespace retains borders; genuinely empty hard lines reset them.
+Whitespace-only lines retain borders; genuinely empty hard lines reset them.
+On nonempty lines, Compact recomputes borders from retained words, excluding
+trimmed edge spaces and the terminating break's style (RTS.cpp1171–1220).
 Mixed-line/hidden-border regressions and the independent geometric oracle cover
 this change. The old invisible-border exclusion in ADR-012 is retired. Existing
 horizontal support, ordering, explicit-position/origin exclusions and stateless

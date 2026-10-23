@@ -25,18 +25,26 @@ fn include(result: &mut Option<ScriptBounds>, value: ScriptBounds) -> Result<(),
 fn line_border_y(local: &LocalLayout, line: &Line) -> Result<f64, RenderError> {
     let span = line.decoded();
     // GetNextLine resets border reservation for a genuinely empty hard line,
-    // but not for a whitespace word removed by Compact.
+    // but not for a whitespace-only line removed by Compact.
     if span.start() == span.end() {
         return Ok(0.0);
     }
-    let end = local
-        .shaped()
-        .breaks()
-        .iter()
-        .find(|b| b.start() == span.end())
-        .map_or(span.end(), |b| b.end());
+    // Compact recomputes borders from retained words on a nonempty line.
+    // Removed edge spaces and the terminating break must not enlarge it.
+    // An all-space line returns before that recomputation, retaining its
+    // original border, including the break word encountered by GetNextLine.
+    let retained = local.glyphs().get(line.glyph_range()).ok_or_else(|| {
+        RenderError::new(ErrorCode::InvalidArgument, "invalid collision line glyph range")
+    })?;
+    let (begin, end) = if retained.is_empty() {
+        (span.start(), local.shaped().breaks().iter()
+            .find(|b| b.start() == span.end()).map_or(span.end(), |b| b.end()))
+    } else {
+        retained.iter().fold((u32::MAX, 0), |(a,b), glyph|
+            (a.min(glyph.cluster().start()), b.max(glyph.cluster().end())))
+    };
     let runs = local.shaped().evaluated().runs();
-    let start = runs.partition_point(|run| run.decoded().is_some_and(|s| s.end() <= span.start()));
+    let start = runs.partition_point(|run| run.decoded().is_some_and(|s| s.end() <= begin));
     let mut border: f64 = 0.0;
     for run in &runs[start..] {
         let decoded = run.decoded().ok_or_else(|| {
