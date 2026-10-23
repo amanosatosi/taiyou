@@ -8,10 +8,14 @@ PNGs are **libass references**, not authenticated xy captures; no authenticated
 xy output is available for the findings below. Internal passing tests alone do
 not establish historical compatibility.
 
-Measurements: [font/contour/italic run](https://github.com/amanosatosi/taiyou/actions/runs/39946036720)
-and [production collision run](https://github.com/amanosatosi/taiyou/actions/runs/39948311194).
+Measurements: [full 101-frame run at 6f667c6](https://github.com/amanosatosi/taiyou/actions/runs/39949464745)
+and [focused collision run](https://github.com/amanosatosi/taiyou/actions/runs/39948311194).
 Strict mismatches remain failures; the Windows GDI observation step succeeded
 but its separate whole-corpus symlink verifier failed on Windows path encoding.
+Full results are 1 exact, 83 mismatches, 17 unsupported, 0 crashes/infrastructure
+errors. Compared with exporter candidate 7a40a72, 48 frames have fewer differing
+pixels and none have more. Arabic simplified's alpha MAE rises slightly from
+27.46738 to 27.46988 despite unchanged 448 differing pixels.
 
 ## Font selection, legacy cmaps, metrics and shaping
 
@@ -27,7 +31,7 @@ identity, advances, outlines, unmappable input and budget failure; no per-glyph
 Chinese mapping is built into production. This does not implement ASS input
 decoding or `\fe` semantics.
 
-Strict libass differing pixels measured at development commit `2165d91`:
+Strict libass differing pixels at production commit `6f667c6`:
 
 | Frozen fixture | Before | After |
 |---|---:|---:|
@@ -38,12 +42,13 @@ Strict libass differing pixels measured at development commit `2165d91`:
 
 Big5 changed from zero visible pixels to 87,815 (reference 99,146), with missing
 glyph diagnostics removed. Arabic/symbol output was unchanged by the cmap bridge;
-some later contour corrections change those masks. These remain mismatches.
+contour/collision corrections subsequently improve symbol cases 1,668→829 and
+1,012→714. These remain mismatches.
 
 **Partial — synthetic italics.** Pinterf's LOGFONT italic request reaches GDI
 TextOut/GetPath. The focused Windows GDI probe authenticates the two frozen font
-bytes and verifies actual selected family. At positive cell height6400, CFF slant
-is approximately0.1763 and TrueType approximately0.33984, with unchanged advance.
+bytes and verifies actual selected family. At positive cell height 6400, CFF slant
+is approximately 0.1763 and TrueType approximately 0.33984, with unchanged advance.
 Taiyou applies format-specific shear before vertical orientation/ASS transforms,
 updates ink support and avoids double-slanting actual italic faces. Catalog,
 shaping and rendered/seek regressions pass. Remaining edge coverage differs from
@@ -66,64 +71,66 @@ uses the existing xy span rasterizer, without an A8 compensation factor.
 **Partial / libass mismatch.** Pinterf CPolygon::ParseStr derives polygon advance
 from bounds; CText's `fontSpacing` is absent from that path. Taiyou preserves this
 distinction. A four-square reduced native test at integer/fractional positions
-produces identical output for spacing0, -0.6 and1.25. The original784-square
-`draw-images/drawImg-104396` remains1,048 differing pixels (1,044 alpha), unchanged
+produces identical output for spacing 0, -0.6 and 1.25. The original 784-square
+`draw-images/drawImg-104396` remains 1,048 differing pixels (1,044 alpha), unchanged
 by the contour fix. Fractional edge coverage/compositing equivalence remains
 unresolved; no alternating-column artifact was deliberately introduced.
 
 ## Layout, positioning and collision
 
-**Partial — transparent borders.** Pinterf RTS.cpp GetNextLine1453–1502 collects
-line borders without checking alpha; MakeLines1536–1565 retains first/top and
-last/bottom borders; AllocRect1606–1651 inflates reservation before allocation.
+**Partial — transparent borders.** Pinterf RTS.cpp GetNextLine (1453–1502) collects
+line borders without checking alpha; MakeLines (1536–1565) retains first/top and
+last/bottom borders; AllocRect (1606–1651) inflates reservation before allocation.
 Inspected RTS.cpp SHA-256:
 `dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`.
 Taiyou now supplements its geometric footprint with that logical vertical border
 reservation, using nearest eighth-pixel border widths and existing SBAS mapping.
 Whitespace-only lines retain borders; genuinely empty hard lines reset them.
 On nonempty lines, Compact recomputes borders from retained words, excluding
-trimmed edge spaces and the terminating break's style (RTS.cpp1171–1220).
+trimmed edge spaces and the terminating break's style (RTS.cpp:1171–1220).
 Mixed-line/hidden-border regressions and the independent geometric oracle cover
 this change. The old invisible-border exclusion in ADR-012 is retired. Existing
 horizontal support, ordering, explicit-position/origin exclusions and stateless
 solver remain; complete pinterf allocator parity is not claimed. Strict
-`implicit-pos/bordercollision-2000` differs in500 pixels instead of950; channel
-MAE drops326.96→78.73 at `228f759`. It remains a mismatch. The sampled `shift-dir`
+`implicit-pos/bordercollision-2000` differs in 500 pixels instead of 950; channel
+MAE drops 326.96→78.73 at `228f759`. It remains a mismatch. The sampled `shift-dir`
 frame is unchanged.
 
 ## Scaling, borders and shadows
 
 **Partial.** Existing implementation separates PlayRes/layout geometry mapping
 from layout-to-target effects scaling and scales border axes under SBAS. Local
-pinterf RTS.cpp2956–2961 separates font/spacing and outline/shadow scaling. The
+pinterf RTS.cpp:2956–2961 separates font/spacing and outline/shadow scaling. The
 focused `scaling_playres/playresx_sbas-yes-0000` and
 `scaled-border-default/ffmpeg-8000` remain mismatches. This session changes
 collision reservation, not device mapping or border kernels. The broader scaling
-differences are unresolved.
+differences are unresolved; the shared contour correction improves the latter
+fixture 15,839→13,980 differing pixels without a scaling-specific patch.
 
 ## Alpha and compositing
 
-**Source-verified semantics; pixel mismatch.** Pinterf RTS.cpp2260–2274 animates
+**Source-verified semantics; pixel mismatch.** Pinterf RTS.cpp:2260–2274 animates
 the raw hexadecimal alpha target and narrows to BYTE afterward. Taiyou retains
 511 from `\1a1FF`, interpolates, then narrows. Existing native tests verify
-opacities47,250,5 at2040,2560,4960ms. The three frozen `vsf-quirks-var/alpha-clipping`
-frames remain691,673,572 differing pixels. Their raw output is unchanged by this
+opacities 47, 250, 5 at 2040, 2560, 4960 ms. The three frozen `vsf-quirks-var/alpha-clipping`
+frames remain 691, 673, 572 differing pixels. Their raw output is unchanged by this
 session's contour fix; no parser or opacity compensation was introduced.
 
 ## Blur and effects
 
 **Partial / mismatch.** Prior source-backed Gaussian/BE behavior is described in
 [the T018 evidence](T018-CANDIDATE.md). This session preserves those kernels and
-native0..64 coverage units. Focused BE, Gaussian-transform and anamorphic frames
+native 0..64 coverage units. Focused BE, Gaussian-transform and anamorphic frames
 still differ in alpha. Source geometry/coverage remains separate from filtering;
 the current evidence does not justify tuning blur constants to libass PNGs.
 
 ## Karaoke
 
-**Partial / mismatch.** Pinterf RTS.cpp2512 onward resets both clocks for `\kt`
+**Partial / mismatch.** Pinterf RTS.cpp:2512 onward resets both clocks for `\kt`
 without changing the effect kind; `\kf` advances from the current end. Existing
-clock/run-boundary/seek tests exercise that behavior. Focused `v4++/kt-01500` and
-`karaoke/karaoke-and-runsplits-2040` remain mismatches. Timing, segmentation and
+clock/run-boundary/seek tests exercise that behavior. `v4++/kt-01500` improves
+1,734→1,728; each of the five run-split frames improves 11,477→10,900. These remain
+mismatches after shared font/contour repairs. Timing, segmentation and
 shared font/raster differences are not yet independently isolated for the full
 series; timestamps are not treated as separate bugs.
 
@@ -131,7 +138,7 @@ series; timestamps are not treated as separate bugs.
 
 **Mismatch with correct style selection.** `token-parsing/trimming-0000` selects
 the normal Example style and renders Green; the unusual `***Example` style is
-irrelevant to this event. The contour fix reduces differing pixels1,225→1,163;
+irrelevant to this event. The contour fix reduces differing pixels 1,225→1,163;
 remaining metrics/coverage differences are unresolved. No token-parser rewrite
 was made. Legacy YCbCr emulation, SSA V4 styles and deferred event effects/wrapping
 remain unsupported and separate from visual matches.

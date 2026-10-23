@@ -60,10 +60,13 @@ jobs:
           TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
           TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+          TAIYOU_RENDER_SAMPLE_DIR: ${{ runner.temp }}/taiyou-render-sample
         run: |
           cargo test --locked -p taiyou-font --features native --lib --test catalog --test shaping --test authenticated_outline
           cargo test --locked -p taiyou-render --features native --lib
           cargo test --locked -p taiyou-cli --features native --test synthetic_italic --test geometry --test ass_coverage_batch --test collision_review --test wrapping_collision --test adaptive_optimized_performance
+          test -s "$TAIYOU_RENDER_SAMPLE_DIR/T017-optimized/samples.jsonl"
+          test -s "$TAIYOU_RENDER_SAMPLE_DIR/T017-review-measurements/samples.json"
           python - <<'PY'
           import subprocess
           from pathlib import Path

@@ -34,14 +34,25 @@ fn line_border_y(local: &LocalLayout, line: &Line) -> Result<f64, RenderError> {
     // An all-space line returns before that recomputation, retaining its
     // original border, including the break word encountered by GetNextLine.
     let retained = local.glyphs().get(line.glyph_range()).ok_or_else(|| {
-        RenderError::new(ErrorCode::InvalidArgument, "invalid collision line glyph range")
+        RenderError::new(
+            ErrorCode::InvalidArgument,
+            "invalid collision line glyph range",
+        )
     })?;
     let (begin, end) = if retained.is_empty() {
-        (span.start(), local.shaped().breaks().iter()
-            .find(|b| b.start() == span.end()).map_or(span.end(), |b| b.end()))
+        (
+            span.start(),
+            local
+                .shaped()
+                .breaks()
+                .iter()
+                .find(|b| b.start() == span.end())
+                .map_or(span.end(), |b| b.end()),
+        )
     } else {
-        retained.iter().fold((u32::MAX, 0), |(a,b), glyph|
-            (a.min(glyph.cluster().start()), b.max(glyph.cluster().end())))
+        retained.iter().fold((u32::MAX, 0), |(a, b), glyph| {
+            (a.min(glyph.cluster().start()), b.max(glyph.cluster().end()))
+        })
     };
     let runs = local.shaped().evaluated().runs();
     let start = runs.partition_point(|run| run.decoded().is_some_and(|s| s.end() <= begin));

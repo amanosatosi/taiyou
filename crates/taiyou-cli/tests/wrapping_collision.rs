@@ -1,8 +1,8 @@
 #![cfg(feature = "native")]
 
 use std::{path::PathBuf, sync::Arc};
-use taiyou_render::{layout, renderer::*, shaping::shape_event};
 use taiyou_render::{collision_footprint::collision_footprint, geometry::DeviceMapping};
+use taiyou_render::{layout, renderer::*, shaping::shape_event};
 
 fn catalog() -> Arc<ValidatedFontCatalog> {
     let limits = Limits::default();
@@ -86,9 +86,15 @@ fn anchor(alignment: u8) -> (f64, f64) {
 fn reservation(input: &str, fonts: &ValidatedFontCatalog, size: Size) -> ScriptBounds {
     collision_footprint(
         &local(input, fonts),
-        DeviceMapping::new(Size::new(160,100), PixelRect::new(0,0,size.width() as i32,size.height() as i32).unwrap()).unwrap(),
-        false, UnsupportedPolicy::Strict,
-    ).unwrap()
+        DeviceMapping::new(
+            Size::new(160, 100),
+            PixelRect::new(0, 0, size.width() as i32, size.height() as i32).unwrap(),
+        )
+        .unwrap(),
+        false,
+        UnsupportedPolicy::Strict,
+    )
+    .unwrap()
 }
 fn pos(x: f64, y: f64, text: &str) -> String {
     format!("{{\\pos({x},{y})}}{text}")
@@ -159,7 +165,13 @@ fn start_order_differs_from_source_paint_order_and_equal_start_uses_id() {
     let fonts = catalog();
     let red = r"{\bord2\shad1\4a&H80&\1c&H0000FF&\1a&H80&}H";
     let blue = r"{\bord1\shad0\4a&H00&\1c&HFF0000&}H";
-    let bounds = |text| reservation(&source(7,&row(0,"0:00:00.00","0:00:02.00",text)), &fonts, Size::new(160,100));
+    let bounds = |text| {
+        reservation(
+            &source(7, &row(0, "0:00:00.00", "0:00:02.00", text)),
+            &fonts,
+            Size::new(160, 100),
+        )
+    };
     let r = bounds(red);
     let b = bounds(blue);
     for (start, first_y, second_y) in [
