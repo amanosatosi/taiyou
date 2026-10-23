@@ -1,5 +1,16 @@
 # T002 dependency and native recipe candidate
 
+Compatibility repair intake: `encoding_rs =0.8.35`, optional native-font feature,
+default features disabled. Purpose: allocation-free Unicode-to-Big5/Shift-JIS
+(and related Microsoft DBCS) code conversion before looking up non-Unicode font
+cmaps. It does not decode subtitle input or change ASS Encoding policy. License:
+MIT OR Apache-2.0 OR BSD-3-Clause; Unicode mapping data retains its upstream
+notices. Its only dependency is the already present `cfg-if` (MIT OR Apache-2.0).
+The pinned source is hsivonen/encoding_rs tag v0.8.35; Cargo resolves/checksums it
+on Actions. Alternatives: OS iconv/Windows codepage APIs would add platform/locale
+variation and FFI; handwritten per-font glyph tables are unacceptable. Existing
+FreeType/HarfBuzz still own font parsing, glyph identities, metrics and shaping.
+
 State: proposed freeze, review and final three-platform verification pending. This document does not declare T002 accepted. [PR 10](https://github.com/amanosatosi/taiyou/pull/10) records current candidate SHAs, failures, run/job links and results. No local compilation or dependency installation is permitted.
 
 ## Exact selections
