@@ -493,8 +493,56 @@ def compare_reference(
     return images.compare(expected, actual, diff)
 
 
+def render_taiyou(
+    binary: Path,
+    source: Path,
+    fonts: list[Path],
+    case: dict,
+    png: Path,
+    raw: Path,
+) -> tuple[int, str]:
+    command = [
+        str(binary),
+        "render",
+        "--input",
+        str(source),
+        "--time-us",
+        str(case["timestamp_ms"] * 1000),
+        "--width",
+        str(case["width"]),
+        "--height",
+        str(case["height"]),
+        "--profile",
+        "core-v1",
+        "--output",
+        str(png),
+        "--raw",
+        str(raw),
+    ]
+    for font in fonts:
+        command.extend(["--font", str(font)])
+    return run_worker(command, timeout=90)
+
+
+def compare_raw(
+    expected_raw: Path,
+    actual_raw: Path,
+    width: int,
+    height: int,
+    diff: Path,
+) -> dict:
+    expected = images.raw_rgba(expected_raw, width, height)
+    actual = images.raw_rgba(actual_raw, width, height)
+    return images.compare(expected, actual, diff)
+
+
 def run_case(
-    case: dict, corpus: Path, dll: Path, release_root: Path, output: Path
+    case: dict,
+    corpus: Path,
+    dll: Path,
+    release_root: Path,
+    taiyou: Path,
+    output: Path,
 ) -> dict:
     record = {
         "id": case["id"],
@@ -566,18 +614,52 @@ def run_case(
 
         raw_path = case_dir / "xy.rgba"
         png_path = case_dir / "xy.png"
-        diff_path = case_dir / "xy-vs-libass-diff.png"
+        libass_diff_path = case_dir / "xy-vs-libass-diff.png"
         raw_path.write_bytes(raw_rgba)
         preview_png(png_path, case["width"], case["height"], raw_rgba)
         record["xy_raw_sha256"] = sha256_file(raw_path)
         record["xy_preview_sha256"] = sha256_file(png_path)
         record["libass_reference_comparison"] = compare_reference(
-            reference, raw_path, case["width"], case["height"], diff_path
+            reference, raw_path, case["width"], case["height"], libass_diff_path
         )
+
+        taiyou_png = case_dir / "taiyou.png"
+        taiyou_raw = case_dir / "taiyou.rgba"
+        taiyou_code, taiyou_log = render_taiyou(
+            taiyou, source, fonts, case, taiyou_png, taiyou_raw
+        )
+        record["taiyou_render"] = {
+            "exit_code": taiyou_code,
+            "log": taiyou_log,
+        }
+        if taiyou_code != 0:
+            raise RuntimeError(
+                f"Taiyou render failed with exit code {taiyou_code}: {taiyou_log[-2000:]}"
+            )
+        expected_size = case["width"] * case["height"] * 4
+        if taiyou_raw.stat().st_size != expected_size:
+            raise ValueError("Taiyou raw frame size mismatch")
+        decoded_taiyou = images.read_png(taiyou_png)
+        if decoded_taiyou[:2] != (case["width"], case["height"]):
+            raise ValueError("Taiyou PNG dimensions mismatch")
+
+        taiyou_diff = case_dir / "diff.png"
+        record["taiyou_vs_xy_comparison"] = compare_raw(
+            raw_path,
+            taiyou_raw,
+            case["width"],
+            case["height"],
+            taiyou_diff,
+        )
+        record["taiyou_raw_sha256"] = sha256_file(taiyou_raw)
+        record["taiyou_png_sha256"] = sha256_file(taiyou_png)
         record["artifacts"] = {
             "xy_raw": rel(output, raw_path),
-            "xy_preview": rel(output, png_path),
-            "xy_vs_libass_diff": rel(output, diff_path),
+            "xy": rel(output, png_path),
+            "taiyou_raw": rel(output, taiyou_raw),
+            "taiyou": rel(output, taiyou_png),
+            "diff": rel(output, taiyou_diff),
+            "xy_vs_libass_diff": rel(output, libass_diff_path),
         }
         record["status"] = "OK"
     except Exception as error:
@@ -593,6 +675,9 @@ def main(args) -> int:
         raise RuntimeError("xy-VSFilter oracle must run on Windows")
     release_root = Path(args.release_root).resolve()
     corpus = Path(args.corpus).resolve()
+    taiyou = Path(args.taiyou).resolve()
+    if not taiyou.is_file():
+        raise FileNotFoundError(f"Taiyou renderer not found: {taiyou}")
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
 
@@ -619,7 +704,7 @@ def main(args) -> int:
         report["dll"] = probe
         report["dll_probe_attempts"] = attempts
         for case in manifest["cases"]:
-            record = run_case(case, corpus, dll, release_root, output)
+            record = run_case(case, corpus, dll, release_root, taiyou, output)
             report["cases"].append(record)
             print(
                 json.dumps(
@@ -628,10 +713,16 @@ def main(args) -> int:
                         "status": record["status"],
                         "deterministic": record.get("determinism", {}).get("exact"),
                         "reconstruction": record.get("reconstruction", {}).get("exact"),
-                        "libass_exact": record.get(
+                        "taiyou_xy_exact": record.get(
+                            "taiyou_vs_xy_comparison", {}
+                        ).get("exact"),
+                        "taiyou_xy_changed_pixels": record.get(
+                            "taiyou_vs_xy_comparison", {}
+                        ).get("changed_pixels"),
+                        "libass_xy_exact": record.get(
                             "libass_reference_comparison", {}
                         ).get("exact"),
-                        "changed_pixels": record.get(
+                        "libass_xy_changed_pixels": record.get(
                             "libass_reference_comparison", {}
                         ).get("changed_pixels"),
                     }
@@ -651,6 +742,10 @@ def main(args) -> int:
         record.get("reconstruction", {}).get("exact") is True
         for record in report["cases"]
     )
+    taiyou_exact = sum(
+        record.get("taiyou_vs_xy_comparison", {}).get("exact") is True
+        for record in report["cases"]
+    )
     libass_exact = sum(
         record.get("libass_reference_comparison", {}).get("exact") is True
         for record in report["cases"]
@@ -660,6 +755,7 @@ def main(args) -> int:
         "captured_and_validated": ok,
         "deterministic": deterministic,
         "reconstruction_exact": reconstructed,
+        "taiyou_vs_xy_exact": taiyou_exact,
         "libass_vs_xy_exact": libass_exact,
     }
     (output / "report.json").write_text(
@@ -677,6 +773,7 @@ def parser() -> argparse.ArgumentParser:
     modes.add_argument("--worker-capture", action="store_true")
     p.add_argument("--release-root")
     p.add_argument("--corpus")
+    p.add_argument("--taiyou")
     p.add_argument("--output", required=True)
     p.add_argument("--dll")
     p.add_argument("--source")
@@ -708,8 +805,8 @@ if __name__ == "__main__":
             if not all(required):
                 raise ValueError("--worker-capture missing required arguments")
             sys.exit(worker_capture(args))
-        if not args.release_root or not args.corpus:
-            raise ValueError("main mode requires --release-root and --corpus")
+        if not args.release_root or not args.corpus or not args.taiyou:
+            raise ValueError("main mode requires --release-root, --corpus and --taiyou")
         sys.exit(main(args))
     except Exception as error:
         print(
