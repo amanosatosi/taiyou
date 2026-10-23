@@ -15,7 +15,9 @@ import argparse
 import ctypes
 import hashlib
 import json
+import math
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -36,6 +38,8 @@ REQUIRED_EXPORTS = (
     "csri_close",
 )
 VALIDATION_RGB = (17, 93, 201)
+GOOD_FRACTION = 0.001  # 0.1% of frame pixels; exact matches are always separate.
+GOOD_MIN_PIXELS = 100
 
 
 class CsriFmt(ctypes.Structure):
@@ -334,33 +338,117 @@ def find_csri_dll(release_root: Path, output: Path) -> tuple[Path, dict, list[di
 
 def validate_case_assets(
     case: dict, corpus: Path
-) -> tuple[Path, Path, list[Path], list[dict]]:
-    source = (corpus / case["source"]).resolve()
-    reference = (corpus / case["reference"]).resolve()
+) -> tuple[Path, Path | None, list[Path], list[dict]]:
+    source = (
+        Path(case["source_external"]).resolve()
+        if case.get("source_external")
+        else (corpus / case["source"]).resolve()
+    )
+    reference = (
+        None
+        if not case.get("reference")
+        else (corpus / case["reference"]).resolve()
+    )
     if not source.is_file():
-        raise FileNotFoundError(f"missing source: {case['source']}")
-    if not reference.is_file():
-        raise FileNotFoundError(f"missing reference: {case['reference']}")
+        raise FileNotFoundError(f"missing source: {source}")
+    if reference is not None and not reference.is_file():
+        raise FileNotFoundError(f"missing reference: {reference}")
     fonts = []
     font_records = []
     for spec in case.get("fonts", []):
-        font = (corpus / spec["path"]).resolve()
+        font = (
+            Path(spec["external_path"]).resolve()
+            if spec.get("external_path")
+            else (corpus / spec["path"]).resolve()
+        )
         if not font.is_file():
-            raise FileNotFoundError(f"missing font: {spec['path']}")
+            raise FileNotFoundError(f"missing font: {font}")
         actual = sha256_file(font)
         expected = spec.get("sha256")
         if expected and actual.lower() != expected.lower():
-            raise ValueError(f"font SHA-256 mismatch: {spec['path']}")
+            raise ValueError(f"font SHA-256 mismatch: {font}")
         fonts.append(font)
         font_records.append(
             {
-                "path": spec["path"],
+                "path": spec.get("path"),
+                "external_path": spec.get("external_path"),
                 "family": spec.get("family"),
                 "sha256": actual,
                 "expected_sha256": expected,
             }
         )
     return source, reference, fonts, font_records
+
+
+
+def artifact_key(case_id: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "-", case_id).strip("-")[:80] or "case"
+    return safe + "-" + hashlib.sha256(case_id.encode("utf-8")).hexdigest()[:10]
+
+
+def classify_xy(metrics: dict | None, width: int, height: int) -> tuple[str | None, int | None]:
+    if metrics is None or metrics.get("changed_pixels") is None:
+        return None, None
+    changed = metrics["changed_pixels"]
+    good_limit = max(GOOD_MIN_PIXELS, math.ceil(width * height * GOOD_FRACTION))
+    if changed == 0:
+        return "same", good_limit
+    if changed <= good_limit:
+        return "good", good_limit
+    return "bad", good_limit
+
+
+def inventory_cases(corpus_commit: str) -> tuple[list[dict], list[dict]]:
+    inventory = json.loads((ROOT / "validation" / "inventory.json").read_text(encoding="utf-8"))
+    if inventory.get("commit") != corpus_commit:
+        raise ValueError("xy oracle inventory commit differs from acquired corpus")
+    visual = []
+    nonvisual = []
+    for item in inventory["cases"]:
+        if item["kind"] != "regression":
+            nonvisual.append({
+                "id": item["id"],
+                "kind": item["kind"],
+                "reason": "no reference image; retained as non-image inventory coverage",
+            })
+            continue
+        if len(item.get("frames", [])) != 1:
+            raise ValueError(f"unexpected frame count for {item['id']}")
+        frame = item["frames"][0]
+        width, height = frame["reference_size"]
+        visual.append({
+            "id": item["id"],
+            "source": item["source"],
+            "reference": frame["expected"],
+            "timestamp_ms": frame["timestamp_ms"],
+            "width": width,
+            "height": height,
+            "fonts": [{"path": path} for path in item.get("fonts", [])],
+            "embedded_fonts": not item.get("fonts"),
+            "scale": item.get("scale", "1"),
+            "inventory": True,
+        })
+    return visual, nonvisual
+
+
+def mua_office_case() -> dict:
+    font = os.environ.get("MUA_OFFICE_FONT")
+    if not font:
+        raise ValueError("MUA_OFFICE_FONT is not set")
+    return {
+        "id": "witness/mua-office-myanmar-center",
+        "source": "experiments/xy-oracle/fixtures/mua-office-myanmar.ass",
+        "source_external": str(ROOT / "experiments" / "xy-oracle" / "fixtures" / "mua-office-myanmar.ass"),
+        "reference": None,
+        "timestamp_ms": 1000,
+        "width": 1920,
+        "height": 1080,
+        "fonts": [{"external_path": font, "family": "MUA Office"}],
+        "embedded_fonts": False,
+        "scale": "1",
+        "inventory": False,
+        "provenance": "https://myanmarmiunicode.blogspot.com/2017/06/mua-office-font-adobe-supported.html",
+    }
 
 
 def capture(
@@ -552,12 +640,25 @@ def run_case(
         "dimensions": [case["width"], case["height"]],
         "status": "ERROR",
     }
-    case_dir = output / "cases" / case["id"]
+    case_dir = output / "cases" / artifact_key(case["id"])
     case_dir.mkdir(parents=True, exist_ok=False)
+    if case.get("scale", "1") != "1":
+        record.update(
+            status="UNSUPPORTED",
+            error=(
+                "xy CSRI exposes only the output framebuffer size; this libass test uses "
+                f"special comparison scale {case['scale']} whose original-video-size semantics "
+                "cannot be reproduced authentically without inventing a different oracle"
+            ),
+        )
+        (case_dir / "case.json").write_text(
+            json.dumps(record, indent=2) + "\n", encoding="utf-8"
+        )
+        return record
     try:
         source, reference, fonts, font_records = validate_case_assets(case, corpus)
         record["source_sha256"] = sha256_file(source)
-        record["reference_sha256"] = sha256_file(reference)
+        record["reference_sha256"] = sha256_file(reference) if reference else None
         record["fonts"] = font_records
         record["embedded_fonts"] = bool(case.get("embedded_fonts"))
 
@@ -619,9 +720,10 @@ def run_case(
         preview_png(png_path, case["width"], case["height"], raw_rgba)
         record["xy_raw_sha256"] = sha256_file(raw_path)
         record["xy_preview_sha256"] = sha256_file(png_path)
-        record["libass_reference_comparison"] = compare_reference(
-            reference, raw_path, case["width"], case["height"], libass_diff_path
-        )
+        if reference is not None:
+            record["libass_reference_comparison"] = compare_reference(
+                reference, raw_path, case["width"], case["height"], libass_diff_path
+            )
 
         taiyou_png = case_dir / "taiyou.png"
         taiyou_raw = case_dir / "taiyou.rgba"
@@ -653,14 +755,20 @@ def run_case(
         )
         record["taiyou_raw_sha256"] = sha256_file(taiyou_raw)
         record["taiyou_png_sha256"] = sha256_file(taiyou_png)
+        classification, good_limit = classify_xy(
+            record["taiyou_vs_xy_comparison"], case["width"], case["height"]
+        )
+        record["xy_classification"] = classification
+        record["good_changed_pixel_limit"] = good_limit
         record["artifacts"] = {
             "xy_raw": rel(output, raw_path),
             "xy": rel(output, png_path),
             "taiyou_raw": rel(output, taiyou_raw),
             "taiyou": rel(output, taiyou_png),
             "diff": rel(output, taiyou_diff),
-            "xy_vs_libass_diff": rel(output, libass_diff_path),
         }
+        if reference is not None:
+            record["artifacts"]["xy_vs_libass_diff"] = rel(output, libass_diff_path)
         record["status"] = "OK"
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
@@ -681,16 +789,24 @@ def main(args) -> int:
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
 
-    manifest_path = Path(__file__).with_name("cases.json")
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest["corpus_commit"] != "a5073319af8117271d8ac13ef5c088197ff2d59b":
-        raise ValueError("unexpected oracle corpus revision")
+    corpus_commit = "a5073319af8117271d8ac13ef5c088197ff2d59b"
+    visual_cases, nonvisual_cases = inventory_cases(corpus_commit)
+    visual_cases.append(mua_office_case())
 
     report = {
         "schema": 1,
         "purpose": "supplemental authenticated runtime capture from official pinterf xy-VSFilter release",
         "candidate_sha": os.environ.get("CANDIDATE_SHA", os.environ.get("GITHUB_SHA")),
-        "corpus_commit": manifest["corpus_commit"],
+        "corpus_commit": corpus_commit,
+        "classification_policy": {
+            "same": "changed_pixels == 0",
+            "good": f"0 < changed_pixels <= max({GOOD_MIN_PIXELS}, ceil(frame_pixels * {GOOD_FRACTION}))",
+            "bad": "changed_pixels above the good threshold",
+            "note": "good is diagnostic only and never counts as an exact compatibility match",
+        },
+        "inventory_visual_cases": len(visual_cases) - 1,
+        "additional_witness_cases": 1,
+        "nonvisual_inventory_cases": nonvisual_cases,
         "cases": [],
     }
     acquisition = output / "release-acquisition.json"
@@ -703,7 +819,7 @@ def main(args) -> int:
         dll, probe, attempts = find_csri_dll(release_root, output)
         report["dll"] = probe
         report["dll_probe_attempts"] = attempts
-        for case in manifest["cases"]:
+        for case in visual_cases:
             record = run_case(case, corpus, dll, release_root, taiyou, output)
             report["cases"].append(record)
             print(
@@ -719,6 +835,7 @@ def main(args) -> int:
                         "taiyou_xy_changed_pixels": record.get(
                             "taiyou_vs_xy_comparison", {}
                         ).get("changed_pixels"),
+                        "classification": record.get("xy_classification"),
                         "libass_xy_exact": record.get(
                             "libass_reference_comparison", {}
                         ).get("exact"),
@@ -732,7 +849,7 @@ def main(args) -> int:
     except Exception as error:
         report["fatal_error"] = f"{type(error).__name__}: {error}"
 
-    total = len(manifest["cases"])
+    total = len(visual_cases)
     ok = sum(record.get("status") == "OK" for record in report["cases"])
     deterministic = sum(
         record.get("determinism", {}).get("exact") is True
@@ -750,20 +867,34 @@ def main(args) -> int:
         record.get("libass_reference_comparison", {}).get("exact") is True
         for record in report["cases"]
     )
+    classes = {
+        name: sum(record.get("xy_classification") == name for record in report["cases"])
+        for name in ("same", "good", "bad")
+    }
+    unsupported = sum(record.get("status") == "UNSUPPORTED" for record in report["cases"])
+    errors = sum(record.get("status") == "ERROR" for record in report["cases"])
     report["summary"] = {
-        "total": total,
+        "total_visual_cases": total,
+        "libass_inventory_visual_cases": len(visual_cases) - 1,
+        "additional_witness_cases": 1,
         "captured_and_validated": ok,
         "deterministic": deterministic,
         "reconstruction_exact": reconstructed,
+        "same": classes["same"],
+        "good": classes["good"],
+        "bad": classes["bad"],
+        "unsupported": unsupported,
+        "errors": errors,
         "taiyou_vs_xy_exact": taiyou_exact,
         "libass_vs_xy_exact": libass_exact,
+        "nonvisual_inventory_cases": len(nonvisual_cases),
     }
     (output / "report.json").write_text(
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     print("XY_ORACLE_SUMMARY=" + json.dumps(report["summary"]), flush=True)
 
-    return 0 if "fatal_error" not in report and ok == total else 1
+    return 0 if "fatal_error" not in report and errors == 0 else 1
 
 
 def parser() -> argparse.ArgumentParser:
