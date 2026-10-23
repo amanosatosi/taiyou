@@ -1,9 +1,16 @@
 name: xy-VSFilter oracle (supplemental)
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/xy-oracle.yml'
+      - 'experiments/xy-oracle/**'
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: xy-oracle-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   oracle:
     runs-on: windows-2022
@@ -11,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -30,7 +38,7 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: xy-oracle-${{ github.sha }}
+          name: xy-oracle-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/xy-oracle/
           if-no-files-found: warn
           retention-days: 7
