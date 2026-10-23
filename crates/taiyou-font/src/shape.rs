@@ -671,7 +671,10 @@ fn shape_item(
                 if w == 0 || h == 0 {
                     GlyphInk::Empty
                 } else {
-                    let italic = input.catalog.synthetic_italic_shear(face.id(), input.style.font().italic())?.get();
+                    let italic = input
+                        .catalog
+                        .synthetic_italic_shear(face.id(), input.style.font().italic())?
+                        .get();
                     let mut bounds: Option<(f64, f64, f64, f64)> = None;
                     // Ink and copied outline use the same synthetic font map,
                     // before vertical rotation and script/device scaling.
@@ -680,15 +683,19 @@ fn shape_item(
                             let (x, y) = (x + italic * y, y);
                             let (x, y) = if let Some([dv, desc]) = g.vertical_offset {
                                 (f64::from(dv) - y, x + f64::from(desc))
-                            } else { (x, y) };
-                            let (x,y)=(x * scale / lx, -y * scale / ly);
-                            bounds=Some(bounds.map_or((x,y,x,y), |(a,b,c,d)| (a.min(x),b.min(y),c.max(x),d.max(y))));
+                            } else {
+                                (x, y)
+                            };
+                            let (x, y) = (x * scale / lx, -y * scale / ly);
+                            bounds = Some(bounds.map_or((x, y, x, y), |(a, b, c, d)| {
+                                (a.min(x), b.min(y), c.max(x), d.max(y))
+                            }));
                         }
                     }
-                    let (x0,y0,x1,y1)=bounds.ok_or_else(limited)?;
+                    let (x0, y0, x1, y1) = bounds.ok_or_else(limited)?;
                     GlyphInk::Bounds(
-                        ScriptBounds::new(x0,y0,x1,y1)
-                        .map_err(|e| error(e.code(), e.detail()))?,
+                        ScriptBounds::new(x0, y0, x1, y1)
+                            .map_err(|e| error(e.code(), e.detail()))?,
                     )
                 }
             } else {

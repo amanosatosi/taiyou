@@ -397,14 +397,25 @@ mod tests {
                 let a = (0.0, f64::from(dy));
                 let b = (64.0, f64::from(dy + 4));
                 let control = (f64::from(bend), f64::from(dy + bend));
-                let p1 = (a.0 + (control.0-a.0)*2.0/3.0, a.1 + (control.1-a.1)*2.0/3.0);
-                let p2 = (b.0 + (control.0-b.0)*2.0/3.0, b.1 + (control.1-b.1)*2.0/3.0);
+                let p1 = (
+                    a.0 + (control.0 - a.0) * 2.0 / 3.0,
+                    a.1 + (control.1 - a.1) * 2.0 / 3.0,
+                );
+                let p2 = (
+                    b.0 + (control.0 - b.0) * 2.0 / 3.0,
+                    b.1 + (control.1 - b.1) * 2.0 / 3.0,
+                );
                 let mut edges = Vec::new();
-                curve([a,p1,p2,b], &mut edges, &Limits::default(), &mut 0).unwrap();
-                line(b,a,&mut edges,&Limits::default()).unwrap();
+                curve([a, p1, p2, b], &mut edges, &Limits::default(), &mut 0).unwrap();
+                line(b, a, &mut edges, &Limits::default()).unwrap();
                 let mut winding = std::collections::BTreeMap::new();
-                for edge in edges { *winding.entry(edge.y).or_insert(0) += edge.w; }
-                assert!(winding.values().all(|&value| value==0), "dy={dy} bend={bend}: {winding:?}");
+                for edge in edges {
+                    *winding.entry(edge.y).or_insert(0) += edge.w;
+                }
+                assert!(
+                    winding.values().all(|&value| value == 0),
+                    "dy={dy} bend={bend}: {winding:?}"
+                );
             }
         }
     }

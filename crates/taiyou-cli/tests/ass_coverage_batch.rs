@@ -360,6 +360,21 @@ mod pixels {
         assert_eq!(draw(r"\fax0.5"), draw(r"\org(0,0)\fax0.5"));
     }
     #[test]
+    fn polygon_words_use_bounds_advances_without_text_spacing() {
+        // pinterf CPolygon::ParseStr derives width from polygon bounds;
+        // CText::CreatePath's per-character fontSpacing is not a polygon advance.
+        // Separate p1/p0 words reduce drawImg's 784-square sprite to four cells.
+        let squares = r"{\p1}m 0 0 l 0 2 2 2 2 0{\p0}".repeat(4);
+        for position in ["20", "20.375"] {
+            let draw = |spacing| render_body(
+                &format!(r"{{\an7\pos({position},20)\fsp{spacing}}}{squares}"), 0);
+            let expected = draw("0");
+            assert!(expected.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert_eq!(expected, draw("-0.6"));
+            assert_eq!(expected, draw("1.25"));
+        }
+    }
+    #[test]
     fn karaoke_pixels_and_seeking() {
         let p = r"\pos(60,60)\1c&H0000FF&\2c&HFF0000&\kt50\kf100";
         assert_ne!(render(p, 0), render(p, 1000));
