@@ -86,7 +86,7 @@ effects renderer. Boxes use outline paint and source-defined word/cell geometry,
 native padding, copied-style transforms, independent blur and box shadows.
 Visible box support participates in the existing deterministic collision policy.
 Styles Encoding 0/1 use the supplied Unicode face; legacy charset/cmap emulation,
-fe, non-None YCbCr mangling and SSA V4 remain unsupported.
+fe and host video-space YCbCr mangling remain separate from RGB overlay rendering.
 
 ```rust
 fn evaluate(track: &Track, event: EventId, now: TimeUs, profile: Profile)
@@ -275,7 +275,7 @@ struct DrawOrder { layer: i32, event: EventId, pass: u16, group: u32 }
 struct Frame { size: Size, stride: usize, pixels: Arc<[u8]>, diagnostics: Arc<[Diagnostic]> }
 ```
 
-RGBA8 means memory bytes R,G,B,A, independent of endian. Output is **premultiplied**, top-down, `stride=width*4`, transparent black initial pixels. Mask storage explicitly distinguishes A8 coverage (0..255) from native xy coverage (0..64); zero is transparent in both. Production source masks and their filtered descendants retain native xy units. Colors are blended in their encoded RGB domain for legacy display behavior; no implicit linear-light conversion, YUV conversion, premultiplication guessing, or video-background blending. Host performs YCbCr conversion; the unsupported legacy color-matrix emulation remains visible in compatibility reports. Fully transparent output has RGB zero.
+RGBA8 means memory bytes R,G,B,A, independent of endian. Output is **premultiplied**, top-down, `stride=width*4`, transparent black initial pixels. Mask storage explicitly distinguishes A8 coverage (0..255) from native xy coverage (0..64); zero is transparent in both. Production source masks and their filtered descendants retain native xy units. Colors are blended in their encoded RGB domain for legacy display behavior; no implicit linear-light conversion, YUV conversion, premultiplication guessing, or video-background blending. Host performs video-dependent YCbCr conversion. The script matrix is retained as metadata and does not reject or alter raw RGB overlays; the header alone cannot determine a video-space transform. Fully transparent output has RGB zero.
 
 Define `mul255(x,y)=(x*y+127)/255` with integer division. For native xy coverage, first `sa=(mask*paint.a+32)>>6`, then `sa=mul255(sa,clip)` (pinterf FillAlphaMashBody). Resolved clip masks normalize native coverage with `(mask*255+32)>>6` before their existing clip combination. For separate A8 coverage, first `coverage=mul255(mask,clip)`; then `sa=mul255(paint.a,coverage)`; then premultiplied `sr=mul255(paint.r,sa)` and similarly g/b. Source-over each channel: `out=src+mul255(dst,255-sa)` including alpha. Use sufficient intermediates and clamp final channel to 255. Do not combine these rounded multiplications into one expression. Example: 50%-opacity red (a=128), full coverage over opaque blue gives `(128,0,127,255)`; over clear gives `(128,0,0,128)`. Composition key order is lexicographic; equal keys are an internal error. Do not gamma-correct alpha.
 

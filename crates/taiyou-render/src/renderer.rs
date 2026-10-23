@@ -501,23 +501,11 @@ impl Renderer {
         events.extend(track.events().iter().filter(|e| e.is_active(request.now)));
         events.sort_unstable_by_key(|e| (e.layer(), e.id()));
         let mut diagnostics = DiagnosticBuffer::new();
-        if count > 0
-            && !track.script().ycbcr_matrix().is_empty()
-            && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")
-        {
-            let detail = "encoded RGB output does not implement legacy YCbCr emulation";
-            if request.unsupported == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail));
-            }
-            diagnostics
-                .push(Diagnostic::new(
-                    DiagnosticCode::UnsupportedFeature,
-                    None,
-                    None,
-                    detail,
-                ))
-                .map_err(convert)?;
-        }
+        // This API returns encoded RGB, not video-space YCbCr. Like libass's
+        // image API and pinterf's default ARGB TransColor path, preserve ASS RGB.
+        // ScriptInfo retains the matrix for a host which has the video matrix
+        // and can apply the corresponding conversion. The header alone is not
+        // an unsupported rendering feature and cannot determine that transform.
         let mut operations = Vec::new();
         let mut total_segments = 0_u64;
         if events.iter().any(|event| crate::requires_font(event)) && fonts.faces().is_empty() {

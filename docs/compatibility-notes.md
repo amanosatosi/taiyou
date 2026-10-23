@@ -121,6 +121,17 @@ fixture 15,839→13,980 differing pixels without a scaling-specific patch.
 
 ## Alpha and compositing
 
+**Source-verified — RGB overlays and matrix metadata.** Libass ass_types.h
+documents that its image API preserves ASS RGB and delegates video-dependent
+YCbCr conversion to the caller. Pinterf RTS.cpp RenderEx selects ARGB for RGB
+outputs; xy_bitmap.cpp TransColor returns unchanged ARGB with its default flags.
+Its optional host correction depends on consumer video matrix/range settings
+(xy_sub_filter.cpp), which Taiyou's RGB-only API does not receive. Taiyou now
+preserves the header in ScriptInfo without rejecting or changing RGB overlays.
+This corrects an over-rejection, not an implementation of video-space mangling.
+Colored fill/border/shadow tests cover metadata retention and strict/tolerant RGB
+identity across matrix headers. Focused corpus verification is pending.
+
 **Source-verified semantics; pixel mismatch.** Pinterf RTS.cpp:2260–2274 animates
 the raw hexadecimal alpha target and narrows to BYTE afterward. Taiyou retains
 511 from `\1a1FF`, interpolates, then narrows. Existing native tests verify
