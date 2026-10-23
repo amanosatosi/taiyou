@@ -99,7 +99,7 @@ malformed q conversion, selector/reset behavior and fresh/repeated/seek equality
 Native execution occurs only on Actions. Test results are reported separately
 from source findings; no proposed fixture becomes a trusted reference image.
 
-The renderer adapter uses PR29's accepted collision/backend stages, preserving
-F1, complete-active-set placement, adaptive retention and diagnostics. Run the
+The renderer adapter preserves complete-active-set placement, adaptive retention
+and diagnostics while verified historical compatibility corrections evolve the backend. Run the
 full required validation on the integrated candidate.
 This is not completion of mode1 or full T017.

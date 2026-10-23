@@ -656,6 +656,11 @@ impl ScriptInfo {
     pub const fn scaled_border_shadow(&self) -> bool {
         self.scaled_border_shadow
     }
+    /// Original ASS matrix declaration for host-side video composition.
+    /// Empty means missing/empty (the legacy default); `None` opts out of
+    /// legacy color mangling. Other declarations, including unknown values,
+    /// are retained for the host to interpret with actual video matrix/range.
+    /// Taiyou's encoded RGB/RGBA output does not apply a video-space conversion.
     pub fn ycbcr_matrix(&self) -> &str {
         &self.ycbcr_matrix
     }

@@ -6,6 +6,7 @@ use taiyou_types::*;
 pub(crate) enum Section {
     Script,
     Styles,
+    StylesV4,
     Events,
     Fonts,
     Ignored,
@@ -20,6 +21,8 @@ pub(crate) fn section(text: &str) -> Result<Section, ParseError> {
         Section::Script
     } else if name.eq_ignore_ascii_case("V4+ Styles") {
         Section::Styles
+    } else if name.eq_ignore_ascii_case("V4 Styles") {
+        Section::StylesV4
     } else if name.eq_ignore_ascii_case("Events") {
         Section::Events
     } else if name.eq_ignore_ascii_case("Fonts") {
@@ -81,6 +84,8 @@ const STYLE_FIELDS: &[&str] = &[
     "marginr",
     "marginv",
     "encoding",
+    "tertiarycolour",
+    "alphalevel",
 ];
 const EVENT_FIELDS: &[&str] = &[
     "layer", "start", "end", "style", "name", "marginl", "marginr", "marginv", "effect", "text",

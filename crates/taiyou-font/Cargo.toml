@@ -14,9 +14,10 @@ icu_casemap = { workspace = true, optional = true }
 harfbuzz-sys = { workspace = true, optional = true }
 unicode-bidi = { workspace = true, optional = true }
 unicode-script = { workspace = true, optional = true }
+encoding_rs = { version = "=0.8.35", default-features = false, optional = true }
 
 [features]
-native = ["dep:freetype-sys", "dep:libz-sys", "dep:sha2", "dep:icu_casemap", "dep:harfbuzz-sys", "dep:unicode-bidi", "dep:unicode-script"]
+native = ["dep:freetype-sys", "dep:libz-sys", "dep:sha2", "dep:icu_casemap", "dep:harfbuzz-sys", "dep:unicode-bidi", "dep:unicode-script", "dep:encoding_rs"]
 
 # Only this native-adapter crate may lower deny inside its reviewed native module.
 # Other workspace crates retain the workspace-wide forbid policy.

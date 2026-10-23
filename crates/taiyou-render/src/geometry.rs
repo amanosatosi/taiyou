@@ -645,6 +645,37 @@ pub fn geometry(
         )?
         .with_projection(state.geometry());
         let mut path = outline.outline().clone();
+        let italic = catalog
+            .synthetic_italic_shear(blob.id(), state.shaping().font().italic())
+            .map_err(font_error)?
+            .get();
+        if italic != 0.0 {
+            charge = charge
+                .checked_add(
+                    (path.ops().len() as u64)
+                        .checked_mul(3 * std::mem::size_of::<PathOp<FontPoint>>() as u64)
+                        .ok_or_else(geometry_limit)?,
+                )
+                .ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() {
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
+            }
+            let mut ops = Vec::new();
+            ops.try_reserve_exact(path.ops().len()).map_err(|_| {
+                RenderError::new(
+                    ErrorCode::AllocationFailed,
+                    "synthetic italic outline allocation",
+                )
+            })?;
+            for op in path.ops() {
+                ops.push(op.try_map(|p| {
+                    FontPoint::new(p.x().get() + italic * p.y().get(), p.y().get())
+                })?);
+            }
+            path = Arc::new(Outline::new(ops, limits)?);
+        }
         if let Some(offset) = glyph.vertical_offset() {
             let mut ops = Vec::new();
             ops.try_reserve_exact(path.ops().len()).map_err(|_| {

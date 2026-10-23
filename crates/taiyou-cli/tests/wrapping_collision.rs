@@ -1,6 +1,7 @@
 #![cfg(feature = "native")]
 
 use std::{path::PathBuf, sync::Arc};
+use taiyou_render::{collision_footprint::collision_footprint, geometry::DeviceMapping};
 use taiyou_render::{layout, renderer::*, shaping::shape_event};
 
 fn catalog() -> Arc<ValidatedFontCatalog> {
@@ -82,6 +83,19 @@ fn anchor(alignment: u8) -> (f64, f64) {
     let y = [91.0, 50.0, 9.0][usize::from(index / 3)];
     (x, y)
 }
+fn reservation(input: &str, fonts: &ValidatedFontCatalog, size: Size) -> ScriptBounds {
+    collision_footprint(
+        &local(input, fonts),
+        DeviceMapping::new(
+            Size::new(160, 100),
+            PixelRect::new(0, 0, size.width() as i32, size.height() as i32).unwrap(),
+        )
+        .unwrap(),
+        false,
+        UnsupportedPolicy::Strict,
+    )
+    .unwrap()
+}
 fn pos(x: f64, y: f64, text: &str) -> String {
     format!("{{\\pos({x},{y})}}{text}")
 }
@@ -124,14 +138,14 @@ fn real_pipeline_all_alignments_stack_with_local_metrics_and_preserve_effect_pas
         ] {
             let a = row(0, "0:00:00.00", "0:00:02.00", text);
             let input = source(alignment, &format!("{a}{a}"));
-            let layout = local(&input, &fonts);
-            // Uses the existing local box, not bitmap/stroke support. For two
-            // identical events, minimum displacement is exactly its height.
-            let height = layout.collision_bounds().height();
-            assert!(height > 0.0);
             let (x, y) = anchor(alignment);
-            let dy = if alignment <= 3 { -height } else { height };
             for size in [Size::new(160, 100), Size::new(320, 300)] {
+                // This integration test exercises ordering/composition using
+                // the footprint stage. Its independent geometry and transparent
+                // line-border oracles are tested separately.
+                let height = reservation(&input, &fonts, size).height();
+                assert!(height > 0.0);
+                let dy = if alignment <= 3 { -height } else { height };
                 let actual = frame(&input, fonts.clone(), size);
                 // This oracle supplies continuous collision anchors, not ASS
                 // pos values, which have different native quantization.
@@ -151,12 +165,18 @@ fn start_order_differs_from_source_paint_order_and_equal_start_uses_id() {
     let fonts = catalog();
     let red = r"{\bord2\shad1\4a&H80&\1c&H0000FF&\1a&H80&}H";
     let blue = r"{\bord1\shad0\4a&H00&\1c&HFF0000&}H";
-    let height = local(&source(7, &row(0, "0:00:00.00", "0:00:02.00", "H")), &fonts)
-        .collision_bounds()
-        .height();
+    let bounds = |text| {
+        reservation(
+            &source(7, &row(0, "0:00:00.00", "0:00:02.00", text)),
+            &fonts,
+            Size::new(160, 100),
+        )
+    };
+    let r = bounds(red);
+    let b = bounds(blue);
     for (start, first_y, second_y) in [
-        ("0:00:00.50", 9.0 + height, 9.0),
-        ("0:00:00.00", 9.0, 9.0 + height),
+        ("0:00:00.50", 9.0 + b.y1().get() - r.y0().get(), 9.0),
+        ("0:00:00.00", 9.0, 9.0 + r.y1().get() - b.y0().get()),
     ] {
         let actual = source(
             7,

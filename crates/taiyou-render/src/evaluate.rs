@@ -8,6 +8,104 @@ fn error(code: ErrorCode, detail: &str) -> RenderError {
 fn convert(e: ParseError) -> RenderError {
     error(e.code(), e.detail()).with_resource_failure(e.resource_failure())
 }
+fn recognized_transition_effect(effect: &str) -> bool {
+    // libass ass_apply_transition_effects and pinterf ParseEffect leave unknown
+    // labels inert. Follow pinterf's case-insensitive, semicolon-delimited name
+    // matching, independently of the preserved source string.
+    let Some((name, _)) = effect.trim().split_once(';') else {
+        return false;
+    };
+    ["Banner", "Scroll up", "Scroll down"]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
+
+#[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(feature = "native"), allow(dead_code))]
+pub(crate) enum TransitionEffect {
+    Banner {
+        delay: i32,
+        rightward: bool,
+        fade: i32,
+    },
+    Scroll {
+        top: i32,
+        bottom: i32,
+        delay: i32,
+        downward: bool,
+        fade: i32,
+    },
+}
+impl TransitionEffect {
+    pub(crate) fn parse(effect: &str) -> Option<Self> {
+        if !recognized_transition_effect(effect) {
+            return None;
+        }
+        let (name, mut parameters) = effect.trim().split_once(';')?;
+        // Match pinterf's scanf integer prefixes without allocating or allowing
+        // malformed/overflowing input to reach placement arithmetic.
+        fn integer(input: &mut &str) -> Option<i32> {
+            let text = input.trim_start();
+            let sign = usize::from(text.starts_with(['+', '-']));
+            let length = sign
+                + text.as_bytes()[sign..]
+                    .iter()
+                    .take_while(|b| b.is_ascii_digit())
+                    .count();
+            if length == sign {
+                return None;
+            }
+            let value = text[..length].parse().ok()?;
+            *input = &text[length..];
+            Some(value)
+        }
+        fn next(input: &mut &str) -> Option<i32> {
+            *input = input.strip_prefix(';')?;
+            integer(input)
+        }
+        if name.eq_ignore_ascii_case("Banner") {
+            let delay = integer(&mut parameters)?;
+            let rightward = next(&mut parameters).unwrap_or(0) != 0;
+            let fade = next(&mut parameters).unwrap_or(0);
+            Some(Self::Banner {
+                delay,
+                rightward,
+                fade,
+            })
+        } else if name.eq_ignore_ascii_case("Scroll up") || name.eq_ignore_ascii_case("Scroll down")
+        {
+            let top = integer(&mut parameters)?;
+            let bottom = next(&mut parameters)?;
+            let delay = next(&mut parameters)?;
+            let fade = next(&mut parameters).unwrap_or(0);
+            Some(Self::Scroll {
+                top: top.min(bottom),
+                bottom: top.max(bottom),
+                delay,
+                downward: name.eq_ignore_ascii_case("Scroll down"),
+                fade,
+            })
+        } else {
+            None
+        }
+    }
+    fn banner(self) -> bool {
+        matches!(self, Self::Banner { .. })
+    }
+    fn fade(self) -> i32 {
+        match self {
+            Self::Banner { fade, .. } | Self::Scroll { fade, .. } => fade,
+        }
+    }
+}
+
+fn initial_wrap(track: &Track, event: &Event) -> WrapMode {
+    if TransitionEffect::parse(event.effect()).is_some_and(TransitionEffect::banner) {
+        WrapMode::new(2).expect("constant wrap mode")
+    } else {
+        track.script().wrap()
+    }
+}
 fn reserve<T>(v: &mut Vec<T>) -> Result<(), RenderError> {
     v.try_reserve(1)
         .map_err(|_| error(ErrorCode::AllocationFailed, "evaluation allocation failed"))
@@ -324,7 +422,7 @@ fn one(
     let mut drawing_baseline = 0;
     let mut warp_mode = WarpMode::XyStyle;
     let mut warp_mode_source = None;
-    let mut wrap_mode = track.script().wrap();
+    let mut wrap_mode = initial_wrap(track, event);
     let mut runs = Vec::new();
     let local_ms = (i128::from(now.as_micros()) - i128::from(event.start().as_micros())) / 1000;
     let duration_ms =
@@ -339,13 +437,14 @@ fn one(
     let source_map = event_map(track, event, limits)?;
     let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
-    if !event.effect().is_empty() {
+    let transition = TransitionEffect::parse(event.effect());
+    if transition.is_some_and(|effect| effect.fade() != 0) {
         unsupported(
             event,
             event.source(),
             policy,
             d,
-            "event effects or non-hard-break wrapping remain unsupported",
+            "Banner/Scroll fadeaway remains unsupported",
         )?;
     }
     let mut consumed = 0;
@@ -1069,13 +1168,45 @@ fn one(
             *run = run.clone().with_event_fade(alpha);
         }
     }
-    let placement = Placement::new(
+    let mut placement = Placement::new(
         &state.clone().with_alignment(event_alignment),
         event.margins(),
         anchor,
     )
     .with_origin(origin)
     .with_motion(motion);
+    if transition.is_some() {
+        changes = changes.with_animation().with_placement();
+        // Motion effects bypass collision allocation even without a pos tag.
+        // Publish the natural anchor through the existing explicit slot; the
+        // scrolling axis is sampled after layout, once its extent is known.
+        if anchor == Anchor::Default {
+            let margins = placement.margins();
+            let a = event_alignment.get() - 1;
+            let left = f64::from(margins.left());
+            let right = f64::from(track.script().play_res().width()) - f64::from(margins.right());
+            let x = match a % 3 {
+                0 => left,
+                1 => (left + right) / 2.0,
+                _ => right,
+            };
+            let y = match a / 3 {
+                0 => f64::from(track.script().play_res().height()) - f64::from(margins.vertical()),
+                1 => f64::from(track.script().play_res().height()) / 2.0,
+                _ => f64::from(margins.vertical()),
+            };
+            placement = Placement::new(
+                &state.clone().with_alignment(event_alignment),
+                event.margins(),
+                Anchor::Explicit(ScriptPoint::new(
+                    FiniteF64::new(x).map_err(convert)?,
+                    FiniteF64::new(y).map_err(convert)?,
+                )),
+            )
+            .with_origin(origin)
+            .with_motion(motion);
+        }
+    }
     let evaluated = EvaluatedEvent::new(
         event.id(),
         EventOrder::new(event.layer(), event.id().ordinal()),
@@ -1101,7 +1232,7 @@ fn event_map(
     limits: &Limits,
 ) -> Result<Option<Arc<SourceMappedText>>, RenderError> {
     let mut pieces = Vec::new();
-    let mut wrap_mode = track.script().wrap();
+    let mut wrap_mode = initial_wrap(track, event);
     pieces
         .try_reserve_exact(event.program().len())
         .map_err(|_| error(ErrorCode::AllocationFailed, "event map allocation failed"))?;
@@ -1241,16 +1372,17 @@ pub(crate) fn evaluate_event_with_policy(
 /// still runs before rendering and enforces policy/errors independently.
 #[cfg(any(test, feature = "native"))]
 pub(crate) fn collision_eligible(event: &Event) -> bool {
-    !event.program().iter().any(|operation| {
-        matches!(
-            operation,
-            TextOp::Override(
-                OverrideOp::SetPosition { .. }
-                    | OverrideOp::Move { .. }
-                    | OverrideOp::SetOrigin { .. }
+    TransitionEffect::parse(event.effect()).is_none()
+        && !event.program().iter().any(|operation| {
+            matches!(
+                operation,
+                TextOp::Override(
+                    OverrideOp::SetPosition { .. }
+                        | OverrideOp::Move { .. }
+                        | OverrideOp::SetOrigin { .. }
+                )
             )
-        )
-    })
+        })
 }
 
 /// Parsed drawing mode controls whether any visible word needs font services.

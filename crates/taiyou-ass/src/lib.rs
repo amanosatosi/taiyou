@@ -117,13 +117,6 @@ pub fn parse_ass(
             continue;
         }
         if text.starts_with('[') {
-            if text.trim_end().eq_ignore_ascii_case("[V4 Styles]") {
-                // Never synthesize ASS defaults and misreport missing fonts
-                // for the separate, unimplemented SSA V4 style mapping.
-                return Err(
-                    unsupported("SSA V4 styles are not implemented").with_context(None, Some(span))
-                );
-            }
             match sections::section(text) {
                 Ok(value) => {
                     section = value;
@@ -152,7 +145,9 @@ pub fn parse_ass(
         let key = decode::trim(key);
         match section {
             sections::Section::Script => header.record(key, value, &mut ctx, span)?,
-            sections::Section::Styles if key.eq_ignore_ascii_case("format") => {
+            sections::Section::Styles | sections::Section::StylesV4
+                if key.eq_ignore_ascii_case("format") =>
+            {
                 style_format = None;
                 match sections::Format::parse(value, false) {
                     Ok(format) => style_format = Some(format),
@@ -166,11 +161,15 @@ pub fn parse_ass(
                     Err(error) => ctx.recover(error, None, span)?,
                 }
             }
-            sections::Section::Styles if key.eq_ignore_ascii_case("style") => {
+            sections::Section::Styles | sections::Section::StylesV4
+                if key.eq_ignore_ascii_case("style") =>
+            {
                 let result = style_format
                     .as_ref()
                     .ok_or_else(|| invalid("Style requires a valid Format declaration"))
-                    .and_then(|format| styles::parse(value, format));
+                    .and_then(|format| {
+                        styles::parse(value, format, section == sections::Section::StylesV4)
+                    });
                 match result {
                     Ok(style) => {
                         if style_indices

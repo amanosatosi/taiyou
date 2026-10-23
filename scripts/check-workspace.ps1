@@ -11,6 +11,7 @@ $external = @{
     'harfbuzz-sys' = @('=0.8.0', $false, '')
     'unicode-bidi' = @('=0.3.18', $true, '')
     'unicode-script' = @('=0.5.8', $true, '')
+    'encoding_rs' = @('=0.8.35', $false, '')
     'png' = @('=0.18.1', $false, '')
 }
 function Assert-ExternalDependency($packageName, $dependency) {
@@ -39,7 +40,7 @@ if ($SelfTest) {
     try { Assert-ExternalDependency 'taiyou-render' $sample } catch { $rejected = $true }
     if (-not $rejected) { throw 'Dependency owner self-test failed' }
     Write-Output 'PASS: exact dependency admission and ten tamper scenarios.'
-    foreach ($name in @('harfbuzz-sys','unicode-bidi','unicode-script')) {
+    foreach ($name in @('harfbuzz-sys','unicode-bidi','unicode-script','encoding_rs')) {
         $admitted = $sample.Clone()
         $admitted.name = $name
         $admitted.req = $external[$name][0]
@@ -53,7 +54,7 @@ if ($SelfTest) {
             if (-not $rejected) { throw 'T009 exact dependency tamper test failed' }
         }
     }
-    Write-Output 'PASS: exact T002 shaping dependencies with nine additional tamper scenarios.'
+    Write-Output 'PASS: exact shaping/DBCS dependencies with twelve additional tamper scenarios.'
     $png = $sample.Clone()
     $png.name = 'png'; $png.req = '=0.18.1'; $png.uses_default_features = $false
     Assert-ExternalDependency 'taiyou-cli' $png

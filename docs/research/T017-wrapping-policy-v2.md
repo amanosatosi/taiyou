@@ -7,8 +7,7 @@ binary64 comparator and numeric-tailored profile in
 amendment. The Unicode15.1 data plan is approved in principle, subject to
 provenance, licensing, storage and conformance review. Production limits and
 automatic wrapping remain unapproved/unimplemented.
-F1 is separately approved in
-[ADR-012](../decisions/012-core-collision-footprint.md). This proposal does not
+Collision findings are recorded in [compatibility notes](../compatibility-notes.md). This proposal does not
 replace or claim historical xy-VSFilter behavior.
 
 The advances-only API and search tests in this PR are **experiments**, not an
@@ -122,7 +121,7 @@ overwide. Every selected line must be admissible; no hidden greedy fallback.
 
 Publish only selected line shapes, their visual run order and full provenance.
 Use T010 max ascent/descent including empty-line style metrics. Build distinct
-logical/ink/local boxes after wrapping, then ADR-012 effects footprint, then
+logical/ink/local boxes after wrapping, then the current source-backed effects footprint, then
 complete-active-set collision placement. No frame-history or retained wrap cache.
 
 ### Candidate reuse and polynomial search

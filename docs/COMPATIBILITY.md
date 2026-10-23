@@ -1,10 +1,18 @@
 # Compatibility policy
 
+Implement established behavior → compare → fix discrepancies → verify → record
+findings. [Compatibility notes](compatibility-notes.md) describe tested findings
+and remaining gaps. Ordinary source-backed corrections require no new behavioral
+contract, research admission or ADR approval. Obsolete CoreV1 assumptions yield
+to verified historical behavior. Safety, public APIs, resource accounting,
+determinism, licensing, protected comparisons and human merge approval remain
+engineering safeguards.
+
 ## B1. Authority and profiles
 
-The main xy authority is exclusively **pinterf/xy-VSFilter**, with a recorded Windows build/font/locale/render configuration. Read the supplied [local pinterf source](C:/taiyou-time/refrences/xy-VSFilter-3.2.0.810/README.md) first; [the local reference map](LOCAL_REFERENCES.md) distinguishes its archive identity from the earlier locked upstream revision. A local archive must not silently replace that oracle without revision verification/review. Source behavior plus reproducible captures adjudicate rules. Guliverkli2 source is now locally available as separately named historical evidence; an exact reference build/captures are still required. Neither is interchangeable with libass or another VSFilter fork.
+The main xy authority is exclusively **pinterf/xy-VSFilter**. Read the supplied [local pinterf source](C:/taiyou-time/refrences/xy-VSFilter-3.2.0.810/README.md) first; [the local reference map](LOCAL_REFERENCES.md) distinguishes its archive identity from the earlier locked upstream revision. Source inspection can establish semantics directly. Exact output claims require authenticated captures with recorded Windows build/font/locale/render configuration; a local archive name does not establish that provenance. Guliverkli2 is separately named historical evidence. Neither is interchangeable with libass or another VSFilter fork.
 
-Order of decision: verified pinterf/xy-VSFilter source behavior for ordinary ASS/SSA semantics; explicit Taiyou extension contracts only where intentionally different; narrow targeted investigation only when the reference source is genuinely ambiguous. libass is an independent cross-platform comparison oracle and engineering source, not a fallback authority for xy behavior. Format manuals clarify syntax but cannot prove historical raster pixels. Mangetsu/libassmod is future extension evidence only.
+Investigate with both libass and pinterf/xy-VSFilter when historical or technical clarification is needed. Implement shared behavior when they agree. When they differ, record the actual distinction and its consequences; historical xy-VSFilter behavior remains the default priority for conflicting established ASS behavior. Libass is equally valuable for bug discovery and modern Unicode/shaping behavior, as well as providing the independent frozen comparison oracle. Do not force pixel identity where the implementations genuinely disagree. Explicit Taiyou extensions own their intentional differences. Format manuals clarify syntax but cannot prove historical raster pixels. Mangetsu/libassmod is future extension evidence only.
 
 `CoreV1` is Taiyou's current implementation profile. A Core behavior proven incompatible with ordinary ASS semantics must be corrected to historical xy behavior unless an intentional Taiyou extension explicitly owns the difference. `LegacyXyV1` remains representable for compatibility bookkeeping, but no research-task admission is required before implementing source-established behavior. Unsupported rules produce diagnostics or strict failure.
 
@@ -27,7 +35,11 @@ This table deliberately distinguishes contextual reports from Taiyou's own sourc
 
 ## B3. Review and support registry
 
-Every capability record has: ID, profile+policy revision, syntax/parameter limits, owning task, supporting fixture IDs, oracle and build digest, evidence status (`contract-only`, `source-observed`, `captured`, `approved`), support state and reviewer decision reference. Missing entries are unsupported, not assumed correct.
+The protected inventory records comparison coverage and support classifications.
+Descriptive findings belong in compatibility notes with source/test evidence,
+implementation status and remaining discrepancies. A missing note is not proof
+of support or a reason to block a verified correction. Internal passing tests
+alone do not establish historical compatibility.
 
 Each test/profile pair has exactly one result: `PASS_EXACT`, `PASS_APPROVED_TOLERANCE`, `EXPECTED_DIFFERENCE` (approved issue+scope), `UNSUPPORTED` (feature ID), `REGRESSION`, `CRASH`, or `INFRA_ERROR` (missing font/oracle/asset). Infrastructure failures never count as unsupported. Expected differences are not counted as exact compatibility. A formerly passing case becomes a regression even if an agent now thinks its feature unsupported.
 
