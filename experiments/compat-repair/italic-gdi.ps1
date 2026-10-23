@@ -50,8 +50,11 @@ public static class ItalicProbe {
 }
 '@
 $results=@()
+$inventory=Get-Content (Join-Path $PSScriptRoot '../../validation/inventory.json') -Raw | ConvertFrom-Json
 foreach($font in @(@('regression/faux-italics/FansubBlock-CFF.otf','FansubBlock-CFF'),@('regression/faux-italics/fansubBlock.ttf','Fansub Block'))) {
  $path=Join-Path $env:TAIYOU_CORPUS $font[0]
+ $expected=@($inventory.assets | Where-Object path -eq $font[0])
+ if($expected.Count -ne 1 -or (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected[0].sha256) { throw 'Frozen font hash mismatch' }
  $results+=@{sha256=(Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant(); observations=[ItalicProbe]::Run([IO.File]::ReadAllBytes($path),$font[1])}
 }
 $results | ConvertTo-Json -Depth 12 | Set-Content (Join-Path $env:RUNNER_TEMP 'italic-gdi.json')

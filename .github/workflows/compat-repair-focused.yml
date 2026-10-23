@@ -5,6 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: compat-repair-focused-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   italic-gdi:
     runs-on: windows-2022
@@ -18,8 +21,10 @@ jobs:
       - run: python validation/acquire.py
       - run: python validation/inventory.py verify --corpus "$env:TAIYOU_CORPUS" --manifest validation/inventory.json
       - shell: pwsh
+        if: ${{ !cancelled() }}
         run: ./experiments/compat-repair/italic-gdi.ps1
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: compatibility-italic-gdi-${{ github.sha }}
           path: ${{ runner.temp }}/italic-gdi.json
