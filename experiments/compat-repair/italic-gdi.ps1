@@ -16,6 +16,7 @@ public static class ItalicProbe {
  [DllImport("gdi32.dll")] static extern bool RemoveFontMemResourceEx(IntPtr f);
  [DllImport("gdi32.dll")] static extern IntPtr CreateCompatibleDC(IntPtr dc);
  [DllImport("gdi32.dll")] static extern bool DeleteDC(IntPtr dc);
+ [DllImport("gdi32.dll")] static extern int SetBkMode(IntPtr dc,int mode);
  [DllImport("gdi32.dll",CharSet=CharSet.Unicode)] static extern IntPtr CreateFontW(int h,int w,int e,int a,int weight,uint italic,uint u,uint s,uint charset,uint output,uint clip,uint quality,uint pitch,string face);
  [DllImport("gdi32.dll")] static extern IntPtr SelectObject(IntPtr dc,IntPtr f);
  [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr f);
@@ -29,6 +30,7 @@ public static class ItalicProbe {
   uint count=0; var resource=AddFontMemResourceEx(bytes,(uint)bytes.Length,IntPtr.Zero,ref count);
   if(resource==IntPtr.Zero || count!=1) throw new Exception("font registration");
   var dc=CreateCompatibleDC(IntPtr.Zero); if(dc==IntPtr.Zero)throw new Exception("DC");
+  SetBkMode(dc,1);
   var result=new List<object>();
   try { foreach(uint italic in new uint[]{0,1}) {
    var font=CreateFontW(6400,0,0,0,400,italic,0,0,1,4,0,4,0,family);
