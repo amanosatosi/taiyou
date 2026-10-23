@@ -11,6 +11,7 @@ pub struct ShapeOptions {
     direction: Direction,
     language: Arc<str>,
     layout_scale: [FiniteF64; 2],
+    kerning: bool,
 }
 impl Default for ShapeOptions {
     fn default() -> Self {
@@ -18,10 +19,17 @@ impl Default for ShapeOptions {
             direction: Direction::Auto,
             language: Arc::from("und"),
             layout_scale: [FiniteF64::ONE; 2],
+            kerning: true,
         }
     }
 }
 impl ShapeOptions {
+    /// Pair kerning for this shaping request. The ASS coordinator resolves its
+    /// script header separately; direct shaping retains its existing default.
+    pub fn with_kerning(mut self, enabled: bool) -> Self {
+        self.kerning = enabled;
+        self
+    }
     /// Layout pixels per PlayRes unit; glyph metrics are returned in script units.
     pub fn with_layout_scale(mut self, scale: [f64; 2]) -> Result<Self, FontError> {
         if scale.iter().any(|s| !s.is_finite() || *s <= 0.0) {
@@ -67,6 +75,7 @@ pub(crate) struct NativeRequest<'a> {
     pub script: u32,
     pub language: &'a str,
     pub ligatures: bool,
+    pub kerning: bool,
     pub vertical: bool,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -492,6 +501,7 @@ fn request<'a>(input: &'a ResolvedRun, range: Range<usize>) -> NativeRequest<'a>
         script: input.item.script,
         language: input.options.language(),
         ligatures: input.style.spacing().get() == 0.0,
+        kerning: input.options.kerning,
         vertical: input.style.font().vertical() || input.style.font().family().starts_with('@'),
     }
 }
@@ -1022,6 +1032,7 @@ fn empty_line_metrics(
                     script: u32::from_be_bytes(*b"Zyyy"),
                     language: options.language(),
                     ligatures: true,
+                    kerning: options.kerning,
                     vertical: style.font().vertical() || style.font().family().starts_with('@'),
                 };
                 previous = Some((

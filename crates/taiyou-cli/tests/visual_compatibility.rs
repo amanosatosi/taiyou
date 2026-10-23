@@ -18,8 +18,12 @@ fn fonts() -> Arc<ValidatedFontCatalog> {
 }
 
 fn parsed(events: &str) -> ParsedTrack {
+    parsed_header(events, "")
+}
+
+fn parsed_header(events: &str, header: &str) -> ParsedTrack {
     let source = format!(
-        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Alignment,MarginL,MarginR,MarginV\nStyle: Default,Source Sans 3,30,0,0,5,0,0,0\n[Events]\nFormat: Start,End,Text\n{events}"
+        "[Script Info]\nPlayResX: 160\nPlayResY: 100\nWrapStyle: 2\n{header}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,PrimaryColour,SecondaryColour\nStyle: Default,Source Sans 3,30,0,0,5,0,0,0,&H00FFFFFF,&H000000FF\n[Events]\nFormat: Start,End,Text\n{events}"
     );
     taiyou_ass::parse_ass(
         source.as_bytes(),
@@ -32,6 +36,47 @@ fn parsed(events: &str) -> ParsedTrack {
         &mut TrackIngestor::new(),
     )
     .unwrap()
+}
+
+#[test]
+fn ass_kerning_defaults_off_and_header_selection_survives_resets_and_karaoke() {
+    let fonts = fonts();
+    let request = RenderRequest {
+        now: TimeUs::from_micros(500_000),
+        viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+        unsupported: UnsupportedPolicy::Strict,
+    };
+    for body in ["AV To", r"{\kf100}AV To", r"{\r}AV To"] {
+        let events = format!("Dialogue: 0:00:00.00,0:00:05.00,{body}\n");
+        let render = |header| {
+            Renderer::new(Default::default())
+                .unwrap()
+                .render_parsed(&parsed_header(&events, header), fonts.clone(), &request)
+                .unwrap()
+                .pixels()
+                .to_vec()
+        };
+        let default = render("");
+        let enabled = render("Kerning: yes");
+        assert_ne!(default, enabled, "{body}");
+        for header in [
+            "Kerning: no",
+            "Kerning: 0",
+            "Kerning: -1",
+            "Kerning: invalid",
+        ] {
+            assert_eq!(default, render(header), "{header}, {body}");
+        }
+        for header in [
+            "Kerning: 1",
+            "Kerning: +002tail",
+            "Kerning: YES",
+            "Kerning: no\nKerning: yes",
+        ] {
+            assert_eq!(enabled, render(header), "{header}, {body}");
+        }
+        assert_eq!(default, render("Kerning: yes\nKerning: no"));
+    }
 }
 
 fn local(body: &str, fonts: &ValidatedFontCatalog) -> LocalLayout {

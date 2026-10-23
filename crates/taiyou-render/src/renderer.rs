@@ -211,6 +211,7 @@ fn prepare_local(
         fonts,
         &evaluated,
         &taiyou_font::ShapeOptions::default()
+            .with_kerning(ass_kerning(track))
             .with_layout_scale(device_mapping(track, request)?.layout_scale())
             .map_err(crate::geometry::font_error)?,
         &available(limits, stage_held)?,
@@ -252,6 +253,30 @@ fn prepare_local(
     let stage_held = add(stage_held, layout_charge)?;
     available(limits, stage_held)?;
     Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
+}
+#[cfg(feature = "native")]
+fn ass_kerning(track: &Track) -> bool {
+    // Standard ASS measurements in pinterf use additive GDI extents; libass
+    // likewise defaults Kerning to false. Its optional header is retained in
+    // ScriptInfo metadata, including duplicate source order.
+    track
+        .script()
+        .metadata()
+        .iter()
+        .rev()
+        .find(|(key, _)| key.eq_ignore_ascii_case("Kerning"))
+        .is_some_and(|(_, value)| {
+            // libass ass.c parse_bool: yes prefix or positive decimal prefix.
+            value
+                .get(..3)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("yes"))
+                || value
+                    .strip_prefix('+')
+                    .unwrap_or(value)
+                    .bytes()
+                    .take_while(u8::is_ascii_digit)
+                    .any(|digit| digit != b'0')
+        })
 }
 /// Natural script-space alignment anchor. Margins define the horizontal usable
 /// rectangle; middle vertical alignment is the script midpoint. Explicit pos

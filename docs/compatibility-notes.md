@@ -11,14 +11,19 @@ PNGs are **libass references**, not authenticated xy captures; no authenticated
 xy output is available for the findings below. Internal passing tests alone do
 not establish historical compatibility.
 
-**Unresolved — pair kerning follow-up.** Hash-authenticated Windows GDI probes
+**Repair sprint — ASS pair kerning.** Hash-authenticated Windows GDI probes
 of the frozen DejaVu Sans and Arimo faces report additive A/V and T/o widths at
 positive cell height 6400. Pinterf's ASS TextOut/GetTextExtent path differs from
 its separate libssf kerning path. Libass parses the script's Kerning header and
-configures its shaper accordingly (`ass.c`, `ass_shaper.c`). Default/header
-semantics and end-to-end output still need comparison. A local shaping experiment
-is isolated outside PR #34 and has not passed CI; production shaping is unchanged
-by this observation.
+configures its shaper accordingly (`ass.c:parse_bool`, `ass_shaper_set_kerning`);
+its missing-header default is false. The ASS coordinator now requests additive
+advances by default, with the retained libass `Kerning` header as an explicit
+opt-in (yes/positive decimal prefixes, final duplicate wins). Direct shaping
+retains its kerning-on default; a per-request option controls the native kern
+feature without disabling GSUB ligatures, mark positioning or context. This
+corrects ASS behavior, not public stage types or the generic shaping default.
+Reduced additive-width/header/reset/karaoke tests and full pixel verification
+are pending the next CI checkpoint. No prior unverified experiment is imported.
 
 Measurements: [full 101-frame run at 6f667c6](https://github.com/amanosatosi/taiyou/actions/runs/39949464745)
 and [focused collision run](https://github.com/amanosatosi/taiyou/actions/runs/39948311194).
@@ -99,8 +104,15 @@ script-specific shaping. Zero-width, unbordered text also retains a zero-width
 collision reservation despite ink overhang, matching pinterf `AllocRect`'s empty
 intersection rule and libass `ass_render.c:fix_collisions`' zero-area exclusion.
 `visual_compatibility` tests literal accent glyphs, visible ink, horizontal
-outline reservation, both event orders and repeated/backward seeks. Pixel
-verification is pending CI; this is not an exact-compatibility claim.
+outline reservation, both event orders and repeated/backward seeks. At
+`0d166500fd6d3060bbcaa4537786253c41beb75f`, the
+[full comparison](https://github.com/amanosatosi/taiyou/actions/runs/39998330806/job/120568011562)
+reduces differing pixels 633→141 at 2000 ms and 303→141 at 8000 ms; alpha MAE
+falls 253.09360/67.89148→2.24020. Both orders produce identical PNGs. All other
+99 visual raw hashes remain unchanged. Counts remain 1 exact, 100 mismatches,
+0 unsupported, 0 crashes/infrastructure errors. Windows/macOS native suites
+pass; Linux is still running at this checkpoint. These are libass comparisons,
+not authenticated xy captures; the remaining 141 pixels are still mismatches.
 
 **Scroll / legacy FFmpeg distinction.** The inspected `effect-delay` triplet
 has equal glyph size and four-line height, but different word breaks. Pinterf

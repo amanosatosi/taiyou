@@ -700,7 +700,7 @@ impl FontContext {
                 end: u32::MAX,
             };
             let features = [
-                feature(u32::from_be_bytes(*b"kern"), 1),
+                feature(u32::from_be_bytes(*b"kern"), u32::from(request.kerning)),
                 feature(u32::from_be_bytes(*b"liga"), u32::from(request.ligatures)),
                 feature(u32::from_be_bytes(*b"clig"), u32::from(request.ligatures)),
                 feature(u32::from_be_bytes(*b"vert"), u32::from(request.vertical)),
@@ -2665,6 +2665,7 @@ mod tests {
             script: u32::from_be_bytes(*b"Hani"),
             language: "und",
             ligatures: true,
+            kerning: true,
             vertical: false,
         };
         let mut context = FontContext::new().unwrap();
@@ -2914,6 +2915,7 @@ mod tests {
                 script: u32::from_be_bytes(script),
                 language: "und",
                 ligatures: true,
+                kerning: true,
                 vertical: false,
             }
         }
@@ -3147,6 +3149,7 @@ mod tests {
             script: u32::from_be_bytes(*b"Latn"),
             language: "en",
             ligatures: true,
+            kerning: true,
             vertical: false,
         };
         let retained = {

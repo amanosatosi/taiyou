@@ -277,6 +277,44 @@ fn shaping_kerning_ligatures_spacing_and_design_unit_scaling() {
     );
 }
 #[test]
+fn kerning_option_preserves_default_and_can_request_additive_advances() {
+    let (mut ctx, catalog, _) = catalog();
+    let style = style("Source Sans 3");
+    let width = |ctx: &mut FontContext, text: &str, options: &ShapeOptions| {
+        shape_event(ctx, &catalog, &plain(text, &style), options, &limits())
+            .unwrap()
+            .runs()
+            .iter()
+            .flat_map(|run| run.glyphs())
+            .map(|glyph| glyph.advance_x().get())
+            .sum::<f64>()
+    };
+    let default = ShapeOptions::default();
+    let additive = default.clone().with_kerning(false);
+    let explicit = default.clone().with_kerning(true);
+    for (pair, left, right) in [("AV", "A", "V"), ("To", "T", "o")] {
+        let sum = width(&mut ctx, left, &additive) + width(&mut ctx, right, &additive);
+        assert!((width(&mut ctx, pair, &additive) - sum).abs() < 1e-10);
+        assert!(width(&mut ctx, pair, &default) < sum);
+        assert_eq!(
+            width(&mut ctx, pair, &default),
+            width(&mut ctx, pair, &explicit)
+        );
+    }
+    // Disabling kerning must retain ordinary GSUB ligatures and source clusters.
+    let result = shape_event(
+        &mut ctx,
+        &catalog,
+        &plain("ff", &style),
+        &additive,
+        &limits(),
+    )
+    .unwrap();
+    assert_eq!(result.runs()[0].glyphs().len(), 1);
+    assert_eq!(result.runs()[0].glyphs()[0].cluster().text(), "ff");
+}
+
+#[test]
 fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
     let (mut ctx, catalog, _) = catalog();
     for (source, right, id) in [
