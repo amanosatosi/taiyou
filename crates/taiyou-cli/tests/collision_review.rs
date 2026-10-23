@@ -142,7 +142,7 @@ fn thousands_of_explicit_kfx_events_keep_automatic_frames_and_fit_bounded_stagin
 }
 
 #[test]
-fn thick_borders_change_real_displacement_but_hidden_effects_do_not_pad() {
+fn thick_borders_reserve_logical_lines_even_when_paint_is_hidden() {
     let fonts = catalog();
     let size = Size::new(160, 100);
     let mut heights = Vec::new();
@@ -191,10 +191,28 @@ fn thick_borders_change_real_displacement_but_hidden_effects_do_not_pad() {
         r"{\bord12\3a&HFF&\4a&HFF&\shad1000000000000000000000000}H",
     ));
     let (base, support) = footprint(&hidden, &fonts, size).unwrap();
-    assert_eq!(base, support);
+    assert_eq!(support.y0().get(), base.y0().get() - 12.0);
+    assert_eq!(support.y1().get(), base.y1().get() + 12.0);
     let shadow = source(&row(r"{\bord12\3a&HFF&\4a&H00&\shad3.5}H"));
     let (base, support) = footprint(&shadow, &fonts, size).unwrap();
     assert!(support.width() > base.width());
+}
+
+#[test]
+fn collision_border_reservation_uses_first_and_last_line_and_keeps_empty_lines() {
+    let fonts = catalog();
+    let size = Size::new(160, 100);
+    let input = source(&row(r"{\bord3.2\3a&HFF&}H\N{\bord80}H\N{\bord0.9}H"));
+    let (base, support) = footprint(&input, &fonts, size).unwrap();
+    assert_eq!(support.y0().get(), base.y0().get() - 3.25);
+    assert_eq!(support.y1().get(), base.y1().get() + 0.875);
+    let empty = source(&row(r"{\bord80\3a&HFF&}\NH\N\N"));
+    let (base, support) = footprint(&empty, &fonts, size).unwrap();
+    assert_eq!(base, support);
+    let spaces = source(&row(r"{\bord12\3a&HFF&}   "));
+    let (base, support) = footprint(&spaces, &fonts, size).unwrap();
+    assert_eq!(support.y0().get(), base.y0().get() - 12.0);
+    assert_eq!(support.y1().get(), base.y1().get() + 12.0);
 }
 
 #[test]

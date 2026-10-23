@@ -1,5 +1,9 @@
 # ADR-012 — Core geometric collision footprint
 
+Amended by owner-authorized [ADR-015](015-transparent-border-collision.md):
+transparent first/last-line borders reserve vertical collision space. The
+original invisible-effect rule below is superseded for that reservation only.
+
 Status: owner-approved for CoreV1 implementation, 2026-10-19. Authority: the
 human review reply on T017 PR #29 work: “F1 is approved for CoreV1. Proceed with
 the separate ADR and C4 amendment.” Final technical review and ADR-011 exact-SHA

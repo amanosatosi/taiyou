@@ -21,6 +21,27 @@ fn include(result: &mut Option<ScriptBounds>, value: ScriptBounds) -> Result<(),
     Ok(())
 }
 
+fn line_border_y(local: &LocalLayout, line: &Line) -> Result<f64, RenderError> {
+    let span = line.decoded();
+    // GetNextLine resets border reservation for a genuinely empty hard line,
+    // but not for a whitespace word removed by Compact.
+    if span.start() == span.end() {
+        return Ok(0.0);
+    }
+    let end = local.shaped().breaks().iter()
+        .find(|b| b.start() == span.end()).map_or(span.end(), |b| b.end());
+    let runs = local.shaped().evaluated().runs();
+    let start = runs.partition_point(|run| run.decoded().is_some_and(|s| s.end() <= span.start()));
+    let mut border: f64 = 0.0;
+    for run in &runs[start..] {
+        let decoded = run.decoded().ok_or_else(|| RenderError::new(
+            ErrorCode::InvalidArgument, "collision line lacks decoded run"))?;
+        if decoded.start() >= end { break; }
+        border = border.max(run.effects().border_y().get());
+    }
+    Ok(border)
+}
+
 /// Device-space hull of a compatible group. A visible shadow uses the expanded
 /// source even when outline paint is transparent. None means no visible support.
 pub fn effect_bounds(
@@ -112,6 +133,22 @@ pub fn collision_footprint_with_limits(
     let [lx, ly] = device.layout_scale();
     let target = device.target_scale();
     let mut result = local.collision_bounds();
+    // pinterf RTS.cpp GetNextLine/MakeLines/AllocRect: reserve the first
+    // line's top border and final line's bottom border regardless of paint
+    // alpha. Reserve logical line metrics, not the visible glyph bitmap.
+    // This supplements geometric effect support without altering local layout.
+    if let (Some(first), Some(last)) = (local.lines().first(), local.lines().last()) {
+        let scale = if scaled_border_shadow { sy } else { target[1] };
+        let reserve = |line| -> Result<f64, RenderError> {
+            let native = finite(line_border_y(local, line)? * scale * 8.0 + 0.5)?.get();
+            Ok(finite(native.floor() / (8.0 * sy))?.get())
+        };
+        let logical = local.logical_bounds();
+        result = result.union(ScriptBounds::new(
+            logical.x0().get(), logical.y0().get() - reserve(first)?,
+            logical.x1().get(), logical.y1().get() + reserve(last)?,
+        )?)?;
+    }
     for positioned in local.glyphs() {
         let run = &local.shaped().runs()[positioned.run_index()];
         let glyph_ink = if let Some(drawing) = run.drawing() {
