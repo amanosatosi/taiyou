@@ -22,7 +22,6 @@
       "fonts": [
         {
           "path": "regression/implicit-pos/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
@@ -37,7 +36,6 @@
       "fonts": [
         {
           "path": "regression/ssa/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
@@ -52,7 +50,6 @@
       "fonts": [
         {
           "path": "regression/scaled-border-default/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
@@ -67,7 +64,6 @@
       "fonts": [
         {
           "path": "regression/draw-images/Arimo-Regular.ttf",
-          "sha256": "4d31d6bf6ce74acf50262abdb6b769275226f2e4f6fda3302981efeb6e55ddfe",
           "family": "Arimo"
         }
       ]
@@ -82,7 +78,6 @@
       "fonts": [
         {
           "path": "regression/v4++/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
@@ -97,7 +92,6 @@
       "fonts": [
         {
           "path": "regression/ssa/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
@@ -112,7 +106,6 @@
       "fonts": [
         {
           "path": "regression/zero-area/DejaVuSans.ttf",
-          "sha256": "a48ea9893256ee5efdf4e025b96fad59342ff14a231a6964730b20bc7e4d70b5",
           "family": "DejaVu Sans"
         }
       ]
