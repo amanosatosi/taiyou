@@ -638,23 +638,18 @@ def run_case(
         "reference": case["reference"],
         "timestamp_ms": case["timestamp_ms"],
         "dimensions": [case["width"], case["height"]],
+        "scale_metadata": case.get("scale", "1"),
         "status": "ERROR",
     }
     case_dir = output / "cases" / artifact_key(case["id"])
     case_dir.mkdir(parents=True, exist_ok=False)
     if case.get("scale", "1") != "1":
-        record.update(
-            status="UNSUPPORTED",
-            error=(
-                "xy CSRI exposes only the output framebuffer size; this libass test uses "
-                f"special comparison scale {case['scale']} whose original-video-size semantics "
-                "cannot be reproduced authentically without inventing a different oracle"
-            ),
+        record["scale_note"] = (
+            "Direct xy-vs-Taiyou oracle renders both engines at the final reference frame "
+            "dimensions. The libass reference PNG for this case was generated with special "
+            f"{case['scale']} comparison oversampling, so that separate libass-vs-xy metric "
+            "has different sampling provenance."
         )
-        (case_dir / "case.json").write_text(
-            json.dumps(record, indent=2) + "\n", encoding="utf-8"
-        )
-        return record
     try:
         source, reference, fonts, font_records = validate_case_assets(case, corpus)
         record["source_sha256"] = sha256_file(source)
