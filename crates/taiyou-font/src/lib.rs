@@ -19,3 +19,5 @@ pub use catalog::{
 };
 #[cfg(feature = "native")]
 pub use native::{FontContext, NativeWorkExperiment, RasterContext};
+#[cfg(all(feature = "native", windows))]
+pub use native::windows::WindowsFontSource;

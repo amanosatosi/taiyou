@@ -1,4 +1,4 @@
-//! Explicit-font CoreV1 CLI and C6 straight-alpha PNG export.
+//! Host font admission, CoreV1 CLI and C6 straight-alpha PNG export.
 use std::{
     ffi::OsString,
     fs::File,
@@ -8,6 +8,8 @@ use std::{
 use taiyou_render::renderer::*;
 
 mod output;
+#[cfg(windows)]
+mod system_fonts;
 
 fn invalid(detail: &str) -> RenderError {
     RenderError::new(ErrorCode::InvalidArgument, detail)
@@ -44,6 +46,7 @@ struct Arguments {
     output: PathBuf,
     raw: Option<PathBuf>,
     policy: UnsupportedPolicy,
+    system_fonts: bool,
 }
 impl Arguments {
     fn parse(args: Vec<OsString>) -> Result<Self, RenderError> {
@@ -55,6 +58,7 @@ impl Arguments {
             if ![
                 "--input",
                 "--font",
+                "--font-source",
                 "--time-us",
                 "--width",
                 "--height",
@@ -107,6 +111,15 @@ impl Arguments {
             "tolerant" => UnsupportedPolicy::Tolerant,
             _ => return Err(invalid("unsupported policy must be strict or tolerant")),
         };
+        let font_source = values.get("--font-source").map(|s| s.to_str()
+            .ok_or_else(|| invalid("font source is not UTF-8"))).transpose()?;
+        let system_fonts = match font_source {
+            None => cfg!(windows),
+            Some("explicit") => false,
+            Some("system") if cfg!(windows) => true,
+            Some("system") => return Err(invalid("system font discovery requires Windows")),
+            Some(_) => return Err(invalid("font source must be explicit or system")),
+        };
         let input = PathBuf::from(get("--input")?);
         let output = PathBuf::from(get("--output")?);
         let raw = values.get("--raw").map(PathBuf::from);
@@ -141,6 +154,7 @@ impl Arguments {
             output,
             raw,
             policy,
+            system_fonts,
         })
     }
 }
@@ -278,6 +292,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let parsed = taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new());
     if args.fonts.is_empty()
         && !has_attachments
+        && !(args.system_fonts && parsed.is_ok())
         && !parsed.as_ref().is_ok_and(|p| {
             !p.track().events().is_empty()
                 && !p.track().events().iter().any(taiyou_render::requires_font)
@@ -299,6 +314,18 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
                 0,
             )
             .map_err(font_error)?;
+    }
+    #[cfg(windows)]
+    if args.system_fonts {
+        // Attachments precede host fallback. render_parsed's registration is
+        // idempotent and retains its existing validation/diagnostic behavior.
+        for attachment in parsed.embedded_fonts() {
+            let count = context.face_count(attachment.shared_bytes()).map_err(font_error)?;
+            for index in 0..count {
+                builder.register(&mut context, attachment.bytes(), index).map_err(font_error)?;
+            }
+        }
+        system_fonts::extend(&parsed, &request, &mut context, &mut builder, limits)?;
     }
     let catalog = builder
         .snapshot(&mut CatalogIngestor::new())

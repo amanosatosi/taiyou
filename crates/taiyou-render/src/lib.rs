@@ -27,8 +27,10 @@ pub use layout::layout;
 pub use paint::{blend_pixel, mul255};
 #[cfg(feature = "native")]
 pub mod shaping {
+    #[cfg(windows)]
+    pub use taiyou_font::WindowsFontSource;
     pub use taiyou_font::{
-        FontCatalogBuilder, FontContext, NativeWorkExperiment, ShapeOptions, shape_event,
+        FontCatalogBuilder, FontContext, NativeWorkExperiment, ShapeOptions, resolve_family, shape_event,
         shape_event_advances_experiment,
     };
 }

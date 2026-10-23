@@ -6,6 +6,7 @@ use harfbuzz_sys as hb;
 use std::{ffi::CStr, marker::PhantomData, ptr, rc::Rc, sync::Arc};
 use taiyou_types::*;
 
+
 struct HbBlob {
     raw: *mut hb::hb_blob_t,
     _bytes: Arc<[u8]>,
@@ -3206,5 +3207,246 @@ mod tests {
         }
         drop(context);
         assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+    }
+}
+
+// This module is intentionally inside the existing native.rs safety boundary.
+#[cfg(windows)]
+pub mod windows {
+    use crate::{FontCatalogBuilder, FontContext};
+    use std::{ffi::c_void, marker::PhantomData, ptr, rc::Rc};
+    use taiyou_types::*;
+
+    type Raw = *mut c_void;
+    #[repr(C)]
+    #[derive(PartialEq)]
+    struct Guid(u32, u16, u16, [u8; 8]);
+    const FACTORY2: Guid = Guid(0x0439fc60, 0xca44, 0x4994, [0x8d, 0xee, 0x3a, 0x9a, 0xf7, 0xb7, 0x32, 0xec]);
+    const ANALYSIS: Guid = Guid(0x688e1a58, 0x5094, 0x47c8, [0xad, 0xc8, 0xfb, 0xce, 0xa6, 0x0a, 0xe9, 0x2b]);
+    const UNKNOWN: Guid = Guid(0, 0, 0, [0xc0, 0, 0, 0, 0, 0, 0, 0x46]);
+    const INVALID: i32 = 0x80070057_u32 as i32;
+    #[link(name = "dwrite")]
+    unsafe extern "system" {
+        fn DWriteCreateFactory(kind: u32, iid: *const Guid, factory: *mut Raw) -> i32;
+    }
+    // Exact SDK vtable slots and signatures (dwrite.h, dwrite_1.h, dwrite_2.h).
+    // Every object is an owned DirectWrite interface. Calls are synchronous,
+    // and all input/output pointers below remain valid for the call duration.
+    macro_rules! call {
+        ($object:expr, $slot:expr, ($($ty:ty),*) -> $ret:ty $(, $arg:expr)*) => {{
+            let object = $object;
+            let table = *(object as *const *const *const c_void);
+            let method: unsafe extern "system" fn(Raw, $($ty),*) -> $ret =
+                std::mem::transmute(*table.add($slot));
+            method(object, $($arg),*)
+        }};
+    }
+    struct Com(Raw);
+    impl Drop for Com {
+        fn drop(&mut self) {
+            // SAFETY: one reference was transferred by a successful COM call.
+            unsafe { call!(self.0, 2, () -> u32) };
+        }
+    }
+    fn check(hr: i32) -> Result<(), FontError> {
+        if hr < 0 {
+            Err(FontError::new(ErrorCode::NativeFailure, "Windows font discovery failed")
+                .with_native_code(i64::from(hr)))
+        } else { Ok(()) }
+    }
+    fn owned(raw: Raw) -> Result<Com, FontError> {
+        if raw.is_null() {
+            Err(FontError::new(ErrorCode::NativeFailure, "Windows font interface is null"))
+        } else { Ok(Com(raw)) }
+    }
+    fn limited() -> FontError {
+        FontError::new(ErrorCode::LimitExceeded, "Windows font discovery budget exceeded")
+    }
+    fn utf16(value: &str, limits: &Limits) -> Result<Vec<u16>, FontError> {
+        let count = value.len().checked_add(1).ok_or_else(limited)?;
+        if (count as u64).checked_mul(2).is_none_or(|n| n > limits.transient_bytes()) {
+            return Err(limited());
+        }
+        let mut result = Vec::new();
+        result.try_reserve_exact(count).map_err(|_| {
+            FontError::new(ErrorCode::AllocationFailed, "Windows font text allocation failed")
+        })?;
+        result.extend(value.encode_utf16());
+        result.push(0);
+        Ok(result)
+    }
+    #[repr(C)]
+    struct AnalysisVtable {
+        query: unsafe extern "system" fn(*mut Analysis, *const Guid, *mut Raw) -> i32,
+        add: unsafe extern "system" fn(*mut Analysis) -> u32,
+        release: unsafe extern "system" fn(*mut Analysis) -> u32,
+        at: unsafe extern "system" fn(*mut Analysis, u32, *mut *const u16, *mut u32) -> i32,
+        before: unsafe extern "system" fn(*mut Analysis, u32, *mut *const u16, *mut u32) -> i32,
+        direction: unsafe extern "system" fn(*mut Analysis) -> u32,
+        locale: unsafe extern "system" fn(*mut Analysis, u32, *mut u32, *mut *const u16) -> i32,
+        numbers: unsafe extern "system" fn(*mut Analysis, u32, *mut u32, *mut Raw) -> i32,
+    }
+    #[repr(C)]
+    struct Analysis {
+        vtable: *const AnalysisVtable,
+        text: *const u16,
+        len: u32,
+    }
+    // SAFETY for the callbacks: DirectWrite calls this exact SDK interface
+    // during MapCharacters only. Analysis and its UTF-16 storage outlive that
+    // synchronous call. Output pointers are checked before writing. No callback
+    // allocates, panics, or passes ownership of borrowed storage.
+    unsafe extern "system" fn query(this: *mut Analysis, iid: *const Guid, out: *mut Raw) -> i32 {
+        unsafe {
+            if iid.is_null() || out.is_null() { return INVALID; }
+            *out = ptr::null_mut();
+            if *iid != UNKNOWN && *iid != ANALYSIS { return 0x80004002_u32 as i32; }
+            *out = this.cast();
+        }
+        0
+    }
+    unsafe extern "system" fn reference(_: *mut Analysis) -> u32 { 1 }
+    unsafe extern "system" fn at(this: *mut Analysis, pos: u32, text: *mut *const u16, len: *mut u32) -> i32 {
+        unsafe {
+            if this.is_null() || text.is_null() || len.is_null() || pos > (*this).len { return INVALID; }
+            *text = if pos < (*this).len { (*this).text.add(pos as usize) } else { ptr::null() };
+            *len = (*this).len - pos;
+        }
+        0
+    }
+    unsafe extern "system" fn before(this: *mut Analysis, pos: u32, text: *mut *const u16, len: *mut u32) -> i32 {
+        unsafe {
+            if this.is_null() || text.is_null() || len.is_null() || pos > (*this).len { return INVALID; }
+            *text = if pos > 0 { (*this).text } else { ptr::null() };
+            *len = pos;
+        }
+        0
+    }
+    unsafe extern "system" fn direction(_: *mut Analysis) -> u32 { 0 }
+    unsafe extern "system" fn locale(this: *mut Analysis, pos: u32, len: *mut u32, name: *mut *const u16) -> i32 {
+        static EMPTY: [u16; 1] = [0];
+        unsafe {
+            if this.is_null() || len.is_null() || name.is_null() || pos > (*this).len { return INVALID; }
+            *len = (*this).len - pos;
+            *name = EMPTY.as_ptr();
+        }
+        0
+    }
+    unsafe extern "system" fn numbers(this: *mut Analysis, pos: u32, len: *mut u32, out: *mut Raw) -> i32 {
+        unsafe {
+            if this.is_null() || len.is_null() || out.is_null() || pos > (*this).len { return INVALID; }
+            *len = (*this).len - pos;
+            *out = ptr::null_mut();
+        }
+        0
+    }
+    const VTABLE: AnalysisVtable = AnalysisVtable { query, add: reference, release: reference, at, before, direction, locale, numbers };
+
+    /// Explicit host-owned Windows installed-font snapshot. Only OS-selected
+    /// candidate files enter the bounded immutable catalog. Not Send or Sync;
+    /// deterministic explicit-font clients never need to construct this source.
+    pub struct WindowsFontSource {
+        _factory: Com,
+        collection: Com,
+        fallback: Com,
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
+    impl WindowsFontSource {
+        pub fn new(limits: Limits) -> Result<Self, FontError> {
+            let mut raw = ptr::null_mut();
+            // SAFETY: IID names IDWriteFactory2, isolated factory transfers one
+            // reference. Slots 3 and 26 are GetSystemFontCollection/Fallback.
+            unsafe {
+                check(DWriteCreateFactory(1, &FACTORY2, &mut raw))?;
+                let factory = owned(raw)?;
+                raw = ptr::null_mut();
+                check(call!(factory.0, 3, (*mut Raw, i32) -> i32, &mut raw, 0))?;
+                let collection = owned(raw)?;
+                raw = ptr::null_mut();
+                check(call!(factory.0, 26, (*mut Raw) -> i32, &mut raw))?;
+                Ok(Self { _factory: factory, collection, fallback: owned(raw)?, limits, _local: PhantomData })
+            }
+        }
+        /// Discover candidates for complete text/cluster input. Mapping ranges
+        /// are used only to obtain fonts, never to split shaping clusters.
+        pub fn extend_catalog(&mut self, context: &mut FontContext, builder: &mut FontCatalogBuilder,
+            text: &str, request: &FontRequest) -> Result<(), FontError> {
+            if text.is_empty() { return Ok(()); }
+            let text = utf16(text, &self.limits)?;
+            let family = utf16(request.family().strip_prefix('@').unwrap_or(request.family()), &self.limits)?;
+            let length = u32::try_from(text.len() - 1).map_err(|_| limited())?;
+            let mut analysis = Analysis { vtable: &VTABLE, text: text.as_ptr(), len: length };
+            let mut pos = 0;
+            while pos < length {
+                let (mut mapped, mut scale, mut raw) = (0, 1_f32, ptr::null_mut());
+                // SAFETY: MapCharacters uses the stack analysis and borrowed
+                // buffers synchronously; output objects transfer one reference.
+                unsafe {
+                    check(call!(self.fallback.0, 3, (Raw, u32, u32, Raw, *const u16, u32, u32, u32, *mut u32, *mut Raw, *mut f32) -> i32,
+                        (&mut analysis as *mut Analysis).cast(), pos, length - pos, self.collection.0, family.as_ptr(),
+                        u32::from(request.weight()), if request.italic() { 2 } else { 0 }, 5, &mut mapped, &mut raw, &mut scale))?;
+                    let font = if raw.is_null() { None } else { Some(owned(raw)?) };
+                    if mapped == 0 || mapped > length - pos {
+                        return Err(FontError::new(ErrorCode::NativeFailure, "invalid Windows font mapping range"));
+                    }
+                    pos += mapped;
+                    if let Some(font) = font {
+                        self.register_file(context, builder, &font, (text.len() + family.len()) as u64 * 2)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        fn register_file(&self, context: &mut FontContext, builder: &mut FontCatalogBuilder,
+            font: &Com, text_cost: u64) -> Result<(), FontError> {
+            // SAFETY: SDK slots: Font::CreateFontFace 13, Face::GetFiles 4 /
+            // GetIndex 5, File::GetReferenceKey 3 / GetLoader 4, Loader::
+            // CreateStreamFromKey 3, Stream::Read/Release/GetSize 3/4/5.
+            // RAII retains every dependency while its borrowed key/fragment is
+            // used. Sizes are checked before allocation/copy. Nothing escapes.
+            unsafe {
+                let mut raw = ptr::null_mut();
+                check(call!(font.0, 13, (*mut Raw) -> i32, &mut raw))?;
+                let face = owned(raw)?;
+                let index = call!(face.0, 5, () -> u32);
+                let mut count = 0;
+                check(call!(face.0, 4, (*mut u32, *mut Raw) -> i32, &mut count, ptr::null_mut()))?;
+                if count != 1 {
+                    return Err(FontError::new(ErrorCode::UnsupportedFeature, "Windows fallback is not a single SFNT file"));
+                }
+                raw = ptr::null_mut();
+                check(call!(face.0, 4, (*mut u32, *mut Raw) -> i32, &mut count, &mut raw))?;
+                let file = owned(raw)?;
+                let (mut key, mut key_size) = (ptr::null(), 0);
+                check(call!(file.0, 3, (*mut *const c_void, *mut u32) -> i32, &mut key, &mut key_size))?;
+                raw = ptr::null_mut();
+                check(call!(file.0, 4, (*mut Raw) -> i32, &mut raw))?;
+                let loader = owned(raw)?;
+                raw = ptr::null_mut();
+                check(call!(loader.0, 3, (*const c_void, u32, *mut Raw) -> i32, key, key_size, &mut raw))?;
+                let stream = owned(raw)?;
+                let mut size = 0;
+                check(call!(stream.0, 5, (*mut u64) -> i32, &mut size))?;
+                if size == 0 || size > self.limits.font_bytes() || size.checked_mul(13)
+                    .and_then(|n| n.checked_add(text_cost)).and_then(|n| n.checked_add(65536))
+                    .is_none_or(|n| n > self.limits.transient_bytes()) { return Err(limited()); }
+                let count = usize::try_from(size).map_err(|_| limited())?;
+                let mut bytes = Vec::new();
+                bytes.try_reserve_exact(count).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "Windows font allocation failed"))?;
+                bytes.resize(count, 0);
+                let (mut fragment, mut fragment_context) = (ptr::null(), ptr::null_mut());
+                check(call!(stream.0, 3, (*mut *const c_void, u64, u64, *mut Raw) -> i32,
+                    &mut fragment, 0, size, &mut fragment_context))?;
+                if fragment.is_null() {
+                    call!(stream.0, 4, (Raw) -> (), fragment_context);
+                    return Err(FontError::new(ErrorCode::NativeFailure, "Windows font fragment is null"));
+                }
+                ptr::copy_nonoverlapping(fragment.cast::<u8>(), bytes.as_mut_ptr(), count);
+                call!(stream.0, 4, (Raw) -> (), fragment_context);
+                builder.register(context, &bytes, index)?;
+            }
+            Ok(())
+        }
     }
 }
