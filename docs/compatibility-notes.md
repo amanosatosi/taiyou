@@ -130,7 +130,15 @@ Its optional host correction depends on consumer video matrix/range settings
 preserves the header in ScriptInfo without rejecting or changing RGB overlays.
 This corrects an over-rejection, not an implementation of video-space mangling.
 Colored fill/border/shadow tests cover metadata retention and strict/tolerant RGB
-identity across matrix headers. Focused corpus verification is pending.
+identity across matrix headers. FFmpeg n7.1 vf_subtitles.c initializes host
+drawing with the video link's format/colorspace/range, then blends libass's RGB
+colors/masks. That file does not itself consume the ASS matrix header; it is an
+example of the host boundary, not proof of complete legacy color mangling.
+Focused comparison at 29b33bb renders embedded-font (192 differing pixels) and
+zero-area at 2000/8000 ms (633/303). Three `357-k-and-kf-desynced` frames advance
+past the matrix rejection but remain unsupported at event-effect evaluation.
+No exact match is inferred from removing the header rejection. Taiyou has no
+video-compositor integration to exercise; no FFmpeg dependency was added.
 
 **Source-verified semantics; pixel mismatch.** Pinterf RTS.cpp:2260–2274 animates
 the raw hexadecimal alpha target and narrows to BYTE afterward. Taiyou retains

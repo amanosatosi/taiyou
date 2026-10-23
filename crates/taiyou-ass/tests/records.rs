@@ -89,6 +89,35 @@ fn formats_are_dynamic_case_insensitive_and_updated_between_records() {
 }
 
 #[test]
+fn matrix_metadata_preserves_default_none_known_and_future_declarations() {
+    for matrix in [
+        None,
+        Some(""),
+        Some("None"),
+        Some("TV.601"),
+        Some("TV.709"),
+        Some("PC.601"),
+        Some("PC.709"),
+        Some("TV.240M"),
+        Some("PC.240M"),
+        Some("TV.FCC"),
+        Some("PC.FCC"),
+        Some("tv.709"),
+        Some("future.matrix"),
+    ] {
+        let header = matrix.map_or_else(String::new, |v| format!("yCbCr MaTrIx: \t{v}\t\n"));
+        let parsed = parse(&format!("[Script Info]\n{header}"));
+        assert_eq!(parsed.track().script().ycbcr_matrix(), matrix.unwrap_or(""));
+        assert!(
+            parsed
+                .diagnostics()
+                .iter()
+                .all(|d| d.code() != DiagnosticCode::UnsupportedFeature)
+        );
+    }
+}
+
+#[test]
 fn style_fields_and_exact_core_defaults_are_normalized() {
     let parsed = parse(
         "[Script Info]\nPlayResX: 640\nPlayResY: 360\nLayoutResX: 1280\nLayoutResY: 720\nWrapStyle: 2\nScaledBorderAndShadow: yes\nYCbCr Matrix: TV.709\nCollisions: Reverse\nCustom: retained\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding, PrimaryColour\nStyle: Default,Some Font,30,-1,1,-1,0,150,50,-2,45,1,3,-4,9,0,11,12,1,&H800000FF\n",
