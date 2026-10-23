@@ -1062,10 +1062,22 @@ impl Renderer {
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
                         let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
-                        let subtraction_limits = available(limits, add(held, event_charge)?)?;
-                        let border_mask =
-                            crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
-                        charge_mask(&border_mask, &mut held, event_charge, limits)?;
+                        // RTS.cpp's outline fBody flag and libass's
+                        // FILTER_FILL_IN_BORDER retain E under opaque primary
+                        // AND secondary paint. Subtracting F in that case
+                        // punches alpha gaps into antialiased body edges.
+                        // Evaluated paint already includes the event fade.
+                        let border_mask = if state.paint().primary().a() == 255
+                            && state.paint().secondary().a() == 255
+                        {
+                            mask.clone()
+                        } else {
+                            let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let border_mask =
+                                crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
+                            charge_mask(&border_mask, &mut held, event_charge, limits)?;
+                            border_mask
+                        };
                         expanded = Some(mask);
                         Some(border_mask)
                     } else {
@@ -1163,6 +1175,10 @@ impl Renderer {
                     drop(box_group);
                     event_charge = event_charge.checked_sub(box_charge).ok_or_else(limited)?;
                     if (border_exists || (opaque && border.is_none()))
+                        && border
+                            .as_ref()
+                            .zip(expanded.as_ref())
+                            .is_none_or(|(border, expanded)| !Arc::ptr_eq(border, expanded))
                         && shadow
                             .as_ref()
                             .zip(expanded.as_ref())

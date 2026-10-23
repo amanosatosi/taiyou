@@ -77,6 +77,16 @@ libass; this probe is GDI evidence, not an authenticated xy rendering capture.
 
 ## Glyph outlines and rasterization
 
+**Opaque outline underlay correction.** Pinterf `RTS.cpp:CLine::Paint` passes
+both body/border flags for the outline only when primary and secondary colors
+are opaque and the event fade is zero. `Overlay::FillAlphaMash` then paints
+the full expanded mask. Libass's `FILTER_FILL_IN_BORDER` has the same condition.
+Taiyou previously subtracted fill coverage unconditionally, leaving alpha gaps
+at antialiased body edges even inside a solid outline. It now retains the
+expanded mask under opaque evaluated colors, while translucent colors retain
+subtraction. The reduced horizontal-border regression compares complete buffers
+against independently drawn rectangles for both opaque and translucent colors.
+
 **Verified defect; partial pixel compatibility — curve continuity.** Pinterf's
 Rasterizer `_EvaluateLine` reconnects successive path points. Taiyou's converted
 quadratic polynomial could truncate its final endpoint one Q6 tick short, while

@@ -54,6 +54,8 @@ jobs:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
         run: |
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
           cargo test --locked -p taiyou-cli --features native --test comparison_adapter
@@ -61,7 +63,7 @@ jobs:
       - name: Small representative selection only (mismatches remain failures)
         id: smoke
         run: |
-          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/draw-images/drawImg-104396.png --case regression/v4++/kt-01500.png --case regression/implicit-pos/shift-dir-1500.png --case regression/zero-area/zero-area-2000.png --case regression/zero-area/zero-area-8000.png --visual-review "$RUNNER_TEMP/visual-review"
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/draw-images/drawImg-104396.png --case regression/ssa/alpha-1000.png --case regression/ssa/alpha-3000.png --case regression/v4++/kt-01500.png --case regression/implicit-pos/shift-dir-1500.png --case regression/zero-area/zero-area-2000.png --case regression/zero-area/zero-area-8000.png --visual-review "$RUNNER_TEMP/visual-review"
       - name: Verify review triplets and render independent reduced witnesses
         if: ${{ !cancelled() && steps.smoke.outcome != 'skipped' }}
         run: |

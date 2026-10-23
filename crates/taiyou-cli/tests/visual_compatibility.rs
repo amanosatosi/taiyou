@@ -127,6 +127,48 @@ fn adjacent_drawing_words_keep_independent_coverage_and_alpha() {
     }
 }
 
+#[test]
+fn opaque_karaoke_colors_keep_outline_under_body_antialiasing() {
+    let fonts = fonts();
+    let square = "m 0 0 l 20 0 20 20 0 20";
+    for (primary, secondary) in [("00", "00"), ("80", "00"), ("00", "80")] {
+        let actual = parsed(&format!(
+            "Dialogue: 0:00:00.00,0:00:05.00,{{\\an7\\pos(20.5,20)\\xbord2\\ybord0\\3c&H0000FF&\\1a&H{primary}&\\2a&H{secondary}&\\p1}}{square}\n"
+        ));
+        // A horizontal-only outline has exact rectangular geometry. When both
+        // karaoke colors are opaque its entire expanded rectangle is painted
+        // behind the body; otherwise only the two side strips are painted.
+        let red = r"\an7\bord0\1c&H0000FF&\1a&H00&\p1";
+        let outline = if primary == "00" && secondary == "00" {
+            format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{{red}\\pos(18.5,20)}}m 0 0 l 24 0 24 20 0 20\n"
+            )
+        } else {
+            format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{{red}\\pos(18.5,20)}}m 0 0 l 2 0 2 20 0 20\nDialogue: 0:00:00.00,0:00:05.00,{{{red}\\pos(40.5,20)}}m 0 0 l 2 0 2 20 0 20\n"
+            )
+        };
+        let expected = parsed(&format!(
+            "{outline}Dialogue: 0:00:00.00,0:00:05.00,{{\\an7\\pos(20.5,20)\\bord0\\1a&H{primary}&\\p1}}{square}\n"
+        ));
+        let render = |track: &ParsedTrack| {
+            Renderer::new(Default::default())
+                .unwrap()
+                .render_parsed(
+                    track,
+                    fonts.clone(),
+                    &RenderRequest {
+                        now: TimeUs::from_micros(500_000),
+                        viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+                        unsupported: UnsupportedPolicy::Strict,
+                    },
+                )
+                .unwrap()
+        };
+        assert_eq!(render(&actual).pixels(), render(&expected).pixels());
+    }
+}
+
 fn local(body: &str, fonts: &ValidatedFontCatalog) -> LocalLayout {
     let p = parsed(&format!("Dialogue: 0:00:00.00,0:00:05.00,{body}\n"));
     let e = taiyou_render::evaluate(
