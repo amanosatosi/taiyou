@@ -172,7 +172,7 @@ def probe_dll(args) -> int:
         for handle in handles:
             handle.close()
         return 0
-    except BaseException as error:
+    except Exception as error:
         output.write_text(
             json.dumps({"error": f"{type(error).__name__}: {error}"}, indent=2) + "\n",
             encoding="utf-8",
@@ -273,7 +273,7 @@ def worker_capture(args) -> int:
         )
         Path(args.output).write_bytes(data)
         return 0
-    except BaseException as error:
+    except Exception as error:
         print(f"{type(error).__name__}: {error}", file=sys.stderr, flush=True)
         return 2
 
@@ -578,7 +578,7 @@ def run_case(
             "xy_vs_libass_diff": rel(output, diff_path),
         }
         record["status"] = "OK"
-    except BaseException as error:
+    except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
     (case_dir / "case.json").write_text(
         json.dumps(record, indent=2) + "\n", encoding="utf-8"
@@ -602,7 +602,7 @@ def main(args) -> int:
     report = {
         "schema": 1,
         "purpose": "supplemental authenticated runtime capture from official pinterf xy-VSFilter release",
-        "candidate_sha": os.environ.get("GITHUB_SHA"),
+        "candidate_sha": os.environ.get("CANDIDATE_SHA", os.environ.get("GITHUB_SHA")),
         "corpus_commit": manifest["corpus_commit"],
         "cases": [],
     }
@@ -636,7 +636,7 @@ def main(args) -> int:
                 ),
                 flush=True,
             )
-    except BaseException as error:
+    except Exception as error:
         report["fatal_error"] = f"{type(error).__name__}: {error}"
 
     total = len(manifest["cases"])
@@ -709,7 +709,7 @@ if __name__ == "__main__":
         if not args.release_root or not args.corpus:
             raise ValueError("main mode requires --release-root and --corpus")
         sys.exit(main(args))
-    except BaseException as error:
+    except Exception as error:
         print(
             f"XY_ORACLE_ERROR: {type(error).__name__}: {error}",
             file=sys.stderr,
