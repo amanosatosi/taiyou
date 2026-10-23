@@ -34,3 +34,23 @@ for source, output in [("font.otf", "alias-regular.otf"), ("bold.otf", "alias-bo
     font.close()
 print("ALIAS_FIXTURES=" + json.dumps({name: hashlib.sha256((directory/name).read_bytes()).hexdigest()
                                       for name in ["alias-regular.otf", "alias-bold.otf"]}), flush=True)
+
+# Independently authored cmap fixtures. Glyphs/metrics stay those of the licensed
+# pinned Source Sans font; only character-to-glyph mapping is changed. Never an
+# external corpus edit. The mixed face checks that Unicode remains preferred.
+from fontTools.ttLib.tables._c_m_a_p import CmapSubtable
+for encoding, keys, output, keep_unicode in [
+    (4, [0xA4E5, 0xB9A9], "cmap-big5.otf", False),
+    (2, [0x82A0, 0x82A2], "cmap-sjis.otf", False),
+    (4, [0xA4E5, 0xB9A9], "cmap-unicode-preferred.otf", True),
+]:
+    font = TTFont(directory / "font.otf", recalcTimestamp=False)
+    original = font.getBestCmap()
+    table = CmapSubtable.newSubtable(4)
+    table.platformID, table.platEncID, table.language = 3, encoding, 0
+    table.cmap = dict(zip(keys, [original[ord("A")], original[ord("B")]]))
+    if not keep_unicode:
+        font["cmap"].tables = []
+    font["cmap"].tables.append(table)
+    font.save(directory / output)
+    font.close()

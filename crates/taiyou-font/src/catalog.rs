@@ -34,6 +34,7 @@ pub struct ValidatedFontCatalog {
     aliases: Arc<[Arc<[String]>]>,
     cells: Arc<[(u16, u16, u16)]>,
     verticals: Arc<[VerticalMetrics]>,
+    legacy_charmaps: Arc<[Option<u16>]>,
 }
 impl ValidatedFontCatalog {
     pub fn ass_oriented_cell_metrics(
@@ -208,7 +209,10 @@ impl ValidatedFontCatalog {
         } else {
             None
         };
-        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink, vertical)
+        let index = self.faces().iter().position(|face| face.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent"))?;
+        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink,
+            crate::native::NativeFaceOptions { vertical, legacy_charmap: self.legacy_charmaps[index] })
     }
 }
 pub(crate) fn check_blob_identity(blob: &FontBlob) -> Result<(), FontError> {
@@ -243,6 +247,7 @@ pub struct FontCatalogBuilder {
     aliases: Vec<Arc<[String]>>,
     cells: Vec<(u16, u16, u16)>,
     verticals: Vec<VerticalMetrics>,
+    legacy_charmaps: Vec<Option<u16>>,
 }
 impl FontCatalogBuilder {
     pub fn new(limits: Limits) -> Self {
@@ -255,6 +260,7 @@ impl FontCatalogBuilder {
             aliases: Vec::new(),
             cells: Vec::new(),
             verticals: Vec::new(),
+            legacy_charmaps: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
@@ -302,7 +308,8 @@ impl FontCatalogBuilder {
                 n.checked_mul(
                     3 * (std::mem::size_of::<FontRecord>()
                         + std::mem::size_of::<(u16, u16, u16)>()
-                        + std::mem::size_of::<VerticalMetrics>()) as u64,
+                        + std::mem::size_of::<VerticalMetrics>()
+                        + std::mem::size_of::<Option<u16>>()) as u64,
                 )
             })
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "catalog metadata overflow"))?;
@@ -412,6 +419,7 @@ impl FontCatalogBuilder {
                 "vertical metric allocation failed",
             )
         })?;
+        self.legacy_charmaps.try_reserve(1).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cmap selector allocation failed"))?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -425,6 +433,7 @@ impl FontCatalogBuilder {
         self.aliases.push(aliases.into());
         self.cells.push(metadata.cell);
         self.verticals.push(metadata.vertical);
+        self.legacy_charmaps.push(metadata.legacy_charmap);
         self.bytes = new_total;
         self.names = names;
         Ok(id)
@@ -469,10 +478,14 @@ impl FontCatalogBuilder {
                 )
             })?;
         verticals.extend_from_slice(&self.verticals);
+        let mut legacy_charmaps = Vec::new();
+        legacy_charmaps.try_reserve_exact(self.legacy_charmaps.len()).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cmap selector snapshot allocation failed"))?;
+        legacy_charmaps.extend_from_slice(&self.legacy_charmaps);
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
             inner: ingestion.publish_unverified(records.into())?,
+            legacy_charmaps: legacy_charmaps.into(),
             aliases: aliases.into(),
             cells: cells.into(),
             verticals: verticals.into(),

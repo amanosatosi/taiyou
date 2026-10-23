@@ -6,6 +6,71 @@ on:
 permissions:
   contents: read
 jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/compat-repair-format.patch"
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: target
+          key: compat-repair-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-${{ github.sha }}
+          restore-keys: compat-repair-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Font mapping regression and existing shaping/catalog coverage
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: |
+          cargo test --locked -p taiyou-font --features native --lib --test catalog --test shaping --test authenticated_outline
+          cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/taiyou-libass-tests
+          key: candidate-corpus-linux-a5073319af8117271d8ac13ef5c088197ff2d59b-v1
+      - run: python validation/acquire.py
+      - name: Existing frozen font frames (strict mismatches stay red)
+        id: fonts
+        run: |
+          python validation/inventory.py verify --corpus "$TAIYOU_CORPUS" --manifest validation/inventory.json
+          chmod -R a-w "$TAIYOU_CORPUS"
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/font_nonunicode/big5-hkscs-1000.png --case regression/font_nonunicode/shiftjis-1000.png --case regression/font_nonunicode/legacy-arabic-simplified-1000.png --case regression/font_nonunicode/legacy-arabic-traditional-1000.png --case regression/font_nonunicode/symbol-first-char-0x0000-1000.png --case regression/font_nonunicode/symbol-first-char-0xF000-1000.png --case regression/faux-italics/cff-0000.png --case regression/faux-italics/truetype-0000.png --case regression/embedded-font/efont-1000.png --visual-review "$RUNNER_TEMP/visual-review"
+      - name: Review output and immutable corpus verification after differences
+        if: ${{ !cancelled() && steps.fonts.outcome != 'skipped' }}
+        run: |
+          python validation/visual_review.py --verify "$RUNNER_TEMP/visual-review"
+          python validation/inventory.py verify --corpus "$TAIYOU_CORPUS" --manifest validation/inventory.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['RUNNER_TEMP'])/'taiyou-comparison/report.json').read_text())
+          for row in report['records']:
+              print(row['case'], row.get('observed_result'), row.get('raw_sha256'), json.dumps(row.get('metrics')), row.get('diagnostics'))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compatibility-repair-focused-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/visual-review/
+            ${{ runner.temp }}/compat-repair-format.patch
+          retention-days: 7
   font-evidence:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
