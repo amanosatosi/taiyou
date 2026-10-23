@@ -14,7 +14,7 @@ concurrency:
 jobs:
   oracle:
     runs-on: windows-2022
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -32,6 +32,9 @@ jobs:
         run: |
           git config --global core.symlinks true
           python validation/acquire.py
+      - name: Acquire pinned MUA Office witness font
+        shell: pwsh
+        run: python experiments/xy-oracle/acquire-mua.py
       - name: Install exact Taiyou native build tools
         shell: pwsh
         run: |
