@@ -31,7 +31,8 @@ jobs:
         run: |
           cargo fmt --all
           git diff --binary | Out-File -Encoding utf8 "$env:RUNNER_TEMP/fallback-format.patch"
-      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - run: python build-support/acquire.py
       - run: python experiments/xy-oracle/acquire-mua.py
       - run: python build-support/build-native.py
