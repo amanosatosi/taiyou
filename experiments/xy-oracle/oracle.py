@@ -15,7 +15,6 @@ import argparse
 import ctypes
 import hashlib
 import json
-import math
 import os
 import re
 from pathlib import Path
@@ -38,8 +37,7 @@ REQUIRED_EXPORTS = (
     "csri_close",
 )
 VALIDATION_RGB = (17, 93, 201)
-GOOD_FRACTION = 0.001  # 0.1% of frame pixels; exact matches are always separate.
-GOOD_MIN_PIXELS = 100
+GOOD_MAX_CHANGED_PIXELS = 100  # diagnostic only; exact matches are always separate.
 
 
 class CsriFmt(ctypes.Structure):
@@ -387,15 +385,15 @@ def artifact_key(case_id: str) -> str:
 
 
 def classify_xy(metrics: dict | None, width: int, height: int) -> tuple[str | None, int | None]:
+    _ = width, height
     if metrics is None or metrics.get("changed_pixels") is None:
         return None, None
     changed = metrics["changed_pixels"]
-    good_limit = max(GOOD_MIN_PIXELS, math.ceil(width * height * GOOD_FRACTION))
     if changed == 0:
-        return "same", good_limit
-    if changed <= good_limit:
-        return "good", good_limit
-    return "bad", good_limit
+        return "same", GOOD_MAX_CHANGED_PIXELS
+    if changed <= GOOD_MAX_CHANGED_PIXELS:
+        return "good", GOOD_MAX_CHANGED_PIXELS
+    return "bad", GOOD_MAX_CHANGED_PIXELS
 
 
 def inventory_cases(corpus_commit: str) -> tuple[list[dict], list[dict]]:
@@ -756,14 +754,14 @@ def run_case(
         record["xy_classification"] = classification
         record["good_changed_pixel_limit"] = good_limit
         record["artifacts"] = {
-            "xy_raw": rel(output, raw_path),
             "xy": rel(output, png_path),
-            "taiyou_raw": rel(output, taiyou_raw),
             "taiyou": rel(output, taiyou_png),
             "diff": rel(output, taiyou_diff),
         }
         if reference is not None:
             record["artifacts"]["xy_vs_libass_diff"] = rel(output, libass_diff_path)
+        for temporary in list(paths.values()) + [raw_path, taiyou_raw]:
+            temporary.unlink(missing_ok=True)
         record["status"] = "OK"
     except Exception as error:
         record["error"] = f"{type(error).__name__}: {error}"
@@ -795,7 +793,7 @@ def main(args) -> int:
         "corpus_commit": corpus_commit,
         "classification_policy": {
             "same": "changed_pixels == 0",
-            "good": f"0 < changed_pixels <= max({GOOD_MIN_PIXELS}, ceil(frame_pixels * {GOOD_FRACTION}))",
+            "good": f"0 < changed_pixels <= {GOOD_MAX_CHANGED_PIXELS}",
             "bad": "changed_pixels above the good threshold",
             "note": "good is diagnostic only and never counts as an exact compatibility match",
         },
