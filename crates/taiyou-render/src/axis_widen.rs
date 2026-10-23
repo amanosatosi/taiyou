@@ -104,7 +104,13 @@ fn curve(
         }
         t = next_t;
     }
-    line(prev, sample(1.0), edges, limits)
+    // Converted quadratic controls contain thirds. Evaluating the polynomial
+    // at 1 can truncate one Q6 tick short of its exact endpoint. The caller
+    // continues from p[3], so that lost tick leaves an open scanline winding
+    // and can paint a span across the gap to another glyph. Use the supplied
+    // endpoint, as for every other path segment. pinterf's _EvaluateLine also
+    // reconnects its last emitted point to the next segment's exact start.
+    line(prev, p[3], edges, limits)
 }
 pub(crate) fn rasterize(
     ops: &[PathOp<DevicePoint>],
@@ -380,6 +386,27 @@ mod tests {
             PathOp::LineTo(p(x0, y1)),
             PathOp::Close,
         ]
+    }
+    #[test]
+    fn closed_quadratic_contours_have_balanced_scanline_winding() {
+        // A closed contour cannot leave any nonzero winding at infinity. Sweep
+        // fractional cubic conversions at eighth-grid endpoints, on both sides
+        // of zero: no image baseline or renderer implementation is the oracle.
+        for dy in -16..=16 {
+            for bend in 1..=96 {
+                let a = (0.0, f64::from(dy));
+                let b = (64.0, f64::from(dy + 4));
+                let control = (f64::from(bend), f64::from(dy + bend));
+                let p1 = (a.0 + (control.0-a.0)*2.0/3.0, a.1 + (control.1-a.1)*2.0/3.0);
+                let p2 = (b.0 + (control.0-b.0)*2.0/3.0, b.1 + (control.1-b.1)*2.0/3.0);
+                let mut edges = Vec::new();
+                curve([a,p1,p2,b], &mut edges, &Limits::default(), &mut 0).unwrap();
+                line(b,a,&mut edges,&Limits::default()).unwrap();
+                let mut winding = std::collections::BTreeMap::new();
+                for edge in edges { *winding.entry(edge.y).or_insert(0) += edge.w; }
+                assert!(winding.values().all(|&value| value==0), "dy={dy} bend={bend}: {winding:?}");
+            }
+        }
     }
     #[test]
     fn zero_axis_expansion_occurs_before_coverage() {

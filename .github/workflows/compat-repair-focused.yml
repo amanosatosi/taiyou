@@ -6,6 +6,22 @@ on:
 permissions:
   contents: read
 jobs:
+  italic-gdi:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python validation/acquire.py
+      - run: python validation/inventory.py verify --corpus "$env:TAIYOU_CORPUS" --manifest validation/inventory.json
+      - shell: pwsh
+        run: ./experiments/compat-repair/italic-gdi.ps1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compatibility-italic-gdi-${{ github.sha }}
+          path: ${{ runner.temp }}/italic-gdi.json
+          retention-days: 7
   native:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -39,6 +55,7 @@ jobs:
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
         run: |
           cargo test --locked -p taiyou-font --features native --lib --test catalog --test shaping --test authenticated_outline
+          cargo test --locked -p taiyou-render --lib
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -62,6 +79,18 @@ jobs:
           report=json.loads((Path(os.environ['RUNNER_TEMP'])/'taiyou-comparison/report.json').read_text())
           for row in report['records']:
               print(row['case'], row.get('observed_result'), row.get('raw_sha256'), json.dumps(row.get('metrics')), row.get('diagnostics'))
+          sys_path=Path.cwd()/'validation'
+          import sys
+          sys.path.insert(0,str(sys_path))
+          import images
+          manifest=json.loads((Path(os.environ['RUNNER_TEMP'])/'visual-review/manifest.json').read_text())
+          for row in manifest['frames']:
+              if not row['review']: continue
+              counts=[]
+              for name in row['review']['images'][:2]:
+                  image=images.read_png(Path(os.environ['RUNNER_TEMP'])/'visual-review'/name)
+                  counts.append(sum(a>0 for a in image[2][3::4]))
+              print('VISIBLE_PIXELS',row['case'],counts)
           PY
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
