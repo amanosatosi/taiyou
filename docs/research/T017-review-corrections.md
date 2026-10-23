@@ -3,7 +3,7 @@
 This is a corrective checkpoint on PR29, based on integration commit
 `d5a545ac49aabbfc23e3895231d407da576e276f` and reviewed candidate
 `f41261ddebc61b1ebb77e6175aba619f0d45a41e`. It does not complete T017 or admit
-production automatic wrapping. ADR-012/F1 remains accepted; the owner has now
+production automatic wrapping. The collision proposal is retired as a behavioral requirement; the owner subsequently
 confirmed ADR-013 and authorized its C4 amendment. New C7 wrapping defaults and
 production activation remain unapproved. All protected comparison inputs are unchanged.
 

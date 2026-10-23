@@ -20,13 +20,10 @@ If optional storage causes a limit failure, discard the unpublished attempt and
 retry once with minimal staging. Measurements report retained/transient peaks,
 calls and replay rather than claiming the memory/performance tradeoff is free.
 
-The resolver uses the owner-approved [ADR-012](../decisions/012-core-collision-footprint.md)
-Core geometric effect footprint, distinct from immutable logical/ink/local
-boxes. It includes visible transformed ink, device-space Q6 stroke radius and
-visible Q6-offset shadow source support. Transparent effects add no padding;
-the base layout reservation remains. No arbitrary antialias/bitmap padding or
-historical rule is inferred. Geometric edge contact can share an antialiased
-boundary pixel; a future fixed explicit rotation origin requires a new decision.
+The earlier geometric-footprint proposal has been corrected after pinterf source
+inspection. Transparent line borders reserve collision space; see the current
+[compatibility findings](../compatibility-notes.md#layout-positioning-and-collision).
+Local logical/ink metrics remain separate from placement bounds.
 
 Each layer is independent. Eligible events are placed in `(start, EventId)`
 order; bottom alignment moves up and middle/top moves down. Explicit positions
@@ -55,10 +52,10 @@ All active-set work is rebuilt for every requested timestamp.
 | Automatic WrapStyle 0/1/3 | Unsupported; W2 Core semantics approved in review | Final [ADR-013](../decisions/013-core-unicode-wrapping.md)/C4 confirmation of recursive rounding, Unicode data/conformance/storage/licensing, native-work preflight and C7 limits; no production wrapping yet |
 | Legacy collision/placement L04–L07 | Unsupported | Authenticated xy captures, metrics, exact fixture/policy and maintainer admission |
 | Historical persistent allocation L08 | Blocked | Resolve conflict with C1/C4 deterministic seeking through separate contract review; never enable implicitly |
-| Core geometric effect footprint | F1 owner-approved, implemented for review | ADR-012/C4/CACHING amendment, numeric and fixed-font verification, final technical review and exact-head protected-change acknowledgment |
+| Collision footprint | Source-backed transparent-border correction | Focused native checks and unchanged full external comparison; descriptive compatibility notes |
 
 No historical pixel-parity claim is made here: no authenticated capture or golden image
-is promoted. Different border widths now affect Core collision through ADR-012;
+is promoted. Different border widths affect collision; the original F1 exclusion is retired;
 this checkpoint makes no historical claim about collision displacement.
 No blur/BE, cache framework, new font metrics or parser behavior is implemented.
 

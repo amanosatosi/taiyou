@@ -1,4 +1,5 @@
-//! Owner-approved ADR-012 geometric support. This is not raster pixel support.
+//! Source-backed line-border reservation plus geometric effect support.
+//! See compatibility-notes.md; geometric bounds are not raster pixel support.
 use crate::geometry::DeviceMapping;
 use taiyou_types::*;
 

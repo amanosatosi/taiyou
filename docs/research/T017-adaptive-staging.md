@@ -223,7 +223,7 @@ frozen assets. The independent native libass oracle remains separate. No newly
 failing case or reference/threshold/classification/harness/workflow change is
 authorized. Final candidate results must be checked individually again.
 
-F1 is approved Core policy. The owner approved W2 semantics and approved its
+F1 is historical context; current collision findings are descriptive in [compatibility notes](../compatibility-notes.md). The owner approved W2 semantics and approved its
 Unicode data plan in principle. [ADR-013](../decisions/013-core-unicode-wrapping.md)
 now records the owner's exact recursive-rounding and numeric-profile approval,
 with the authorized C4 amendment. Data/conformance/native-work/C7 admission and implementation remain
