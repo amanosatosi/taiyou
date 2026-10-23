@@ -13,6 +13,147 @@ import oracle
 ROOT = Path(__file__).resolve().parents[2]
 
 
+
+def compare_raw_bytes(expected_path: Path, actual_path: Path, width: int, height: int, diff_path: Path) -> dict:
+    expected = expected_path.read_bytes()
+    actual = actual_path.read_bytes()
+    size = width * height * 4
+    if len(expected) != size or len(actual) != size:
+        raise ValueError("raw comparison buffer length mismatch")
+
+    sums = [0, 0, 0, 0]
+    maximum = 0
+    changed = 0
+    alpha_mismatches = 0
+    bounds = None
+    diff = bytearray(size)
+
+    for i in range(0, size, 4):
+        er, eg, eb, ea = expected[i:i + 4]
+        ar, ag, ab, aa = actual[i:i + 4]
+        if er > ea or eg > ea or eb > ea:
+            raise ValueError("xy raw frame is not premultiplied")
+        if ar > aa or ag > aa or ab > aa:
+            raise ValueError("Taiyou raw frame is not premultiplied")
+
+        dr = abs(er - ar)
+        dg = abs(eg - ag)
+        db = abs(eb - ab)
+        da = abs(ea - aa)
+        sums[0] += dr
+        sums[1] += dg
+        sums[2] += db
+        sums[3] += da
+        local_max = max(dr, dg, db, da)
+        if local_max > maximum:
+            maximum = local_max
+        if local_max:
+            changed += 1
+            pixel = i // 4
+            x = pixel % width
+            y = pixel // width
+            if bounds is None:
+                bounds = [x, y, x + 1, y + 1]
+            else:
+                if x < bounds[0]:
+                    bounds[0] = x
+                if y < bounds[1]:
+                    bounds[1] = y
+                if x + 1 > bounds[2]:
+                    bounds[2] = x + 1
+                if y + 1 > bounds[3]:
+                    bounds[3] = y + 1
+        if da:
+            alpha_mismatches += 1
+        diff[i:i + 4] = bytes((max(dr, da), dg, db, 255))
+
+    oracle.images.write_png(diff_path, width, height, diff)
+    pixels = width * height
+    return {
+        "expected_dimensions": [width, height],
+        "actual_dimensions": [width, height],
+        "dimensions_match": True,
+        "max_channel_delta": maximum * 257,
+        "channel_mae": [value * 257 / pixels for value in sums],
+        "changed_pixels": changed,
+        "changed_bbox": bounds,
+        "alpha_mismatches": alpha_mismatches,
+        "exact": changed == 0,
+        "units": "premultiplied-encoded-RGBA16",
+    }
+
+
+def compare_reference_fast(reference: Path, raw_path: Path, width: int, height: int, diff_path: Path) -> dict:
+    expected = oracle.images.read_png(reference)
+    if expected[:2] != (width, height):
+        raise ValueError(
+            f"reference dimensions {expected[:2]} do not match manifest {(width, height)}"
+        )
+    raw = raw_path.read_bytes()
+    size = width * height * 4
+    if len(raw) != size:
+        raise ValueError("xy raw frame length mismatch")
+
+    ep = expected[2]
+    sums = [0, 0, 0, 0]
+    maximum = 0
+    changed = 0
+    alpha_mismatches = 0
+    bounds = None
+    diff = bytearray(size)
+
+    for i in range(0, size, 4):
+        ar, ag, ab, aa = raw[i:i + 4]
+        if ar > aa or ag > aa or ab > aa:
+            raise ValueError("xy raw frame is not premultiplied")
+        actual16 = (ar * 257, ag * 257, ab * 257, aa * 257)
+        d0 = abs(ep[i] - actual16[0])
+        d1 = abs(ep[i + 1] - actual16[1])
+        d2 = abs(ep[i + 2] - actual16[2])
+        d3 = abs(ep[i + 3] - actual16[3])
+        sums[0] += d0
+        sums[1] += d1
+        sums[2] += d2
+        sums[3] += d3
+        local_max = max(d0, d1, d2, d3)
+        if local_max > maximum:
+            maximum = local_max
+        if local_max:
+            changed += 1
+            pixel = i // 4
+            x = pixel % width
+            y = pixel // width
+            if bounds is None:
+                bounds = [x, y, x + 1, y + 1]
+            else:
+                if x < bounds[0]:
+                    bounds[0] = x
+                if y < bounds[1]:
+                    bounds[1] = y
+                if x + 1 > bounds[2]:
+                    bounds[2] = x + 1
+                if y + 1 > bounds[3]:
+                    bounds[3] = y + 1
+        if d3:
+            alpha_mismatches += 1
+        diff[i:i + 4] = bytes((max(d0, d3) // 257, d1 // 257, d2 // 257, 255))
+
+    oracle.images.write_png(diff_path, width, height, diff)
+    pixels = width * height
+    return {
+        "expected_dimensions": [width, height],
+        "actual_dimensions": [width, height],
+        "dimensions_match": True,
+        "max_channel_delta": maximum,
+        "channel_mae": [value / pixels for value in sums],
+        "changed_pixels": changed,
+        "changed_bbox": bounds,
+        "alpha_mismatches": alpha_mismatches,
+        "exact": changed == 0,
+        "units": "premultiplied-encoded-RGBA16",
+    }
+
+
 def base_record(case: dict) -> dict:
     return {
         "id": case["id"],
@@ -93,7 +234,7 @@ def xy_case(case: dict, corpus: Path, dll: Path, release_root: Path, output: Pat
 
         if reference is not None:
             libass_diff = case_dir / "xy-vs-libass-diff.png"
-            record["libass_reference_comparison"] = oracle.compare_reference(
+            record["libass_reference_comparison"] = compare_reference_fast(
                 reference, raw_path, case["width"], case["height"], libass_diff
             )
 
@@ -246,7 +387,7 @@ def compare_stage(args) -> int:
         xy_png, taiyou_png = xdir / "xy.png", tdir / "taiyou.png"
         diff = outdir / "diff.png"
         width, height = xr["dimensions"]
-        metrics = oracle.compare_raw(xy_raw, taiyou_raw, width, height, diff)
+        metrics = compare_raw_bytes(xy_raw, taiyou_raw, width, height, diff)
         classification, limit = oracle.classify_xy(metrics, width, height)
 
         shutil.copy2(xy_png, outdir / "xy.png")
@@ -283,6 +424,11 @@ def compare_stage(args) -> int:
         name: sum(r.get("xy_classification") == name for r in report["cases"])
         for name in ("same", "good", "bad")
     }
+    classification_lists = {
+        name: [r["id"] for r in report["cases"] if r.get("xy_classification") == name]
+        for name in ("same", "good", "bad")
+    }
+    report["classification_lists"] = classification_lists
     report["summary"] = {
         "total_visual_cases": len(report["cases"]),
         "same": classes["same"],
@@ -298,6 +444,9 @@ def compare_stage(args) -> int:
     }
     (output / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print("XY_COMPARE_SUMMARY=" + json.dumps(report["summary"]), flush=True)
+    print("XY_COMPARE_SAME=" + json.dumps(classification_lists["same"]), flush=True)
+    print("XY_COMPARE_GOOD=" + json.dumps(classification_lists["good"]), flush=True)
+    print("XY_COMPARE_BAD=" + json.dumps(classification_lists["bad"]), flush=True)
     return 0
 
 
