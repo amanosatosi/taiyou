@@ -1,4 +1,4 @@
-name: xy-VSFilter oracle (supplemental)
+name: Compare with xy-VSFilter
 on:
   pull_request:
     paths:
@@ -12,7 +12,8 @@ concurrency:
   group: xy-oracle-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  oracle:
+  compare:
+    name: Compare with xy-VSFilter
     runs-on: windows-2022
     timeout-minutes: 60
     steps:
