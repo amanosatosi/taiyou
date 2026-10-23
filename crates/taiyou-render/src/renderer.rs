@@ -1167,7 +1167,10 @@ impl Renderer {
                                     add(held, event_charge)?,
                                 )?)?;
                                 let body = crate::stroke::rasterize_translated_xy(
-                                    &mut raster, group, dx, dy,
+                                    &mut raster,
+                                    group,
+                                    dx,
+                                    dy,
                                 )?;
                                 drop(raster);
                                 charge_mask(&body, &mut held, event_charge, limits)?;

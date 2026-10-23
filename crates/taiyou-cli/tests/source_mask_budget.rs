@@ -73,7 +73,9 @@ fn offscreen_body_keeps_visible_shadow_and_blur_halo() {
     let fonts = fonts();
     // The body is offscreen but the displaced shadow is in the frame.
     // Sweep karaoke retains a filled shadow even when both body colors hide.
-    let shadow = parsed(&event(r"{\pos(-2000,0)\1a&HFF&\2a&HFF&\kf100\xshad2000\yshad0\4a&H00&}H"));
+    let shadow = parsed(&event(
+        r"{\pos(-2000,0)\1a&HFF&\2a&HFF&\kf100\xshad2000\yshad0\4a&H00&}H",
+    ));
     let frame = renderer(32)
         .render_parsed(&shadow, fonts.clone(), &request(750))
         .unwrap();

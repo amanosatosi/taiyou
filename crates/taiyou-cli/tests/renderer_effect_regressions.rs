@@ -178,7 +178,10 @@ fn positive_shadow_quantized_to_zero_offset_preserves_faded_fill_behavior() {
     let shadow = ordinary(
         // A nonzero original fill rounds to zero after fade, but still casts
         // a filled shadow. An originally transparent, unbordered fill does not.
-        &source(false, r"{\bord0\shad0.001\1a&HFE&\4c&HFF0000&\4a&H00&\fade(128,128,128,0,0,1000,1000)}H"),
+        &source(
+            false,
+            r"{\bord0\shad0.001\1a&HFE&\4c&HFF0000&\4a&H00&\fade(128,128,128,0,0,1000,1000)}H",
+        ),
         fonts.clone(),
         size,
     );
