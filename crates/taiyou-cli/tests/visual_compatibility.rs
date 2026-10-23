@@ -79,6 +79,54 @@ fn ass_kerning_defaults_off_and_header_selection_survives_resets_and_karaoke() {
     }
 }
 
+#[test]
+fn adjacent_drawing_words_keep_independent_coverage_and_alpha() {
+    // pinterf CPolygon::Append never joins polygons. libass split_style_runs
+    // also starts a bitmap run on both sides of a drawing. Two separately
+    // positioned events therefore provide a complete-buffer control for fill.
+    let fonts = fonts();
+    let square = "m 0 0 l 20 0 20 20 0 20";
+    for (x, next, seam_alpha) in [("20.125", "40.125", 227), ("20.5", "40.5", 192)] {
+        for alpha in ["00", "80"] {
+            let paint = format!(r"\an7\1a&H{alpha}&");
+            let joined = parsed(&format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({x},20)\\p1}}{square}{{\\p0}}{{\\p1}}{square}\n"
+            ));
+            let separate = parsed(&format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({x},20)\\p1}}{square}\nDialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({next},20)\\p1}}{square}\n"
+            ));
+            let render = |track: &ParsedTrack| {
+                Renderer::new(Default::default())
+                    .unwrap()
+                    .render_parsed(
+                        track,
+                        fonts.clone(),
+                        &RenderRequest {
+                            now: TimeUs::from_micros(500_000),
+                            viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+                            unsupported: UnsupportedPolicy::Strict,
+                        },
+                    )
+                    .unwrap()
+            };
+            let actual = render(&joined);
+            assert_eq!(
+                actual.pixels(),
+                render(&separate).pixels(),
+                "x={x}, alpha={alpha}"
+            );
+            if alpha == "00" {
+                assert_eq!(actual.pixels()[(25 * 160 + 40) * 4 + 3], seam_alpha);
+            }
+            // Contours inside a single drawing still share nonzero winding.
+            let single = parsed(&format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({x},20)\\p1}}{square} m 20 0 l 40 0 40 20 20 20\n"
+            ));
+            assert_ne!(actual.pixels(), render(&single).pixels());
+        }
+    }
+}
+
 fn local(body: &str, fonts: &ValidatedFontCatalog) -> LocalLayout {
     let p = parsed(&format!("Dialogue: 0:00:00.00,0:00:05.00,{body}\n"));
     let e = taiyou_render::evaluate(

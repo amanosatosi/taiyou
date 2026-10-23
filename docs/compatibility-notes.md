@@ -89,13 +89,21 @@ uses the existing xy span rasterizer, without an A8 compensation factor.
 
 ## Drawing geometry and coverage
 
-**Partial / libass mismatch.** Pinterf CPolygon::ParseStr derives polygon advance
-from bounds; CText's `fontSpacing` is absent from that path. Taiyou preserves this
-distinction. A four-square reduced native test at integer/fractional positions
-produces identical output for spacing 0, -0.6 and 1.25. The original 784-square
-`draw-images/drawImg-104396` remains 1,048 differing pixels (1,044 alpha), unchanged
-by the contour fix. Fractional edge coverage/compositing equivalence remains
-unresolved; no alternating-column artifact was deliberately introduced.
+**Drawing-word grouping correction.** Adjacent drawing words must retain
+independent coverage even when their styles match. Pinterf
+`RTS.cpp:CPolygon::Append` always returns false; libass
+`ass_render.c:split_style_runs` breaks on either side of a drawing. Taiyou's
+former contour union erased fractional-position seams and changed translucent
+overlaps in `draw-images/drawImg`. Coverage grouping now preserves these
+boundaries, including drawing/text boundaries. Multiple contours within one
+drawing still use nonzero winding. The reduced native regression compares the
+complete buffer with separately positioned polygons at eighth/half-pixel
+phases and opaque/translucent paint. External pixel equality remains subject
+to the focused comparison; no rasterizer substitution is involved.
+
+Pinterf CPolygon::ParseStr derives polygon advance from bounds; CText's
+`fontSpacing` is absent from that path. The existing four-square reduced native
+test preserves identical geometry for spacing 0, -0.6 and 1.25.
 
 ## Layout, positioning and collision
 

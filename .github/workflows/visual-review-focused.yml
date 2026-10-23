@@ -33,7 +33,7 @@ jobs:
           persist-credentials: false
       - name: Materialize merged integration inventory and policy
         run: |
-          base=4c51ca61902e4c90930946892f47695a2d1f1317
+          base=2d815d57ea9fa8940db60e8d4bb827eb2aadd0c4
           mkdir "$RUNNER_TEMP/accepted"
           git archive "$base" validation docs/references.lock.json | tar -x -C "$RUNNER_TEMP/accepted"
           echo "TAIYOU_ACCEPTED=$RUNNER_TEMP/accepted" >> "$GITHUB_ENV"
@@ -57,10 +57,11 @@ jobs:
         run: |
           cargo build --locked -p xtask -p taiyou-cli --features taiyou-cli/native
           cargo test --locked -p taiyou-cli --features native --test comparison_adapter
+          cargo test --locked -p taiyou-cli --features native --test visual_compatibility --test drawings --test ass_coverage_batch
       - name: Small representative selection only (mismatches remain failures)
         id: smoke
         run: |
-          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/blurs-anamorphic/blur-0000.png --case regression/v4++/kt-01500.png --case regression/karaoke/karaoke-and-runsplits-0000.png --case regression/token-parsing/trimming-0000.png --case regression/ssa/alpha-0000.png --visual-review "$RUNNER_TEMP/visual-review"
+          cargo run --locked -p xtask -- compare --suite focused --profile core-v1 --case regression/draw-images/drawImg-104396.png --case regression/v4++/kt-01500.png --case regression/implicit-pos/shift-dir-1500.png --case regression/zero-area/zero-area-2000.png --case regression/zero-area/zero-area-8000.png --visual-review "$RUNNER_TEMP/visual-review"
       - name: Verify review triplets and render independent reduced witnesses
         if: ${{ !cancelled() && steps.smoke.outcome != 'skipped' }}
         run: |
