@@ -359,3 +359,27 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod font_source_tests {
+    use super::*;
+
+    fn arguments(mode: Option<&str>) -> Vec<OsString> {
+        let mut args: Vec<_> = ["--input", "input.ass", "--output", "output.png", "--profile",
+            "core-v1", "--time-us", "0", "--width", "1920", "--height", "1080"]
+            .into_iter().map(OsString::from).collect();
+        if let Some(mode) = mode {
+            args.extend(["--font-source".into(), mode.into()]);
+        }
+        args
+    }
+
+    #[test]
+    fn explicit_mode_disables_host_discovery_on_every_platform() {
+        assert!(!Arguments::parse(arguments(Some("explicit"))).unwrap().system_fonts);
+        assert_eq!(Arguments::parse(arguments(None)).unwrap().system_fonts, cfg!(windows));
+        assert!(Arguments::parse(arguments(Some("automatic"))).is_err());
+        #[cfg(not(windows))]
+        assert!(Arguments::parse(arguments(Some("system"))).is_err());
+    }
+}

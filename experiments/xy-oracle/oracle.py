@@ -600,6 +600,8 @@ def render_taiyou(
         str(case["height"]),
         "--profile",
         "core-v1",
+        "--font-source",
+        "explicit" if case.get("inventory", True) else "system",
         "--output",
         str(png),
         "--raw",
