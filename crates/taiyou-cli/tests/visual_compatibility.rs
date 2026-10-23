@@ -125,7 +125,11 @@ fn zero_advance_event_does_not_displace_neighbor_in_either_order_or_seek_directi
                 .render_parsed(&positioned, fonts.clone(), &request)
                 .unwrap();
             assert!(actual.pixels().chunks_exact(4).any(|p| p[3] != 0));
-            assert_eq!(actual.pixels(), expected.pixels(), "order {a:?}/{b:?}, {ms}");
+            assert_eq!(
+                actual.pixels(),
+                expected.pixels(),
+                "order {a:?}/{b:?}, {ms}"
+            );
             assert_eq!(actual.diagnostics(), expected.diagnostics());
         }
     }
