@@ -675,11 +675,12 @@ impl FontContext {
                     request.language.len() as i32,
                 ),
             );
-            let flags = if request.range.start == request.context.start {
-                hb::HB_BUFFER_FLAG_BOT
-            } else {
-                0
-            } | if request.range.end == request.context.end {
+            // ASS supplies literal marks, including standalone zero-advance
+            // accents. BOT asks HarfBuzz's generic pre-shaping pass to insert
+            // a dotted-circle base for them. Libass leaves BOT unset too.
+            // Keep script-specific shaping and the supplied paragraph context;
+            // do not globally disable dotted circles in complex-script shapers.
+            let flags = if request.range.end == request.context.end {
                 hb::HB_BUFFER_FLAG_EOT
             } else {
                 0

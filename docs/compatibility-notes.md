@@ -90,6 +90,29 @@ unresolved; no alternating-column artifact was deliberately introduced.
 
 ## Layout, positioning and collision
 
+**Repair sprint — zero-advance accents.** HarfBuzz 14.5.0
+(`863d3f7787c6df18d20e4535c5906bf3eb803bd5`, `hb-ot-shape.cc`,
+`hb_insert_dotted_circle`) inserts a generic base when BOT is set on a leading
+mark. Taiyou set BOT; libass `ass_shaper.c:shape_harfbuzz` leaves it unset.
+The adapter now leaves BOT unset while retaining paragraph context and
+script-specific shaping. Zero-width, unbordered text also retains a zero-width
+collision reservation despite ink overhang, matching pinterf `AllocRect`'s empty
+intersection rule and libass `ass_render.c:fix_collisions`' zero-area exclusion.
+`visual_compatibility` tests literal accent glyphs, visible ink, horizontal
+outline reservation, both event orders and repeated/backward seeks. Pixel
+verification is pending CI; this is not an exact-compatibility claim.
+
+**Scroll / legacy FFmpeg distinction.** The inspected `effect-delay` triplet
+has equal glyph size and four-line height, but different word breaks. Pinterf
+`RTS.cpp:GetWrapWidth/GetNextLine` selects each line's target from remaining
+advance width; libass `ass_render.c:wrap_lines_rebalance` subsequently moves
+words between adjacent lines. Standard Taiyou wrapping follows pinterf, per B2;
+copying libass's breaks would change that policy. Likewise libass `ass.c`
+`custom_format_line_compatibility` enables SBAS for the legacy2/3 custom formats,
+and `detect_legacy_conv_subs` recognizes legacy4's FFmpeg signature. Pinterf
+`STS.cpp` initializes SBAS false without those exceptions. Neither policy is
+silently changed to fit the frozen libass PNGs. These cases remain mismatches.
+
 **Partial — transparent borders.** Pinterf RTS.cpp GetNextLine (1453–1502) collects
 line borders without checking alpha; MakeLines (1536–1565) retains first/top and
 last/bottom borders; AllocRect (1606–1651) inflates reservation before allocation.
