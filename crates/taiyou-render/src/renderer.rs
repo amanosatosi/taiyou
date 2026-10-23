@@ -1073,8 +1073,11 @@ impl Renderer {
                             mask.clone()
                         } else {
                             let subtraction_limits = available(limits, add(held, event_charge)?)?;
-                            let border_mask =
-                                crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
+                            let border_mask = crate::stroke::subtract_coverage(
+                                &mask,
+                                &fill,
+                                &subtraction_limits,
+                            )?;
                             charge_mask(&border_mask, &mut held, event_charge, limits)?;
                             border_mask
                         };
