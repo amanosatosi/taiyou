@@ -240,7 +240,11 @@ fn effects_track(border: f64) -> Arc<Track> {
             source,
             ScriptInfo::core_default()
                 .with_play_res(Size::new(160, 100))
-                .unwrap(),
+                .unwrap()
+                // These fixed segment-budget measurements used kerned text.
+                // Keep that geometry explicit as the ASS default is corrected;
+                // all original counts, limits and no-retry assertions remain.
+                .with_metadata(Arc::from([(Arc::from("Kerning"), Arc::from("yes"))])),
             Arc::from([dialogue, effect]),
             events.into(),
             &Limits::default(),

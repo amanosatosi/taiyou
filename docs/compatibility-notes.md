@@ -22,8 +22,12 @@ opt-in (yes/positive decimal prefixes, final duplicate wins). Direct shaping
 retains its kerning-on default; a per-request option controls the native kern
 feature without disabling GSUB ligatures, mark positioning or context. This
 corrects ASS behavior, not public stage types or the generic shaping default.
-Reduced additive-width/header/reset/karaoke tests and full pixel verification
-are pending the next CI checkpoint. No prior unverified experiment is imported.
+Reduced additive-width/header/reset/karaoke tests pass on macOS at `c105dc0`.
+The fixed segment-budget workload explicitly retains `Kerning: yes` so its
+previously measured geometry, counts, limits and no-retry assertions stay intact;
+the new regressions exercise the corrected default separately. No prior
+unverified experiment is imported. Current exact-head Actions and pixel results
+are recorded in [repair PR #35](https://github.com/amanosatosi/taiyou/pull/35).
 
 Measurements: [full 101-frame run at 6f667c6](https://github.com/amanosatosi/taiyou/actions/runs/39949464745)
 and [focused collision run](https://github.com/amanosatosi/taiyou/actions/runs/39948311194).
@@ -111,7 +115,7 @@ reduces differing pixels 633→141 at 2000 ms and 303→141 at 8000 ms; alpha MA
 falls 253.09360/67.89148→2.24020. Both orders produce identical PNGs. All other
 99 visual raw hashes remain unchanged. Counts remain 1 exact, 100 mismatches,
 0 unsupported, 0 crashes/infrastructure errors. Windows/macOS native suites
-pass; Linux is still running at this checkpoint. These are libass comparisons,
+pass; the Linux job was superseded by the kerning checkpoint. These are libass comparisons,
 not authenticated xy captures; the remaining 141 pixels are still mismatches.
 
 **Scroll / legacy FFmpeg distinction.** The inspected `effect-delay` triplet
