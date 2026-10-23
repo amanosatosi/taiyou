@@ -1,0 +1,36 @@
+name: xy-VSFilter oracle (supplemental)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  oracle:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/xy-vsfilter-release.7z
+          key: xy-pinterf-3.2.0.810-asset147296997-v1
+      - name: Acquire and inventory pinned xy-VSFilter release
+        shell: pwsh
+        run: ./experiments/xy-oracle/acquire.ps1
+      - name: Acquire pinned validation corpus
+        shell: pwsh
+        run: |
+          git config --global core.symlinks true
+          python validation/acquire.py
+      - name: Render xy-VSFilter oracle fixtures
+        shell: pwsh
+        run: python experiments/xy-oracle/oracle.py --release-root "$env:RUNNER_TEMP/xy-vsfilter-release" --corpus "$env:TAIYOU_CORPUS" --output "$env:RUNNER_TEMP/xy-oracle"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: xy-oracle-${{ github.sha }}
+          path: ${{ runner.temp }}/xy-oracle/
+          if-no-files-found: warn
+          retention-days: 7
