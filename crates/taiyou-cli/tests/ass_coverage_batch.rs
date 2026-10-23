@@ -7,8 +7,11 @@ fn parsed_body(body: &str) -> ParsedTrack {
     parsed_body_effect(body, "")
 }
 fn parsed_body_effect(body: &str, effect: &str) -> ParsedTrack {
+    parsed_body_effect_wrap(body, effect, 2)
+}
+fn parsed_body_effect_wrap(body: &str, effect: &str, wrap: u8) -> ParsedTrack {
     let ass = format!(
-        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Effect,Text\nDialogue: 0:00:00.00,0:00:05.00,{effect},{body}\n"
+        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: {wrap}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Effect,Text\nDialogue: 0:00:00.00,0:00:05.00,{effect},{body}\n"
     );
     taiyou_ass::parse_ass(
         ass.as_bytes(),
@@ -49,7 +52,7 @@ fn unknown_event_effects_are_preserved_and_known_motion_is_not_ignored() {
         "bAnNeR;25",
         "scroll UP;0;90;25",
     ] {
-        let p = parsed_body_effect("A", effect);
+        let p = parsed_body_effect_wrap(r"A\nB", effect, 0);
         assert_eq!(p.track().events()[0].effect(), effect);
         let evaluated = taiyou_render::evaluate(
             p.track(),
@@ -62,11 +65,25 @@ fn unknown_event_effects_are_preserved_and_known_motion_is_not_ignored() {
         assert!(!evaluated.animation().is_static(), "{effect}");
         if effect.to_ascii_lowercase().starts_with("banner;") {
             assert_eq!(evaluated.wrap_mode().get(), 2);
+            assert_eq!(evaluated.source_map().unwrap().text(), "A\nB");
+        } else {
+            assert_eq!(evaluated.wrap_mode().get(), 0);
+            assert_eq!(evaluated.source_map().unwrap().text(), "A B");
         }
     }
-    for effect in ["Banner;25;0;10", "Scroll up;0;90;25;10", "Scroll down;0;90;25;10"] {
+    for effect in [
+        "Banner;25;0;10",
+        "Scroll up;0;90;25;10",
+        "Scroll down;0;90;25;10",
+    ] {
         let p = parsed_body_effect("A", effect);
-        let error = taiyou_render::evaluate(p.track(), EventId::new(0), TimeUs::from_micros(0), Profile::CoreV1).unwrap_err();
+        let error = taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap_err();
         assert_eq!(error.code(), ErrorCode::UnsupportedFeature, "{effect}");
     }
 }
@@ -304,25 +321,61 @@ mod pixels {
             ("Scroll up;20;90;25", "33,50", "0,20,120,90"),
             ("Scroll down;90;20;25", "33,52", "0,20,120,90"),
         ] {
-            let expected = render_body(&format!(r"{{\an7\pos({position})\clip({clip})\p1}}{drawing}"), 1000);
+            let expected = render_body(
+                &format!(r"{{\an7\pos({position})\clip({clip})\p1}}{drawing}"),
+                1000,
+            );
             assert!(expected.chunks_exact(4).any(|p| p[3] != 0));
-            assert_eq!(render_body_effect(&body, 1000, effect), expected, "{effect}");
+            assert_eq!(
+                render_body_effect(&body, 1000, effect),
+                expected,
+                "{effect}"
+            );
         }
         // At 125 ms the scroll overlaps the band edge: clipping is exercised.
-        let expected = render_body(&format!(r"{{\an7\pos(33,17)\clip(0,20,120,90)\p1}}{drawing}"), 125);
+        let expected = render_body(
+            &format!(r"{{\an7\pos(33,17)\clip(0,20,120,90)\p1}}{drawing}"),
+            125,
+        );
         assert!(expected.chunks_exact(4).any(|p| p[3] != 0));
-        assert_eq!(render_body_effect(&body, 125, "Scroll down;20;90;25"), expected);
+        assert_eq!(
+            render_body_effect(&body, 125, "Scroll down;20;90;25"),
+            expected
+        );
         // Animated scroll coordinates do not depend on previous render calls.
-        assert_eq!(render_body_effect(&body, 1000, "Banner;25"), render_body(&format!(r"{{\an7\pos(80,40)\p1}}{drawing}"), 1000));
+        assert_eq!(
+            render_body_effect(&body, 1000, "Banner;25"),
+            render_body(&format!(r"{{\an7\pos(80,40)\p1}}{drawing}"), 1000)
+        );
     }
     #[test]
     fn transition_delay_uses_layout_scale_and_absolute_event_time() {
         let drawing = "m 0 0 l 12 0 12 8 0 8";
         let body = format!(r"{{\an7\pos(33,40)\p1}}{drawing}");
-        for (effect, now, x) in [("Banner;0", 1020, "110"), ("Banner;-25", 1020, "110"), ("Banner;25", 2000, "78.375")] {
-            let source = parsed_body_effect(&body, effect).track().source().replace("WrapStyle: 2", "WrapStyle: 2\nLayoutResX: 240\nLayoutResY: 240").replace("0:00:00.00,0:00:05.00", "0:00:01.00,0:00:05.00");
-            let parsed = taiyou_ass::parse_ass(source.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
-            assert_eq!(render_parsed_body(parsed, now), render_body(&format!(r"{{\an7\pos({x},40)\p1}}{drawing}"), now), "{effect}");
+        for (effect, now, x) in [
+            ("Banner;0", 1020, "110"),
+            ("Banner;-25", 1020, "110"),
+            ("Banner;25", 2000, "78.375"),
+        ] {
+            let source = parsed_body_effect(&body, effect)
+                .track()
+                .source()
+                .replace(
+                    "WrapStyle: 2",
+                    "WrapStyle: 2\nLayoutResX: 240\nLayoutResY: 240",
+                )
+                .replace("0:00:00.00,0:00:05.00", "0:00:01.00,0:00:05.00");
+            let parsed = taiyou_ass::parse_ass(
+                source.as_bytes(),
+                &ParseOptions::default(),
+                &mut TrackIngestor::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                render_parsed_body(parsed, now),
+                render_body(&format!(r"{{\an7\pos({x},40)\p1}}{drawing}"), now),
+                "{effect}"
+            );
         }
     }
     #[test]

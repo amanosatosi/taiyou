@@ -306,12 +306,24 @@ fn transition_placement(
     let mut y = anchor.y().get();
     let mut band = content;
     match effect {
-        TransitionEffect::Banner { delay, rightward, .. } => {
+        TransitionEffect::Banner {
+            delay, rightward, ..
+        } => {
             let delay = native((f64::from(delay) / sx).max(1.0))?;
             let shift = f64::from(native(elapsed as f64 * 8.0 / f64::from(delay))?) / (8.0 * sx);
-            x = if rightward { shift - bounds.x1().get() } else { f64::from(device.play_res().width()) - shift - bounds.x0().get() };
+            x = if rightward {
+                shift - bounds.x1().get()
+            } else {
+                f64::from(device.play_res().width()) - shift - bounds.x0().get()
+            };
         }
-        TransitionEffect::Scroll { top, bottom, delay, downward, .. } => {
+        TransitionEffect::Scroll {
+            top,
+            bottom,
+            delay,
+            downward,
+            ..
+        } => {
             let delay = native((f64::from(delay) / sy).max(1.0))?;
             let shift = native(elapsed as f64 * 8.0 / f64::from(delay))?;
             let top = native(f64::from(top) * sy * 8.0)?;
@@ -324,14 +336,22 @@ fn transition_placement(
             let target_y = f64::from(content.height()) / f64::from(device.play_res().height()) / sy;
             let clip_y = |value: i32| -> Result<i32, RenderError> {
                 let pixel = (i64::from(value) + 4).div_euclid(8);
-                native(pixel as f64 * target_y)?.checked_add(content.y0()).ok_or_else(limited)
+                native(pixel as f64 * target_y)?
+                    .checked_add(content.y0())
+                    .ok_or_else(limited)
             };
             let y0 = clip_y(top)?.clamp(content.y0(), content.y1());
             let y1 = clip_y(bottom)?.clamp(y0, content.y1());
             band = PixelRect::new(content.x0(), y0, content.x1(), y1).map_err(convert)?;
         }
     }
-    Ok((ScriptPoint::new(FiniteF64::new(x).map_err(convert)?, FiniteF64::new(y).map_err(convert)?), band))
+    Ok((
+        ScriptPoint::new(
+            FiniteF64::new(x).map_err(convert)?,
+            FiniteF64::new(y).map_err(convert)?,
+        ),
+        band,
+    ))
 }
 
 /// Move-only idle coordinator (Send, not Sync). No native handles or mutable
@@ -785,10 +805,15 @@ impl Renderer {
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
-                let (anchor, transition_clip) = if let Some(effect) = crate::evaluate::TransitionEffect::parse(event.effect()) {
-                    let (point, clip) = transition_placement(effect, &local, event, request.now, device, anchor)?;
+                let (anchor, transition_clip) = if let Some(effect) =
+                    crate::evaluate::TransitionEffect::parse(event.effect())
+                {
+                    let (point, clip) =
+                        transition_placement(effect, &local, event, request.now, device, anchor)?;
                     (point, Some(clip))
-                } else { (anchor, None) };
+                } else {
+                    (anchor, None)
+                };
                 #[cfg(any(test, debug_assertions))]
                 let anchor = self
                     .continuous_test_anchors
@@ -847,7 +872,13 @@ impl Renderer {
                 if let Some(bounds) = transition_clip {
                     event_charge = add(event_charge, bytes::<ResolvedClip>(2)?)?;
                     available(limits, add(held, event_charge)?)?;
-                    event_clip = Arc::new(ResolvedClip::Intersection(event_clip, Arc::new(ResolvedClip::Rectangle { bounds, inverse: false })));
+                    event_clip = Arc::new(ResolvedClip::Intersection(
+                        event_clip,
+                        Arc::new(ResolvedClip::Rectangle {
+                            bounds,
+                            inverse: false,
+                        }),
+                    ));
                 }
                 total_segments = add(total_segments, clip_segments)?;
                 if total_segments > limits.path_segments_per_frame() {

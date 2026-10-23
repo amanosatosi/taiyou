@@ -108,6 +108,19 @@ solver remain; complete pinterf allocator parity is not claimed. Strict
 MAE drops 326.96→78.73 at `228f759`. It remains a mismatch. The sampled `shift-dir`
 frame is unchanged.
 
+**Partial — Banner/Scroll motion.** Pinterf `RTS.cpp:ParseEffect` and
+`EF_BANNER`/`EF_SCROLL`, and libass `ass_apply_transition_effects`, scale delay
+into layout pixels, truncate it and clamp it to at least one. Taiyou now uses
+the existing placement/layout/clip paths for both Banner directions and Scroll
+up/down, including Banner's initial nowrap mode, collision exclusion and scroll
+band clipping. Pinterf samples motion in integer eighth-pixels; libass's shift
+is continuous. Taiyou follows the former. Nonzero fadeaway gradients remain
+explicitly unsupported. Authored positioned/clipped drawing and LayoutRes delay
+witnesses pass in [focused CI at 24462fb](https://github.com/amanosatosi/taiyou/actions/runs/39979500404).
+The preceding 33 rendered comparison frames retain identical pixels and metrics;
+the six frozen `ssa/effect-delay` frames are measured by the full comparison.
+Source agreement and internal witnesses do not establish exact xy output parity.
+
 ## Scaling, borders and shadows
 
 **Partial.** Existing implementation separates PlayRes/layout geometry mapping
@@ -136,7 +149,8 @@ colors/masks. That file does not itself consume the ASS matrix header; it is an
 example of the host boundary, not proof of complete legacy color mangling.
 Focused comparison at 29b33bb renders embedded-font (192 differing pixels) and
 zero-area at 2000/8000 ms (633/303). Three `357-k-and-kf-desynced` frames advance
-past the matrix rejection but remain unsupported at event-effect evaluation.
+past the matrix rejection but were still unsupported at event-effect evaluation
+at that checkpoint; the unknown-effect correction below removes that blocker.
 No exact match is inferred from removing the header rejection. Taiyou has no
 video-compositor integration to exercise; no FFmpeg dependency was added.
 
@@ -182,8 +196,8 @@ names. Ordinary and karaoke/fade pixel equivalence witnesses pass in
 [focused CI at 290b151](https://github.com/amanosatosi/taiyou/actions/runs/39978189222).
 The three `357-k-and-kf-desynced` frames now render without diagnostics;
 6798/7170/8170 ms differ from frozen libass by 8,474/8,474/8,483 pixels.
-These are not exact matches or authenticated xy captures. Banner/Scroll motion
-remains a distinct implementation task.
+These are not exact matches or authenticated xy captures. Recognized motion
+effects use their own implementation; unknown labels do not activate it.
 
 **Partial — SSA V4 styles.** Pinterf STS.cpp:2011–2026 and libass ass.c
 `process_style`/`set_style_alpha` agree: signed AlphaLevel is clamped to 0..255
