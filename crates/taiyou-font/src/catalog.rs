@@ -209,10 +209,21 @@ impl ValidatedFontCatalog {
         } else {
             None
         };
-        let index = self.faces().iter().position(|face| face.blob().id() == font)
+        let index = self
+            .faces()
+            .iter()
+            .position(|face| face.blob().id() == font)
             .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent"))?;
-        context.shape_authenticated_with_ink(face.blob(), request, limits, collect_ink,
-            crate::native::NativeFaceOptions { vertical, legacy_charmap: self.legacy_charmaps[index] })
+        context.shape_authenticated_with_ink(
+            face.blob(),
+            request,
+            limits,
+            collect_ink,
+            crate::native::NativeFaceOptions {
+                vertical,
+                legacy_charmap: self.legacy_charmaps[index],
+            },
+        )
     }
 }
 pub(crate) fn check_blob_identity(blob: &FontBlob) -> Result<(), FontError> {
@@ -419,7 +430,12 @@ impl FontCatalogBuilder {
                 "vertical metric allocation failed",
             )
         })?;
-        self.legacy_charmaps.try_reserve(1).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cmap selector allocation failed"))?;
+        self.legacy_charmaps.try_reserve(1).map_err(|_| {
+            error(
+                ErrorCode::AllocationFailed,
+                "catalog cmap selector allocation failed",
+            )
+        })?;
         if existing.is_none() {
             self.blobs.try_reserve(1).map_err(|_| {
                 error(
@@ -479,7 +495,14 @@ impl FontCatalogBuilder {
             })?;
         verticals.extend_from_slice(&self.verticals);
         let mut legacy_charmaps = Vec::new();
-        legacy_charmaps.try_reserve_exact(self.legacy_charmaps.len()).map_err(|_| error(ErrorCode::AllocationFailed, "catalog cmap selector snapshot allocation failed"))?;
+        legacy_charmaps
+            .try_reserve_exact(self.legacy_charmaps.len())
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "catalog cmap selector snapshot allocation failed",
+                )
+            })?;
         legacy_charmaps.extend_from_slice(&self.legacy_charmaps);
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.

@@ -81,12 +81,21 @@ fn legacy_code(encoding: &'static encoding_rs::Encoding, unicode: u32) -> Option
     let mut utf8 = [0; 4];
     let text = ch.encode_utf8(&mut utf8);
     let mut output = [0; 4];
-    let (result, read, written) = encoding.new_encoder()
-        .encode_from_utf8_without_replacement(text, &mut output, true);
-    if result != encoding_rs::EncoderResult::InputEmpty || read != text.len() || !(1..=2).contains(&written) {
+    let (result, read, written) =
+        encoding
+            .new_encoder()
+            .encode_from_utf8_without_replacement(text, &mut output, true);
+    if result != encoding_rs::EncoderResult::InputEmpty
+        || read != text.len()
+        || !(1..=2).contains(&written)
+    {
         return None;
     }
-    Some(output[..written].iter().fold(0, |code, &byte| (code << 8) | u32::from(byte)))
+    Some(
+        output[..written]
+            .iter()
+            .fold(0, |code, &byte| (code << 8) | u32::from(byte)),
+    )
 }
 unsafe extern "C" fn legacy_nominal_glyph(
     _font: *mut hb::hb_font_t,
@@ -99,11 +108,17 @@ unsafe extern "C" fn legacy_nominal_glyph(
     // outlives that font; HarfBuzz supplies a valid output slot. No allocation,
     // native face, callback mutation or unwinding occurs in this callback.
     unsafe {
-        let (Some(data), Some(glyph)) = (font_data.cast::<LegacyNominal>().as_ref(), glyph.as_mut()) else {
+        let (Some(data), Some(glyph)) =
+            (font_data.cast::<LegacyNominal>().as_ref(), glyph.as_mut())
+        else {
             return 0;
         };
         *glyph = legacy_code(data.encoding, unicode)
-            .and_then(|code| data.glyphs.binary_search_by_key(&code, |entry| entry.0).ok())
+            .and_then(|code| {
+                data.glyphs
+                    .binary_search_by_key(&code, |entry| entry.0)
+                    .ok()
+            })
             .and_then(|index| data.glyphs.get(index))
             .map_or(0, |entry| entry.1);
         i32::from(*glyph != 0)
@@ -138,19 +153,39 @@ impl Drop for HbBuffer {
 }
 
 impl FontContext {
-    fn legacy_nominal_map(&mut self, blob: &FontBlob, id: u16, limits: &Limits) -> Result<LegacyNominal, FontError> {
+    fn legacy_nominal_map(
+        &mut self,
+        blob: &FontBlob,
+        id: u16,
+        limits: &Limits,
+    ) -> Result<LegacyNominal, FontError> {
         let encoding = dbcs_encoding(id).ok_or_else(|| native_error(0, "unknown DBCS charmap"))?;
-        let charge = (blob.bytes().len() as u64).checked_mul(12)
-            .and_then(|n| n.checked_add(64 * 1024 + (LEGACY_CMAP_ENTRIES * std::mem::size_of::<(u32, u32)>()) as u64))
+        let charge = (blob.bytes().len() as u64)
+            .checked_mul(12)
+            .and_then(|n| {
+                n.checked_add(
+                    64 * 1024 + (LEGACY_CMAP_ENTRIES * std::mem::size_of::<(u32, u32)>()) as u64,
+                )
+            })
             .ok_or_else(|| native_error(0, "legacy cmap reservation overflow"))?;
-        if charge > self.limits.transient_bytes() { return Err(FontError::new(ErrorCode::LimitExceeded, "legacy cmap native reservation exceeded")); }
-        if charge > limits.transient_bytes() { return Err(FontError::transient_limit("legacy cmap native reservation exceeded")); }
+        if charge > self.limits.transient_bytes() {
+            return Err(FontError::new(
+                ErrorCode::LimitExceeded,
+                "legacy cmap native reservation exceeded",
+            ));
+        }
+        if charge > limits.transient_bytes() {
+            return Err(FontError::transient_limit(
+                "legacy cmap native reservation exceeded",
+            ));
+        }
         self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
             // SAFETY: a worker-local validated face owns all cmap records. The
             // table count/pointer and each glyph/key are bounded before copying.
             // No FreeType handle reaches HarfBuzz or the returned immutable map.
             unsafe {
-                let count = usize::try_from((*face.raw).num_charmaps).map_err(|_| native_error(0, "negative cmap count"))?;
+                let count = usize::try_from((*face.raw).num_charmaps)
+                    .map_err(|_| native_error(0, "negative cmap count"))?;
                 if count > blob.bytes().len() || (count > 0 && (*face.raw).charmaps.is_null()) {
                     return Err(native_error(0, "invalid cmap records"));
                 }
@@ -158,23 +193,34 @@ impl FontContext {
                 for i in 0..count {
                     let cmap = *(*face.raw).charmaps.add(i);
                     if !cmap.is_null() && (*cmap).platform_id == 3 && (*cmap).encoding_id == id {
-                        if ft::FT_Set_Charmap(face.raw, cmap) != 0 { return Err(native_error(0, "legacy cmap selection failed")); }
+                        if ft::FT_Set_Charmap(face.raw, cmap) != 0 {
+                            return Err(native_error(0, "legacy cmap selection failed"));
+                        }
                         selected = true;
                         break;
                     }
                 }
-                if !selected { return Err(native_error(0, "validated legacy cmap disappeared")); }
+                if !selected {
+                    return Err(native_error(0, "validated legacy cmap disappeared"));
+                }
                 let mut glyphs = Vec::new();
-                glyphs.try_reserve_exact(LEGACY_CMAP_ENTRIES).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "legacy cmap allocation failed"))?;
+                glyphs.try_reserve_exact(LEGACY_CMAP_ENTRIES).map_err(|_| {
+                    FontError::new(ErrorCode::AllocationFailed, "legacy cmap allocation failed")
+                })?;
                 let mut glyph = 0;
                 let mut code = ft::FT_Get_First_Char(face.raw, &mut glyph);
                 while glyph != 0 {
-                    if glyphs.len() == LEGACY_CMAP_ENTRIES || code > 0xFFFF || i128::from(glyph) >= i128::from((*face.raw).num_glyphs) {
+                    if glyphs.len() == LEGACY_CMAP_ENTRIES
+                        || code > 0xFFFF
+                        || i128::from(glyph) >= i128::from((*face.raw).num_glyphs)
+                    {
                         return Err(native_error(0, "invalid legacy cmap key/glyph count"));
                     }
                     glyphs.push((code as u32, glyph));
                     let next = ft::FT_Get_Next_Char(face.raw, code, &mut glyph);
-                    if glyph != 0 && next <= code { return Err(native_error(0, "non-increasing legacy cmap")); }
+                    if glyph != 0 && next <= code {
+                        return Err(native_error(0, "non-increasing legacy cmap"));
+                    }
                     code = next;
                 }
                 Ok(LegacyNominal { encoding, glyphs })
@@ -408,8 +454,19 @@ impl FontContext {
         request: &NativeRequest<'_>,
         limits: &Limits,
     ) -> Result<RawRun, FontError> {
-        let charmap = self.inspect(blob.shared_bytes(), blob.id().face_index())?.legacy_charmap;
-        self.shape_authenticated_with_ink(blob, request, limits, true, NativeFaceOptions { vertical: None, legacy_charmap: charmap })
+        let charmap = self
+            .inspect(blob.shared_bytes(), blob.id().face_index())?
+            .legacy_charmap;
+        self.shape_authenticated_with_ink(
+            blob,
+            request,
+            limits,
+            true,
+            NativeFaceOptions {
+                vertical: None,
+                legacy_charmap: charmap,
+            },
+        )
     }
 
     pub(crate) fn shape_authenticated_with_ink(
@@ -420,7 +477,10 @@ impl FontContext {
         collect_ink: bool,
         options: NativeFaceOptions,
     ) -> Result<RawRun, FontError> {
-        let NativeFaceOptions { vertical, legacy_charmap } = options;
+        let NativeFaceOptions {
+            vertical,
+            legacy_charmap,
+        } = options;
         self.check_bytes(blob.bytes())?;
         let invalid = || {
             FontError::new(
@@ -457,7 +517,9 @@ impl FontContext {
         if context.len() as u64 > limits.text_bytes_per_event() {
             return Err(limited());
         }
-        let nominal = legacy_charmap.map(|id| self.legacy_nominal_map(blob, id, limits)).transpose()?;
+        let nominal = legacy_charmap
+            .map(|id| self.legacy_nominal_map(blob, id, limits))
+            .transpose()?;
         let charge = (blob.bytes().len() as u64)
             .checked_mul(4)
             .and_then(|n| n.checked_add((context.len() as u64).checked_mul(256)?))
@@ -469,7 +531,13 @@ impl FontContext {
                 )
             })
             .and_then(|n| n.checked_add(4096))
-            .and_then(|n| n.checked_add(if nominal.is_some() { (LEGACY_CMAP_ENTRIES * std::mem::size_of::<(u32, u32)>()) as u64 } else { 0 }))
+            .and_then(|n| {
+                n.checked_add(if nominal.is_some() {
+                    (LEGACY_CMAP_ENTRIES * std::mem::size_of::<(u32, u32)>()) as u64
+                } else {
+                    0
+                })
+            })
             .ok_or_else(limited)?;
         // The coordinator's FontContext cap is fixed before optional retention.
         // A failure of that cap cannot be helped by releasing retained layouts.
@@ -542,14 +610,28 @@ impl FontContext {
             let mut funcs = None;
             if let Some(nominal) = &nominal {
                 let raw = hb::hb_font_create_sub_font(font.raw);
-                if raw.is_null() || raw == hb::hb_font_get_empty() { return Err(failed()); }
+                if raw.is_null() || raw == hb::hb_font_get_empty() {
+                    return Err(failed());
+                }
                 child = Some(HbSubFont(raw));
                 let raw_funcs = hb::hb_font_funcs_create();
-                if raw_funcs.is_null() || raw_funcs == hb::hb_font_funcs_get_empty() { return Err(failed()); }
+                if raw_funcs.is_null() || raw_funcs == hb::hb_font_funcs_get_empty() {
+                    return Err(failed());
+                }
                 funcs = Some(HbFontFuncs(raw_funcs));
-                hb::hb_font_funcs_set_nominal_glyph_func(raw_funcs, Some(legacy_nominal_glyph), ptr::null_mut(), None);
+                hb::hb_font_funcs_set_nominal_glyph_func(
+                    raw_funcs,
+                    Some(legacy_nominal_glyph),
+                    ptr::null_mut(),
+                    None,
+                );
                 hb::hb_font_funcs_make_immutable(raw_funcs);
-                hb::hb_font_set_funcs(raw, raw_funcs, (nominal as *const LegacyNominal).cast_mut().cast(), None);
+                hb::hb_font_set_funcs(
+                    raw,
+                    raw_funcs,
+                    (nominal as *const LegacyNominal).cast_mut().cast(),
+                    None,
+                );
                 hb::hb_font_set_scale(raw, scale, scale);
             }
             let shaping_font = child.as_ref().map_or(font.raw, |child| child.0);
@@ -917,6 +999,7 @@ unsafe extern "C" {
     fn FT_Get_Sfnt_Name_Count(face: ft::FT_Face) -> u32;
     fn FT_Get_Sfnt_Name(face: ft::FT_Face, index: u32, name: *mut SfntName) -> ft::FT_Error;
     fn FT_Get_Sfnt_Table(face: ft::FT_Face, tag: i32) -> *mut std::ffi::c_void;
+    fn FT_Get_CMap_Format(charmap: ft::FT_CharMap) -> ft::FT_Long;
     fn FT_Load_Sfnt_Table(
         face: ft::FT_Face,
         tag: ft::FT_ULong,
@@ -2506,21 +2589,33 @@ impl FontContext {
                 if upem == 0 || u32::from(ascent) + u32::from(descent) == 0 {
                     return Err(native_error(0, "invalid ASS font cell metrics"));
                 }
-                let legacy_charmap = if ft::FT_Select_Charmap(face.raw, ft::FT_ENCODING_UNICODE) == 0 {
-                    None
-                } else {
-                    let count = usize::try_from((*face.raw).num_charmaps).map_err(|_| native_error(0, "negative cmap count"))?;
-                    if count > byte_limit || (count > 0 && (*face.raw).charmaps.is_null()) { return Err(native_error(0, "invalid cmap records")); }
-                    let mut legacy = None;
-                    for i in 0..count {
-                        let cmap = *(*face.raw).charmaps.add(i);
-                        if !cmap.is_null() && (*cmap).platform_id == 3 && dbcs_encoding((*cmap).encoding_id).is_some() {
-                            legacy = Some((*cmap).encoding_id);
-                            break;
+                // A Unicode cmap synthesized from CFF glyph names is invisible
+                // to HarfBuzz's OpenType functions. Prefer only a real Unicode
+                // cmap (nonnegative format), before the explicit legacy table.
+                let legacy_charmap =
+                    if ft::FT_Select_Charmap(face.raw, ft::FT_ENCODING_UNICODE) == 0
+                        && !(*face.raw).charmap.is_null()
+                        && FT_Get_CMap_Format((*face.raw).charmap) >= 0 {
+                        None
+                    } else {
+                        let count = usize::try_from((*face.raw).num_charmaps)
+                            .map_err(|_| native_error(0, "negative cmap count"))?;
+                        if count > byte_limit || (count > 0 && (*face.raw).charmaps.is_null()) {
+                            return Err(native_error(0, "invalid cmap records"));
                         }
-                    }
-                    legacy
-                };
+                        let mut legacy = None;
+                        for i in 0..count {
+                            let cmap = *(*face.raw).charmaps.add(i);
+                            if !cmap.is_null()
+                                && (*cmap).platform_id == 3
+                                && dbcs_encoding((*cmap).encoding_id).is_some()
+                            {
+                                legacy = Some((*cmap).encoding_id);
+                                break;
+                            }
+                        }
+                        legacy
+                    };
                 Ok(Metadata {
                     family,
                     aliases,
@@ -2555,20 +2650,34 @@ mod tests {
         use sha2::{Digest, Sha256};
         let directory = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
         let blob = |name: &str| {
-            let bytes: Arc<[u8]> = std::fs::read(directory.with_file_name(name)).unwrap().into();
+            let bytes: Arc<[u8]> = std::fs::read(directory.with_file_name(name))
+                .unwrap()
+                .into();
             FontBlob::from_unverified(FontId::new(Sha256::digest(&bytes).into(), 0), bytes)
         };
-        let request = |text: &'static str| NativeRequest { text, context: 0..text.len(), range: 0..text.len(),
-            rtl: false, script: u32::from_be_bytes(*b"Hani"), language: "und", ligatures: true, vertical: false };
+        let request = |text: &'static str| NativeRequest {
+            text,
+            context: 0..text.len(),
+            range: 0..text.len(),
+            rtl: false,
+            script: u32::from_be_bytes(*b"Hani"),
+            language: "und",
+            ligatures: true,
+            vertical: false,
+        };
         let mut context = FontContext::new().unwrap();
         let limits = Limits::default();
-        let original = context.shape_raw(&blob("font.otf"), &request("AB"), &limits).unwrap();
+        let original = context
+            .shape_raw(&blob("font.otf"), &request("AB"), &limits)
+            .unwrap();
         for (name, text) in [("cmap-big5.otf", "文鼎"), ("cmap-sjis.otf", "あい")] {
             let font = blob(name);
             let shaped = context.shape_raw(&font, &request(text), &limits).unwrap();
             assert_eq!(shaped.upem, original.upem);
             assert_eq!(shaped.glyphs.len(), 2);
-            for (index, (actual, expected)) in shaped.glyphs.iter().zip(&original.glyphs).enumerate() {
+            for (index, (actual, expected)) in
+                shaped.glyphs.iter().zip(&original.glyphs).enumerate()
+            {
                 assert_ne!(actual.glyph, 0);
                 assert_eq!(actual.glyph, expected.glyph);
                 assert_eq!(actual.advance_x, expected.advance_x);
@@ -2576,23 +2685,49 @@ mod tests {
                 assert_eq!(actual.offset_y, expected.offset_y);
                 assert_eq!(actual.ink, expected.ink);
                 assert_eq!(actual.cluster, (index * 3) as u32);
-                assert_eq!(context.outline(&font, actual.glyph, &limits).unwrap().outline().ops(),
-                    context.outline(&blob("font.otf"), expected.glyph, &limits).unwrap().outline().ops());
+                assert_eq!(
+                    context
+                        .outline(&font, actual.glyph, &limits)
+                        .unwrap()
+                        .outline()
+                        .ops(),
+                    context
+                        .outline(&blob("font.otf"), expected.glyph, &limits)
+                        .unwrap()
+                        .outline()
+                        .ops()
+                );
             }
             let missing = context.shape_raw(&font, &request("😀"), &limits).unwrap();
             assert!(missing.glyphs.iter().all(|g| g.glyph == 0));
             assert_eq!(LIVE.with(|n| n.get()), (1, 0));
         }
         let mixed = blob("cmap-unicode-preferred.otf");
-        assert!(context.inspect(mixed.shared_bytes(), 0).unwrap().legacy_charmap.is_none());
+        assert!(
+            context
+                .inspect(mixed.shared_bytes(), 0)
+                .unwrap()
+                .legacy_charmap
+                .is_none()
+        );
         let unicode = context.shape_raw(&mixed, &request("AB"), &limits).unwrap();
         assert_eq!(unicode.glyphs, original.glyphs);
         assert_eq!(legacy_code(encoding_rs::BIG5, 0x11_0000), None);
         assert_eq!(legacy_code(encoding_rs::BIG5, '😀' as u32), None);
         assert_eq!(legacy_code(encoding_rs::BIG5, '文' as u32), Some(0xA4E5));
-        assert_eq!(legacy_code(encoding_rs::SHIFT_JIS, 'あ' as u32), Some(0x82A0));
+        assert_eq!(
+            legacy_code(encoding_rs::SHIFT_JIS, 'あ' as u32),
+            Some(0x82A0)
+        );
         let tiny = limits.clone().with_transient_bytes(1).unwrap();
-        assert_eq!(context.legacy_nominal_map(&blob("cmap-big5.otf"), 4, &tiny).err().unwrap().code(), ErrorCode::LimitExceeded);
+        assert_eq!(
+            context
+                .legacy_nominal_map(&blob("cmap-big5.otf"), 4, &tiny)
+                .err()
+                .unwrap()
+                .code(),
+            ErrorCode::LimitExceeded
+        );
     }
     #[test]
     fn raster_native_compound_outline_survives_font_and_raster_owners() {
