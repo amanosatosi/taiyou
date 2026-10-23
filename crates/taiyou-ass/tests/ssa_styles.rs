@@ -1,6 +1,16 @@
 use taiyou_ass::parse_ass;
 use taiyou_types::*;
 
+#[test]
+fn repeated_style_sections_preserve_the_declared_format() {
+    // libass process_line changes section/type without clearing style_format;
+    // preserve Taiyou's existing ASS behavior while adding the SSA section.
+    let source = "[V4+ Styles]\nFormat: Name,Fontname\nStyle: First,One\n[Script Info]\nTitle: intervening section\n[V4+ Styles]\nStyle: Default,Two\n";
+    let p = parse(source);
+    assert_eq!(p.track().styles()[0].font().family(), "One");
+    assert_eq!(p.track().styles()[1].font().family(), "Two");
+}
+
 fn parse(styles: &str) -> ParsedTrack {
     parse_ass(
         styles.as_bytes(),

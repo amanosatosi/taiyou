@@ -119,12 +119,6 @@ pub fn parse_ass(
         if text.starts_with('[') {
             match sections::section(text) {
                 Ok(value) => {
-                    if matches!(
-                        value,
-                        sections::Section::Styles | sections::Section::StylesV4
-                    ) {
-                        style_format = None;
-                    }
                     section = value;
                     if section == sections::Section::Ignored {
                         ctx.report(
