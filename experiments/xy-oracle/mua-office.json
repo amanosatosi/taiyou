@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "family": "MUA Office",
+  "variant": "Regular",
+  "source_page": "https://myanmarmiunicode.blogspot.com/2017/06/mua-office-font-adobe-supported.html",
+  "source_page_date": "2017-06-24",
+  "creator": "Khun Soe Zaw Thu",
+  "license": "CC-BY-ND-4.0",
+  "license_note": "Redistribute unmodified with attribution; do not modify the font.",
+  "acquisition": {
+    "repository": "https://github.com/thixpin/Myanmar-UniPress",
+    "commit": "fec151619b7d95d19fb0ee328e866241f83250d0",
+    "path": "trunk/_inc/fonts/muaoffice_Regular.ttf",
+    "git_blob_sha1": "7c1effd73fa4d5493f927c4045cca1ca20445190",
+    "size": 122492,
+    "url": "https://raw.githubusercontent.com/thixpin/Myanmar-UniPress/fec151619b7d95d19fb0ee328e866241f83250d0/trunk/_inc/fonts/muaoffice_Regular.ttf",
+    "sha256": null
+  }
+}
