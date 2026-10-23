@@ -63,7 +63,7 @@ jobs:
         run: |
           cargo test --locked -p taiyou-font --features native --lib --test catalog --test shaping --test authenticated_outline
           cargo test --locked -p taiyou-render --features native --lib
-          cargo test --locked -p taiyou-cli --features native --test synthetic_italic --test geometry --test ass_coverage_batch --test collision_review
+          cargo test --locked -p taiyou-cli --features native --test synthetic_italic --test geometry --test ass_coverage_batch --test collision_review --test wrapping_collision --test adaptive_optimized_performance
           python - <<'PY'
           import subprocess
           from pathlib import Path
