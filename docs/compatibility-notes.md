@@ -1,12 +1,24 @@
 # Compatibility findings
 
 Descriptive working notes, updated when evidence changes; no behavioral approval
-procedure is implied. The primary target is pinterf/xy-VSFilter. Local source
+procedure is implied. Investigations use both libass and pinterf/xy-VSFilter;
+shared behavior is preferred, with historical xy behavior taking default priority
+when established ASS behavior conflicts. Libass is equally valuable for bug
+discovery and modern Unicode/shaping behavior. Local source
 identities are recorded in [the reference map](LOCAL_REFERENCES.md). Source
 inspection establishes semantics, not pixel equivalence. The frozen libass-tests
 PNGs are **libass references**, not authenticated xy captures; no authenticated
 xy output is available for the findings below. Internal passing tests alone do
 not establish historical compatibility.
+
+**Unresolved — pair kerning follow-up.** Hash-authenticated Windows GDI probes
+of the frozen DejaVu Sans and Arimo faces report additive A/V and T/o widths at
+positive cell height 6400. Pinterf's ASS TextOut/GetTextExtent path differs from
+its separate libssf kerning path. Libass parses the script's Kerning header and
+configures its shaper accordingly (`ass.c`, `ass_shaper.c`). Default/header
+semantics and end-to-end output still need comparison. A local shaping experiment
+is isolated outside PR #34 and has not passed CI; production shaping is unchanged
+by this observation.
 
 Measurements: [full 101-frame run at 6f667c6](https://github.com/amanosatosi/taiyou/actions/runs/39949464745)
 and [focused collision run](https://github.com/amanosatosi/taiyou/actions/runs/39948311194).
