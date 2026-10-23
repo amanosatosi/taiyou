@@ -22,11 +22,13 @@ fn ssa_alpha_level_clamps_signed_bits_and_replaces_embedded_color_alpha() {
 #[test]
 fn ssa_alignment_and_decimal_colors_map_into_existing_style_values() {
     for (legacy, numpad) in [(1,1),(2,2),(3,3),(5,7),(6,8),(7,9),(9,4),(10,5),(11,6)] {
-        let p = parse(&format!("[V4 Styles]\nFormat: Name,Alignment,PrimaryColour,BackColour\nStyle: Default,{legacy},-1,1253482\n"));
+        let p = parse(&format!("[V4 Styles]\nFormat: Name,Alignment,PrimaryColour,BackColour,Bold,Italic\nStyle: Default,{legacy},-1,1253482,700,2\n"));
         let s = &p.track().styles()[0];
         assert_eq!(s.alignment().get(), numpad);
         assert_eq!(s.primary(), Rgba8::new(255,255,255,255));
         assert_eq!(s.outline(), Rgba8::new(0x6A,0x20,0x13,255));
+        assert_eq!(s.font().weight(),700);
+        assert!(s.font().italic());
     }
 }
 

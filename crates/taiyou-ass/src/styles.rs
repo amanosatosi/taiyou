@@ -17,10 +17,11 @@ pub(crate) fn parse(value: &str, format: &Format, ssa: bool) -> Result<Style, Pa
         family = Arc::from(v);
     }
     if let Some(v) = get("bold") {
-        weight = if decode::boolean(v)? { 700 } else { 400 };
+        let bold = if ssa { decode::ssa_integer(v)? != 0 } else { decode::boolean(v)? };
+        weight = if bold { 700 } else { 400 };
     }
     if let Some(v) = get("italic") {
-        italic = decode::boolean(v)?;
+        italic = if ssa { decode::ssa_integer(v)? != 0 } else { decode::boolean(v)? };
     }
     style = style.with_font(FontRequest::new(family, weight, italic, false));
     if let Some(v) = get("fontsize") {
