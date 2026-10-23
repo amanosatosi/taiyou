@@ -28,15 +28,25 @@ fn line_border_y(local: &LocalLayout, line: &Line) -> Result<f64, RenderError> {
     if span.start() == span.end() {
         return Ok(0.0);
     }
-    let end = local.shaped().breaks().iter()
-        .find(|b| b.start() == span.end()).map_or(span.end(), |b| b.end());
+    let end = local
+        .shaped()
+        .breaks()
+        .iter()
+        .find(|b| b.start() == span.end())
+        .map_or(span.end(), |b| b.end());
     let runs = local.shaped().evaluated().runs();
     let start = runs.partition_point(|run| run.decoded().is_some_and(|s| s.end() <= span.start()));
     let mut border: f64 = 0.0;
     for run in &runs[start..] {
-        let decoded = run.decoded().ok_or_else(|| RenderError::new(
-            ErrorCode::InvalidArgument, "collision line lacks decoded run"))?;
-        if decoded.start() >= end { break; }
+        let decoded = run.decoded().ok_or_else(|| {
+            RenderError::new(
+                ErrorCode::InvalidArgument,
+                "collision line lacks decoded run",
+            )
+        })?;
+        if decoded.start() >= end {
+            break;
+        }
         border = border.max(run.effects().border_y().get());
     }
     Ok(border)
@@ -145,8 +155,10 @@ pub fn collision_footprint_with_limits(
         };
         let logical = local.logical_bounds();
         result = result.union(ScriptBounds::new(
-            logical.x0().get(), logical.y0().get() - reserve(first)?,
-            logical.x1().get(), logical.y1().get() + reserve(last)?,
+            logical.x0().get(),
+            logical.y0().get() - reserve(first)?,
+            logical.x1().get(),
+            logical.y1().get() + reserve(last)?,
         )?)?;
     }
     for positioned in local.glyphs() {

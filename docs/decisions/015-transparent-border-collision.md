@@ -13,6 +13,9 @@ line outline widths without inspecting paint alpha. MakeLines1536–1565 keeps
 the first line's top border and last line's bottom border. AllocRect1606–1651
 inflates the logical reservation by those borders before collision placement,
 then removes them when returning the text position.
+The inspected local RTS.cpp SHA-256 is
+`dd4ae1950606979b255a742279f4b64a4cd90ce8a0647135980fe08e02618ffb`;
+the archive name is not a Git revision or authenticated xy output provenance.
 
 Union the existing geometric footprint with the logical event bounds expanded
 upward by the first line's maximum border Y and downward by the last line's
