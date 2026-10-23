@@ -34,7 +34,8 @@ jobs:
           python validation/acquire.py
       - name: Install exact Taiyou native build tools
         shell: pwsh
-        run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+        run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - name: Install pinned Rust
         shell: pwsh
         run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
