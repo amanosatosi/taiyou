@@ -214,6 +214,24 @@ mod pixels {
             .to_vec()
     }
     #[test]
+    fn ssa_style_alpha_and_alignment_render_like_explicit_ass_normalization() {
+        for (alpha, clamped) in [("&HFF",255),("&H30",48),("0",0),("&HFFFFFFEA",0),("&H3FF",255)] {
+            let header = "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n";
+            let events = "[Events]\nFormat: Start,End,Style,Text\nDialogue: 0:00:00.00,0:00:02.00,Default,W";
+            let ssa = format!("{header}[V4 Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,TertiaryColour,BackColour,Outline,Shadow,Alignment,AlphaLevel\nStyle: Default,Source Sans 3,32,&HFF123456,&HFF654321,&HABCDEF,&HFE13206A,3,4,9,{alpha}\n{events}");
+            let ass = format!("{header}[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Outline,Shadow,Alignment\nStyle: Default,Source Sans 3,32,&H{clamped:02X}123456,&H{clamped:02X}654321,&H{clamped:02X}13206A,&H8013206A,3,4,4\n{events}");
+            let draw = |source: &str| {
+                let parsed = taiyou_ass::parse_ass(source.as_bytes(), &ParseOptions::default(), &mut TrackIngestor::new()).unwrap();
+                Renderer::new(Default::default()).unwrap().render_parsed(&parsed, fonts(), &RenderRequest {
+                    now: TimeUs::from_micros(0), viewport: Viewport::full(Size::new(120,120)).unwrap(), unsupported: UnsupportedPolicy::Strict,
+                }).unwrap().pixels().to_vec()
+            };
+            let actual = draw(&ssa);
+            assert!(actual.chunks_exact(4).any(|p| p[3] != 0), "shadow remains visible for {alpha}");
+            assert_eq!(actual, draw(&ass), "SSA normalization {alpha}");
+        }
+    }
+    #[test]
     fn clip_and_inverse_partition_real_text_and_effects() {
         let full = render(r"\pos(60,60)\bord2\shad2", 0);
         let left = render(r"\pos(60,60)\bord2\shad2\clip(0,0,60,120)", 0);

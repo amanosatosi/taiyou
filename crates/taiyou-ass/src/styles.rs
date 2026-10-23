@@ -2,7 +2,7 @@ use crate::{decode, invalid, sections::Format};
 use std::sync::Arc;
 use taiyou_types::*;
 
-pub(crate) fn parse(value: &str, format: &Format) -> Result<Style, ParseError> {
+pub(crate) fn parse(value: &str, format: &Format, ssa: bool) -> Result<Style, ParseError> {
     format.validate_record(value)?;
     let name = format
         .field(value, "name")
@@ -44,8 +44,23 @@ pub(crate) fn parse(value: &str, format: &Format) -> Result<Style, ParseError> {
     .enumerate()
     {
         if let Some(v) = get(name) {
-            colors[index] = decode::color(v)?;
+            colors[index] = if ssa {
+                Rgba8::from_ass(u32::from_ne_bytes(decode::ssa_integer(v)?.to_ne_bytes()))
+            } else {
+                decode::color(v)?
+            };
         }
+    }
+    if ssa {
+        // pinterf STS.cpp SSA normalization and libass ass.c set_style_alpha:
+        // BackColour supplies outline RGB too; AlphaLevel replaces all front
+        // alphas, while the shadow always uses ASS transparency 0x80.
+        let alpha = get("alphalevel").map(decode::ssa_integer).transpose()?.unwrap_or(0).clamp(0, 255) as u8;
+        colors[2] = colors[3];
+        for color in &mut colors[..3] {
+            *color = Rgba8::new(color.r(), color.g(), color.b(), 255 - alpha);
+        }
+        colors[3] = Rgba8::new(colors[3].r(), colors[3].g(), colors[3].b(), 127);
     }
     style = style.with_colors(colors[0], colors[1], colors[2], colors[3]);
     let underline = get("underline")
@@ -94,9 +109,13 @@ pub(crate) fn parse(value: &str, format: &Format) -> Result<Style, ParseError> {
         });
     }
     if let Some(v) = get("alignment") {
+        let raw = decode::unsigned(v)?;
+        let mapped = if ssa {
+            (raw & 3) + if raw & 4 != 0 { 6 } else if raw & 8 != 0 { 3 } else { 0 }
+        } else { raw };
         style = style.with_alignment(
             Alignment::new(
-                u8::try_from(decode::unsigned(v)?)
+                u8::try_from(mapped)
                     .map_err(|_| invalid("alignment out of range"))?,
             )
             .map_err(|_| invalid("alignment must be 1..9"))?,

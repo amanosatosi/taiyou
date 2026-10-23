@@ -152,5 +152,14 @@ series; timestamps are not treated as separate bugs.
 the normal Example style and renders Green; the unusual `***Example` style is
 irrelevant to this event. The contour fix reduces differing pixels 1,225→1,163;
 remaining metrics/coverage differences are unresolved. No token-parser rewrite
-was made. Legacy YCbCr emulation, SSA V4 styles and deferred event effects/wrapping
-remain unsupported and separate from visual matches.
+was made. Legacy YCbCr emulation and deferred event effects/wrapping remain
+unsupported and separate from visual matches.
+
+**Partial — SSA V4 styles.** Pinterf STS.cpp:2011–2026 and libass ass.c
+`process_style`/`set_style_alpha` agree: signed AlphaLevel is clamped to 0..255
+and replaces primary/secondary/outline transparency; shadow transparency is 128;
+BackColour supplies outline RGB, and legacy alignment is mapped into numpad
+alignment. Taiyou now normalizes these into the existing style/render pipeline,
+including hexadecimal signed alpha and decimal style colors. Authored parser
+and SSA-to-explicit-ASS rendering witnesses cover the mapping; CI and the five
+frozen `ssa/alpha` frames are pending. No reference or inventory changes.
