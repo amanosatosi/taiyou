@@ -71,6 +71,27 @@ fn plain(text: &str, style: &Style) -> EvaluatedEvent {
     );
     evaluated(map, &[(0, text.len() as u32, style.clone())])
 }
+#[test]
+fn synthetic_italic_preserves_shaping_positions_and_updates_ink_support() {
+    let (mut context, catalog, _) = catalog();
+    let family = catalog.faces()[0].family();
+    let regular = style(family);
+    let italic = regular.clone().with_font(regular.font().clone().with_italic(true));
+    let a = shape_event(&mut context, &catalog, &plain("AB", &regular), &Default::default(), &limits()).unwrap();
+    let b = shape_event(&mut context, &catalog, &plain("AB", &italic), &Default::default(), &limits()).unwrap();
+    let a = &a.runs()[0];
+    let b = &b.runs()[0];
+    assert_eq!(a.glyphs().len(), b.glyphs().len());
+    for (a,b) in a.glyphs().iter().zip(b.glyphs()) {
+        assert_eq!(a.font(),b.font());
+        assert_eq!(a.glyph(),b.glyph());
+        assert_eq!(a.position(),b.position());
+        let (GlyphInk::Bounds(a), GlyphInk::Bounds(b)) = (a.ink(),b.ink()) else { panic!("nonempty test glyph ink") };
+        assert_eq!(a.y0(),b.y0());
+        assert_eq!(a.y1(),b.y1());
+        assert!(b.width()>a.width());
+    }
+}
 struct Expected {
     upem: f64,
     metrics: [i32; 3],

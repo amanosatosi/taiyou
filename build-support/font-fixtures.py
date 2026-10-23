@@ -32,6 +32,17 @@ for source, output in [("font.otf", "alias-regular.otf"), ("bold.otf", "alias-bo
     font["name"].setName("Taiyou Legacy Encoding Alias".encode("utf-16-be"), 1, 3, 2, 0x411)
     font.save(directory / output)
     font.close()
+
+# A deliberately authored italic face flag on unchanged contours checks that
+# real italic metadata prevents a second synthetic slant.
+font = TTFont(directory / "font.otf", recalcTimestamp=False)
+font["head"].macStyle |= 2
+font["OS/2"].fsSelection = (font["OS/2"].fsSelection | 1) & ~64
+font["post"].italicAngle = -12
+if "CFF " in font:
+    font["CFF "].cff.topDictIndex[0].ItalicAngle = -12
+font.save(directory / "flagged-italic.otf")
+font.close()
 print("ALIAS_FIXTURES=" + json.dumps({name: hashlib.sha256((directory/name).read_bytes()).hexdigest()
                                       for name in ["alias-regular.otf", "alias-bold.otf"]}), flush=True)
 

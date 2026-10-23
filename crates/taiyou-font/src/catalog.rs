@@ -153,6 +153,16 @@ impl ValidatedFontCatalog {
     pub fn faces(&self) -> &[FontRecord] {
         self.inner.faces()
     }
+    /// Synthetic slant for an italic request resolved to a nonitalic face.
+    /// Real italic faces already carry their own outlines and are not sheared.
+    pub fn synthetic_italic_shear(&self, font: FontId, requested: bool) -> Result<FiniteF64, FontError> {
+        let index = self.faces().iter().position(|face| face.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent"))?;
+        let fixed = if requested && !self.faces()[index].italic() {
+            if self.verticals[index].cff { 0x2D24 } else { 0x5700 }
+        } else { 0 };
+        FiniteF64::new(f64::from(fixed) / 65536.0).map_err(|e| error(e.code(), e.detail()))
+    }
     pub(crate) fn matches_family(&self, index: usize, folded: &str) -> bool {
         self.faces()[index].folded_family() == folded
             || self.aliases[index]

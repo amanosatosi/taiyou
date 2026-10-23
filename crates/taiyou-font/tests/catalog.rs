@@ -9,6 +9,24 @@ fn request(family: &str, weight: u16, italic: bool) -> FontRequest {
     FontRequest::new(Arc::from(family), weight, italic, false)
 }
 #[test]
+fn catalog_synthetic_slant_depends_on_outline_format_and_actual_face_style() {
+    let regular = fixture("TAIYOU_TEST_FONT");
+    let file = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
+    let italic = std::fs::read(file.with_file_name("flagged-italic.otf")).unwrap();
+    let ttf = std::fs::read(std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap()).join("taiyou-shaping-fonts/indic.ttf")).unwrap();
+    let mut context = FontContext::new().unwrap();
+    let mut builder = FontCatalogBuilder::new(Limits::default());
+    let cff = builder.register(&mut context, &regular, 0).unwrap();
+    let real = builder.register(&mut context, &italic, 0).unwrap();
+    let ttf = builder.register(&mut context, &ttf, 0).unwrap();
+    let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    assert!(catalog.faces().iter().find(|face| face.blob().id()==real).unwrap().italic());
+    assert_eq!(catalog.synthetic_italic_shear(cff, true).unwrap().get(), 11556.0/65536.0);
+    assert_eq!(catalog.synthetic_italic_shear(ttf, true).unwrap().get(), 22272.0/65536.0);
+    assert_eq!(catalog.synthetic_italic_shear(real, true).unwrap(), FiniteF64::ZERO);
+    for font in [cff,real,ttf] { assert_eq!(catalog.synthetic_italic_shear(font, false).unwrap(), FiniteF64::ZERO); }
+}
+#[test]
 fn catalog_resource_face_count_preserves_shared_bytes_order_and_limits() {
     let collection: Arc<[u8]> = fixture("TAIYOU_TEST_COLLECTION").into();
     let limits = Limits::default()
