@@ -169,6 +169,60 @@ fn opaque_karaoke_colors_keep_outline_under_body_antialiasing() {
     }
 }
 
+#[test]
+fn transparent_fill_shadows_follow_unfaded_opacity_and_karaoke_kind() {
+    let fonts = fonts();
+    let square = "m 0 0 l 20 0 20 20 0 20";
+    for (tags, filled, opacity) in [
+        (r"\1a&HFF&\k100", false, "00"),
+        (r"\1a&HFF&\kf100", true, "00"),
+        (r"\1a&HFF&\ko100", true, "00"),
+        // Fade rounds original opacity 1 to zero. Its shadow remains filled.
+        (r"\1a&HFE&\fade(128,128,128,0,0,1000,1000)", true, "80"),
+    ] {
+        for (offset, left, right) in [(50, "68.5", "90.5"), (-10, "8.5", "30.5")] {
+            let actual = parsed(&format!(
+                "Dialogue: 0:00:00.00,0:00:05.00,{{\\an7\\pos(20.5,20)\\xbord2\\ybord0\\xshad{offset}\\yshad0\\3a&HFF&\\2a&HFF&\\4c&HFFFFFF&\\4a&H00&{tags}\\p1}}{square}\n"
+            ));
+            let paint = format!(r"\an7\bord0\shad0\1c&HFFFFFF&\1a&H{opacity}&\p1");
+            let expected = if filled {
+                parsed(&format!(
+                    "Dialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({left},20)}}m 0 0 l 24 0 24 20 0 20\n"
+                ))
+            } else {
+                parsed(&format!(
+                    "Dialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({left},20)}}m 0 0 l 2 0 2 20 0 20\nDialogue: 0:00:00.00,0:00:05.00,{{{paint}\\pos({right},20)}}m 0 0 l 2 0 2 20 0 20\n"
+                ))
+            };
+            let render = |track: &ParsedTrack| {
+                Renderer::new(Default::default())
+                    .unwrap()
+                    .render_parsed(
+                        track,
+                        fonts.clone(),
+                        &RenderRequest {
+                            now: TimeUs::from_micros(500_000),
+                            viewport: Viewport::full(Size::new(160, 100)).unwrap(),
+                            unsupported: UnsupportedPolicy::Strict,
+                        },
+                    )
+                    .unwrap()
+            };
+            assert_eq!(
+                render(&actual).pixels(),
+                render(&expected).pixels(),
+                "{tags}, offset={offset}"
+            );
+            if !filled {
+                let no_border = parsed(&format!(
+                    "Dialogue: 0:00:00.00,0:00:05.00,{{\\an7\\pos(20.5,20)\\bord0\\xshad{offset}\\3a&HFF&\\1a&HFF&\\2a&HFF&\\k100\\p1}}{square}\n"
+                ));
+                assert!(render(&no_border).pixels().iter().all(|&p| p == 0));
+            }
+        }
+    }
+}
+
 fn local(body: &str, fonts: &ValidatedFontCatalog) -> LocalLayout {
     let p = parsed(&format!("Dialogue: 0:00:00.00,0:00:05.00,{body}\n"));
     let e = taiyou_render::evaluate(

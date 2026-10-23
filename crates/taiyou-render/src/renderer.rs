@@ -1066,10 +1066,7 @@ impl Renderer {
                         // FILTER_FILL_IN_BORDER retain E under opaque primary
                         // AND secondary paint. Subtracting F in that case
                         // punches alpha gaps into antialiased body edges.
-                        // Evaluated paint already includes the event fade.
-                        let border_mask = if state.paint().primary().a() == 255
-                            && state.paint().secondary().a() == 255
-                        {
+                        let border_mask = if state.outline_has_fill() {
                             mask.clone()
                         } else {
                             let subtraction_limits = available(limits, add(held, event_charge)?)?;
@@ -1092,6 +1089,7 @@ impl Renderer {
                     let shadow = if state.paint().shadow().a() == 0
                         || (state.effects().shadow_x().get() == 0.0
                             && state.effects().shadow_y().get() == 0.0)
+                        || (!opaque && !border_exists && !state.shadow_has_fill())
                     {
                         None
                     } else {
@@ -1107,8 +1105,8 @@ impl Renderer {
                             false,
                             track.script().scaled_border_shadow(),
                         )?;
-                        if dx.ticks() == 0 && dy.ticks() == 0 {
-                            Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
+                        let mask = if dx.ticks() == 0 && dy.ticks() == 0 {
+                            Arc::clone(expanded.as_ref().unwrap_or(&fill))
                         } else if let Some(boxes) = box_group.as_ref() {
                             let mut raster = RasterContext::with_limits(available(
                                 limits,
@@ -1118,13 +1116,7 @@ impl Renderer {
                                 crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -1146,13 +1138,7 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
@@ -1166,13 +1152,47 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                        };
+                        if !opaque && border_exists && !state.shadow_has_fill() {
+                            // Both references subtract the unfiltered body
+                            // from the filtered outline in the shadow overlay.
+                            // Rasterize that body at the SAME shadow phase;
+                            // subtracting the event's original fill is wrong.
+                            let body = if dx.ticks() == 0 && dy.ticks() == 0 {
+                                fill.clone()
+                            } else {
+                                let mut raster = RasterContext::with_limits(available(
+                                    limits,
+                                    add(held, event_charge)?,
+                                )?)?;
+                                let body = crate::stroke::rasterize_translated_xy(
+                                    &mut raster, group, dx, dy,
+                                )?;
+                                drop(raster);
+                                charge_mask(&body, &mut held, event_charge, limits)?;
+                                body
+                            };
+                            let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let ring = crate::stroke::subtract_coverage(
+                                &mask,
+                                &body,
+                                &subtraction_limits,
+                            )?;
+                            charge_mask(&ring, &mut held, event_charge, limits)?;
+                            for old in [&mask, &body] {
+                                if !Arc::ptr_eq(old, &fill)
+                                    && !expanded.as_ref().is_some_and(|e| Arc::ptr_eq(old, e))
+                                {
+                                    let charge = (old.data().len() as u64)
+                                        .checked_mul(3)
+                                        .ok_or_else(limited)?;
+                                    held = held.checked_sub(charge).ok_or_else(limited)?;
+                                }
+                            }
+                            Some(ring)
+                        } else {
+                            Some(mask)
                         }
                     };
                     drop(box_group);

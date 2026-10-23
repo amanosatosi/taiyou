@@ -87,6 +87,20 @@ expanded mask under opaque evaluated colors, while translucent colors retain
 subtraction. The reduced horizontal-border regression compares complete buffers
 against independently drawn rectangles for both opaque and translucent colors.
 
+**Transparent-fill shadow correction.** The same pinterf path enables the
+shadow body only for nontransparent original primary paint or sweep/outline
+karaoke. Libass `FILTER_FILL_IN_SHADOW` agrees. A fully transparent ordinary
+fill casts only its outline; without an outline it casts no shadow. Preserve
+these two coverage decisions before applying event fade: a nonzero original
+opacity that rounds to zero during fading still casts a filled shadow. The
+immutable evaluated run retains those decisions, and coverage grouping compares
+them. Shadow subtraction uses the unfiltered body at the translated shadow
+phase after filtering its expanded outline. Full-buffer rectangle controls
+exercise both offset signs, instant/sweep/outline karaoke, fade rounding and
+the unbordered case. The former zero-offset shadow regression now uses a
+nontransparent original fill faded to zero, preserving its coincident-shadow
+assertion while correcting its prior fully-transparent premise.
+
 **Verified defect; partial pixel compatibility — curve continuity.** Pinterf's
 Rasterizer `_EvaluateLine` reconnects successive path points. Taiyou's converted
 quadratic polynomial could truncate its final endpoint one Q6 tick short, while

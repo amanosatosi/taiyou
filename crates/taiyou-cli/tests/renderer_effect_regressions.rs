@@ -172,16 +172,18 @@ fn transparent_shadow_needs_no_offset_raster_or_additional_segment_budget() {
 }
 
 #[test]
-fn positive_shadow_quantized_to_zero_offset_preserves_transparent_fill_behavior() {
+fn positive_shadow_quantized_to_zero_offset_preserves_faded_fill_behavior() {
     let fonts = catalog();
     let size = Size::new(160, 100);
     let shadow = ordinary(
-        &source(false, r"{\bord0\shad0.001\1a&HFF&\4c&HFF0000&\4a&H00&}H"),
+        // A nonzero original fill rounds to zero after fade, but still casts
+        // a filled shadow. An originally transparent, unbordered fill does not.
+        &source(false, r"{\bord0\shad0.001\1a&HFE&\4c&HFF0000&\4a&H00&\fade(128,128,128,0,0,1000,1000)}H"),
         fonts.clone(),
         size,
     );
     let fill = ordinary(
-        &source(false, r"{\bord0\1c&HFF0000&\1a&H00&\4a&HFF&}H"),
+        &source(false, r"{\bord0\1c&HFF0000&\1a&H80&\4a&HFF&}H"),
         fonts,
         size,
     );
@@ -199,12 +201,12 @@ fn shadow_and_border_sbas_only_scale_effect_parameters_when_enabled() {
             r"{\bord1\shad0\4a&HFF&\1a&HFF&}H",
         ),
         (
-            r"{\bord0\shad2\1a&HFF&\4a&H00&}H",
-            r"{\bord0\shad1\1a&HFF&\4a&H00&}H",
+            r"{\bord0\shad2\1a&HFF&\2a&HFF&\kf100\4a&H00&}H",
+            r"{\bord0\shad1\1a&HFF&\2a&HFF&\kf100\4a&H00&}H",
         ),
         (
-            r"{\bord0\shad0.5\1a&HFF&\4a&H00&}H",
-            r"{\bord0\shad0.25\1a&HFF&\4a&H00&}H",
+            r"{\bord0\shad0.5\1a&HFF&\2a&HFF&\kf100\4a&H00&}H",
+            r"{\bord0\shad0.25\1a&HFF&\2a&HFF&\kf100\4a&H00&}H",
         ),
     ] {
         let no = ordinary(&source(false, no_tags), fonts.clone(), size);
@@ -215,7 +217,7 @@ fn shadow_and_border_sbas_only_scale_effect_parameters_when_enabled() {
     // border expansion with unequal axes remains unsupported.
     let size = Size::new(320, 300);
     let zero_tags = r"{\bord0\shad0\1c&H000000&\1a&H00&\4a&HFF&}H";
-    let tags = r"{\bord0\shad1\1a&HFF&\4a&H00&}H";
+    let tags = r"{\bord0\shad1\1a&HFF&\2a&HFF&\kf100\4a&H00&}H";
     let base = ordinary(&source(false, zero_tags), fonts.clone(), size);
     for (scaled, dx, dy) in [(false, 1usize, 1usize), (true, 2, 3)] {
         let actual = ordinary(&source(scaled, tags), fonts.clone(), size);
