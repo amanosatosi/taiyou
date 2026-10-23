@@ -73,7 +73,10 @@ pub(crate) fn color(value: &str) -> Result<Rgba8, ParseError> {
 /// In particular &HFFFFFFEA is negative, before AlphaLevel is clamped.
 pub(crate) fn ssa_integer(value: &str) -> Result<i32, ParseError> {
     let value = trim(value);
-    if let Some(hex) = value.strip_prefix("&H").or_else(|| value.strip_prefix("&h")) {
+    if let Some(hex) = value
+        .strip_prefix("&H")
+        .or_else(|| value.strip_prefix("&h"))
+    {
         let hex = hex.strip_suffix('&').unwrap_or(hex);
         if hex.is_empty() || hex.len() > 8 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(invalid("SSA integer requires 1..8 hex digits"));

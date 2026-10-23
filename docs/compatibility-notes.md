@@ -161,5 +161,10 @@ and replaces primary/secondary/outline transparency; shadow transparency is 128;
 BackColour supplies outline RGB, and legacy alignment is mapped into numpad
 alignment. Taiyou now normalizes these into the existing style/render pipeline,
 including hexadecimal signed alpha and decimal style colors. Authored parser
-and SSA-to-explicit-ASS rendering witnesses cover the mapping; CI and the five
-frozen `ssa/alpha` frames are pending. No reference or inventory changes.
+and SSA-to-explicit-ASS rendering witnesses pass in the existing
+[focused CI at 1e19957](https://github.com/amanosatosi/taiyou/actions/runs/39966806938).
+All five frozen `ssa/alpha` frames now render instead of returning unsupported;
+their differing-pixel counts at 0/1000/2000/3000/4000 ms are
+602/550/552/552/602. These remain strict mismatches, not exact compatibility.
+The preceding 23 focused cases retain their prior metrics. No reference or
+inventory changes.

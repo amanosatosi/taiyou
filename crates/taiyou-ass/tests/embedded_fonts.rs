@@ -83,6 +83,11 @@ fn ssa_styles_preserve_font_identity_in_both_syntax_policies() {
         )
         .unwrap();
         assert_eq!(parsed.track().styles()[0].font().family(), "Unknown");
-        assert!(parsed.diagnostics().iter().all(|d| d.code() != DiagnosticCode::UnsupportedFeature));
+        assert!(
+            parsed
+                .diagnostics()
+                .iter()
+                .all(|d| d.code() != DiagnosticCode::UnsupportedFeature)
+        );
     }
 }

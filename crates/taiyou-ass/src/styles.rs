@@ -17,11 +17,19 @@ pub(crate) fn parse(value: &str, format: &Format, ssa: bool) -> Result<Style, Pa
         family = Arc::from(v);
     }
     if let Some(v) = get("bold") {
-        let bold = if ssa { decode::ssa_integer(v)? != 0 } else { decode::boolean(v)? };
+        let bold = if ssa {
+            decode::ssa_integer(v)? != 0
+        } else {
+            decode::boolean(v)?
+        };
         weight = if bold { 700 } else { 400 };
     }
     if let Some(v) = get("italic") {
-        italic = if ssa { decode::ssa_integer(v)? != 0 } else { decode::boolean(v)? };
+        italic = if ssa {
+            decode::ssa_integer(v)? != 0
+        } else {
+            decode::boolean(v)?
+        };
     }
     style = style.with_font(FontRequest::new(family, weight, italic, false));
     if let Some(v) = get("fontsize") {
@@ -56,7 +64,11 @@ pub(crate) fn parse(value: &str, format: &Format, ssa: bool) -> Result<Style, Pa
         // pinterf STS.cpp SSA normalization and libass ass.c set_style_alpha:
         // BackColour supplies outline RGB too; AlphaLevel replaces all front
         // alphas, while the shadow always uses ASS transparency 0x80.
-        let alpha = get("alphalevel").map(decode::ssa_integer).transpose()?.unwrap_or(0).clamp(0, 255) as u8;
+        let alpha = get("alphalevel")
+            .map(decode::ssa_integer)
+            .transpose()?
+            .unwrap_or(0)
+            .clamp(0, 255) as u8;
         colors[2] = colors[3];
         for color in &mut colors[..3] {
             *color = Rgba8::new(color.r(), color.g(), color.b(), 255 - alpha);
@@ -112,14 +124,20 @@ pub(crate) fn parse(value: &str, format: &Format, ssa: bool) -> Result<Style, Pa
     if let Some(v) = get("alignment") {
         let raw = decode::unsigned(v)?;
         let mapped = if ssa {
-            (raw & 3) + if raw & 4 != 0 { 6 } else if raw & 8 != 0 { 3 } else { 0 }
-        } else { raw };
+            (raw & 3)
+                + if raw & 4 != 0 {
+                    6
+                } else if raw & 8 != 0 {
+                    3
+                } else {
+                    0
+                }
+        } else {
+            raw
+        };
         style = style.with_alignment(
-            Alignment::new(
-                u8::try_from(mapped)
-                    .map_err(|_| invalid("alignment out of range"))?,
-            )
-            .map_err(|_| invalid("alignment must be 1..9"))?,
+            Alignment::new(u8::try_from(mapped).map_err(|_| invalid("alignment out of range"))?)
+                .map_err(|_| invalid("alignment must be 1..9"))?,
         );
     }
     let margin = |name| {
