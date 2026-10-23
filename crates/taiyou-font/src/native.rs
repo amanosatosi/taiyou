@@ -2592,30 +2592,31 @@ impl FontContext {
                 // A Unicode cmap synthesized from CFF glyph names is invisible
                 // to HarfBuzz's OpenType functions. Prefer only a real Unicode
                 // cmap (nonnegative format), before the explicit legacy table.
-                let legacy_charmap =
-                    if ft::FT_Select_Charmap(face.raw, ft::FT_ENCODING_UNICODE) == 0
-                        && !(*face.raw).charmap.is_null()
-                        && FT_Get_CMap_Format((*face.raw).charmap) >= 0 {
-                        None
-                    } else {
-                        let count = usize::try_from((*face.raw).num_charmaps)
-                            .map_err(|_| native_error(0, "negative cmap count"))?;
-                        if count > byte_limit || (count > 0 && (*face.raw).charmaps.is_null()) {
-                            return Err(native_error(0, "invalid cmap records"));
+                let legacy_charmap = if ft::FT_Select_Charmap(face.raw, ft::FT_ENCODING_UNICODE)
+                    == 0
+                    && !(*face.raw).charmap.is_null()
+                    && FT_Get_CMap_Format((*face.raw).charmap) >= 0
+                {
+                    None
+                } else {
+                    let count = usize::try_from((*face.raw).num_charmaps)
+                        .map_err(|_| native_error(0, "negative cmap count"))?;
+                    if count > byte_limit || (count > 0 && (*face.raw).charmaps.is_null()) {
+                        return Err(native_error(0, "invalid cmap records"));
+                    }
+                    let mut legacy = None;
+                    for i in 0..count {
+                        let cmap = *(*face.raw).charmaps.add(i);
+                        if !cmap.is_null()
+                            && (*cmap).platform_id == 3
+                            && dbcs_encoding((*cmap).encoding_id).is_some()
+                        {
+                            legacy = Some((*cmap).encoding_id);
+                            break;
                         }
-                        let mut legacy = None;
-                        for i in 0..count {
-                            let cmap = *(*face.raw).charmaps.add(i);
-                            if !cmap.is_null()
-                                && (*cmap).platform_id == 3
-                                && dbcs_encoding((*cmap).encoding_id).is_some()
-                            {
-                                legacy = Some((*cmap).encoding_id);
-                                break;
-                            }
-                        }
-                        legacy
-                    };
+                    }
+                    legacy
+                };
                 Ok(Metadata {
                     family,
                     aliases,
