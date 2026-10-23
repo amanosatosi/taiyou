@@ -171,8 +171,19 @@ series; timestamps are not treated as separate bugs.
 the normal Example style and renders Green; the unusual `***Example` style is
 irrelevant to this event. The contour fix reduces differing pixels 1,225→1,163;
 remaining metrics/coverage differences are unresolved. No token-parser rewrite
-was made. Legacy YCbCr emulation and deferred event effects/wrapping remain
-unsupported and separate from visual matches.
+was made. Legacy video color conversion remains host-owned; deferred recognized
+event effects remain separate from visual matches.
+
+**Verified semantics / pixel mismatch — unknown event effects.** Libass
+`ass_parse.c:ass_apply_transition_effects` and pinterf `RTS.cpp:ParseEffect`
+leave unknown labels inert. Taiyou preserves the Effect string and ignores
+unknown names, following pinterf's case-insensitive, semicolon-delimited known
+names. Ordinary and karaoke/fade pixel equivalence witnesses pass in
+[focused CI at 290b151](https://github.com/amanosatosi/taiyou/actions/runs/39978189222).
+The three `357-k-and-kf-desynced` frames now render without diagnostics;
+6798/7170/8170 ms differ from frozen libass by 8,474/8,474/8,483 pixels.
+These are not exact matches or authenticated xy captures. Banner/Scroll motion
+remains a distinct implementation task.
 
 **Partial — SSA V4 styles.** Pinterf STS.cpp:2011–2026 and libass ass.c
 `process_style`/`set_style_alpha` agree: signed AlphaLevel is clamped to 0..255

@@ -24,15 +24,40 @@ fn parsed_body_effect(body: &str, effect: &str) -> ParsedTrack {
 }
 #[test]
 fn unknown_event_effects_are_preserved_and_known_motion_is_not_ignored() {
-    for effect in ["fx", "custom;12", "BannerX;25", "Scroll sideways;0;90;25", "Banner", "Scroll up"] {
+    for effect in [
+        "fx",
+        "custom;12",
+        "BannerX;25",
+        "Scroll sideways;0;90;25",
+        "Banner",
+        "Scroll up",
+    ] {
         let p = parsed_body_effect("A", effect);
         assert_eq!(p.track().events()[0].effect(), effect);
-        taiyou_render::evaluate(p.track(), EventId::new(0), TimeUs::from_micros(0), Profile::CoreV1).unwrap();
+        taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap();
     }
-    for effect in ["Banner;25", "Scroll up;0;90;25", "Scroll down;0;90;25", "bAnNeR;25", "scroll UP;0;90;25"] {
+    for effect in [
+        "Banner;25",
+        "Scroll up;0;90;25",
+        "Scroll down;0;90;25",
+        "bAnNeR;25",
+        "scroll UP;0;90;25",
+    ] {
         let p = parsed_body_effect("A", effect);
         assert_eq!(p.track().events()[0].effect(), effect);
-        let error = taiyou_render::evaluate(p.track(), EventId::new(0), TimeUs::from_micros(0), Profile::CoreV1).unwrap_err();
+        let error = taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap_err();
         assert_eq!(error.code(), ErrorCode::UnsupportedFeature, "{effect}");
     }
 }
@@ -241,8 +266,18 @@ mod pixels {
                 if ms > 0 {
                     assert!(ordinary.chunks_exact(4).any(|p| p[3] != 0));
                 }
-                for effect in ["fx", "custom;12", "BannerX;25", "Scroll sideways;0;90;25", "Banner"] {
-                    assert_eq!(render_body_effect(body, ms, effect), ordinary, "{effect} at {ms}");
+                for effect in [
+                    "fx",
+                    "custom;12",
+                    "BannerX;25",
+                    "Scroll sideways;0;90;25",
+                    "Banner",
+                ] {
+                    assert_eq!(
+                        render_body_effect(body, ms, effect),
+                        ordinary,
+                        "{effect} at {ms}"
+                    );
                 }
             }
         }
