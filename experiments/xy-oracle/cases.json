@@ -42,8 +42,8 @@
     },
     {
       "id": "sbas",
-      "source": "regression/scaled-border-default/ffmpeg_legacy2.ass",
-      "reference": "regression/scaled-border-default/ffmpeg_legacy2-8000.png",
+      "source": "regression/scaled-border-default/ffmpeg_legacy4.ass",
+      "reference": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
       "timestamp_ms": 8000,
       "width": 1152,
       "height": 864,
