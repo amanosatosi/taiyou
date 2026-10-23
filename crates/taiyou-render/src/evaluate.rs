@@ -8,6 +8,17 @@ fn error(code: ErrorCode, detail: &str) -> RenderError {
 fn convert(e: ParseError) -> RenderError {
     error(e.code(), e.detail()).with_resource_failure(e.resource_failure())
 }
+fn recognized_transition_effect(effect: &str) -> bool {
+    // libass ass_apply_transition_effects and pinterf ParseEffect leave unknown
+    // labels inert. Follow pinterf's case-insensitive, semicolon-delimited name
+    // matching; keep recognized effects unsupported until their motion exists.
+    let Some((name, _)) = effect.trim().split_once(';') else {
+        return false;
+    };
+    ["Banner", "Scroll up", "Scroll down"]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
 fn reserve<T>(v: &mut Vec<T>) -> Result<(), RenderError> {
     v.try_reserve(1)
         .map_err(|_| error(ErrorCode::AllocationFailed, "evaluation allocation failed"))
@@ -339,7 +350,7 @@ fn one(
     let source_map = event_map(track, event, limits)?;
     let mut decoded_end = 0_u32;
     validate_style(&state, event, event.source(), policy, d)?;
-    if !event.effect().is_empty() {
+    if recognized_transition_effect(event.effect()) {
         unsupported(
             event,
             event.source(),

@@ -4,8 +4,11 @@ fn parsed(tags: &str) -> ParsedTrack {
     parsed_body(&format!("{{{tags}}}A"))
 }
 fn parsed_body(body: &str) -> ParsedTrack {
+    parsed_body_effect(body, "")
+}
+fn parsed_body_effect(body: &str, effect: &str) -> ParsedTrack {
     let ass = format!(
-        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:05.00,{body}\n"
+        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Effect,Text\nDialogue: 0:00:00.00,0:00:05.00,{effect},{body}\n"
     );
     taiyou_ass::parse_ass(
         ass.as_bytes(),
@@ -18,6 +21,20 @@ fn parsed_body(body: &str) -> ParsedTrack {
         &mut TrackIngestor::new(),
     )
     .unwrap()
+}
+#[test]
+fn unknown_event_effects_are_preserved_and_known_motion_is_not_ignored() {
+    for effect in ["fx", "custom;12", "BannerX;25", "Scroll sideways;0;90;25", "Banner", "Scroll up"] {
+        let p = parsed_body_effect("A", effect);
+        assert_eq!(p.track().events()[0].effect(), effect);
+        taiyou_render::evaluate(p.track(), EventId::new(0), TimeUs::from_micros(0), Profile::CoreV1).unwrap();
+    }
+    for effect in ["Banner;25", "Scroll up;0;90;25", "Scroll down;0;90;25", "bAnNeR;25", "scroll UP;0;90;25"] {
+        let p = parsed_body_effect("A", effect);
+        assert_eq!(p.track().events()[0].effect(), effect);
+        let error = taiyou_render::evaluate(p.track(), EventId::new(0), TimeUs::from_micros(0), Profile::CoreV1).unwrap_err();
+        assert_eq!(error.code(), ErrorCode::UnsupportedFeature, "{effect}");
+    }
 }
 fn at(tags: &str, ms: i64) -> EvaluatedEvent {
     let p = parsed(tags);
@@ -198,10 +215,13 @@ mod pixels {
         render_body(&format!("{{{tags}}}A"), ms)
     }
     fn render_body(body: &str, ms: i64) -> Vec<u8> {
+        render_body_effect(body, ms, "")
+    }
+    fn render_body_effect(body: &str, ms: i64, effect: &str) -> Vec<u8> {
         Renderer::new(Default::default())
             .unwrap()
             .render_parsed(
-                &parsed_body(body),
+                &parsed_body_effect(body, effect),
                 fonts(),
                 &RenderRequest {
                     now: TimeUs::from_micros(ms * 1000),
@@ -212,6 +232,20 @@ mod pixels {
             .unwrap()
             .pixels()
             .to_vec()
+    }
+    #[test]
+    fn unknown_event_effects_leave_ordinary_and_animated_pixels_unchanged() {
+        for body in ["A", r"{\fad(300,200)\k42}A{\kf245}B"] {
+            for ms in [0, 1500, 100, 4800, 500] {
+                let ordinary = render_body(body, ms);
+                if ms > 0 {
+                    assert!(ordinary.chunks_exact(4).any(|p| p[3] != 0));
+                }
+                for effect in ["fx", "custom;12", "BannerX;25", "Scroll sideways;0;90;25", "Banner"] {
+                    assert_eq!(render_body_effect(body, ms, effect), ordinary, "{effect} at {ms}");
+                }
+            }
+        }
     }
     #[test]
     fn ssa_style_alpha_and_alignment_render_like_explicit_ass_normalization() {
