@@ -104,7 +104,7 @@ def classify(case, outcome, metrics, diagnostic):
     }[observed]
 
 
-def run_case(case, corpus, binary, probe, out, assets, artifacts):
+def run_case(case, corpus, binary, probe, out, assets, artifacts, review=None):
     record = {"case": case["id"], "frame": case["frames"][0]["expected"] if case["frames"] else None,
               "profile": "CoreV1", "kind": case["kind"], "status": "INFRA_ERROR", "feature": "T015/unpromoted-external-case",
               "accepted_support": case.get("profile_records", {}).get("CoreV1", {}).get("support"),
@@ -186,6 +186,19 @@ def run_case(case, corpus, binary, probe, out, assets, artifacts):
                         oversampling.preview(artifact / "actual.png", actual)
                     record["artifacts"] = {"actual": key + "/actual.png", "difference": key + "/difference.png",
                                            "expected": "external:" + frame["expected"]}
+                if review is not None:
+                    review.save(case, safe_path(corpus, frame["expected"]), expected, actual, png)
+            elif review is not None and strict_unsupported and tolerant_code == 0:
+                # Reuse only the diagnostic render already attempted above.
+                # These display bytes never enter strict metrics/classification.
+                try:
+                    actual = (images.raw_rgba(raw, expected[0], expected[1]) if (sx, sy) == (1, 1)
+                              else oversampling.normalize(raw, expected[0], expected[1], sx, sy))
+                    if images.read_png(png)[:2] != (expected[0] * sx, expected[1] * sy):
+                        raise ValueError("diagnostic renderer PNG dimensions mismatch")
+                    review.save(case, safe_path(corpus, frame["expected"]), expected, actual, png, diagnostic=True)
+                except (OSError, ValueError) as error:
+                    review.errors.append(case["id"] + ": diagnostic output: " + str(error))
             observed = observe(strict_code, metrics)
             status = classify(case, strict_code, metrics, strict_diagnostic)
             record.update(status=status, observed_result=observed, metrics=metrics,
@@ -268,6 +281,8 @@ def main():
     parser.add_argument("--output", type=Path, default=Path(os.environ.get("RUNNER_TEMP", ".")) / "taiyou-comparison")
     parser.add_argument("--renderer", type=Path, default=ROOT / "target/debug" / ("taiyou-compare" + EXE))
     parser.add_argument("--probe", type=Path, default=ROOT / "target/debug" / ("xtask" + EXE))
+    parser.add_argument("--visual-review", type=Path, default=os.environ.get("TAIYOU_VISUAL_REVIEW"),
+                        help="optional shallow display artifact; never changes comparison results")
     args = parser.parse_args()
     if args.manifest and args.case:
         parser.error("choose manifest or --case, not both")
@@ -278,6 +293,10 @@ def main():
     if not args.renderer.is_file() or not args.probe.is_file():
         parser.error("build native taiyou-cli and xtask on the runner first")
     selected = select(inventory, args.suite, args.manifest, args.case)
+    review = None
+    if args.visual_review:
+        from visual_review import Review
+        review = Review(args.visual_review)
     args.output.mkdir(parents=True, exist_ok=False)
     records = []
     try:
@@ -288,7 +307,7 @@ def main():
             if case["kind"] == "disabled-upstream":
                 continue
             record = run_case(case, corpus, args.renderer.resolve(), args.probe.resolve(), args.output, assets,
-                              sum("artifacts" in r for r in records))
+                              sum("artifacts" in r for r in records), review)
             records.append(record)
             print(json.dumps({"case": record["case"], "status": record["status"],
                               "observed": record.get("observed_result"), "stage": record["stage"]}), flush=True)
@@ -300,6 +319,8 @@ def main():
                   "independently_trusted": False, "summary": summary, "records": records,
                   "oracle": "separate native-oracle.json; not inferred from Taiyou results"}
         (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+        if review is not None:
+            review.finish(report, selected)
         print("COMPARISON_SUMMARY=" + json.dumps(summary), flush=True)
         return int(any(r["status"] in ("REGRESSION", "CRASH", "INFRA_ERROR") for r in records))
     finally:

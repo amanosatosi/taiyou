@@ -74,15 +74,20 @@ fn malformed_attachments_recover_as_units_and_resource_failures_are_fatal() {
     }
 }
 #[test]
-fn unsupported_ssa_styles_never_masquerade_as_missing_ass_fonts() {
+fn ssa_styles_preserve_font_identity_in_both_syntax_policies() {
     for policy in [SyntaxPolicy::Strict, SyntaxPolicy::Recover] {
-        let error = parse(
+        let parsed = parse(
             "[V4 Styles]\nFormat: Name, Fontname\nStyle: Default,Unknown",
             policy,
             Limits::default(),
         )
-        .unwrap_err();
-        assert_eq!(error.code(), ErrorCode::UnsupportedFeature);
-        assert!(error.span().is_some());
+        .unwrap();
+        assert_eq!(parsed.track().styles()[0].font().family(), "Unknown");
+        assert!(
+            parsed
+                .diagnostics()
+                .iter()
+                .all(|d| d.code() != DiagnosticCode::UnsupportedFeature)
+        );
     }
 }

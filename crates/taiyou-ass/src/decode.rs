@@ -68,6 +68,25 @@ pub(crate) fn color(value: &str) -> Result<Rgba8, ParseError> {
         .map(Rgba8::from_ass)
         .map_err(|_| invalid("invalid style color"))
 }
+
+/// SSA style integers accept signed decimal or a 32-bit hexadecimal bit pattern.
+/// In particular &HFFFFFFEA is negative, before AlphaLevel is clamped.
+pub(crate) fn ssa_integer(value: &str) -> Result<i32, ParseError> {
+    let value = trim(value);
+    if let Some(hex) = value
+        .strip_prefix("&H")
+        .or_else(|| value.strip_prefix("&h"))
+    {
+        let hex = hex.strip_suffix('&').unwrap_or(hex);
+        if hex.is_empty() || hex.len() > 8 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(invalid("SSA integer requires 1..8 hex digits"));
+        }
+        let bits = u32::from_str_radix(hex, 16).map_err(|_| invalid("invalid SSA integer"))?;
+        Ok(i32::from_ne_bytes(bits.to_ne_bytes()))
+    } else {
+        integer(value)
+    }
+}
 pub(crate) fn timestamp(value: &str) -> Result<TimeUs, ParseError> {
     let value = trim(value);
     let negative = value.starts_with('-');

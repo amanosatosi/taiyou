@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import copy
+import tomllib
 from reuse_completed import ROOT, validate
 
 TRUSTED = "f41261ddebc61b1ebb77e6175aba619f0d45a41e"
@@ -16,6 +18,25 @@ def digest(data):
 
 def checked(data, expected):
     assert digest(data) == expected, "historical evidence hash mismatch"
+
+
+def checked_dbcs_lock(original, current):
+    """Allow only the repair's pinned codec addition, never rewrite history."""
+    before = tomllib.loads(original.decode())
+    after = tomllib.loads(current.decode())
+    expected = copy.deepcopy(before)
+    codec = {"name":"encoding_rs", "version":"0.8.35",
+             "source":"registry+https://github.com/rust-lang/crates.io-index",
+             "checksum":"75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3",
+             "dependencies":["cfg-if"]}
+    font = [p for p in expected["package"] if p["name"] == "taiyou-font"]
+    assert len(font) == 1 and "encoding_rs" not in font[0]["dependencies"]
+    font[0]["dependencies"] = sorted(font[0]["dependencies"] + ["encoding_rs"])
+    expected["package"].append(codec)
+    key = lambda p: (p["name"],p["version"])
+    expected["package"].sort(key=key)
+    after["package"].sort(key=key)
+    assert expected == after, "dependency change exceeds pinned optional DBCS codec intake"
 
 def historical(kind, destination):
     # The reviewed commit fixes the manifest itself, not just self-authenticated
@@ -38,10 +59,20 @@ def historical(kind, destination):
     env = json.loads((target/"environment.json").read_text())
     rows = json.loads((target/"samples.json").read_text()) if kind == "debug" else [json.loads(s) for s in (target/"samples.jsonl").read_text().splitlines()]
     validate(kind,rows,env,entry["candidate"])
-    # Historical measurements cannot authenticate changed dependency/tool policy.
+    # Candidate measurements always execute separately. Authenticate the old
+    # dependencies as historical evidence; admit only the documented codec delta
+    # and record both identities, never claim an unchanged measurement environment.
+    dependencies = []
     for path in ["Cargo.lock","Cargo.toml","build-support/sources.lock.json","build-support/shaping-fonts.proposed.json"]:
         expected = subprocess.check_output(["git","show",TRUSTED+":"+path],cwd=ROOT)
-        assert (ROOT/path).read_bytes().replace(b"\r\n",b"\n") == expected.replace(b"\r\n",b"\n"), path+" changed; historical reuse needs review"
+        current = (ROOT/path).read_bytes()
+        changed = current.replace(b"\r\n",b"\n") != expected.replace(b"\r\n",b"\n")
+        if path == "Cargo.lock" and changed:
+            checked_dbcs_lock(expected,current)
+        else:
+            assert not changed, path+" changed; historical reuse needs review"
+        dependencies.append({"path":path,"historical_sha256":digest(expected),
+                             "candidate_sha256":digest(current),"changed":changed})
     labels = {"before"} if kind == "debug" else {"earlier","reviewed","earlier-4Msegments","reviewed-4Msegments"}
     selected = [dict(r,evidence_origin="reused-historical",source_job=entry["source_job"]) for r in rows if r["implementation"] in labels]
     expected_labels = ["before"] if kind == "debug" else ["earlier","reviewed"]
@@ -55,7 +86,7 @@ def historical(kind, destination):
                 continue # Generated measurement driver: authenticated above.
             source = subprocess.check_output(["git","show",sha+":"+path],cwd=ROOT).decode().replace("\r\n","\n").encode()
             checked(source,facts["original"])
-    provenance = {"status":"historical-samples-reused-candidate-must-execute", "reviewed_manifest_commit":TRUSTED,"entry":entry,"recorded_environment":env,"warning":"Historical CPU/OS/samples retained exactly; new samples are not same-run paired baseline measurements"}
+    provenance = {"status":"historical-samples-reused-candidate-must-execute", "reviewed_manifest_commit":TRUSTED,"entry":entry,"recorded_environment":env,"dependency_policy":dependencies,"warning":"Historical CPU/OS/dependencies/samples retained exactly; candidate codec intake is separate and new samples are not same-run paired baseline measurements"}
     (destination/"historical-reuse.json").write_text(json.dumps(provenance,indent=2)+"\n")
     return selected
 
@@ -79,4 +110,14 @@ def negative_tests():
             pass
         else:
             raise AssertionError("missing/mismatched workload accepted")
-    print("T017_HISTORY_NEGATIVE: corrupt, missing and mismatched evidence rejected",flush=True)
+    original = b'version=4\n[[package]]\nname="taiyou-font"\nversion="0.1.0"\ndependencies=["cfg-if"]\n[[package]]\nname="cfg-if"\nversion="1.0.5"\n'
+    valid = original.replace(b'dependencies=["cfg-if"]',b'dependencies=["cfg-if","encoding_rs"]') + b'[[package]]\nname="encoding_rs"\nversion="0.8.35"\nsource="registry+https://github.com/rust-lang/crates.io-index"\nchecksum="75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"\ndependencies=["cfg-if"]\n'
+    checked_dbcs_lock(original, valid)
+    for changed in [valid.replace(b'0.8.35',b'0.8.36'),valid.replace(b'1.0.5',b'1.0.6'),valid.replace(b'75030f',b'000000'),original]:
+        try:
+            checked_dbcs_lock(original,changed)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("unrelated dependency policy accepted")
+    print("T017_HISTORY_NEGATIVE: corrupt/missing/workload and unrelated dependency changes rejected",flush=True)

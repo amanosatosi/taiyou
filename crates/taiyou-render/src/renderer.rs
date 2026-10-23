@@ -280,6 +280,80 @@ pub fn alignment_anchor(placement: &Placement, play_res: Size) -> Result<ScriptP
     ))
 }
 
+#[cfg(feature = "native")]
+fn transition_placement(
+    effect: crate::evaluate::TransitionEffect,
+    local: &LocalLayout,
+    event: &Event,
+    now: TimeUs,
+    device: DeviceMapping,
+    anchor: ScriptPoint,
+) -> Result<(ScriptPoint, PixelRect), RenderError> {
+    use crate::evaluate::TransitionEffect;
+    // pinterf ParseEffect/EF_BANNER/EF_SCROLL operate in layout eighth-pixels.
+    // libass uses the same integer delay scaling but a continuous scroll shift.
+    let native = |value: f64| -> Result<i32, RenderError> {
+        if !value.is_finite() || value < f64::from(i32::MIN) || value > f64::from(i32::MAX) {
+            return Err(limited());
+        }
+        Ok(value.trunc() as i32)
+    };
+    let elapsed = (i128::from(now.as_micros()) - i128::from(event.start().as_micros())) / 1000;
+    let [sx, sy] = device.layout_scale();
+    let bounds = local.logical_bounds();
+    let content = device.content();
+    let mut x = anchor.x().get();
+    let mut y = anchor.y().get();
+    let mut band = content;
+    match effect {
+        TransitionEffect::Banner {
+            delay, rightward, ..
+        } => {
+            let delay = native((f64::from(delay) / sx).max(1.0))?;
+            let shift = f64::from(native(elapsed as f64 * 8.0 / f64::from(delay))?) / (8.0 * sx);
+            x = if rightward {
+                shift - bounds.x1().get()
+            } else {
+                f64::from(device.play_res().width()) - shift - bounds.x0().get()
+            };
+        }
+        TransitionEffect::Scroll {
+            top,
+            bottom,
+            delay,
+            downward,
+            ..
+        } => {
+            let delay = native((f64::from(delay) / sy).max(1.0))?;
+            let shift = native(elapsed as f64 * 8.0 / f64::from(delay))?;
+            let top = native(f64::from(top) * sy * 8.0)?;
+            let bottom = native(f64::from(bottom) * sy * 8.0)?;
+            y = if downward {
+                (f64::from(top) + f64::from(shift)) / (8.0 * sy) - bounds.y1().get()
+            } else {
+                (f64::from(bottom) - f64::from(shift)) / (8.0 * sy) - bounds.y0().get()
+            };
+            let target_y = f64::from(content.height()) / f64::from(device.play_res().height()) / sy;
+            let clip_y = |value: i32| -> Result<i32, RenderError> {
+                let pixel = (i64::from(value) + 4).div_euclid(8);
+                native(pixel as f64 * target_y)?
+                    .checked_add(content.y0())
+                    .ok_or_else(limited)
+            };
+            let y0 = clip_y(top)?.clamp(content.y0(), content.y1());
+            let y1 = clip_y(bottom)?.clamp(y0, content.y1());
+            band = PixelRect::new(content.x0(), y0, content.x1(), y1).map_err(convert)?;
+        }
+    }
+    Ok((
+        ScriptPoint::new(
+            FiniteF64::new(x).map_err(convert)?,
+            FiniteF64::new(y).map_err(convert)?,
+        ),
+        band,
+    ))
+}
+
 /// Move-only idle coordinator (Send, not Sync). No native handles or mutable
 /// faces migrate with it. Completed frames retain the C7 origin-budget lease.
 pub struct Renderer {
@@ -501,23 +575,11 @@ impl Renderer {
         events.extend(track.events().iter().filter(|e| e.is_active(request.now)));
         events.sort_unstable_by_key(|e| (e.layer(), e.id()));
         let mut diagnostics = DiagnosticBuffer::new();
-        if count > 0
-            && !track.script().ycbcr_matrix().is_empty()
-            && !track.script().ycbcr_matrix().eq_ignore_ascii_case("None")
-        {
-            let detail = "encoded RGB output does not implement legacy YCbCr emulation";
-            if request.unsupported == UnsupportedPolicy::Strict {
-                return Err(RenderError::new(ErrorCode::UnsupportedFeature, detail));
-            }
-            diagnostics
-                .push(Diagnostic::new(
-                    DiagnosticCode::UnsupportedFeature,
-                    None,
-                    None,
-                    detail,
-                ))
-                .map_err(convert)?;
-        }
+        // This API returns encoded RGB, not video-space YCbCr. Like libass's
+        // image API and pinterf's default ARGB TransColor path, preserve ASS RGB.
+        // ScriptInfo retains the matrix for a host which has the video matrix
+        // and can apply the corresponding conversion. The header alone is not
+        // an unsupported rendering feature and cannot determine that transform.
         let mut operations = Vec::new();
         let mut total_segments = 0_u64;
         if events.iter().any(|event| crate::requires_font(event)) && fonts.faces().is_empty() {
@@ -743,6 +805,15 @@ impl Renderer {
                 } else {
                     alignment_anchor(state, track.script().play_res())?
                 };
+                let (anchor, transition_clip) = if let Some(effect) =
+                    crate::evaluate::TransitionEffect::parse(event.effect())
+                {
+                    let (point, clip) =
+                        transition_placement(effect, &local, event, request.now, device, anchor)?;
+                    (point, Some(clip))
+                } else {
+                    (anchor, None)
+                };
                 #[cfg(any(test, debug_assertions))]
                 let anchor = self
                     .continuous_test_anchors
@@ -793,11 +864,22 @@ impl Renderer {
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
-                let (event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
+                let (mut event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
                     placed.layout().shaped().evaluated().ass_clip(),
                     device,
                     &available(limits, add(held, event_charge)?)?,
                 )?;
+                if let Some(bounds) = transition_clip {
+                    event_charge = add(event_charge, bytes::<ResolvedClip>(2)?)?;
+                    available(limits, add(held, event_charge)?)?;
+                    event_clip = Arc::new(ResolvedClip::Intersection(
+                        event_clip,
+                        Arc::new(ResolvedClip::Rectangle {
+                            bounds,
+                            inverse: false,
+                        }),
+                    ));
+                }
                 total_segments = add(total_segments, clip_segments)?;
                 if total_segments > limits.path_segments_per_frame() {
                     return Err(limited());

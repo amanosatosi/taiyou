@@ -9,7 +9,7 @@ use crate::{
 use std::path::PathBuf;
 
 #[test]
-fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
+fn measured_effects_scene_matches_independent_logical_and_geometric_anchors() {
     let limits = Limits::default();
     let track = super::f1_fixture::track();
     let mut context = FontContext::new().unwrap();
@@ -61,6 +61,20 @@ fn measured_effects_scene_matches_independent_f1_anchors_not_pre_f1_anchors() {
             )
             .unwrap();
     }
+    // Transparent line-border reservation adds this line's logical .5 border,
+    // independently of the transformed visible-ink hull computed above.
+    let logical = local.logical_bounds();
+    expected = expected
+        .union(
+            ScriptBounds::new(
+                logical.x0().get(),
+                logical.y0().get() - 0.5,
+                logical.x1().get(),
+                logical.y1().get() + 0.5,
+            )
+            .unwrap(),
+        )
+        .unwrap();
     assert!(expected.height() > base.height());
     assert_eq!(
         collision_footprint(

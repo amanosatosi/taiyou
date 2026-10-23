@@ -4,8 +4,14 @@ fn parsed(tags: &str) -> ParsedTrack {
     parsed_body(&format!("{{{tags}}}A"))
 }
 fn parsed_body(body: &str) -> ParsedTrack {
+    parsed_body_effect(body, "")
+}
+fn parsed_body_effect(body: &str, effect: &str) -> ParsedTrack {
+    parsed_body_effect_wrap(body, effect, 2)
+}
+fn parsed_body_effect_wrap(body: &str, effect: &str, wrap: u8) -> ParsedTrack {
     let ass = format!(
-        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:05.00,{body}\n"
+        "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: {wrap}\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,30,0,0\n[Events]\nFormat: Start,End,Effect,Text\nDialogue: 0:00:00.00,0:00:05.00,{effect},{body}\n"
     );
     taiyou_ass::parse_ass(
         ass.as_bytes(),
@@ -18,6 +24,68 @@ fn parsed_body(body: &str) -> ParsedTrack {
         &mut TrackIngestor::new(),
     )
     .unwrap()
+}
+#[test]
+fn unknown_event_effects_are_preserved_and_known_motion_is_not_ignored() {
+    for effect in [
+        "fx",
+        "custom;12",
+        "BannerX;25",
+        "Scroll sideways;0;90;25",
+        "Banner",
+        "Scroll up",
+    ] {
+        let p = parsed_body_effect("A", effect);
+        assert_eq!(p.track().events()[0].effect(), effect);
+        taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap();
+    }
+    for effect in [
+        "Banner;25",
+        "Scroll up;0;90;25",
+        "Scroll down;0;90;25",
+        "bAnNeR;25",
+        "scroll UP;0;90;25",
+    ] {
+        let p = parsed_body_effect_wrap(r"A\nB", effect, 0);
+        assert_eq!(p.track().events()[0].effect(), effect);
+        let evaluated = taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap();
+        assert!(!evaluated.placement().collision_eligible(), "{effect}");
+        assert!(!evaluated.animation().is_static(), "{effect}");
+        if effect.to_ascii_lowercase().starts_with("banner;") {
+            assert_eq!(evaluated.wrap_mode().get(), 2);
+            assert_eq!(evaluated.source_map().unwrap().text(), "A\nB");
+        } else {
+            assert_eq!(evaluated.wrap_mode().get(), 0);
+            assert_eq!(evaluated.source_map().unwrap().text(), "A B");
+        }
+    }
+    for effect in [
+        "Banner;25;0;10",
+        "Scroll up;0;90;25;10",
+        "Scroll down;0;90;25;10",
+    ] {
+        let p = parsed_body_effect("A", effect);
+        let error = taiyou_render::evaluate(
+            p.track(),
+            EventId::new(0),
+            TimeUs::from_micros(0),
+            Profile::CoreV1,
+        )
+        .unwrap_err();
+        assert_eq!(error.code(), ErrorCode::UnsupportedFeature, "{effect}");
+    }
 }
 fn at(tags: &str, ms: i64) -> EvaluatedEvent {
     let p = parsed(tags);
@@ -198,10 +266,16 @@ mod pixels {
         render_body(&format!("{{{tags}}}A"), ms)
     }
     fn render_body(body: &str, ms: i64) -> Vec<u8> {
+        render_body_effect(body, ms, "")
+    }
+    fn render_body_effect(body: &str, ms: i64, effect: &str) -> Vec<u8> {
+        render_parsed_body(parsed_body_effect(body, effect), ms)
+    }
+    fn render_parsed_body(parsed: ParsedTrack, ms: i64) -> Vec<u8> {
         Renderer::new(Default::default())
             .unwrap()
             .render_parsed(
-                &parsed_body(body),
+                &parsed,
                 fonts(),
                 &RenderRequest {
                     now: TimeUs::from_micros(ms * 1000),
@@ -212,6 +286,145 @@ mod pixels {
             .unwrap()
             .pixels()
             .to_vec()
+    }
+    #[test]
+    fn unknown_event_effects_leave_ordinary_and_animated_pixels_unchanged() {
+        for body in ["A", r"{\fad(300,200)\k42}A{\kf245}B"] {
+            for ms in [0, 1500, 100, 4800, 500] {
+                let ordinary = render_body(body, ms);
+                if ms > 0 {
+                    assert!(ordinary.chunks_exact(4).any(|p| p[3] != 0));
+                }
+                for effect in [
+                    "fx",
+                    "custom;12",
+                    "BannerX;25",
+                    "Scroll sideways;0;90;25",
+                    "Banner",
+                ] {
+                    assert_eq!(
+                        render_body_effect(body, ms, effect),
+                        ordinary,
+                        "{effect} at {ms}"
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn banner_and_scroll_match_positioned_clipped_drawings() {
+        let drawing = "m 0 0 l 12 0 12 8 0 8";
+        let body = format!(r"{{\an7\pos(33,40)\p1}}{drawing}");
+        for (effect, position, clip) in [
+            ("Banner;25", "80,40", "0,0,120,120"),
+            ("bAnNeR;25;1", "28,40", "0,0,120,120"),
+            ("Scroll up;20;90;25", "33,50", "0,20,120,90"),
+            ("Scroll down;90;20;25", "33,52", "0,20,120,90"),
+        ] {
+            let expected = render_body(
+                &format!(r"{{\an7\pos({position})\clip({clip})\p1}}{drawing}"),
+                1000,
+            );
+            assert!(expected.chunks_exact(4).any(|p| p[3] != 0));
+            assert_eq!(
+                render_body_effect(&body, 1000, effect),
+                expected,
+                "{effect}"
+            );
+        }
+        // At 125 ms the scroll overlaps the band edge: clipping is exercised.
+        let expected = render_body(
+            &format!(r"{{\an7\pos(33,17)\clip(0,20,120,90)\p1}}{drawing}"),
+            125,
+        );
+        assert!(expected.chunks_exact(4).any(|p| p[3] != 0));
+        assert_eq!(
+            render_body_effect(&body, 125, "Scroll down;20;90;25"),
+            expected
+        );
+        // Animated scroll coordinates do not depend on previous render calls.
+        assert_eq!(
+            render_body_effect(&body, 1000, "Banner;25"),
+            render_body(&format!(r"{{\an7\pos(80,40)\p1}}{drawing}"), 1000)
+        );
+    }
+    #[test]
+    fn transition_delay_uses_layout_scale_and_absolute_event_time() {
+        let drawing = "m 0 0 l 12 0 12 8 0 8";
+        let body = format!(r"{{\an7\pos(33,40)\p1}}{drawing}");
+        for (effect, now, x) in [
+            ("Banner;0", 1020, "110"),
+            ("Banner;-25", 1020, "110"),
+            ("Banner;25", 2000, "78.375"),
+        ] {
+            let source = parsed_body_effect(&body, effect)
+                .track()
+                .source()
+                .replace(
+                    "WrapStyle: 2",
+                    "WrapStyle: 2\nLayoutResX: 240\nLayoutResY: 240",
+                )
+                .replace("0:00:00.00,0:00:05.00", "0:00:01.00,0:00:05.00");
+            let parsed = taiyou_ass::parse_ass(
+                source.as_bytes(),
+                &ParseOptions::default(),
+                &mut TrackIngestor::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                render_parsed_body(parsed, now),
+                render_body(&format!(r"{{\an7\pos({x},40)\p1}}{drawing}"), now),
+                "{effect}"
+            );
+        }
+    }
+    #[test]
+    fn ssa_style_alpha_and_alignment_render_like_explicit_ass_normalization() {
+        for (alpha, clamped) in [
+            ("&HFF", 255),
+            ("&H30", 48),
+            ("0", 0),
+            ("&HFFFFFFEA", 0),
+            ("&H3FF", 255),
+        ] {
+            let header = "[Script Info]\nPlayResX: 120\nPlayResY: 120\nWrapStyle: 2\n";
+            let events =
+                "[Events]\nFormat: Start,End,Style,Text\nDialogue: 0:00:00.00,0:00:02.00,Default,W";
+            let ssa = format!(
+                "{header}[V4 Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,TertiaryColour,BackColour,Outline,Shadow,Alignment,AlphaLevel\nStyle: Default,Source Sans 3,32,&HFF123456,&HFF654321,&HABCDEF,&HFE13206A,3,4,9,{alpha}\n{events}"
+            );
+            let ass = format!(
+                "{header}[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Outline,Shadow,Alignment\nStyle: Default,Source Sans 3,32,&H{clamped:02X}123456,&H{clamped:02X}654321,&H{clamped:02X}13206A,&H8013206A,3,4,4\n{events}"
+            );
+            let draw = |source: &str| {
+                let parsed = taiyou_ass::parse_ass(
+                    source.as_bytes(),
+                    &ParseOptions::default(),
+                    &mut TrackIngestor::new(),
+                )
+                .unwrap();
+                Renderer::new(Default::default())
+                    .unwrap()
+                    .render_parsed(
+                        &parsed,
+                        fonts(),
+                        &RenderRequest {
+                            now: TimeUs::from_micros(0),
+                            viewport: Viewport::full(Size::new(120, 120)).unwrap(),
+                            unsupported: UnsupportedPolicy::Strict,
+                        },
+                    )
+                    .unwrap()
+                    .pixels()
+                    .to_vec()
+            };
+            let actual = draw(&ssa);
+            assert!(
+                actual.chunks_exact(4).any(|p| p[3] != 0),
+                "shadow remains visible for {alpha}"
+            );
+            assert_eq!(actual, draw(&ass), "SSA normalization {alpha}");
+        }
     }
     #[test]
     fn clip_and_inverse_partition_real_text_and_effects() {
@@ -358,6 +571,25 @@ mod pixels {
         }
         assert_ne!(draw(r"\frx20\fax0.5"), draw(r"\org(0,0)\frx20\fax0.5"));
         assert_eq!(draw(r"\fax0.5"), draw(r"\org(0,0)\fax0.5"));
+    }
+    #[test]
+    fn polygon_words_use_bounds_advances_without_text_spacing() {
+        // pinterf CPolygon::ParseStr derives width from polygon bounds;
+        // CText::CreatePath's per-character fontSpacing is not a polygon advance.
+        // Separate p1/p0 words reduce drawImg's 784-square sprite to four cells.
+        let squares = r"{\p1}m 0 0 l 0 2 2 2 2 0{\p0}".repeat(4);
+        for position in ["20", "20.375"] {
+            let draw = |spacing| {
+                render_body(
+                    &format!(r"{{\an7\pos({position},20)\fsp{spacing}}}{squares}"),
+                    0,
+                )
+            };
+            let expected = draw("0");
+            assert!(expected.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert_eq!(expected, draw("-0.6"));
+            assert_eq!(expected, draw("1.25"));
+        }
     }
     #[test]
     fn karaoke_pixels_and_seeking() {

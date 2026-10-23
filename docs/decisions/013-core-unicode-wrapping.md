@@ -6,7 +6,7 @@ this exact recursive binary64 decision and the Unicode15.1 numeric profile below
 and authorizes the C4 amendment. The data plan is approved in principle subject
 to provenance, licensing, conformance and storage review. This approval does not
 enable production wrapping, establish C7 defaults or admit LegacyXyV1.
-ADR-012/F1 remains separately accepted. The final exact-head ADR-011 baseline
+The final exact-head ADR-011 baseline
 acknowledgment remains a separate human decision.
 
 ## Explicit Unicode opt-in amendment
@@ -87,7 +87,7 @@ WrapStyle2/line-metrics/box-separation paragraph:
 > width-vector ties and earliest decoded offsets; discarded suffixes are never
 > reopened after prefix rounding. This is not exact global squared-slack
 > minimization. Preserve explicit empty-line metrics and separate logical/ink/
-> collision boxes; apply ADR-012 footprints and complete-active-set placement
+> collision boxes; apply the current source-backed collision footprint and complete-active-set placement
 > after chosen lines are fully shaped. Production automatic modes remain
 > UnsupportedFeature until the data/conformance/native-work prerequisites and
 > separately reviewed C7 caller limits are satisfied. Legacy automatic wrapping

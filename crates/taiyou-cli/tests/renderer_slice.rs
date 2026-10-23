@@ -512,30 +512,41 @@ fn renderer_slice_parsed_diagnostics_and_header_capabilities() {
             .iter()
             .any(|d| d.code() == DiagnosticCode::MalformedRecord)
     );
-    for header in ["YCbCr Matrix: TV.601", "YCbCr Matrix: TV.709"] {
-        let text =
-            source(&dialogue("H")).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
+    let colored =
+        dialogue(r"{\1c&H2163B7&\1a&H40&\3c&H1F8A52&\3a&H50&\4c&H964C20&\4a&H60&\bord2\shad3}H");
+    let reference = renderer
+        .render(track(&colored), fonts.clone(), &request(500_000))
+        .unwrap();
+    assert!(
+        reference
+            .pixels()
+            .chunks_exact(4)
+            .any(|p| p[3] > 0 && p[0] != p[1])
+    );
+    for matrix in [
+        "None", "TV.601", "TV.709", "PC.601", "PC.709", "TV.240M", "PC.240M", "TV.FCC", "PC.FCC",
+    ] {
+        let header = format!("YCbCr Matrix: {matrix}");
+        let text = source(&colored).replace("WrapStyle: 2", &format!("WrapStyle: 2\n{header}"));
         let parsed = taiyou_ass::parse_ass(
             text.as_bytes(),
             &Default::default(),
             &mut Default::default(),
         )
         .unwrap();
-        assert_eq!(
-            renderer
-                .render_parsed(&parsed, fonts.clone(), &request(500_000))
-                .unwrap_err()
-                .code(),
-            ErrorCode::UnsupportedFeature
-        );
-        assert!(
-            renderer
-                .render_parsed(&parsed, fonts.clone(), &tolerant)
-                .unwrap()
-                .diagnostics()
-                .iter()
-                .any(|d| d.code() == DiagnosticCode::UnsupportedFeature)
-        );
+        assert_eq!(parsed.track().script().ycbcr_matrix(), matrix);
+        for request in [&request(500_000), &tolerant] {
+            let frame = renderer
+                .render_parsed(&parsed, fonts.clone(), request)
+                .unwrap();
+            assert_eq!(frame.pixels(), reference.pixels(), "raw RGB {matrix}");
+            assert!(
+                frame
+                    .diagnostics()
+                    .iter()
+                    .all(|d| d.code() != DiagnosticCode::UnsupportedFeature)
+            );
+        }
     }
     let empty = FontCatalogBuilder::new(limits())
         .snapshot(&mut Default::default())
