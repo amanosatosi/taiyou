@@ -348,7 +348,8 @@ def validate_case_assets(
         if not font.is_file():
             raise FileNotFoundError(f"missing font: {spec['path']}")
         actual = sha256_file(font)
-        if actual.lower() != spec["sha256"].lower():
+        expected = spec.get("sha256")
+        if expected and actual.lower() != expected.lower():
             raise ValueError(f"font SHA-256 mismatch: {spec['path']}")
         fonts.append(font)
         font_records.append(
@@ -356,6 +357,7 @@ def validate_case_assets(
                 "path": spec["path"],
                 "family": spec.get("family"),
                 "sha256": actual,
+                "expected_sha256": expected,
             }
         )
     return source, reference, fonts, font_records
