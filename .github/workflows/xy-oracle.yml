@@ -34,9 +34,23 @@ jobs:
         run: |
           git config --global core.symlinks true
           python validation/acquire.py
-      - name: Render xy-VSFilter oracle fixtures
+      - name: Install exact Taiyou native build tools
         shell: pwsh
-        run: python experiments/xy-oracle/oracle.py --release-root "$env:RUNNER_TEMP/xy-vsfilter-release" --corpus "$env:TAIYOU_CORPUS" --output "$env:RUNNER_TEMP/xy-oracle"
+        run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - name: Install pinned Rust
+        shell: pwsh
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Build focused Taiyou renderer
+        shell: pwsh
+        env:
+          TAIYOU_FOCUSED_RENDERER: '1'
+          RUSTUP_TOOLCHAIN: 1.99.1
+        run: |
+          python build-support/acquire.py
+          python build-support/build-native.py
+      - name: Render xy-VSFilter and Taiyou comparison fixtures
+        shell: pwsh
+        run: python experiments/xy-oracle/oracle.py --release-root "$env:RUNNER_TEMP/xy-vsfilter-release" --corpus "$env:TAIYOU_CORPUS" --taiyou "$env:GITHUB_WORKSPACE/target/debug/taiyou.exe" --output "$env:RUNNER_TEMP/xy-oracle"
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
