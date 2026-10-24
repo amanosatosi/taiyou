@@ -68,7 +68,8 @@ fn over(dst: &mut [u8], coverage: u8, color: [u8; 4]) {
     let a = mul(coverage, color[3]);
     let inverse = 256 - u32::from(a);
     for i in 0..3 {
-        dst[i] = ((u32::from(dst[i]) * inverse + u32::from(color[i]) * (u32::from(a) + 1)) >> 8) as u8;
+        dst[i] =
+            ((u32::from(dst[i]) * inverse + u32::from(color[i]) * (u32::from(a) + 1)) >> 8) as u8;
     }
     dst[3] = 255 - (((255 - u32::from(dst[3])) * inverse) >> 8) as u8;
 }

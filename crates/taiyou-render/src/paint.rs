@@ -63,7 +63,12 @@ mod tests {
     fn xy_packed_mix_preserves_premultiplication_and_zero_coverage() {
         for destination_alpha in 0..=255_u8 {
             for source_alpha in 0..=255_u8 {
-                let original = [destination_alpha, destination_alpha / 2, 0, destination_alpha];
+                let original = [
+                    destination_alpha,
+                    destination_alpha / 2,
+                    0,
+                    destination_alpha,
+                ];
                 let mut dst = original;
                 blend_xy_pixel(&mut dst, Rgba8::new(17, 128, 255, source_alpha), 64, 255);
                 assert!(dst[..3].iter().all(|&c| c <= dst[3]));

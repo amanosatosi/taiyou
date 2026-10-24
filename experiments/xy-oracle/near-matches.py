@@ -69,11 +69,13 @@ def main():
         encoding="utf-8")
     # The existing adapter's inventory flag selects explicit font admission.
     # This authored control is separately identified, never an accepted case.
-    paint_case = {"id": "witness/packed-paint", "source_external": str(paint_source),
+    paint_case = {"id": "witness/packed-paint", "source": "authored/packed-paint.ass", "source_external": str(paint_source),
                   "reference": None, "timestamp_ms": 1000, "width": 64, "height": 32,
                   "fonts": cff["fonts"], "inventory": True, "scale": "1"}
     report["supplemental_authored_cases"] = [paint_case["id"]]
     failed = False
+    report_path = out / "report.json"
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for case in selected + [paint_case]:
         assert case["inventory"] is True  # oracle.render_taiyou enforces explicit mode
         xy = parallel.xy_case(case, corpus, dll, release, out / "xy")
@@ -92,8 +94,9 @@ def main():
         else:
             failed = True
         report["cases"].append(row)
+        report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print("NEAR_MATCH=" + json.dumps(row), flush=True)
-    (out / "report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return int(failed)
 
 

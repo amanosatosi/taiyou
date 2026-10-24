@@ -42,6 +42,9 @@ def gdi_metrics(font, texts, families):
         _fields_ = [("width", W.UINT), ("height", W.UINT), ("origin", Point),
                     ("advance_x", C.c_short), ("advance_y", C.c_short)]
 
+    class Transform(C.Structure):
+        _fields_ = [(name, C.c_float) for name in ("xx", "xy", "yx", "yy", "x", "y")]
+
     add = api("AddFontMemResourceEx", W.HANDLE, W.LPVOID, W.DWORD, W.LPVOID, C.POINTER(W.DWORD))
     remove = api("RemoveFontMemResourceEx", W.BOOL, W.HANDLE)
     create_dc = api("CreateCompatibleDC", W.HDC, W.HDC)
@@ -62,6 +65,10 @@ def gdi_metrics(font, texts, families):
     background = api("SetBkMode", C.c_int, W.HDC, C.c_int)
     glyph_outline = api("GetGlyphOutlineW", W.DWORD, W.HDC, W.UINT, W.UINT,
                         C.POINTER(GlyphMetrics), W.DWORD, W.LPVOID, W.LPVOID)
+    save_dc = api("SaveDC", C.c_int, W.HDC)
+    restore_dc = api("RestoreDC", W.BOOL, W.HDC, C.c_int)
+    graphics_mode = api("SetGraphicsMode", C.c_int, W.HDC, C.c_int)
+    world_transform = api("SetWorldTransform", W.BOOL, W.HDC, C.POINTER(Transform))
 
     def outline_records(character, format):
         """Read only this selected glyph's native 16.16 contour evidence."""
@@ -194,12 +201,30 @@ def gdi_metrics(font, texts, families):
                         assert 0 < length < 20000, f"GDI path length {length}"
                         points, types = (Point * length)(), (W.BYTE * length)()
                         assert get_path(dc, points, types, length) == length
+                        fractional = None
+                        if family == "MUA Office" and underline == 0 and text == "စမ်းမယ်":
+                            # Draw under the unchanged identity transform first.
+                            # GetPath inversely maps the stored device path using
+                            # the current transform; this exposes its precision
+                            # without rerendering the font at another size.
+                            saved = save_dc(dc)
+                            assert saved
+                            try:
+                                assert graphics_mode(dc, 2)
+                                transform = Transform(1 / 64, 0, 0, 1 / 64, 0, 0)
+                                assert world_transform(dc, C.byref(transform))
+                                fine, fine_types = (Point * length)(), (W.BYTE * length)()
+                                assert get_path(dc, fine, fine_types, length) == length
+                                fractional = [[p.x / 64, p.y / 64, t] for p, t in zip(fine, fine_types)]
+                            finally:
+                                assert restore_dc(dc, saved)
                         rows.append({"requested_family": family, "selected_primary_family": actual.value,
                                      "text": text, "underline": underline, "font_height_q6": 3840,
                                      "metrics": {name: getattr(tm, name) for name, _ in tm._fields_},
                                      "extent_q6": [size.x, size.y], "primary_glyph_indices": list(glyphs),
                                      "character_width_float_q6": float_widths,
-                                     "points_q6": [[p.x, p.y, t] for p, t in zip(points, types)]})
+                                     "points_q6": [[p.x, p.y, t] for p, t in zip(points, types)],
+                                     "stored_device_points_q6": fractional})
                 finally:
                     select(dc, previous)
                     delete(hfont)
