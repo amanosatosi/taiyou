@@ -623,10 +623,15 @@ pub fn geometry(
         let [lx, ly] = placement.device.layout_scale();
         let vertical =
             state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
+        let primary = if catalog.has_host_font_links() { taiyou_font::resolve_family(catalog, state.shaping().font(), limits).map_err(font_error)? } else { blob.id() };
+        let cell_size = finite(state.shaping().font_size().get() * ly)?;
+        let metric_font = catalog.admitted_metric_font(primary, blob.id(), glyph.cluster().text(), cell_size, vertical);
         let size = catalog
-            .ass_oriented_font_scale(
+            .admitted_font_scale(
+                primary,
                 blob.id(),
-                finite(state.shaping().font_size().get() * ly)?,
+                glyph.cluster().text(),
+                cell_size,
                 vertical,
             )
             .map_err(font_error)?
@@ -693,8 +698,9 @@ pub fn geometry(
         }
         if state.geometry().underline() || state.geometry().strikeout() {
             let metrics = catalog
-                .decoration_metrics(context, blob.id())
+                .decoration_metrics(context, metric_font)
                 .map_err(font_error)?;
+            let decoration_scale = catalog.ass_oriented_font_scale(metric_font, cell_size, vertical).map_err(font_error)?.get() / size;
             let extra = 5
                 * (usize::from(state.geometry().underline())
                     + usize::from(state.geometry().strikeout()));
@@ -733,8 +739,8 @@ pub fn geometry(
                     continue;
                 }
                 let (y0, y1) = (
-                    f64::from(centre) - f64::from(thickness) / 2.0,
-                    f64::from(centre) + f64::from(thickness) / 2.0,
+                    (f64::from(centre) - f64::from(thickness) / 2.0) * decoration_scale,
+                    (f64::from(centre) + f64::from(thickness) / 2.0) * decoration_scale,
                 );
                 // A decoration is another filled contour, not an opposite-
                 // winding hole where it crosses a TrueType glyph.

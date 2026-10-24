@@ -37,11 +37,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     })
                 })
                 .ok_or("missing cluster has no font request")?;
-            host.extend_catalog(
+            host.extend_catalog_for_style(
                 &mut context,
                 &mut builder,
                 missing.decoded.text(),
-                run.shaping().font(),
+                run.shaping(),
+                1.0,
             )?;
         }
     }

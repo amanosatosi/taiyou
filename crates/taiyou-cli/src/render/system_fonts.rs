@@ -22,7 +22,7 @@ pub(super) fn extend(
     // satisfy a request. Fully covered pinned text never discovers host fonts.
     let mut source = None;
     let mut discover = |text: &str,
-                        font: &FontRequest,
+                        style: &ShapeStyle,
                         context: &mut FontContext,
                         builder: &mut FontCatalogBuilder|
      -> Result<(), RenderError> {
@@ -30,8 +30,13 @@ pub(super) fn extend(
             source = Some(SystemFontSource::new(limits.clone()).map_err(font_error)?);
         }
         if let Some(source) = &mut source {
+            #[cfg(windows)]
+            source.extend_catalog_for_style(context, builder, text, style,
+                parsed.track().script().layout_res().map_or(1.0, |res| f64::from(res.height()) / f64::from(parsed.track().script().play_res().height())))
+                .map_err(font_error)?;
+            #[cfg(not(windows))]
             source
-                .extend_catalog(context, builder, text, font)
+                .extend_catalog(context, builder, text, style.font())
                 .map_err(font_error)?;
         }
         Ok(())
@@ -45,7 +50,7 @@ pub(super) fn extend(
                 if !run.text().is_empty() {
                     // Resolve a primary face first; mixed-script text may need
                     // several fallbacks, discovered from shaping clusters below.
-                    discover(" ", run.shaping().font(), context, builder)?;
+                    discover(" ", run.shaping(), context, builder)?;
                     catalog = builder.snapshot(&mut ingestion).map_err(font_error)?;
                 }
             }
@@ -65,12 +70,24 @@ pub(super) fn extend(
                 .ok_or_else(|| invalid("missing cluster has no evaluated font request"))?;
             discover(
                 missing.decoded.text(),
-                run.shaping().font(),
+                run.shaping(),
                 context,
                 builder,
             )?;
         }
-        if !shaped.missing().is_empty() {
+        #[cfg(windows)]
+        for glyph in shaped.runs().iter().flat_map(|r| r.glyphs()) {
+            let run = event.runs().iter().find(|r| r.decoded().is_some_and(|s| s.start() <= glyph.cluster().start() && glyph.cluster().start() < s.end()))
+                .ok_or_else(|| invalid("host cluster has no evaluated font request"))?;
+            let primary = resolve_family(&catalog, run.shaping().font(), limits).map_err(font_error)?;
+            let ly = parsed.track().script().layout_res().map_or(1.0, |res| f64::from(res.height()) / f64::from(parsed.track().script().play_res().height()));
+            let size = FiniteF64::new(run.shaping().font_size().get() * ly).map_err(parse_error)?;
+            let vertical = run.shaping().font().vertical() || run.shaping().font().family().starts_with('@');
+            if catalog.needs_host_font_link(primary, glyph.font(), glyph.cluster().text(), size, vertical) {
+                discover(glyph.cluster().text(), run.shaping(), context, builder)?;
+            }
+        }
+        if !shaped.missing().is_empty() || catalog.has_host_font_links() {
             catalog = builder.snapshot(&mut ingestion).map_err(font_error)?;
         }
     }

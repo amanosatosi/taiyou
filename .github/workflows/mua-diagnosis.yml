@@ -5,6 +5,9 @@ on:
     paths:
       - 'experiments/xy-oracle/mua-diagnosis.py'
       - 'crates/taiyou-cli/examples/mua_metrics.rs'
+      - 'crates/taiyou-cli/src/render/system_fonts.rs'
+      - 'crates/taiyou-font/**'
+      - 'crates/taiyou-render/src/geometry.rs'
       - '.github/workflows/mua-diagnosis.yml'
   workflow_dispatch:
 permissions:

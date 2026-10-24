@@ -619,14 +619,17 @@ fn shape_item(
             FiniteF64::new(input.style.font_size().get() * ly).map_err(|_| limited())?;
         let vertical =
             input.style.font().vertical() || input.style.font().family().starts_with('@');
-        let scale = input
-            .catalog
-            .ass_oriented_font_scale(face.id(), cell_size, vertical)?
-            .get();
+        let mut linked_group = !vertical;
+        for g in &raw.glyphs {
+            let end = *ends.get(ends.partition_point(|&p| p <= g.cluster)).ok_or_else(limited)?;
+            let cluster = map.decoded_span(g.cluster..end)?;
+            linked_group &= input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size).is_some();
+        }
+        let metric_font = if linked_group { input.primary } else { face.id() };
         let baseline_offset =
             input
                 .catalog
-                .ass_oriented_baseline_offset(face.id(), cell_size, vertical)?
+                .ass_oriented_baseline_offset(metric_font, cell_size, vertical)?
                 / ly;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
             return Err(error(
@@ -646,7 +649,7 @@ fn shape_item(
             metrics: {
                 let m = input
                     .catalog
-                    .ass_oriented_line_metrics(face.id(), cell_size, vertical)?;
+                    .ass_oriented_line_metrics(metric_font, cell_size, vertical)?;
                 RunMetrics::new(
                     finite(m.ascent().get() / ly)?,
                     finite(m.descent().get() / ly)?,
@@ -668,6 +671,7 @@ fn shape_item(
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
+            let scale = input.catalog.admitted_font_scale(input.primary, face.id(), cluster.text(), cell_size, vertical)?.get();
             let position = GlyphPosition::new(
                 finite(f64::from(g.advance_x) * scale / lx)?,
                 finite(-f64::from(g.advance_y) * scale / ly)?,
