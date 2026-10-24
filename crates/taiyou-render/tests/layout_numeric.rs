@@ -221,11 +221,7 @@ fn following_words_use_rounded_extents_in_the_physical_metric_grid() {
         &[],
         Style::core_default(),
     );
-    let output = layout(
-        &input,
-        &constraints(5).with_metric_scale_x(f(2.0)).unwrap(),
-    )
-    .unwrap();
+    let output = layout(&input, &constraints(5).with_metric_scale_x(f(2.0)).unwrap()).unwrap();
     assert_eq!(output.lines()[0].advance(), f(53.0625));
     assert_eq!(output.glyphs()[0].position().x(), f(-26.5));
     for bad in [0.0, -1.0] {
