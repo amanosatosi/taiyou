@@ -70,8 +70,8 @@ impl ValidatedFontCatalog {
                 && &link.request == request
         })
     }
-    /// Resolve the already admitted host observation; performs no OS discovery.
-    /// Geometry consumes the same immutable scale selected during shaping.
+    /// Resolve metric scaling from an admitted observation; no OS discovery.
+    /// Contours use admitted_outline_scale, including the CFF path distinction.
     pub fn admitted_font_scale(
         &self,
         primary: FontId,
@@ -87,6 +87,24 @@ impl ValidatedFontCatalog {
             }
         }
         self.ass_oriented_font_scale(fallback, size, vertical)
+    }
+    /// Native contour scaling is distinct from rounded metric measurement for
+    /// horizontal CFF faces. An observed host realization remains authoritative.
+    pub fn admitted_outline_scale(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> Result<FiniteF64, FontError> {
+        if !vertical {
+            if let Some(link) = self.host_link(primary, fallback, text, size, request) {
+                return Ok(link.scale);
+            }
+        }
+        self.ass_oriented_outline_scale(fallback, size, vertical)
     }
     pub fn admitted_metric_font(
         &self,
@@ -216,6 +234,30 @@ impl ValidatedFontCatalog {
             ));
         }
         FiniteF64::new(em / (64.0 * f64::from(upem))).map_err(|e| error(e.code(), e.detail()))
+    }
+    pub(crate) fn ass_oriented_outline_scale(
+        &self,
+        font: FontId,
+        size: FiniteF64,
+        vertical: bool,
+    ) -> Result<FiniteF64, FontError> {
+        // Preserve all existing validation and the rounded metric scale.
+        let metric = self.ass_oriented_font_scale(font, size, vertical)?;
+        let index = self
+            .faces()
+            .iter()
+            .position(|f| f.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "outline font absent"))?;
+        if vertical || !self.verticals[index].cff {
+            return Ok(metric);
+        }
+        let (_, ascent, descent) = self.ass_cell_metrics(font)?;
+        // Direct GDI CFF path: fractional mapped EM, unlike integer measured
+        // advances. E.g. the frozen CFF's cell1007 at height6400 has scale
+        // 6400/1007 native ticks per design unit, not round(6400000/1007)/1000.
+        let height = (size.get() * 64.0 + 0.5).floor();
+        FiniteF64::new(height / (64.0 * (f64::from(ascent) + f64::from(descent))))
+            .map_err(|e| error(e.code(), e.detail()))
     }
     pub(crate) fn ass_oriented_line_metrics(
         &self,
@@ -877,6 +919,55 @@ fn select_family_aliases(
 mod tests {
     use super::*;
     #[test]
+    fn catalog_cff_outline_scale_is_fractional_without_changing_metric_scale() {
+        let mut context = FontContext::new().unwrap();
+        let mut builder = FontCatalogBuilder::new(Limits::default());
+        let cff = builder
+            .register(
+                &mut context,
+                &std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(),
+                0,
+            )
+            .unwrap();
+        let ttf_path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+            .join("taiyou-shaping-fonts/indic.ttf");
+        let ttf = builder
+            .register(&mut context, &std::fs::read(ttf_path).unwrap(), 0)
+            .unwrap();
+        let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+        let size = FiniteF64::new(100.0).unwrap();
+        let request = FontRequest::new(Arc::from("Source Sans 3"), 400, false, false);
+        let (_, ascent, descent) = catalog.ass_cell_metrics(cff).unwrap();
+        let contour = catalog
+            .admitted_outline_scale(cff, cff, "A", size, &request, false)
+            .unwrap();
+        assert_eq!(
+            contour.get(),
+            100.0 / (f64::from(ascent) + f64::from(descent))
+        );
+        assert_ne!(contour, catalog.ass_font_scale(cff, size).unwrap());
+        // The metric policy and TrueType outline map are unchanged.
+        let (upem, ascent, descent) = catalog.ass_cell_metrics(cff).unwrap();
+        let em =
+            (6400.0 * f64::from(upem) / (f64::from(ascent) + f64::from(descent)) + 0.5).floor();
+        assert_eq!(
+            catalog.ass_font_scale(cff, size).unwrap().get(),
+            em / (64.0 * f64::from(upem))
+        );
+        assert_eq!(
+            catalog
+                .admitted_outline_scale(ttf, ttf, "A", size, &request, false)
+                .unwrap(),
+            catalog.ass_font_scale(ttf, size).unwrap()
+        );
+        assert_eq!(
+            catalog
+                .admitted_outline_scale(cff, cff, "A", size, &request, true)
+                .unwrap(),
+            catalog.ass_oriented_font_scale(cff, size, true).unwrap()
+        );
+    }
+    #[test]
     fn host_link_observations_are_cluster_size_scoped_and_survive_rebuilding() {
         let limits = Limits::default();
         let mut context = FontContext::new().unwrap();
@@ -923,6 +1014,12 @@ mod tests {
             assert_eq!(
                 catalog
                     .admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false)
+                    .unwrap(),
+                scale
+            );
+            assert_eq!(
+                catalog
+                    .admitted_outline_scale(primary, fallback, "a\u{301}", size, &request, false)
                     .unwrap(),
                 scale
             );

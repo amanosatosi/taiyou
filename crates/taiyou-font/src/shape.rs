@@ -623,6 +623,14 @@ fn shape_item(
             .catalog
             .ass_oriented_font_scale(face.id(), cell_size, vertical)?
             .get();
+        let ordinary_outline_scale = if collect_ink {
+            input
+                .catalog
+                .ass_oriented_outline_scale(face.id(), cell_size, vertical)?
+                .get()
+        } else {
+            ordinary_scale
+        };
         let mut linked_group = !vertical && input.catalog.has_host_font_links();
         for g in raw
             .glyphs
@@ -708,6 +716,7 @@ fn shape_item(
                 )
             };
             let scale = link.map_or(ordinary_scale, |link| link.scale.get());
+            let outline_scale = link.map_or(ordinary_outline_scale, |link| link.scale.get());
             let baseline_offset = if let Some(link) = link {
                 (input
                     .catalog
@@ -759,7 +768,7 @@ fn shape_item(
                             } else {
                                 (x, y)
                             };
-                            let (x, y) = (x * scale / lx, -y * scale / ly);
+                            let (x, y) = (x * outline_scale / lx, -y * outline_scale / ly);
                             bounds = Some(bounds.map_or((x, y, x, y), |(a, b, c, d)| {
                                 (a.min(x), b.min(y), c.max(x), d.max(y))
                             }));

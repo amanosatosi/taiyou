@@ -56,16 +56,19 @@ def main():
             pen = RecordingPen()
             font.getGlyphSet()[glyph].draw(pen)
             report["cff_outline_evidence"].append({"path": spec["path"], "sha256": oracle.sha256_file(path),
-                "upem": font["head"].unitsPerEm, "glyph": glyph, "commands": pen.value})
+                "upem": font["head"].unitsPerEm, "glyph": glyph, "commands": pen.value,
+                "advance": font["hmtx"].metrics[glyph][0],
+                "win_cell": [font["OS/2"].usWinAscent, font["OS/2"].usWinDescent],
+                "font_matrix": font["CFF "].cff.topDictIndex[0].FontMatrix})
     paint_source = out / "packed-paint.ass"
     paint_source.write_text(
         "[Script Info]\nPlayResX: 64\nPlayResY: 32\nWrapStyle: 2\n"
-        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow,Alignment\n"
-        "Style: Default,FansubBlock-CFF,20,0,0,7\n"
-        "[Events]\nFormat: Layer,Start,End,Style,Text\n"
-        r"Dialogue: 0,0:00:00.00,0:00:02.00,Default,{\pos(0,0)\p1\1c&H11113E&\1a&H9D&}m 0 0 l 24 0 24 16 0 16" "\n"
-        r"Dialogue: 1,0:00:00.00,0:00:02.00,Default,{\pos(32,0)\p1\1c&HFFFFFF&\1a&H7F&}m 0 0 l 16 0 16 16 0 16" "\n"
-        r"Dialogue: 2,0:00:00.00,0:00:02.00,Default,{\pos(40,0)\p1\1c&HFFFFFF&\1a&HFE&}m 0 0 l 16 0 16 16 0 16" "\n",
+        "[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\n"
+        "Style: Default,FansubBlock-CFF,20,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n"
+        "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n"
+        r"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{\pos(0,0)\p1\1c&H11113E&\1a&H9D&}m 0 0 l 24 0 24 16 0 16" "\n"
+        r"Dialogue: 1,0:00:00.00,0:00:02.00,Default,,0,0,0,,{\pos(32,0)\p1\1c&HFFFFFF&\1a&H7F&}m 0 0 l 16 0 16 16 0 16" "\n"
+        r"Dialogue: 2,0:00:00.00,0:00:02.00,Default,,0,0,0,,{\pos(40,0)\p1\1c&HFFFFFF&\1a&HFE&}m 0 0 l 16 0 16 16 0 16" "\n",
         encoding="utf-8")
     # The existing adapter's inventory flag selects explicit font admission.
     # This authored control is separately identified, never an accepted case.

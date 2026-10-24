@@ -639,7 +639,7 @@ pub fn geometry(
             vertical,
         );
         let size = catalog
-            .admitted_font_scale(
+            .admitted_outline_scale(
                 primary,
                 blob.id(),
                 glyph.cluster().text(),
