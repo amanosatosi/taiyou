@@ -619,9 +619,16 @@ fn shape_item(
             FiniteF64::new(input.style.font_size().get() * ly).map_err(|_| limited())?;
         let vertical =
             input.style.font().vertical() || input.style.font().family().starts_with('@');
-        let ordinary_scale = input.catalog.ass_oriented_font_scale(face.id(), cell_size, vertical)?.get();
+        let ordinary_scale = input
+            .catalog
+            .ass_oriented_font_scale(face.id(), cell_size, vertical)?
+            .get();
         let mut linked_group = !vertical && input.catalog.has_host_font_links();
-        for g in raw.glyphs.iter().take(if linked_group { raw.glyphs.len() } else { 0 }) {
+        for g in raw
+            .glyphs
+            .iter()
+            .take(if linked_group { raw.glyphs.len() } else { 0 })
+        {
             let end = *ends
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(limited)?;

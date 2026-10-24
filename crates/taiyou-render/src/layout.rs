@@ -46,7 +46,13 @@ fn include(target: &mut Option<ScriptBounds>, b: ScriptBounds) -> Result<(), Ren
     });
     Ok(())
 }
-fn finish_word(pen: &mut f64, origin: f64, min: &mut f64, max: &mut f64, constraints: &LayoutConstraints) -> Result<(), RenderError> {
+fn finish_word(
+    pen: &mut f64,
+    origin: f64,
+    min: &mut f64,
+    max: &mut f64,
+    constraints: &LayoutConstraints,
+) -> Result<(), RenderError> {
     // CText::GetTextInfo stores one rounded eighth-pixel extent per word,
     // after native font measurement and ASS x scaling. Glyph positions inside
     // that word keep their native precision; the next word starts at its extent.
@@ -357,14 +363,22 @@ pub fn layout(
     }
     let text = input.source_map().text();
     let space_count = text.bytes().filter(|&b| b == b' ').count();
-    let space_bytes = (space_count as u64).checked_mul(3 * std::mem::size_of::<u32>() as u64).ok_or_else(limited)?;
-    if (bytes as u64).checked_add(space_bytes).ok_or_else(limited)? > limits.transient_bytes() {
+    let space_bytes = (space_count as u64)
+        .checked_mul(3 * std::mem::size_of::<u32>() as u64)
+        .ok_or_else(limited)?;
+    if (bytes as u64)
+        .checked_add(space_bytes)
+        .ok_or_else(limited)?
+        > limits.transient_bytes()
+    {
         return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
     }
     let mut spaces = Vec::new();
     reserve(&mut spaces, space_count)?;
     for (at, byte) in text.bytes().enumerate() {
-        if byte == b' ' { spaces.push(u32::try_from(at).map_err(|_| limited())?); }
+        if byte == b' ' {
+            spaces.push(u32::try_from(at).map_err(|_| limited())?);
+        }
     }
     let mut drafts = Vec::new();
     reserve(&mut drafts, count)?;
@@ -555,14 +569,18 @@ pub fn layout(
                 let sx = state.geometry().scale_x().get() * constraints.scale_x().get();
                 let sy = state.geometry().scale_y().get() * constraints.scale_y().get();
                 let space = glyph.cluster().text() == " ";
-                let first = if space { glyph.cluster().start() } else {
+                let first = if space {
+                    glyph.cluster().start()
+                } else {
                     let previous = spaces.partition_point(|&at| at < glyph.cluster().start());
                     let start = previous.checked_sub(1).map_or(0, |i| spaces[i] + 1);
                     start.max(state.decoded().ok_or_else(limited)?.start())
                 };
                 let key = (a, first, space);
                 if word_key != Some(key) {
-                    if word_key.is_some() { finish_word(&mut pen_x, word_origin, &mut min, &mut max, constraints)?; }
+                    if word_key.is_some() {
+                        finish_word(&mut pen_x, word_origin, &mut min, &mut max, constraints)?;
+                    }
                     word_key = Some(key);
                     word_origin = pen_x;
                 }
@@ -672,12 +690,19 @@ pub fn layout(
     let mut ink = None;
     for line in line_drafts {
         let width = line.max - line.min;
-        let origin = -line.min - width * horizontal;
+        let origin = if horizontal == 0.5 {
+            // CLine::PaintAll subtracts m_width/2 in integer eighth-pixels.
+            // An odd extent must not create a sixteenth-pixel word phase.
+            let grid = constraints.metric_scale_x().get();
+            -line.min - (crate::xy_wrap::width_units(width * grid)? / 2) as f64 / (8.0 * grid)
+        } else {
+            -line.min - width * horizontal
+        };
         let baseline = top + line.ascent;
         let bounds = ScriptBounds::new(
-            -width * horizontal,
+            origin + line.min,
             top,
-            width * (1.0 - horizontal),
+            origin + line.max,
             top + line.ascent + line.descent,
         )?;
         check(bounds, limits)?;

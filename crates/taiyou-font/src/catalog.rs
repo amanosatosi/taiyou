@@ -458,9 +458,7 @@ impl FontCatalogBuilder {
         let charge = (link.text.len() as u64)
             .checked_add(link.request.family().len() as u64)
             .and_then(|n| n.checked_mul(3))
-            .and_then(|n| {
-                n.checked_add(3 * std::mem::size_of::<HostLink>() as u64)
-            })
+            .and_then(|n| n.checked_add(3 * std::mem::size_of::<HostLink>() as u64))
             .and_then(|n| n.checked_add(self.names))
             .ok_or_else(|| FontError::transient_limit("host links overflow"))?;
         if charge > self.limits.transient_bytes() {

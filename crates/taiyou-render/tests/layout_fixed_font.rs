@@ -134,7 +134,10 @@ fn layout_fixed_font_space_advance_and_real_ink_are_separate() {
         .filter(|g| g.cluster().text() == "\u{a0}")
         .map(|g| g.advance_x().get())
         .sum::<f64>();
-    assert_eq!(l.lines()[0].advance().get(), advance);
+    // CText::GetTextInfo publishes one rounded eighth-pixel word extent;
+    // the immutable shaped advance above retains its native precision.
+    let word_extent = ((advance * 64.0 + 4.0).trunc() as i64 >> 3) as f64 / 8.0;
+    assert_eq!(l.lines()[0].advance().get(), word_extent);
     assert!(advance > 0.0);
     assert_eq!(s.source_map().text(), "   \u{a0}");
     assert!(

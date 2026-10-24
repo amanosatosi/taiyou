@@ -31,8 +31,94 @@ witness exceeding the 128 MiB native font admission reservation, not a visual
 improvement. On 2026-10-24 the owner explicitly approved a 256 MiB transient
 allowance for system-font playback only. Explicit corpus mode and library
 defaults remain at 128 MiB, with the same 64 MiB aggregate font limit and native
-reservation checks. The next actual capture remains pending.
+reservation checks. At `cf9335d`, the actual full direct comparison is again
+**3 same / 10 good / 86 bad / 3 errors**. The MUA witness renders without
+missing glyphs but differs at 3,907 pixels. The three errors are xy CSRI open
+failures for `scaled-border-default/ffmpeg_legacy2+sbas-8000`,
+`ffmpeg_legacy2-8000` and `ffmpeg_legacy3-8000`; Taiyou renders those frames.
 See [checkpoint report](https://github.com/amanosatosi/taiyou/actions/runs/40037379434).
+
+**Windows fallback reductions.** The [controlled direct-xy run at
+`ccaf700`](https://github.com/amanosatosi/taiyou/actions/runs/40102156323)
+uses the same MUA Office Regular font, positive size 60, 1920x1080 and centred
+placement for Burmese-only, brackets-only and combined text. Underline-on/off
+pairs separate glyph and decoration differences:
+
+| Text | Underlined differing pixels | Without underline |
+|---|---:|---:|
+| `စမ်းမယ်` | 259 | 259 |
+| `〈〉` | 1,004 | 734 |
+| `〈စမ်းမယ်〉` | 3,907 | 2,968 |
+
+The Burmese-only bounds and underline already match. Its remaining differences
+are on glyph edges; these captures do not demonstrate a different shaping rule.
+DirectWrite supplies Yu Gothic UI for the missing brackets. GDI TextOut on the
+privately admitted MUA face produces a different bracket outline and keeps MUA's
+line metrics and underline across the complete string. Pinterf
+`RTS.cpp:120-137,645-691,696-721` uses precisely this positive-cell-height,
+GetTextExtentPoint32/TextOut/GetPath path. Libass's font provider remains useful
+for bounded discovery, but `ass_font_get_asc_desc`/`ass_render.c:measure_text`
+aggregate actual fallback-face metrics; that does not establish GDI parity.
+
+The [bounded GDI-era probe](https://github.com/amanosatosi/taiyou/actions/runs/40103245536)
+selects MS PGothic through IMLangFontLink2's code-page mapping. It inspects only
+that selected file (SHA-256
+`4bde3e6392b96910fb59094c6c1a4dbfae18fee78d0bf13dc30616837c4f95db`).
+MS UI Gothic in the same collection has identical bracket outlines; MS Gothic
+has a different advance. This observation does not uniquely identify which of
+the two equivalent bracket faces GDI internally links. A family name alone also
+does not reproduce linked scaling. Microsoft's [font-link documentation](https://learn.microsoft.com/en-us/globalization/fonts-layout/fonts)
+distinguishes GDI linking/scaling from fallback; [MapFont](https://learn.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/platform-apis/aa741044%28v%3Dvs.85%29)
+requires the selected source font and code-page mask.
+
+At [`a9ca1db`](https://github.com/amanosatosi/taiyou/actions/runs/40104175335),
+Windows playback admits the OS-selected face and immutable cluster/size metrics
+at the CLI boundary. HarfBuzz still shapes complete clusters with paragraph
+context. The reductions become **259 / 152 / 646** differing pixels, respectively,
+with identical underline-on/off differences. The combined underlined bounds,
+baseline and continuous primary-font underline now agree. These remain
+mismatches, not new exact cases. Rounded advances do not uniquely determine the
+native EM or baseline. The adapter now accepts a realization only when a bounded
+candidate search reproduces every GDI path point and type exactly, including a
+constant baseline translation. The brackets' EM is 3393 native Q6 ticks, rather
+than 3394 inferred from their rounded advance. Their baseline differs by one
+native tick from MUA's ascent.
+
+**Verified checkpoint — word extent and placement.** Pinterf
+`CText::GetTextInfo` stores `(extent.cx + 4) >> 3` per text word; fallback/script
+item boundaries within a word are not independent rounding boundaries. Taiyou
+now retains native glyph positions inside each word and uses its rounded extent
+for subsequent words and alignment, in the physical LayoutRes metric grid.
+The [full direct-xy run at
+`a541a97`](https://github.com/amanosatosi/taiyou/actions/runs/40107881363)
+reports **4 same / 10 good / 85 bad / 3 errors**, preserving all three preceding
+exact cases and adding `regression/faux-italics/truetype-0000.png` (99 differing
+pixels to zero). CFF improves from 135 to 42 differing pixels, all on edges; it
+remains a mismatch. No shear coefficient or raster tolerance was tuned.
+The [controlled MUA captures](https://github.com/amanosatosi/taiyou/actions/runs/40107877550)
+are now **214 / 0 / 188** differing pixels for Burmese/brackets/combined,
+respectively, for both underline-on and underline-off. Brackets-only is exact;
+the other two retain glyph-edge differences. Identical underline-on/off counts
+and the primary line metrics isolate those residuals from underline integration.
+These captures do not prove complete FreeType/GDI shaping or outline parity.
+The strict supplemental five-case smoke deliberately remains red for CFF's 42
+pixels. Its three original exact guards and TrueType all pass. Corpus output
+continues to use explicit fixture catalogs; MUA alone opts into system fonts.
+
+The subsequent native-centering correction follows `CLine::PaintAll`'s integer
+`m_width / 2`, avoiding a spurious sixteenth-pixel phase for odd eighth-pixel
+extents. New numeric witnesses cover split shaped runs, following words and a
+non-unit physical metric grid. Its exact-head renderer verification is pending.
+
+The Windows adapter uses platform GDI32/COM/MLang supplied by the runner's Windows
+installation, with DirectWrite retaining file admission and the general fallback
+path. No new Cargo package, font-directory scan, font name table or redistributed
+native library is added. Private GDI registration is request-scoped and serialized;
+no native handle enters a published catalog. Observations are keyed by primary
+face, selected face, complete font request, cluster text and physical cell size;
+catalog rebuilding preserves them. Explicit catalogs have no host observations
+and retain 128 MiB. New public accessors/native calls still require engineering
+review; the supplemental captures do not constitute maintainer acceptance.
 
 **Repair sprint — ASS pair kerning.** Hash-authenticated Windows GDI probes
 of the frozen DejaVu Sans and Arimo faces report additive A/V and T/o widths at

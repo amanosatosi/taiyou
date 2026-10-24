@@ -158,12 +158,17 @@ impl LayoutConstraints {
     /// This controls metric quantization, independently of geometry scaling.
     pub fn with_metric_scale_x(mut self, scale: FiniteF64) -> Result<Self, RenderError> {
         if scale.get() <= 0.0 {
-            return Err(RenderError::new(ErrorCode::InvalidArgument, "nonpositive metric scale"));
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "nonpositive metric scale",
+            ));
         }
         self.metric_scale_x = scale;
         Ok(self)
     }
-    pub const fn metric_scale_x(&self) -> FiniteF64 { self.metric_scale_x }
+    pub const fn metric_scale_x(&self) -> FiniteF64 {
+        self.metric_scale_x
+    }
     pub fn with_profile(mut self, profile: Profile) -> Self {
         self.profile = profile;
         self
