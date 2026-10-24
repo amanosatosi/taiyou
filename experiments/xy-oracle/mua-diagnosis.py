@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import struct
 import subprocess
 import uuid
 
@@ -37,6 +38,10 @@ def gdi_metrics(font, texts, families):
     class Point(C.Structure):
         _fields_ = [("x", W.LONG), ("y", W.LONG)]
 
+    class GlyphMetrics(C.Structure):
+        _fields_ = [("width", W.UINT), ("height", W.UINT), ("origin", Point),
+                    ("advance_x", C.c_short), ("advance_y", C.c_short)]
+
     add = api("AddFontMemResourceEx", W.HANDLE, W.LPVOID, W.DWORD, W.LPVOID, C.POINTER(W.DWORD))
     remove = api("RemoveFontMemResourceEx", W.BOOL, W.HANDLE)
     create_dc = api("CreateCompatibleDC", W.HDC, W.HDC)
@@ -55,6 +60,36 @@ def gdi_metrics(font, texts, families):
     get_path = api("GetPath", C.c_int, W.HDC, C.POINTER(Point), C.POINTER(W.BYTE), C.c_int)
     font_data = api("GetFontData", W.DWORD, W.HDC, W.DWORD, W.DWORD, W.LPVOID, W.DWORD)
     background = api("SetBkMode", C.c_int, W.HDC, C.c_int)
+    glyph_outline = api("GetGlyphOutlineW", W.DWORD, W.HDC, W.UINT, W.UINT,
+                        C.POINTER(GlyphMetrics), W.DWORD, W.LPVOID, W.LPVOID)
+
+    def outline_records(character, format):
+        """Read only this selected glyph's native 16.16 contour evidence."""
+        matrix = (C.c_int32 * 4)(65536, 0, 0, 65536)
+        gm = GlyphMetrics()
+        count = glyph_outline(dc, ord(character), format, C.byref(gm), 0, None, matrix)
+        assert 0 < count <= 2 * 1024 * 1024, f"GetGlyphOutline size {count}"
+        buffer = C.create_string_buffer(count)
+        assert glyph_outline(dc, ord(character), format, C.byref(gm), count, buffer, matrix) == count
+        raw = buffer.raw
+        point = lambda at: [v / 65536 for v in struct.unpack_from("<ii", raw, at)]
+        contours = []
+        at = 0
+        while at < len(raw):
+            length, kind = struct.unpack_from("<II", raw, at)
+            assert kind == 24 and 16 <= length <= len(raw) - at
+            end = at + length
+            contour = {"start": point(at + 8), "curves": []}
+            at += 16
+            while at < end:
+                kind, points = struct.unpack_from("<HH", raw, at)
+                assert kind in (1, 2, 3) and points > 0 and at + 4 + points * 8 <= end
+                contour["curves"].append({"kind": kind, "points": [point(at + 4 + i * 8) for i in range(points)]})
+                at += 4 + points * 8
+            assert at == end
+            contours.append(contour)
+        return {"format": format, "character": character, "advance": [gm.advance_x, gm.advance_y],
+                "origin": [gm.origin.x, gm.origin.y], "contours": contours}
     data = C.create_string_buffer(font.read_bytes())
     count = W.DWORD()
     resource = add(data, len(data) - 1, None, C.byref(count))
@@ -64,6 +99,7 @@ def gdi_metrics(font, texts, families):
     rows = []
     mapped_candidates = []
     sibling_faces = []
+    native_outlines = []
     try:
         assert background(dc, 1)
         for family in sorted(families):
@@ -78,6 +114,9 @@ def gdi_metrics(font, texts, families):
                     tm = Metrics()
                     assert metrics(dc, C.byref(tm))
                     if family == "MUA Office" and underline == 0:
+                        # The first Burmese glyph isolates native scaling and
+                        # quadratic->cubic conversion from shaping/fallback.
+                        native_outlines.extend(outline_records("စ", format) for format in (2, 3, 258, 259))
                         # This is a bounded GDI-era candidate probe, not an
                         # assertion that MLang and TextOut link identically.
                         # SDK IMLangFontLink2 inherits four IMLangCodePages
@@ -167,7 +206,8 @@ def gdi_metrics(font, texts, families):
     finally:
         delete_dc(dc)
         remove(resource)
-    return {"textout": rows, "mlang_candidates": mapped_candidates, "sibling_faces": sibling_faces}
+    return {"textout": rows, "mlang_candidates": mapped_candidates, "sibling_faces": sibling_faces,
+            "native_outlines": native_outlines}
 
 
 def visible(raw, width, height):

@@ -288,7 +288,25 @@ struct Frame { size: Size, stride: usize, pixels: Arc<[u8]>, diagnostics: Arc<[D
 
 RGBA8 means memory bytes R,G,B,A, independent of endian. Output is **premultiplied**, top-down, `stride=width*4`, transparent black initial pixels. Mask storage explicitly distinguishes A8 coverage (0..255) from native xy coverage (0..64); zero is transparent in both. Production source masks and their filtered descendants retain native xy units. Colors are blended in their encoded RGB domain for legacy display behavior; no implicit linear-light conversion, YUV conversion, premultiplication guessing, or video-background blending. Host performs video-dependent YCbCr conversion. The script matrix is retained as metadata and does not reject or alter raw RGB overlays; the header alone cannot determine a video-space transform. Fully transparent output has RGB zero.
 
-Define `mul255(x,y)=(x*y+127)/255` with integer division. For native xy coverage, first `sa=(mask*paint.a+32)>>6`, then `sa=mul255(sa,clip)` (pinterf FillAlphaMashBody). Resolved clip masks normalize native coverage with `(mask*255+32)>>6` before their existing clip combination. For separate A8 coverage, first `coverage=mul255(mask,clip)`; then `sa=mul255(paint.a,coverage)`; then premultiplied `sr=mul255(paint.r,sa)` and similarly g/b. Source-over each channel: `out=src+mul255(dst,255-sa)` including alpha. Use sufficient intermediates and clamp final channel to 255. Do not combine these rounded multiplications into one expression. Example: 50%-opacity red (a=128), full coverage over opaque blue gives `(128,0,127,255)`; over clear gives `(128,0,0,128)`. Composition key order is lexicographic; equal keys are an internal error. Do not gamma-correct alpha.
+Define `mul255(x,y)=(x*y+127)/255` with integer division. For native xy coverage,
+first `sa=(mask*paint.a+32)>>6`, then `sa=mul255(sa,clip)` (pinterf
+FillAlphaMashBody). Resolved clip masks normalize native coverage with
+`(mask*255+32)>>6` before their existing clip combination. The packed RGB blend
+follows pinterf `pixmix_c`/`packed_pix_mix_sse2`: for each color channel,
+`out=(dst*(256-sa)+paint*(sa+1))>>8`. Compute the complete numerator before
+truncating. Convert the bitmap's inverse alpha back to public opacity with
+`out_a=255-(((255-dst_a)*(256-sa))>>8)`. These are portable unsigned integer
+operations; no Windows renderer or native bitmap enters composition. The direct
+xy drawImg witness disproves using separately rounded `/255` products here.
+
+For the separate generic A8 composition API, first `coverage=mul255(mask,clip)`;
+then `sa=mul255(paint.a,coverage)`; then premultiplied `sr=mul255(paint.r,sa)` and
+similarly g/b. Source-over each channel is `out=src+mul255(dst,255-sa)` including
+alpha; keep those A8 rounding boundaries. Use sufficient intermediates and
+preserve premultiplication/byte bounds. Example: 50%-opacity red (a=128), full
+coverage over opaque blue gives `(128,0,127,255)`; over clear gives
+`(128,0,0,128)`. Composition key order is lexicographic; equal keys are an internal
+error. Do not gamma-correct alpha.
 
 PNG export in CLI converts premultiplied RGB to straight with `a==0 ? 0 : min(255,(c*255+a/2)/a)`, then writes a documented encoded RGB PNG. Internal byte comparisons use raw premultiplied output, not lossy round trips through PNG. Frame changed detection compares exact complete draw-list identities (including position, paint, clip, order and viewport) or bytes; never infer unchanged from active event IDs alone.
 
