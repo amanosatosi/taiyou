@@ -477,3 +477,45 @@ their differing-pixel counts at 0/1000/2000/3000/4000 ms are
 602/550/552/552/602. These remain strict mismatches, not exact compatibility.
 The preceding 23 focused cases retain their prior metrics. No reference or
 inventory changes.
+
+## Native-size TrueType realization and local curve coordinates
+
+At `c90a7cdc981bd87730ed447bc6c52a4b5d02b15b`, authenticated direct xy
+[40132448945](https://github.com/amanosatosi/taiyou/actions/runs/40132448945)
+measures 17 same / 6 good / 76 bad / 3 xy-side CSRI open errors, compared
+with 6 / 12 / 81 / 3 at `ffaef2e`. All six previous exact cases remain exact.
+New exacts are bordercollision-2000, shift-dir-{0500,1500,2500,3500,4500,
+5500,6500,7500,8500}, and scaling_playres/playresx_sbas-yes-3000.
+The latter moves bad to exact; scaling_playres/{no,yes}-2000, v4++/kt-01000
+and the MUA combined witness move bad to good. No thresholds, captures,
+fixture fonts or corpus classifications were changed.
+
+GDI observations at 64 times the requested font size show native TrueType
+stem adjustments absent from continuous design-unit scaling. A supplemental
+FreeType observation compares unhinted, normal and monochrome target modes
+against those actual paths: DejaVu `a` at size30 improves from 59/71 to65/71
+matching points, and `e` from21/55 to53/55. Production now uses the portable,
+request-local FreeType native hinter at that size, disables auto-hinting,
+converts quadratic contours to cubic controls before native-grid rounding,
+and retains the existing immutable owned outline and common raster stages.
+The generic unscaled outline API is unchanged; ASS realization is explicit.
+CFF retains fractional contour sizing; these hinting modes did not explain
+Aileron's GDI path differences. Host-linked realization observations still
+use their admitted scale and the existing path, preserving MS PGothic linking.
+
+Pinterf PathData::AlignLeftTop precedes curve flattening. The portable xy
+raster now normalizes the control hull before polynomial sampling, then
+restores the integer offset. A translation regression covers positive and
+negative viewport coordinates. Gaussian native coverage also reproduces the
+historical float tap order and nearest/even complete blocks with scalar tails;
+ordinary A8 conversion remains unchanged. The independent authored drawing/
+blur control improves from11 changed pixels to0, outside corpus score counts.
+Libass preserves quadratic splines and normally disables native hinting;
+those are useful independent controls, while actual xy remains authoritative.
+
+Focused MUA is Burmese47, brackets0, combined40 changed pixels, identically
+with and without underline; selected fallback remains MS PGothic. Focused
+kt-01000 improves290 to82, kt-04800 975 to489, kt-06700 1883 to1520 and
+kt-11000 964 to574. Larger karaoke geometry and CFF blur residuals remain.
+Native platform acceptance and final exact-head Actions are recorded in PR35;
+format-only gate failures at the measurement head are not platform passes.

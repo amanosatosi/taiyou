@@ -293,14 +293,7 @@ impl FontContext {
         scale: FiniteF64,
         limits: &Limits,
     ) -> Result<GlyphOutline, FontError> {
-        let cff = self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
-            // SAFETY: the format string belongs to this live request-local face.
-            unsafe {
-                let format = FT_Get_Font_Format(face.raw);
-                Ok(!format.is_null() && std::ffi::CStr::from_ptr(format).to_bytes() == b"CFF")
-            }
-        })?;
-        self.outline_at_scale(blob, glyph, if cff { None } else { Some(scale) }, limits)
+        self.outline_at_scale(blob, glyph, Some(scale), limits)
     }
 
     fn outline_at_scale(
@@ -348,9 +341,13 @@ impl FontContext {
                 check_outline_face((*face.raw).face_flags)?;
                 let mut flags = ft::FT_LOAD_NO_BITMAP | ft::FT_LOAD_IGNORE_TRANSFORM;
                 if let Some(scale) = scale {
-                    let height = (scale.get() * f64::from((*face.raw).units_per_EM) * 4096.0).round();
+                    let height =
+                        (scale.get() * f64::from((*face.raw).units_per_EM) * 4096.0).round();
                     if !(1.0..=f64::from(u16::MAX) * 64.0).contains(&height) {
-                        return Err(FontError::new(ErrorCode::LimitExceeded, "native font size exceeded"));
+                        return Err(FontError::new(
+                            ErrorCode::LimitExceeded,
+                            "native font size exceeded",
+                        ));
                     }
                     let code = ft::FT_Set_Char_Size(face.raw, 0, height as ft::FT_F26Dot6, 72, 72);
                     if code != 0 {
@@ -466,7 +463,10 @@ impl FontContext {
                 if let Some(scale) = scale {
                     let denominator = scale.get() * 4096.0;
                     for op in &mut state.ops {
-                        *op = op.try_map(|p| FontPoint::new(p.x().get() / denominator, p.y().get() / denominator))
+                        *op = op
+                            .try_map(|p| {
+                                FontPoint::new(p.x().get() / denominator, p.y().get() / denominator)
+                            })
                             .map_err(|e| FontError::new(e.code(), e.detail()))?;
                     }
                 }

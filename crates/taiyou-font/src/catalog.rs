@@ -357,9 +357,26 @@ impl ValidatedFontCatalog {
         scale: FiniteF64,
         limits: &Limits,
     ) -> Result<GlyphOutline, FontError> {
-        let face = self.faces().iter().find(|f| f.blob().id() == font)
-            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent from validated catalog"))?;
-        context.ass_outline_authenticated(face.blob(), glyph, scale, limits)
+        let face = self
+            .faces()
+            .iter()
+            .find(|f| f.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
+        let index = self
+            .faces()
+            .iter()
+            .position(|f| f.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent"))?;
+        if self.verticals[index].cff {
+            context.outline_authenticated(face.blob(), glyph, limits)
+        } else {
+            context.ass_outline_authenticated(face.blob(), glyph, scale, limits)
+        }
     }
     pub(crate) fn shape_raw(
         &self,

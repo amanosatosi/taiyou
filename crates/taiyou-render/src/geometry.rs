@@ -631,8 +631,15 @@ pub fn geometry(
         let outline = if metric_font != blob.id() || size <= 0.0 {
             catalog.outline(context, blob.id(), glyph.glyph(), &intake_limits)
         } else {
-            catalog.ass_outline(context, blob.id(), glyph.glyph(), finite(size)?, &intake_limits)
-        }.map_err(font_error)?;
+            catalog.ass_outline(
+                context,
+                blob.id(),
+                glyph.glyph(),
+                finite(size)?,
+                &intake_limits,
+            )
+        }
+        .map_err(font_error)?;
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;
@@ -736,17 +743,26 @@ pub fn geometry(
                 let converted = if metric_font == blob.id() {
                     match op {
                         PathOp::QuadTo(control, end) => {
-                            let toward = |from: FontPoint| FontPoint::new(
-                                from.x().get() + (control.x().get() - from.x().get()) * 2.0 / 3.0,
-                                from.y().get() + (control.y().get() - from.y().get()) * 2.0 / 3.0,
-                            );
+                            let toward = |from: FontPoint| {
+                                FontPoint::new(
+                                    from.x().get()
+                                        + (control.x().get() - from.x().get()) * 2.0 / 3.0,
+                                    from.y().get()
+                                        + (control.y().get() - from.y().get()) * 2.0 / 3.0,
+                                )
+                            };
                             PathOp::CubicTo(toward(previous)?, toward(end)?, end)
                         }
                         other => other,
                     }
-                } else { op };
+                } else {
+                    op
+                };
                 previous = match op {
-                    PathOp::MoveTo(p) | PathOp::LineTo(p) | PathOp::QuadTo(_, p) | PathOp::CubicTo(_, _, p) => p,
+                    PathOp::MoveTo(p)
+                    | PathOp::LineTo(p)
+                    | PathOp::QuadTo(_, p)
+                    | PathOp::CubicTo(_, _, p) => p,
                     PathOp::Close => previous,
                 };
                 ops.push(converted.try_map(|p| {
