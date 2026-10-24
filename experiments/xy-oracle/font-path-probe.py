@@ -27,7 +27,6 @@ class Commands(BasePen):
         self.ops.append(["C", a, b, c])
 
     def _qCurveToOne(self, a, b):
-        p = self._getCurrentPoint()
         self.ops.append(["Q", a, b])
 
     def _closePath(self):

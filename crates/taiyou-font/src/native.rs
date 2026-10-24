@@ -2648,6 +2648,45 @@ impl FontContext {
 mod tests {
     use super::*;
     #[test]
+    #[ignore = "Actions-only diagnostic requiring the pinned external corpus"]
+    fn font_native_path_observations() {
+        let corpus = std::path::PathBuf::from(std::env::var("TAIYOU_CORPUS").unwrap());
+        let mut context = FontContext::new().unwrap();
+        for (relative, sizes, chars) in [
+            ("regression/blurs/Aileron-Regular.otf", &[100_u32][..], "+·¶"),
+            ("regression/v4++/DejaVuSans.ttf", &[30_u32, 60][..], "Karaoke"),
+        ] {
+            let bytes: Arc<[u8]> = std::fs::read(corpus.join(relative)).unwrap().into();
+            for &size in sizes {
+                for flags in [ft::FT_LOAD_NO_HINTING, 0, ft::FT_LOAD_TARGET_MONO] {
+                    context.with_face(bytes.clone(), 0, |face| {
+                        // SAFETY: request-local diagnostic face and pinned bytes
+                        // live through all native reads. No pointers escape.
+                        unsafe {
+                            let precise = f64::from((*face.raw).units_per_EM) * f64::from(size) * 64.0
+                                / if relative.ends_with(".otf") {1200.0} else {2384.0};
+                            let em = if relative.ends_with(".otf") {precise} else {precise.round()};
+                            let code = ft::FT_Set_Char_Size(face.raw, 0, (em * 64.0).round() as ft::FT_F26Dot6, 72, 72);
+                            if code != 0 { return Err(native_error(code, "probe size failed")); }
+                            for ch in chars.chars() {
+                                let glyph = ft::FT_Get_Char_Index(face.raw, ch as ft::FT_ULong);
+                                let code = ft::FT_Load_Glyph(face.raw, glyph, flags | ft::FT_LOAD_NO_BITMAP);
+                                if code != 0 { return Err(native_error(code, "probe glyph failed")); }
+                                let outline = &(*(*face.raw).glyph).outline;
+                                let mut state = OutlineCopy {ops: Vec::new(), failed: false, open: false};
+                                let code = FT_Outline_Decompose(outline, &outline_funcs(), (&mut state as *mut OutlineCopy).cast());
+                                if code != 0 || state.failed { return Err(native_error(code, "probe decomposition failed")); }
+                                if state.open {state.ops.push(PathOp::Close);}
+                                println!("FONT_PATH_PROBE font={relative} size={size} em={em} flags={flags} char={ch} ops={:?}", state.ops);
+                            }
+                            Ok(())
+                        }
+                    }).unwrap();
+                }
+            }
+        }
+    }
+    #[test]
     fn legacy_cmap_mapping_preserves_glyphs_metrics_and_unicode_clusters() {
         use sha2::{Digest, Sha256};
         let directory = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());

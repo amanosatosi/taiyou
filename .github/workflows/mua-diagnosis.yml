@@ -84,6 +84,8 @@ jobs:
           $env:LIBZ_SYS_STATIC = '1'
           cargo build --locked -p taiyou-cli --features native --example mua_metrics
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked -p taiyou-font --features native font_native_path_observations -- --ignored --nocapture | Out-File -Encoding utf8 "$env:RUNNER_TEMP/font-path-freetype.txt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python experiments/xy-oracle/mua-diagnosis.py --output "$env:RUNNER_TEMP/mua-diagnosis"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python experiments/xy-oracle/near-matches.py --output "$env:RUNNER_TEMP/near-matches"
@@ -95,4 +97,5 @@ jobs:
             ${{ runner.temp }}/mua-diagnosis/
             ${{ runner.temp }}/mua-format.patch
             ${{ runner.temp }}/near-matches/
+            ${{ runner.temp }}/font-path-freetype.txt
           retention-days: 7
