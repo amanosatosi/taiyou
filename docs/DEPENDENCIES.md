@@ -5,8 +5,9 @@ engine or Cargo dependency: Windows DirectWrite IDWriteFactory2/FontFallback
 (Windows 8.1+ system API, Microsoft Windows licensing); Linux Fontconfig
 libfontconfig.so.1 (2.11.91+ API, MIT license); macOS CoreText/CoreFoundation
 (system frameworks, Apple platform licensing). Fontconfig is dynamically linked;
-Linux packagers must supply its runtime and development linker library. These
-services select installed font candidates only in CLI system mode. Explicit
+Linux packagers must supply its runtime library. These services select installed
+font candidates only in CLI system mode. Linux links the versioned runtime SONAME
+directly, without requiring a development symlink. Explicit
 catalogs and corpus adapters do not call them. Alternatives are enumerating and
 parsing every installed font, hardcoded fallback families, or replacing Taiyou's
 shaper with libass; none is selected. The approach follows local libass 0.17.5

@@ -200,6 +200,17 @@ fn resolve_collisions(events: &[CollisionInput], policy: &CollisionPolicy)
 
 Font catalog is a deterministic ordered list supplied by the host. Match requested family case-insensitively using Unicode library normalization chosen in T008; exact same-family weight distance, then italic match, then catalog ordinal breaks ties. Never silently use host enumeration order in fixtures. Fallback considers a whole grapheme/shaping cluster with neighboring shaping context, not isolated combining marks. Retry missing-glyph runs against the next candidate, bounded by catalog length. If no face can shape a cluster, use explicit catalog fallback .notdef plus a diagnostic; no random installed font. Language, script, direction, features, variations and face identity belong to the shape key.
 
+The owner-directed PR #35 host mode discovers OS-selected candidates before
+publishing this catalog, following libass's platform-provider approach. Explicit
+and embedded faces are admitted first. Providers do not split shaping clusters;
+Taiyou validates and shapes their selected bytes normally. Only this explicit
+host admission step may record a substitute for an absent family. Substitutions
+are immutable catalog metadata and survive `FontCatalogBuilder::from_catalog`
+when the renderer appends attachments. The library default and corpus adapters
+remain explicit, with no system discovery. CLI system mode uses the owner-approved
+256 MiB transient allowance; explicit mode and library defaults retain 128 MiB.
+Both retain all other limits, including the 64 MiB aggregate font-byte cap.
+
 T008's owner-directed ASS compatibility completion retains localized Unicode
 family/typographic-family (name IDs 1/16), full, PostScript and WWS-family aliases
 (4/6/21) from the validated face. Unicode-platform and Microsoft-platform name

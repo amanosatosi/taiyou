@@ -253,9 +253,25 @@ pub fn write_png<W: Write>(frame: &Frame, writer: W, limits: &Limits) -> Result<
     png.write_image_data(&bytes).map_err(fail)?;
     png.finish().map_err(fail)
 }
+fn playback_limits(system_fonts: bool) -> Result<Limits, RenderError> {
+    let limits = Limits::default();
+    if system_fonts {
+        // Owner-approved host-only allowance for installed collection fonts.
+        // Explicit catalogs/corpus adapters retain the library's 128 MiB limit.
+        limits
+            .with_transient_bytes(256 * 1024 * 1024)
+            .map_err(parse_error)
+    } else {
+        Ok(limits)
+    }
+}
+
 pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let args = Arguments::parse(args)?;
-    let mut config = RendererConfig::default();
+    let mut config = RendererConfig {
+        limits: playback_limits(args.system_fonts)?,
+        ..RendererConfig::default()
+    };
     if let Some(radius) = args.filter_radius {
         if args.original.is_none() {
             return Err(invalid(
@@ -375,10 +391,38 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
 mod font_source_tests {
     use super::*;
 
+    #[test]
+    fn host_allowance_does_not_change_explicit_or_library_limits() {
+        assert_eq!(Limits::default().transient_bytes(), 128 * 1024 * 1024);
+        assert_eq!(playback_limits(false).unwrap(), Limits::default());
+        assert_eq!(
+            playback_limits(true).unwrap().transient_bytes(),
+            256 * 1024 * 1024
+        );
+        assert_eq!(
+            playback_limits(true).unwrap().font_bytes(),
+            Limits::default().font_bytes()
+        );
+    }
+
     fn arguments(mode: Option<&str>) -> Vec<OsString> {
-        let mut args: Vec<_> = ["--input", "input.ass", "--output", "output.png", "--profile",
-            "core-v1", "--time-us", "0", "--width", "1920", "--height", "1080"]
-            .into_iter().map(OsString::from).collect();
+        let mut args: Vec<_> = [
+            "--input",
+            "input.ass",
+            "--output",
+            "output.png",
+            "--profile",
+            "core-v1",
+            "--time-us",
+            "0",
+            "--width",
+            "1920",
+            "--height",
+            "1080",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
         if let Some(mode) = mode {
             args.extend(["--font-source".into(), mode.into()]);
         }
@@ -387,8 +431,15 @@ mod font_source_tests {
 
     #[test]
     fn explicit_mode_disables_host_discovery_on_every_platform() {
-        assert!(!Arguments::parse(arguments(Some("explicit"))).unwrap().system_fonts);
-        assert_eq!(Arguments::parse(arguments(None)).unwrap().system_fonts, HAS_SYSTEM_FONTS);
+        assert!(
+            !Arguments::parse(arguments(Some("explicit")))
+                .unwrap()
+                .system_fonts
+        );
+        assert_eq!(
+            Arguments::parse(arguments(None)).unwrap().system_fonts,
+            HAS_SYSTEM_FONTS
+        );
         assert!(Arguments::parse(arguments(Some("automatic"))).is_err());
         #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
         assert!(Arguments::parse(arguments(Some("system"))).is_err());

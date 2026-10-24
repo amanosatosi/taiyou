@@ -3220,15 +3220,27 @@ mod host_file {
         let fail = |e: std::io::Error| native_error(0, &format!("system font I/O: {e}"));
         let file = File::open(path).map_err(fail)?;
         let length = file.metadata().map_err(fail)?.len();
-        if length == 0 || length > limits.font_bytes() || length.checked_mul(13)
-            .and_then(|n| n.checked_add(65536)).is_none_or(|n| n > limits.transient_bytes()) {
-            return Err(FontError::transient_limit("system font intake exceeds budget"));
+        if length == 0
+            || length > limits.font_bytes()
+            || length
+                .checked_mul(13)
+                .and_then(|n| n.checked_add(65536))
+                .is_none_or(|n| n > limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit(
+                "system font intake exceeds budget",
+            ));
         }
-        let capacity = usize::try_from(length).map_err(|_| native_error(0, "system font size overflow"))?;
+        let capacity =
+            usize::try_from(length).map_err(|_| native_error(0, "system font size overflow"))?;
         let mut bytes = Vec::new();
-        bytes.try_reserve_exact(capacity).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "system font allocation failed"))?;
+        bytes.try_reserve_exact(capacity).map_err(|_| {
+            FontError::new(ErrorCode::AllocationFailed, "system font allocation failed")
+        })?;
         file.take(length).read_to_end(&mut bytes).map_err(fail)?;
-        if bytes.len() != capacity { return Err(native_error(0, "system font changed during admission")); }
+        if bytes.len() != capacity {
+            return Err(native_error(0, "system font changed during admission"));
+        }
         Ok(bytes)
     }
 }
@@ -3237,12 +3249,23 @@ mod host_file {
 pub mod fontconfig {
     use super::{FontContext, host_file, native_error};
     use crate::FontCatalogBuilder;
-    use std::{ffi::{c_char, c_void, CStr, CString}, marker::PhantomData, os::unix::ffi::OsStrExt, path::Path, ptr, rc::Rc};
+    use std::{
+        ffi::{CStr, CString, c_char, c_void},
+        marker::PhantomData,
+        os::unix::ffi::OsStrExt,
+        path::Path,
+        ptr,
+        rc::Rc,
+    };
     use taiyou_types::*;
     type Raw = *mut c_void;
     #[repr(C)]
-    struct FontSet { count: i32, capacity: i32, fonts: *mut Raw }
-    #[link(name = "fontconfig")]
+    struct FontSet {
+        count: i32,
+        capacity: i32,
+        fonts: *mut Raw,
+    }
+    #[link(name = "libfontconfig.so.1", kind = "dylib", modifiers = "+verbatim")]
     unsafe extern "C" {
         fn FcInitLoadConfigAndFonts() -> Raw;
         fn FcConfigDestroy(config: Raw);
@@ -3252,9 +3275,24 @@ pub mod fontconfig {
         fn FcPatternAddInteger(pattern: Raw, object: *const c_char, value: i32) -> i32;
         fn FcPatternAddBool(pattern: Raw, object: *const c_char, value: i32) -> i32;
         fn FcPatternAddCharSet(pattern: Raw, object: *const c_char, value: Raw) -> i32;
-        fn FcPatternGetString(pattern: Raw, object: *const c_char, index: i32, value: *mut *mut u8) -> i32;
-        fn FcPatternGetInteger(pattern: Raw, object: *const c_char, index: i32, value: *mut i32) -> i32;
-        fn FcPatternGetCharSet(pattern: Raw, object: *const c_char, index: i32, value: *mut Raw) -> i32;
+        fn FcPatternGetString(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut *mut u8,
+        ) -> i32;
+        fn FcPatternGetInteger(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut i32,
+        ) -> i32;
+        fn FcPatternGetCharSet(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut Raw,
+        ) -> i32;
         fn FcPatternDel(pattern: Raw, object: *const c_char) -> i32;
         fn FcCharSetCreate() -> Raw;
         fn FcCharSetDestroy(charset: Raw);
@@ -3262,56 +3300,127 @@ pub mod fontconfig {
         fn FcCharSetHasChar(charset: Raw, value: u32) -> i32;
         fn FcConfigSubstitute(config: Raw, pattern: Raw, kind: u32) -> i32;
         fn FcDefaultSubstitute(pattern: Raw);
-        fn FcFontSort(config: Raw, pattern: Raw, trim: i32, charset: *mut Raw, result: *mut u32) -> *mut FontSet;
+        fn FcFontSort(
+            config: Raw,
+            pattern: Raw,
+            trim: i32,
+            charset: *mut Raw,
+            result: *mut u32,
+        ) -> *mut FontSet;
         fn FcFontSetDestroy(set: *mut FontSet);
         fn FcWeightFromOpenType(weight: i32) -> i32;
     }
     struct Owned(Raw, unsafe extern "C" fn(Raw));
-    impl Drop for Owned { fn drop(&mut self) { /* SAFETY: unique successful Create reference. */ unsafe { (self.1)(self.0) } } }
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            /* SAFETY: unique successful Create reference. */
+            unsafe { (self.1)(self.0) }
+        }
+    }
     struct Sorted(*mut FontSet);
-    impl Drop for Sorted { fn drop(&mut self) { /* SAFETY: owned FcFontSort result. */ unsafe { FcFontSetDestroy(self.0) } } }
+    impl Drop for Sorted {
+        fn drop(&mut self) {
+            /* SAFETY: owned FcFontSort result. */
+            unsafe { FcFontSetDestroy(self.0) }
+        }
+    }
     fn owned(p: Raw, drop: unsafe extern "C" fn(Raw)) -> Result<Owned, FontError> {
-        if p.is_null() { Err(native_error(0, "Fontconfig allocation failed")) } else { Ok(Owned(p, drop)) }
+        if p.is_null() {
+            Err(native_error(0, "Fontconfig allocation failed"))
+        } else {
+            Ok(Owned(p, drop))
+        }
     }
     fn check(result: i32) -> Result<(), FontError> {
-        if result == 0 { Err(native_error(0, "Fontconfig operation failed")) } else { Ok(()) }
+        if result == 0 {
+            Err(native_error(0, "Fontconfig operation failed"))
+        } else {
+            Ok(())
+        }
     }
     /// One host font configuration per admission session, following libass's
     /// Fontconfig substitution and sorted-coverage approach. Font bytes are
     /// loaded only for a selected face, never for the full installed inventory.
-    pub struct SystemFontSource { config: Owned, limits: Limits, _local: PhantomData<Rc<()>> }
+    pub struct SystemFontSource {
+        config: Owned,
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
     impl SystemFontSource {
         pub fn new(limits: Limits) -> Result<Self, FontError> {
             // SAFETY: this call transfers a new reference, released by Owned.
             let config = unsafe { owned(FcInitLoadConfigAndFonts(), FcConfigDestroy)? };
-            Ok(Self { config, limits, _local: PhantomData })
+            Ok(Self {
+                config,
+                limits,
+                _local: PhantomData,
+            })
         }
-        pub fn extend_catalog(&mut self, context: &mut FontContext, builder: &mut FontCatalogBuilder, text: &str, request: &FontRequest) -> Result<(), FontError> {
-            if text.is_empty() { return Ok(()); }
-            if (text.len() as u64).checked_add(request.family().len() as u64).and_then(|n| n.checked_mul(64)).is_none_or(|n| n > self.limits.transient_bytes()) {
-                return Err(FontError::transient_limit("Fontconfig request exceeds budget"));
+        pub fn extend_catalog(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            request: &FontRequest,
+        ) -> Result<(), FontError> {
+            if text.is_empty() {
+                return Ok(());
             }
-            let family = CString::new(request.family().strip_prefix('@').unwrap_or(request.family()))
-                .map_err(|_| FontError::new(ErrorCode::InvalidArgument, "font family contains NUL"))?;
+            if (text.len() as u64)
+                .checked_add(request.family().len() as u64)
+                .and_then(|n| n.checked_mul(64))
+                .is_none_or(|n| n > self.limits.transient_bytes())
+            {
+                return Err(FontError::transient_limit(
+                    "Fontconfig request exceeds budget",
+                ));
+            }
+            let family = CString::new(
+                request
+                    .family()
+                    .strip_prefix('@')
+                    .unwrap_or(request.family()),
+            )
+            .map_err(|_| FontError::new(ErrorCode::InvalidArgument, "font family contains NUL"))?;
             // SAFETY: all patterns, sets and config are owned for this call;
             // returned strings/charsets are borrowed only while the set lives.
             // Fontconfig uses this documented C ABI; no native pointer escapes.
             unsafe {
                 let pattern = owned(FcPatternCreate(), FcPatternDestroy)?;
                 let charset = owned(FcCharSetCreate(), FcCharSetDestroy)?;
-                for ch in text.chars() { check(FcCharSetAddChar(charset.0, ch as u32))?; }
-                check(FcPatternAddString(pattern.0, c"family".as_ptr(), family.as_ptr().cast()))?;
+                for ch in text.chars() {
+                    check(FcCharSetAddChar(charset.0, ch as u32))?;
+                }
+                check(FcPatternAddString(
+                    pattern.0,
+                    c"family".as_ptr(),
+                    family.as_ptr().cast(),
+                ))?;
                 check(FcPatternAddBool(pattern.0, c"outline".as_ptr(), 1))?;
-                check(FcPatternAddInteger(pattern.0, c"weight".as_ptr(), FcWeightFromOpenType(i32::from(request.weight()))))?;
-                check(FcPatternAddInteger(pattern.0, c"slant".as_ptr(), if request.italic() { 100 } else { 0 }))?;
-                check(FcPatternAddCharSet(pattern.0, c"charset".as_ptr(), charset.0))?;
+                check(FcPatternAddInteger(
+                    pattern.0,
+                    c"weight".as_ptr(),
+                    FcWeightFromOpenType(i32::from(request.weight())),
+                ))?;
+                check(FcPatternAddInteger(
+                    pattern.0,
+                    c"slant".as_ptr(),
+                    if request.italic() { 100 } else { 0 },
+                ))?;
+                check(FcPatternAddCharSet(
+                    pattern.0,
+                    c"charset".as_ptr(),
+                    charset.0,
+                ))?;
                 check(FcConfigSubstitute(self.config.0, pattern.0, 0))?;
                 FcDefaultSubstitute(pattern.0);
                 // Like libass, remove automatic locale preference.
                 FcPatternDel(pattern.0, c"lang".as_ptr());
                 let mut result = 0;
                 let raw = FcFontSort(self.config.0, pattern.0, 0, ptr::null_mut(), &mut result);
-                if raw.is_null() { return Err(native_error(result as i32, "Fontconfig sort failed")); }
+                if raw.is_null() {
+                    return Err(native_error(result as i32, "Fontconfig sort failed"));
+                }
                 let set = Sorted(raw);
                 if (*set.0).count < 0 || ((*set.0).count > 0 && (*set.0).fonts.is_null()) {
                     return Err(native_error(0, "invalid Fontconfig font set"));
@@ -3321,15 +3430,36 @@ pub mod fontconfig {
                 for i in 0..(*set.0).count as usize {
                     let candidate = *(*set.0).fonts.add(i);
                     let mut coverage = ptr::null_mut();
-                    if FcPatternGetCharSet(candidate, c"charset".as_ptr(), 0, &mut coverage) != 0 || coverage.is_null() { continue; }
-                    if !text.chars().filter(|c| !matches!(*c, '\u{200c}' | '\u{200d}' | '\u{fe00}'..='\u{fe0f}')).all(|ch| FcCharSetHasChar(coverage, ch as u32) != 0) { continue; }
+                    if FcPatternGetCharSet(candidate, c"charset".as_ptr(), 0, &mut coverage) != 0
+                        || coverage.is_null()
+                    {
+                        continue;
+                    }
+                    if !text
+                        .chars()
+                        .filter(|c| {
+                            !matches!(*c, '\u{200c}' | '\u{200d}' | '\u{fe00}'..='\u{fe0f}')
+                        })
+                        .all(|ch| FcCharSetHasChar(coverage, ch as u32) != 0)
+                    {
+                        continue;
+                    }
                     let mut filename = ptr::null_mut();
                     let mut index = 0;
-                    if FcPatternGetString(candidate, c"file".as_ptr(), 0, &mut filename) != 0 || filename.is_null() || FcPatternGetInteger(candidate, c"index".as_ptr(), 0, &mut index) != 0 { continue; }
+                    if FcPatternGetString(candidate, c"file".as_ptr(), 0, &mut filename) != 0
+                        || filename.is_null()
+                        || FcPatternGetInteger(candidate, c"index".as_ptr(), 0, &mut index) != 0
+                    {
+                        continue;
+                    }
                     // Named variable instances need coordinates; don't silently
                     // select their base face under the wrong style identity.
-                    if !(0..=0xffff).contains(&index) { continue; }
-                    let path = Path::new(std::ffi::OsStr::from_bytes(CStr::from_ptr(filename.cast()).to_bytes()));
+                    if !(0..=0xffff).contains(&index) {
+                        continue;
+                    }
+                    let path = Path::new(std::ffi::OsStr::from_bytes(
+                        CStr::from_ptr(filename.cast()).to_bytes(),
+                    ));
                     let bytes = host_file::read(path, &self.limits)?;
                     let id = builder.register(context, &bytes, index as u32)?;
                     builder.host_substitution(request, id)?;
@@ -3343,17 +3473,34 @@ pub mod fontconfig {
 
 #[cfg(target_os = "macos")]
 pub mod coretext {
-    use super::{FontContext, host_file, native_error, ft};
+    use super::{FontContext, ft, host_file, native_error};
     use crate::FontCatalogBuilder;
-    use std::{ffi::{c_void, CStr}, marker::PhantomData, os::unix::ffi::OsStrExt, path::Path, ptr, rc::Rc, sync::Arc};
+    use std::{
+        ffi::{CStr, c_void},
+        marker::PhantomData,
+        os::unix::ffi::OsStrExt,
+        path::Path,
+        ptr,
+        rc::Rc,
+        sync::Arc,
+    };
     use taiyou_types::*;
     type Raw = *const c_void;
     #[repr(C)]
-    struct Range { location: isize, length: isize }
+    struct Range {
+        location: isize,
+        length: isize,
+    }
     #[link(name = "CoreFoundation", kind = "framework")]
     unsafe extern "C" {
         fn CFRelease(object: Raw);
-        fn CFStringCreateWithBytes(allocator: Raw, bytes: *const u8, length: isize, encoding: u32, external: u8) -> Raw;
+        fn CFStringCreateWithBytes(
+            allocator: Raw,
+            bytes: *const u8,
+            length: isize,
+            encoding: u32,
+            external: u8,
+        ) -> Raw;
         fn CFStringGetLength(string: Raw) -> isize;
         fn CFStringGetMaximumSizeForEncoding(length: isize, encoding: u32) -> isize;
         fn CFStringGetCString(string: Raw, buffer: *mut u8, size: isize, encoding: u32) -> u8;
@@ -3363,62 +3510,143 @@ pub mod coretext {
     unsafe extern "C" {
         static kCTFontURLAttribute: Raw;
         fn CTFontCreateWithName(name: Raw, size: f64, matrix: Raw) -> Raw;
-        fn CTFontCreateCopyWithSymbolicTraits(font: Raw, size: f64, matrix: Raw, value: u32, mask: u32) -> Raw;
+        fn CTFontCreateCopyWithSymbolicTraits(
+            font: Raw,
+            size: f64,
+            matrix: Raw,
+            value: u32,
+            mask: u32,
+        ) -> Raw;
         fn CTFontCreateForString(font: Raw, string: Raw, range: Range) -> Raw;
         fn CTFontCopyAttribute(font: Raw, attribute: Raw) -> Raw;
         fn CTFontCopyPostScriptName(font: Raw) -> Raw;
     }
     const UTF8: u32 = 0x08000100;
     struct Owned(Raw);
-    impl Drop for Owned { fn drop(&mut self) { /* SAFETY: owned Create/Copy reference. */ unsafe { CFRelease(self.0) } } }
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            /* SAFETY: owned Create/Copy reference. */
+            unsafe { CFRelease(self.0) }
+        }
+    }
     fn owned(raw: Raw) -> Result<Owned, FontError> {
-        if raw.is_null() { Err(native_error(0, "CoreText font lookup failed")) } else { Ok(Owned(raw)) }
+        if raw.is_null() {
+            Err(native_error(0, "CoreText font lookup failed"))
+        } else {
+            Ok(Owned(raw))
+        }
     }
     fn string(text: &str, limits: &Limits) -> Result<Owned, FontError> {
-        if (text.len() as u64).checked_mul(4).is_none_or(|n| n > limits.transient_bytes()) { return Err(FontError::transient_limit("CoreText text exceeds budget")); }
-        let len = isize::try_from(text.len()).map_err(|_| native_error(0, "CoreText text length overflow"))?;
+        if (text.len() as u64)
+            .checked_mul(4)
+            .is_none_or(|n| n > limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit("CoreText text exceeds budget"));
+        }
+        let len = isize::try_from(text.len())
+            .map_err(|_| native_error(0, "CoreText text length overflow"))?;
         // SAFETY: CoreFoundation copies this valid UTF-8 buffer synchronously.
-        unsafe { owned(CFStringCreateWithBytes(ptr::null(), text.as_ptr(), len, UTF8, 0)) }
+        unsafe {
+            owned(CFStringCreateWithBytes(
+                ptr::null(),
+                text.as_ptr(),
+                len,
+                UTF8,
+                0,
+            ))
+        }
     }
     fn bytes(string: &Owned, limits: &Limits) -> Result<Vec<u8>, FontError> {
         // SAFETY: string is an owned CFString; native copy respects the checked
         // allocated extent, and success guarantees a NUL-terminated result.
         unsafe {
             let len = CFStringGetMaximumSizeForEncoding(CFStringGetLength(string.0), UTF8);
-            let size = len.checked_add(1).filter(|n| *n > 0).ok_or_else(|| native_error(0, "CoreText string length overflow"))?;
-            if size as u64 > limits.transient_bytes() { return Err(FontError::transient_limit("CoreText string exceeds budget")); }
+            let size = len
+                .checked_add(1)
+                .filter(|n| *n > 0)
+                .ok_or_else(|| native_error(0, "CoreText string length overflow"))?;
+            if size as u64 > limits.transient_bytes() {
+                return Err(FontError::transient_limit("CoreText string exceeds budget"));
+            }
             let mut data = Vec::new();
-            data.try_reserve_exact(size as usize).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "CoreText string allocation failed"))?;
+            data.try_reserve_exact(size as usize).map_err(|_| {
+                FontError::new(
+                    ErrorCode::AllocationFailed,
+                    "CoreText string allocation failed",
+                )
+            })?;
             data.resize(size as usize, 0);
-            if CFStringGetCString(string.0, data.as_mut_ptr(), size, UTF8) == 0 { return Err(native_error(0, "CoreText string copy failed")); }
-            let end = data.iter().position(|b| *b == 0).ok_or_else(|| native_error(0, "CoreText string terminator absent"))?;
+            if CFStringGetCString(string.0, data.as_mut_ptr(), size, UTF8) == 0 {
+                return Err(native_error(0, "CoreText string copy failed"));
+            }
+            let end = data
+                .iter()
+                .position(|b| *b == 0)
+                .ok_or_else(|| native_error(0, "CoreText string terminator absent"))?;
             data.truncate(end);
             Ok(data)
         }
     }
     /// CoreText chooses a face; FreeType authenticates the exact collection
     /// member by PostScript name, as in libass's CoreText provider path.
-    pub struct SystemFontSource { limits: Limits, _local: PhantomData<Rc<()>> }
+    pub struct SystemFontSource {
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
     impl SystemFontSource {
-        pub fn new(limits: Limits) -> Result<Self, FontError> { Ok(Self { limits, _local: PhantomData }) }
-        pub fn extend_catalog(&mut self, context: &mut FontContext, builder: &mut FontCatalogBuilder, text: &str, request: &FontRequest) -> Result<(), FontError> {
-            if text.is_empty() { return Ok(()); }
-            let family = string(request.family().strip_prefix('@').unwrap_or(request.family()), &self.limits)?;
+        pub fn new(limits: Limits) -> Result<Self, FontError> {
+            Ok(Self {
+                limits,
+                _local: PhantomData,
+            })
+        }
+        pub fn extend_catalog(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            request: &FontRequest,
+        ) -> Result<(), FontError> {
+            if text.is_empty() {
+                return Ok(());
+            }
+            let family = string(
+                request
+                    .family()
+                    .strip_prefix('@')
+                    .unwrap_or(request.family()),
+                &self.limits,
+            )?;
             let input = string(text, &self.limits)?;
             // SAFETY: CoreText references are retained throughout synchronous
             // lookup. Range is in UTF-16 units, covering the complete cluster.
             unsafe {
                 let base = owned(CTFontCreateWithName(family.0, 12.0, ptr::null()))?;
-                let traits = u32::from(request.italic()) | (u32::from(request.weight() >= 600) << 1);
-                let styled = CTFontCreateCopyWithSymbolicTraits(base.0, 0.0, ptr::null(), traits, 3);
-                let styled = if styled.is_null() { None } else { Some(Owned(styled)) };
-                let font = owned(CTFontCreateForString(styled.as_ref().unwrap_or(&base).0, input.0, Range { location: 0, length: CFStringGetLength(input.0) }))?;
+                let traits =
+                    u32::from(request.italic()) | (u32::from(request.weight() >= 600) << 1);
+                let styled =
+                    CTFontCreateCopyWithSymbolicTraits(base.0, 0.0, ptr::null(), traits, 3);
+                let styled = if styled.is_null() {
+                    None
+                } else {
+                    Some(Owned(styled))
+                };
+                let font = owned(CTFontCreateForString(
+                    styled.as_ref().unwrap_or(&base).0,
+                    input.0,
+                    Range {
+                        location: 0,
+                        length: CFStringGetLength(input.0),
+                    },
+                ))?;
                 let url = owned(CTFontCopyAttribute(font.0, kCTFontURLAttribute))?;
                 let path = owned(CFURLCopyFileSystemPath(url.0, 0))?;
                 let name = owned(CTFontCopyPostScriptName(font.0))?;
                 let path = bytes(&path, &self.limits)?;
                 let name = bytes(&name, &self.limits)?;
-                let data: Arc<[u8]> = host_file::read(Path::new(std::ffi::OsStr::from_bytes(&path)), &self.limits)?.into();
+                let data: Arc<[u8]> =
+                    host_file::read(Path::new(std::ffi::OsStr::from_bytes(&path)), &self.limits)?
+                        .into();
                 let count = context.face_count(data.clone())?;
                 for index in 0..count {
                     let matches = context.with_face(data.clone(), index, |face| {
@@ -3434,7 +3662,10 @@ pub mod coretext {
                     }
                 }
             }
-            Err(native_error(0, "CoreText selected face is absent from its font file"))
+            Err(native_error(
+                0,
+                "CoreText selected face is absent from its font file",
+            ))
         }
     }
 }
@@ -3792,7 +4023,14 @@ pub mod windows {
                         .and_then(|n| n.checked_add(65536))
                         .is_none_or(|n| n > self.limits.transient_bytes())
                 {
-                    return Err(FontError::new(ErrorCode::LimitExceeded, &format!("Windows font discovery budget exceeded: file={size} transient={} font={}", self.limits.transient_bytes(), self.limits.font_bytes())));
+                    return Err(FontError::new(
+                        ErrorCode::LimitExceeded,
+                        &format!(
+                            "Windows font discovery budget exceeded: file={size} transient={} font={}",
+                            self.limits.transient_bytes(),
+                            self.limits.font_bytes()
+                        ),
+                    ));
                 }
                 let count = usize::try_from(size).map_err(|_| limited())?;
                 let mut bytes = Vec::new();

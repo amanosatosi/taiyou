@@ -474,11 +474,9 @@ impl Renderer {
         } else {
             let mut context = FontContext::with_limits(self.config.limits.clone())
                 .map_err(crate::geometry::font_error)?;
-            let mut builder = FontCatalogBuilder::from_catalog(
-                &mut context,
-                &fonts,
-                self.config.limits.clone(),
-            ).map_err(crate::geometry::font_error)?;
+            let mut builder =
+                FontCatalogBuilder::from_catalog(&mut context, &fonts, self.config.limits.clone())
+                    .map_err(crate::geometry::font_error)?;
             for attachment in parsed.embedded_fonts() {
                 let attachment_error = |e| {
                     crate::geometry::font_error(e).with_context(None, Some(attachment.source()))

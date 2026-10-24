@@ -28,7 +28,10 @@ The first direct checkpoint at `2177a94` was **3 same / 10 good / 85 bad /
 4 errors**, versus **3 / 10 / 86 / 3** at `0915b31`. All three exact cases were
 preserved; there were no new exact cases. The fourth error was the Myanmar
 witness exceeding the 128 MiB native font admission reservation, not a visual
-improvement. Resource-limit review and the next actual capture remain pending.
+improvement. On 2026-10-24 the owner explicitly approved a 256 MiB transient
+allowance for system-font playback only. Explicit corpus mode and library
+defaults remain at 128 MiB, with the same 64 MiB aggregate font limit and native
+reservation checks. The next actual capture remains pending.
 See [checkpoint report](https://github.com/amanosatosi/taiyou/actions/runs/40037379434).
 
 **Repair sprint — ASS pair kerning.** Hash-authenticated Windows GDI probes

@@ -90,14 +90,20 @@ mod tests {
 
     #[test]
     fn host_fallback_keeps_explicit_latin_clusters_and_catalog_immutable() {
-        let limits = Limits::default();
-        let mut context = FontContext::new().unwrap();
+        let limits = playback_limits(true).unwrap();
+        let mut context = FontContext::with_limits(limits.clone()).unwrap();
         let mut builder = FontCatalogBuilder::new(limits.clone());
         let bytes = std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap();
         let explicit = builder.register(&mut context, &bytes, 0).unwrap();
         let before = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-        let text = if cfg!(windows) { "〈a\u{301}〉" } else { "اa\u{301}ا" };
-        let source = format!("[Script Info]\nPlayResX: 1920\nPlayResY: 1080\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize\nStyle: Default,Source Sans 3,60\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:10.00,{text}");
+        let text = if cfg!(windows) {
+            "〈a\u{301}〉"
+        } else {
+            "اa\u{301}ا"
+        };
+        let source = format!(
+            "[Script Info]\nPlayResX: 1920\nPlayResY: 1080\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize\nStyle: Default,Source Sans 3,60\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:10.00,{text}"
+        );
         let parsed = taiyou_ass::parse_ass(
             source.as_bytes(),
             &ParseOptions::default(),
@@ -176,20 +182,33 @@ mod tests {
         let mut context = FontContext::new().unwrap();
         let mut builder = FontCatalogBuilder::new(limits.clone());
         let before = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
-        let request = FontRequest::new(std::sync::Arc::from("Taiyou absent family 8e9c4937"), 400, false, false);
+        let request = FontRequest::new(
+            std::sync::Arc::from("Taiyou absent family 8e9c4937"),
+            400,
+            false,
+            false,
+        );
         let mut source = SystemFontSource::new(limits.clone()).unwrap();
-        source.extend_catalog(&mut context, &mut builder, "A", &request).unwrap();
+        source
+            .extend_catalog(&mut context, &mut builder, "A", &request)
+            .unwrap();
         let after = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
         assert!(resolve_family(&before, &request, &limits).is_err());
         let id = resolve_family(&after, &request, &limits).unwrap();
         assert!(after.faces().iter().any(|face| face.blob().id() == id));
-        let copied = FontCatalogBuilder::from_catalog(&mut context, &after, limits.clone()).unwrap()
-            .snapshot(&mut CatalogIngestor::new()).unwrap();
+        let copied = FontCatalogBuilder::from_catalog(&mut context, &after, limits.clone())
+            .unwrap()
+            .snapshot(&mut CatalogIngestor::new())
+            .unwrap();
         assert_eq!(resolve_family(&copied, &request, &limits).unwrap(), id);
         let tiny = Limits::default().with_transient_bytes(1).unwrap();
         let mut source = SystemFontSource::new(tiny.clone()).unwrap();
         let mut limited = FontCatalogBuilder::new(tiny);
-        assert!(source.extend_catalog(&mut context, &mut limited, "A", &request).is_err());
+        assert!(
+            source
+                .extend_catalog(&mut context, &mut limited, "A", &request)
+                .is_err()
+        );
         assert_eq!(limited.registered_bytes(), 0);
     }
 }

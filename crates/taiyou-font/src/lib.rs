@@ -18,13 +18,13 @@ pub mod source_map;
 pub use catalog::{
     FontCatalogBuilder, ValidatedFontCatalog, fold_family, resolve_family, validate_catalog,
 };
+#[cfg(all(feature = "native", target_os = "macos"))]
+pub use native::coretext::SystemFontSource;
+#[cfg(all(feature = "native", target_os = "linux"))]
+pub use native::fontconfig::SystemFontSource;
 #[cfg(all(feature = "native", windows))]
 pub use native::windows::WindowsFontSource;
 #[cfg(all(feature = "native", windows))]
 pub use native::windows::WindowsFontSource as SystemFontSource;
-#[cfg(all(feature = "native", target_os = "linux"))]
-pub use native::fontconfig::SystemFontSource;
-#[cfg(all(feature = "native", target_os = "macos"))]
-pub use native::coretext::SystemFontSource;
 #[cfg(feature = "native")]
 pub use native::{FontContext, NativeWorkExperiment, RasterContext};

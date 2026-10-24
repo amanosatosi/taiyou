@@ -299,7 +299,15 @@ impl FontCatalogBuilder {
         for (index, aliases) in catalog.aliases.iter().enumerate() {
             for alias in aliases.iter() {
                 let face = &catalog.faces()[index];
-                builder.host_substitution(&FontRequest::new(Arc::from(alias.as_str()), face.weight(), face.italic(), false), face.blob().id())?;
+                builder.host_substitution(
+                    &FontRequest::new(
+                        Arc::from(alias.as_str()),
+                        face.weight(),
+                        face.italic(),
+                        false,
+                    ),
+                    face.blob().id(),
+                )?;
             }
         }
         Ok(builder)
@@ -328,20 +336,52 @@ impl FontCatalogBuilder {
         request: &FontRequest,
         id: FontId,
     ) -> Result<(), FontError> {
-        let name = fold_family(request.family().strip_prefix('@').unwrap_or(request.family()), &self.limits)?;
-        if self.records.iter().enumerate().any(|(i, r)| r.folded_family() == name || self.aliases[i].contains(&name)) {
+        let name = fold_family(
+            request
+                .family()
+                .strip_prefix('@')
+                .unwrap_or(request.family()),
+            &self.limits,
+        )?;
+        if self
+            .records
+            .iter()
+            .enumerate()
+            .any(|(i, r)| r.folded_family() == name || self.aliases[i].contains(&name))
+        {
             return Ok(());
         }
-        let index = self.records.iter().position(|r| r.blob().id() == id)
-            .ok_or_else(|| error(ErrorCode::InvalidArgument, "host substitution face is absent"))?;
-        let charge = (name.len() as u64).checked_add(3 * std::mem::size_of::<String>() as u64)
+        let index = self
+            .records
+            .iter()
+            .position(|r| r.blob().id() == id)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "host substitution face is absent",
+                )
+            })?;
+        let charge = (name.len() as u64)
+            .checked_add(3 * std::mem::size_of::<String>() as u64)
             .and_then(|n| n.checked_add(self.names))
             .ok_or_else(|| error(ErrorCode::LimitExceeded, "host substitution name overflow"))?;
-        if charge.checked_mul(3).is_none_or(|n| n > self.limits.transient_bytes()) {
-            return Err(FontError::transient_limit("host substitution names exceed budget"));
+        if charge
+            .checked_mul(3)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit(
+                "host substitution names exceed budget",
+            ));
         }
         let mut aliases = Vec::new();
-        aliases.try_reserve_exact(self.aliases[index].len() + 1).map_err(|_| error(ErrorCode::AllocationFailed, "host substitution allocation failed"))?;
+        aliases
+            .try_reserve_exact(self.aliases[index].len() + 1)
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "host substitution allocation failed",
+                )
+            })?;
         aliases.extend(self.aliases[index].iter().cloned());
         aliases.push(name);
         self.aliases[index] = aliases.into();
