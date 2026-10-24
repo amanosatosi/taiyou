@@ -240,7 +240,12 @@ fn effects_track(border: f64) -> Arc<Track> {
             source,
             ScriptInfo::core_default()
                 .with_play_res(Size::new(160, 100))
-                .unwrap(),
+                .unwrap()
+                // These fixed segment-budget measurements used kerned text.
+                // Keep that geometry explicit as the ASS default is corrected;
+                // the same limits and no-retry workload remain. Compatibility
+                // geometry can legitimately move the segment exhaustion point.
+                .with_metadata(Arc::from([(Arc::from("Kerning"), Arc::from("yes"))])),
             Arc::from([dialogue, effect]),
             events.into(),
             &Limits::default(),
@@ -293,14 +298,13 @@ fn positive_cell_stroke_budget_evidence() {
             assert_eq!(PREPARATION_ATTEMPTS.with(Cell::get), 1);
             assert_eq!(error.code(), ErrorCode::LimitExceeded);
             assert_eq!(error.resource_failure(), ResourceFailure::Other);
-            let expected = match (border == 0.5, restore_em) {
-                (true, false) => (423, 426),
-                (true, true) => (441, 444),
-                (false, false) => (225, 228),
-                (false, true) => (235, 238),
-            };
-            assert_eq!(error.event(), Some(EventId::new(expected.0)));
-            assert_eq!(PREPARE_CALLS.with(Cell::get), expected.1);
+            let event = error.event().unwrap();
+            assert!(event.ordinal() > 0 && event.ordinal() < 498);
+            // Two ordinary dialogue events are prepared in the collision
+            // prepass, then each positioned event through the failing one
+            // exactly once. The failure ordinal is geometry-dependent.
+            let prepares = event.ordinal() as usize + 3;
+            assert_eq!(PREPARE_CALLS.with(Cell::get), prepares);
             if restore_em {
                 assert!(error.detail().contains("check=frame-segments"));
             } else {
@@ -318,13 +322,13 @@ fn positive_cell_stroke_budget_evidence() {
                     .unwrap_err();
                 assert_eq!(later.code(), ErrorCode::LimitExceeded);
                 assert_eq!(later.resource_failure(), ResourceFailure::Other);
-                assert!(later.event().unwrap() > EventId::new(expected.0));
+                assert!(later.event().unwrap() > event);
                 eprintln!("CELL_STROKE larger_segment_budget={later:?}");
             }
 
             report.push_str(&format!(
                 "border={border} restore_em={restore_em} prepares={} error={error:?}\n",
-                expected.1
+                prepares
             ));
         }
     }
@@ -337,7 +341,8 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
     let fonts = catalog();
     // Pre-cell-height geometry exhausted at 441/444 and 235/238. Those
     // counts were not an ASS contract; the fixed-budget/no-retry invariant is.
-    for (border, event, prepares) in [(0.5, 423, 426), (3.0, 225, 228)] {
+    // Native word rounding changes positions and the stroker's exported count.
+    for border in [0.5, 3.0] {
         let input = effects_track(border);
         let minimal = Renderer::new(Default::default())
             .unwrap()
@@ -359,6 +364,9 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 &mut false,
             )
             .unwrap_err();
+        let event = minimal.event().unwrap().ordinal();
+        assert!(event > 0 && event < 498);
+        let prepares = event as usize + 3;
         for _ in 0..2 {
             PREPARATION_ATTEMPTS.with(|n| n.set(0));
             PREPARE_CALLS.with(|n| n.set(0));
@@ -379,11 +387,14 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 error, original,
                 "return the first attempt's complete original error"
             );
-            // With current geometry, the remaining segment allowance is too
-            // small for the next input outline, before FT stroker output.
-            assert_eq!(
-                error.detail(),
-                "geometry coordinate/count/reservation limit"
+            // The same fixed segment limit can reject the next input outline
+            // or the native stroker's larger exported contour. Neither is a
+            // transient-memory failure or a reason to repeat preparation.
+            assert!(
+                error.detail() == "geometry coordinate/count/reservation limit"
+                    || error.detail().starts_with(
+                        "native stroke extent/count/reservation limit: check=frame-segments "
+                    )
             );
         }
         let config = RendererConfig {

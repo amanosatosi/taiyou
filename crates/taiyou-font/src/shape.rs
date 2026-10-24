@@ -11,6 +11,7 @@ pub struct ShapeOptions {
     direction: Direction,
     language: Arc<str>,
     layout_scale: [FiniteF64; 2],
+    kerning: bool,
 }
 impl Default for ShapeOptions {
     fn default() -> Self {
@@ -18,10 +19,17 @@ impl Default for ShapeOptions {
             direction: Direction::Auto,
             language: Arc::from("und"),
             layout_scale: [FiniteF64::ONE; 2],
+            kerning: true,
         }
     }
 }
 impl ShapeOptions {
+    /// Pair kerning for this shaping request. The ASS coordinator resolves its
+    /// script header separately; direct shaping retains its existing default.
+    pub fn with_kerning(mut self, enabled: bool) -> Self {
+        self.kerning = enabled;
+        self
+    }
     /// Layout pixels per PlayRes unit; glyph metrics are returned in script units.
     pub fn with_layout_scale(mut self, scale: [f64; 2]) -> Result<Self, FontError> {
         if scale.iter().any(|s| !s.is_finite() || *s <= 0.0) {
@@ -67,6 +75,7 @@ pub(crate) struct NativeRequest<'a> {
     pub script: u32,
     pub language: &'a str,
     pub ligatures: bool,
+    pub kerning: bool,
     pub vertical: bool,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -492,6 +501,7 @@ fn request<'a>(input: &'a ResolvedRun, range: Range<usize>) -> NativeRequest<'a>
         script: input.item.script,
         language: input.options.language(),
         ligatures: input.style.spacing().get() == 0.0,
+        kerning: input.options.kerning,
         vertical: input.style.font().vertical() || input.style.font().family().starts_with('@'),
     }
 }
@@ -609,10 +619,44 @@ fn shape_item(
             FiniteF64::new(input.style.font_size().get() * ly).map_err(|_| limited())?;
         let vertical =
             input.style.font().vertical() || input.style.font().family().starts_with('@');
-        let scale = input
+        let ordinary_scale = input
             .catalog
             .ass_oriented_font_scale(face.id(), cell_size, vertical)?
             .get();
+        let ordinary_outline_scale = if collect_ink {
+            input
+                .catalog
+                .ass_oriented_outline_scale(face.id(), cell_size, vertical)?
+                .get()
+        } else {
+            ordinary_scale
+        };
+        let mut linked_group = !vertical && input.catalog.has_host_font_links();
+        for g in raw
+            .glyphs
+            .iter()
+            .take(if linked_group { raw.glyphs.len() } else { 0 })
+        {
+            let end = *ends
+                .get(ends.partition_point(|&p| p <= g.cluster))
+                .ok_or_else(limited)?;
+            let cluster = map.decoded_span(g.cluster..end)?;
+            linked_group &= input
+                .catalog
+                .host_link(
+                    input.primary,
+                    face.id(),
+                    cluster.text(),
+                    cell_size,
+                    input.style.font(),
+                )
+                .is_some();
+        }
+        let metric_font = if linked_group {
+            input.primary
+        } else {
+            face.id()
+        };
         let baseline_offset =
             input
                 .catalog
@@ -634,9 +678,10 @@ fn shape_item(
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
             metrics: {
-                let m = input
-                    .catalog
-                    .ass_oriented_line_metrics(face.id(), cell_size, vertical)?;
+                let m =
+                    input
+                        .catalog
+                        .ass_oriented_line_metrics(metric_font, cell_size, vertical)?;
                 RunMetrics::new(
                     finite(m.ascent().get() / ly)?,
                     finite(m.descent().get() / ly)?,
@@ -653,13 +698,50 @@ fn shape_item(
             return Err(limited());
         }
         reserve(&mut glyphs, raw.glyphs.len(), limits)?;
-        for g in &raw.glyphs {
+        let mut cluster_advance = 0.0;
+        for (glyph_index, g) in raw.glyphs.iter().enumerate() {
             let end = *ends
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
+            let link = if vertical {
+                None
+            } else {
+                input.catalog.host_link(
+                    input.primary,
+                    face.id(),
+                    cluster.text(),
+                    cell_size,
+                    input.style.font(),
+                )
+            };
+            let scale = link.map_or(ordinary_scale, |link| link.scale.get());
+            let outline_scale = link.map_or(ordinary_outline_scale, |link| link.scale.get());
+            let baseline_offset = if let Some(link) = link {
+                (input
+                    .catalog
+                    .ass_oriented_baseline_offset(input.primary, cell_size, vertical)?
+                    + link.baseline_delta.get())
+                    / ly
+            } else {
+                baseline_offset
+            };
+            // Retain HarfBuzz's complete cluster and mark offsets. GDI's rounded
+            // linked advance is applied once, on the final glyph of the cluster.
+            cluster_advance += f64::from(g.advance_x) * scale;
+            let adjustment = if raw
+                .glyphs
+                .get(glyph_index + 1)
+                .is_none_or(|next| next.cluster != g.cluster)
+            {
+                let adjustment = link.map_or(0.0, |link| link.advance.get() - cluster_advance);
+                cluster_advance = 0.0;
+                adjustment
+            } else {
+                0.0
+            };
             let position = GlyphPosition::new(
-                finite(f64::from(g.advance_x) * scale / lx)?,
+                finite((f64::from(g.advance_x) * scale + adjustment) / lx)?,
                 finite(-f64::from(g.advance_y) * scale / ly)?,
                 finite(f64::from(g.offset_x) * scale / lx)?,
                 finite(-f64::from(g.offset_y) * scale / ly + baseline_offset)?,
@@ -686,7 +768,7 @@ fn shape_item(
                             } else {
                                 (x, y)
                             };
-                            let (x, y) = (x * scale / lx, -y * scale / ly);
+                            let (x, y) = (x * outline_scale / lx, -y * outline_scale / ly);
                             bounds = Some(bounds.map_or((x, y, x, y), |(a, b, c, d)| {
                                 (a.min(x), b.min(y), c.max(x), d.max(y))
                             }));
@@ -1022,6 +1104,7 @@ fn empty_line_metrics(
                     script: u32::from_be_bytes(*b"Zyyy"),
                     language: options.language(),
                     ligatures: true,
+                    kerning: options.kerning,
                     vertical: style.font().vertical() || style.font().family().starts_with('@'),
                 };
                 previous = Some((

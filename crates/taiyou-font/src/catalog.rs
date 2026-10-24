@@ -10,6 +10,19 @@ pub(crate) struct VerticalMetrics {
     pub ascent: u16,
     pub descent: u16,
 }
+/// A bounded Windows host observation for one complete missing cluster and
+/// requested cell size. Explicit catalogs never contain these observations.
+#[derive(Clone, Debug)]
+pub(crate) struct HostLink {
+    pub primary: FontId,
+    pub fallback: FontId,
+    pub text: Arc<str>,
+    pub size: FiniteF64,
+    pub scale: FiniteF64,
+    pub request: FontRequest,
+    pub baseline_delta: FiniteF64,
+    pub advance: FiniteF64,
+}
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
 }
@@ -35,8 +48,115 @@ pub struct ValidatedFontCatalog {
     cells: Arc<[(u16, u16, u16)]>,
     verticals: Arc<[VerticalMetrics]>,
     legacy_charmaps: Arc<[Option<u16>]>,
+    host_links: Arc<[HostLink]>,
 }
 impl ValidatedFontCatalog {
+    pub fn has_host_font_links(&self) -> bool {
+        !self.host_links.is_empty()
+    }
+    pub(crate) fn host_link(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+    ) -> Option<&HostLink> {
+        self.host_links.iter().find(|link| {
+            link.primary == primary
+                && link.fallback == fallback
+                && link.text.as_ref() == text
+                && link.size == size
+                && &link.request == request
+        })
+    }
+    /// Resolve metric scaling from an admitted observation; no OS discovery.
+    /// Contours use admitted_outline_scale, including the CFF path distinction.
+    pub fn admitted_font_scale(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> Result<FiniteF64, FontError> {
+        if !vertical {
+            if let Some(link) = self.host_link(primary, fallback, text, size, request) {
+                return Ok(link.scale);
+            }
+        }
+        self.ass_oriented_font_scale(fallback, size, vertical)
+    }
+    /// Native contour scaling is distinct from rounded metric measurement for
+    /// horizontal CFF faces. An observed host realization remains authoritative.
+    pub fn admitted_outline_scale(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> Result<FiniteF64, FontError> {
+        if !vertical {
+            if let Some(link) = self.host_link(primary, fallback, text, size, request) {
+                return Ok(link.scale);
+            }
+        }
+        self.ass_oriented_outline_scale(fallback, size, vertical)
+    }
+    pub fn admitted_metric_font(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> FontId {
+        if !vertical
+            && self
+                .host_link(primary, fallback, text, size, request)
+                .is_some()
+        {
+            primary
+        } else {
+            fallback
+        }
+    }
+    pub fn needs_host_font_link(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> bool {
+        !vertical
+            && primary != fallback
+            && self.host_links.iter().any(|link| link.fallback == fallback)
+            && self
+                .host_link(primary, fallback, text, size, request)
+                .is_none()
+    }
+    pub fn admitted_baseline_delta(
+        &self,
+        primary: FontId,
+        fallback: FontId,
+        text: &str,
+        size: FiniteF64,
+        request: &FontRequest,
+        vertical: bool,
+    ) -> FiniteF64 {
+        if vertical {
+            FiniteF64::ZERO
+        } else {
+            self.host_link(primary, fallback, text, size, request)
+                .map_or(FiniteF64::ZERO, |link| link.baseline_delta)
+        }
+    }
     pub fn ass_oriented_cell_metrics(
         &self,
         font: FontId,
@@ -114,6 +234,30 @@ impl ValidatedFontCatalog {
             ));
         }
         FiniteF64::new(em / (64.0 * f64::from(upem))).map_err(|e| error(e.code(), e.detail()))
+    }
+    pub(crate) fn ass_oriented_outline_scale(
+        &self,
+        font: FontId,
+        size: FiniteF64,
+        vertical: bool,
+    ) -> Result<FiniteF64, FontError> {
+        // Preserve all existing validation and the rounded metric scale.
+        let metric = self.ass_oriented_font_scale(font, size, vertical)?;
+        let index = self
+            .faces()
+            .iter()
+            .position(|f| f.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "outline font absent"))?;
+        if vertical || !self.verticals[index].cff {
+            return Ok(metric);
+        }
+        let (_, ascent, descent) = self.ass_cell_metrics(font)?;
+        // Direct GDI CFF path: fractional mapped EM, unlike integer measured
+        // advances. E.g. the frozen CFF's cell1007 at height6400 has scale
+        // 6400/1007 native ticks per design unit, not round(6400000/1007)/1000.
+        let height = (size.get() * 64.0 + 0.5).floor();
+        FiniteF64::new(height / (64.0 * (f64::from(ascent) + f64::from(descent))))
+            .map_err(|e| error(e.code(), e.detail()))
     }
     pub(crate) fn ass_oriented_line_metrics(
         &self,
@@ -203,6 +347,37 @@ impl ValidatedFontCatalog {
             })?;
         context.outline_authenticated(face.blob(), glyph, limits)
     }
+    /// ASS native-size realization through the portable FreeType adapter.
+    /// The owned result retains design-unit coordinates; no face is shared.
+    pub fn ass_outline(
+        &self,
+        context: &mut FontContext,
+        font: FontId,
+        glyph: u32,
+        scale: FiniteF64,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        let face = self
+            .faces()
+            .iter()
+            .find(|f| f.blob().id() == font)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "font absent from validated catalog",
+                )
+            })?;
+        let index = self
+            .faces()
+            .iter()
+            .position(|f| f.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent"))?;
+        if self.verticals[index].cff {
+            context.outline_authenticated(face.blob(), glyph, limits)
+        } else {
+            context.ass_outline_authenticated(face.blob(), glyph, scale, limits)
+        }
+    }
     pub(crate) fn shape_raw(
         &self,
         context: &mut FontContext,
@@ -282,8 +457,40 @@ pub struct FontCatalogBuilder {
     cells: Vec<(u16, u16, u16)>,
     verticals: Vec<VerticalMetrics>,
     legacy_charmaps: Vec<Option<u16>>,
+    host_links: Vec<HostLink>,
 }
 impl FontCatalogBuilder {
+    /// Re-admit a validated catalog under this owner's limits, preserving host
+    /// substitutions when a renderer appends embedded fonts. The old snapshot
+    /// remains immutable; native bytes are authenticated normally.
+    pub fn from_catalog(
+        context: &mut FontContext,
+        catalog: &ValidatedFontCatalog,
+        limits: Limits,
+    ) -> Result<Self, FontError> {
+        let mut builder = Self::new(limits);
+        for face in catalog.faces() {
+            builder.register(context, face.blob().bytes(), face.blob().id().face_index())?;
+        }
+        for (index, aliases) in catalog.aliases.iter().enumerate() {
+            for alias in aliases.iter() {
+                let face = &catalog.faces()[index];
+                builder.host_substitution(
+                    &FontRequest::new(
+                        Arc::from(alias.as_str()),
+                        face.weight(),
+                        face.italic(),
+                        false,
+                    ),
+                    face.blob().id(),
+                )?;
+            }
+        }
+        for link in catalog.host_links.iter() {
+            builder.host_link(link.clone())?;
+        }
+        Ok(builder)
+    }
     pub fn new(limits: Limits) -> Self {
         Self {
             limits,
@@ -295,10 +502,109 @@ impl FontCatalogBuilder {
             cells: Vec::new(),
             verticals: Vec::new(),
             legacy_charmaps: Vec::new(),
+            host_links: Vec::new(),
         }
     }
     pub const fn registered_bytes(&self) -> u64 {
         self.bytes
+    }
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub(crate) fn host_link(&mut self, link: HostLink) -> Result<(), FontError> {
+        if let Some(old) = self.host_links.iter().find(|old| {
+            old.primary == link.primary
+                && old.fallback == link.fallback
+                && old.size == link.size
+                && old.text == link.text
+                && old.request == link.request
+        }) {
+            if old.scale != link.scale
+                || old.baseline_delta != link.baseline_delta
+                || old.advance != link.advance
+            {
+                return Err(error(
+                    ErrorCode::NativeFailure,
+                    "inconsistent Windows font-link observation",
+                ));
+            }
+            return Ok(());
+        }
+        let charge = (link.text.len() as u64)
+            .checked_add(link.request.family().len() as u64)
+            .and_then(|n| n.checked_mul(3))
+            .and_then(|n| n.checked_add(3 * std::mem::size_of::<HostLink>() as u64))
+            .and_then(|n| n.checked_add(self.names))
+            .ok_or_else(|| FontError::transient_limit("host links overflow"))?;
+        if charge > self.limits.transient_bytes() {
+            return Err(FontError::transient_limit("host links exceed budget"));
+        }
+        self.host_links
+            .try_reserve_exact(1)
+            .map_err(|_| error(ErrorCode::AllocationFailed, "host link allocation"))?;
+        // Carry retained observations into the next font's intake/publication
+        // reservation, rather than checking their vector in isolation.
+        self.names = charge;
+        self.host_links.push(link);
+        Ok(())
+    }
+    /// Record a host provider's substitution only when no explicitly admitted
+    /// face already matches the requested family. This is catalog data, never
+    /// an implicit system lookup during resolution or shaping.
+    pub(crate) fn host_substitution(
+        &mut self,
+        request: &FontRequest,
+        id: FontId,
+    ) -> Result<(), FontError> {
+        let name = fold_family(
+            request
+                .family()
+                .strip_prefix('@')
+                .unwrap_or(request.family()),
+            &self.limits,
+        )?;
+        if self
+            .records
+            .iter()
+            .enumerate()
+            .any(|(i, r)| r.folded_family() == name || self.aliases[i].contains(&name))
+        {
+            return Ok(());
+        }
+        let index = self
+            .records
+            .iter()
+            .position(|r| r.blob().id() == id)
+            .ok_or_else(|| {
+                error(
+                    ErrorCode::InvalidArgument,
+                    "host substitution face is absent",
+                )
+            })?;
+        let charge = (name.len() as u64)
+            .checked_add(3 * std::mem::size_of::<String>() as u64)
+            .and_then(|n| n.checked_add(self.names))
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "host substitution name overflow"))?;
+        if charge
+            .checked_mul(3)
+            .is_none_or(|n| n > self.limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit(
+                "host substitution names exceed budget",
+            ));
+        }
+        let mut aliases = Vec::new();
+        aliases
+            .try_reserve_exact(self.aliases[index].len() + 1)
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "host substitution allocation failed",
+                )
+            })?;
+        aliases.extend(self.aliases[index].iter().cloned());
+        aliases.push(name);
+        self.aliases[index] = aliases.into();
+        self.names = charge;
+        Ok(())
     }
     pub fn register(
         &mut self,
@@ -527,6 +833,16 @@ impl FontCatalogBuilder {
                 )
             })?;
         legacy_charmaps.extend_from_slice(&self.legacy_charmaps);
+        let mut host_links = Vec::new();
+        host_links
+            .try_reserve_exact(self.host_links.len())
+            .map_err(|_| {
+                error(
+                    ErrorCode::AllocationFailed,
+                    "host links snapshot allocation",
+                )
+            })?;
+        host_links.extend(self.host_links.iter().cloned());
         // All builder records originate from register: digest, native face index,
         // family and attributes were verified, with collisions checked by bytes.
         Ok(Arc::new(ValidatedFontCatalog {
@@ -535,6 +851,7 @@ impl FontCatalogBuilder {
             aliases: aliases.into(),
             cells: cells.into(),
             verticals: verticals.into(),
+            host_links: host_links.into(),
         }))
     }
 }
@@ -632,6 +949,189 @@ fn select_family_aliases(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn catalog_cff_outline_scale_is_fractional_without_changing_metric_scale() {
+        let mut context = FontContext::new().unwrap();
+        let mut builder = FontCatalogBuilder::new(Limits::default());
+        let cff = builder
+            .register(
+                &mut context,
+                &std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(),
+                0,
+            )
+            .unwrap();
+        let ttf_path = std::path::PathBuf::from(std::env::var("RUNNER_TEMP").unwrap())
+            .join("taiyou-shaping-fonts/indic.ttf");
+        let ttf = builder
+            .register(&mut context, &std::fs::read(ttf_path).unwrap(), 0)
+            .unwrap();
+        let catalog = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+        let size = FiniteF64::new(100.0).unwrap();
+        let request = FontRequest::new(Arc::from("Source Sans 3"), 400, false, false);
+        let (_, ascent, descent) = catalog.ass_cell_metrics(cff).unwrap();
+        let contour = catalog
+            .admitted_outline_scale(cff, cff, "A", size, &request, false)
+            .unwrap();
+        assert_eq!(
+            contour.get(),
+            100.0 / (f64::from(ascent) + f64::from(descent))
+        );
+        assert_ne!(contour, catalog.ass_font_scale(cff, size).unwrap());
+        // The metric policy and TrueType outline map are unchanged.
+        let (upem, ascent, descent) = catalog.ass_cell_metrics(cff).unwrap();
+        let em =
+            (6400.0 * f64::from(upem) / (f64::from(ascent) + f64::from(descent)) + 0.5).floor();
+        assert_eq!(
+            catalog.ass_font_scale(cff, size).unwrap().get(),
+            em / (64.0 * f64::from(upem))
+        );
+        assert_eq!(
+            catalog
+                .admitted_outline_scale(ttf, ttf, "A", size, &request, false)
+                .unwrap(),
+            catalog.ass_font_scale(ttf, size).unwrap()
+        );
+        assert_eq!(
+            catalog
+                .admitted_outline_scale(cff, cff, "A", size, &request, true)
+                .unwrap(),
+            catalog.ass_oriented_font_scale(cff, size, true).unwrap()
+        );
+    }
+    #[test]
+    fn host_link_observations_are_cluster_size_scoped_and_survive_rebuilding() {
+        let limits = Limits::default();
+        let mut context = FontContext::new().unwrap();
+        let mut builder = FontCatalogBuilder::new(limits.clone());
+        let primary = builder
+            .register(
+                &mut context,
+                &std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(),
+                0,
+            )
+            .unwrap();
+        let fallback = builder
+            .register(
+                &mut context,
+                &std::fs::read(std::env::var("TAIYOU_TEST_BOLD").unwrap()).unwrap(),
+                0,
+            )
+            .unwrap();
+        let mut ingestion = CatalogIngestor::new();
+        let before = builder.snapshot(&mut ingestion).unwrap();
+        let size = FiniteF64::new(60.0).unwrap();
+        let scale = FiniteF64::new(0.02).unwrap();
+        let request = FontRequest::new(Arc::from("Primary"), 400, false, false);
+        let link = HostLink {
+            primary,
+            fallback,
+            text: Arc::from("a\u{301}"),
+            size,
+            scale,
+            request: request.clone(),
+            baseline_delta: FiniteF64::new(0.015625).unwrap(),
+            advance: FiniteF64::new(18.5).unwrap(),
+        };
+        builder.host_link(link.clone()).unwrap();
+        builder.host_link(link.clone()).unwrap();
+        let after = builder.snapshot(&mut ingestion).unwrap();
+        let copy = FontCatalogBuilder::from_catalog(&mut context, &after, limits)
+            .unwrap()
+            .snapshot(&mut ingestion)
+            .unwrap();
+        assert!(!before.has_host_font_links());
+        for catalog in [&after, &copy] {
+            assert_eq!(catalog.host_links.len(), 1);
+            assert_eq!(
+                catalog
+                    .admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false)
+                    .unwrap(),
+                scale
+            );
+            assert_eq!(
+                catalog
+                    .admitted_outline_scale(primary, fallback, "a\u{301}", size, &request, false)
+                    .unwrap(),
+                scale
+            );
+            assert_eq!(
+                catalog.admitted_metric_font(primary, fallback, "a\u{301}", size, &request, false),
+                primary
+            );
+            assert_eq!(
+                catalog
+                    .admitted_baseline_delta(primary, fallback, "a\u{301}", size, &request, false),
+                link.baseline_delta
+            );
+            assert_eq!(
+                catalog
+                    .host_link(primary, fallback, "a\u{301}", size, &request)
+                    .unwrap()
+                    .advance,
+                link.advance
+            );
+            for (text, size, vertical) in [
+                ("a", size, false),
+                ("a\u{301}", FiniteF64::new(61.0).unwrap(), false),
+                ("a\u{301}", size, true),
+            ] {
+                assert_eq!(
+                    catalog
+                        .admitted_font_scale(primary, fallback, text, size, &request, vertical)
+                        .unwrap(),
+                    catalog
+                        .ass_oriented_font_scale(fallback, size, vertical)
+                        .unwrap()
+                );
+                assert_eq!(
+                    catalog.admitted_metric_font(primary, fallback, text, size, &request, vertical),
+                    fallback
+                );
+            }
+            let other_style = FontRequest::new(Arc::from("Primary"), 700, true, false);
+            assert_eq!(
+                catalog
+                    .admitted_font_scale(primary, fallback, "a\u{301}", size, &other_style, false)
+                    .unwrap(),
+                catalog.ass_font_scale(fallback, size).unwrap()
+            );
+            assert!(catalog.needs_host_font_link(
+                primary,
+                fallback,
+                "a\u{301}",
+                size,
+                &other_style,
+                false
+            ));
+        }
+        let mut inconsistent = link.clone();
+        inconsistent.scale = FiniteF64::ONE;
+        assert_eq!(
+            builder.host_link(inconsistent).unwrap_err().code(),
+            ErrorCode::NativeFailure
+        );
+        let mut inconsistent = link.clone();
+        inconsistent.advance = FiniteF64::ONE;
+        assert_eq!(
+            builder.host_link(inconsistent).unwrap_err().code(),
+            ErrorCode::NativeFailure
+        );
+        builder.limits = Limits::default().with_transient_bytes(1).unwrap();
+        let mut another = link;
+        another.text = Arc::from("b\u{301}");
+        assert_eq!(
+            builder.host_link(another).unwrap_err().code(),
+            ErrorCode::LimitExceeded
+        );
+        assert_eq!(
+            before
+                .admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false)
+                .unwrap(),
+            before
+                .ass_oriented_font_scale(fallback, size, false)
+                .unwrap()
+        );
+    }
     #[test]
     fn alias_membership_preserves_weight_italic_and_ordinal_ties() {
         let records: Vec<_> = [(300, false), (500, true), (500, false), (500, false)]

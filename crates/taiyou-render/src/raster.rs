@@ -149,7 +149,14 @@ pub fn coverage_groups(
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
                 || a.karaoke() != b.karaoke()
-                || (opaque && a.drawing().is_some() != b.drawing().is_some())
+                || a.outline_has_fill() != b.outline_has_fill()
+                || a.shadow_has_fill() != b.shadow_has_fill()
+                // Drawing words are independent overlays, even with identical
+                // style. Joining their contours erases fractional-pixel seams
+                // and changes translucent overlaps. pinterf CPolygon::Append
+                // refuses every append; libass also breaks bitmap runs here.
+                || a.drawing().is_some()
+                || b.drawing().is_some()
             {
                 break;
             }

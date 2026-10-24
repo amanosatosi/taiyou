@@ -9,7 +9,11 @@ fn main() -> std::process::ExitCode {
         eprintln!("comparison adapter requires render");
         return ExitCode::from(80);
     }
-    match taiyou_cli::render::run(args.collect()) {
+    // The external corpus adapter always uses its authenticated explicit font
+    // list, even when the ordinary Windows CLI enables host fallback.
+    let mut args: Vec<_> = args.collect();
+    args.extend(["--font-source".into(), "explicit".into()]);
+    match taiyou_cli::render::run(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{error}; event={:?} span={:?}", error.event(), error.span());

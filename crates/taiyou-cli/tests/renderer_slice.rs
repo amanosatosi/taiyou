@@ -77,9 +77,9 @@ fn rgba(mask: &[u8], color: [u8; 4]) -> Vec<u8> {
         .flat_map(|v| {
             let a = (u32::from(color[3]) * u32::from(*v) + 127) / 255;
             [
-                (u32::from(color[0]) * a + 127) / 255,
-                (u32::from(color[1]) * a + 127) / 255,
-                (u32::from(color[2]) * a + 127) / 255,
+                (u32::from(color[0]) * (a + 1)) >> 8,
+                (u32::from(color[1]) * (a + 1)) >> 8,
+                (u32::from(color[2]) * (a + 1)) >> 8,
                 a,
             ]
             .map(|v| v as u8)
@@ -177,13 +177,12 @@ fn renderer_slice_layer_source_order_and_paint_boundaries() {
     let base =
         reference(7).unwrap_or_else(|| blue.pixels().chunks_exact(4).map(|p| p[3]).collect());
     let mut expected = rgba(&base, [255, 0, 0, 128]);
-    let over = rgba(&base, [0, 0, 255, 255]);
-    for (dst, src) in expected.chunks_exact_mut(4).zip(over.chunks_exact(4)) {
-        for i in 0..4 {
-            dst[i] = (u32::from(src[i])
-                + (u32::from(dst[i]) * (255 - u32::from(src[3])) + 127) / 255)
-                .min(255) as u8;
+    for (dst, &alpha) in expected.chunks_exact_mut(4).zip(&base) {
+        let inverse = 256 - u32::from(alpha);
+        for (dst, color) in dst[..3].iter_mut().zip([0_u32, 0, 255]) {
+            *dst = ((u32::from(*dst) * inverse + color * (u32::from(alpha) + 1)) >> 8) as u8;
         }
+        dst[3] = 255 - (((255 - u32::from(dst[3])) * inverse) >> 8) as u8;
     }
     assert_eq!(two.pixels(), expected);
     assert_ne!(red.pixels(), blue.pixels());

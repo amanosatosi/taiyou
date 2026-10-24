@@ -599,9 +599,47 @@ pub fn geometry(
             .with_transient_bytes(remaining)
             .and_then(|l| l.with_path_segments_per_frame(remaining_segments))
             .map_err(|_| geometry_limit())?;
-        let outline = catalog
-            .outline(context, blob.id(), glyph.glyph(), &intake_limits)
-            .map_err(font_error)?;
+        let [lx, ly] = placement.device.layout_scale();
+        let vertical =
+            state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
+        let primary = if catalog.has_host_font_links() {
+            taiyou_font::resolve_family(catalog, state.shaping().font(), limits)
+                .map_err(font_error)?
+        } else {
+            blob.id()
+        };
+        let cell_size = finite(state.shaping().font_size().get() * ly)?;
+        let metric_font = catalog.admitted_metric_font(
+            primary,
+            blob.id(),
+            glyph.cluster().text(),
+            cell_size,
+            state.shaping().font(),
+            vertical,
+        );
+        let size = catalog
+            .admitted_outline_scale(
+                primary,
+                blob.id(),
+                glyph.cluster().text(),
+                cell_size,
+                state.shaping().font(),
+                vertical,
+            )
+            .map_err(font_error)?
+            .get();
+        let outline = if metric_font != blob.id() || size <= 0.0 {
+            catalog.outline(context, blob.id(), glyph.glyph(), &intake_limits)
+        } else {
+            catalog.ass_outline(
+                context,
+                blob.id(),
+                glyph.glyph(),
+                finite(size)?,
+                &intake_limits,
+            )
+        }
+        .map_err(font_error)?;
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;
@@ -620,17 +658,6 @@ pub fn geometry(
         if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
-        let [lx, ly] = placement.device.layout_scale();
-        let vertical =
-            state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
-        let size = catalog
-            .ass_oriented_font_scale(
-                blob.id(),
-                finite(state.shaping().font_size().get() * ly)?,
-                vertical,
-            )
-            .map_err(font_error)?
-            .get();
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (
@@ -691,10 +718,82 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(ops, limits)?);
         }
+        if size > 0.0 {
+            // GDI extracts the glyph in the font's integer Q6 grid
+            // before word placement/ASS transforms. Rounding only after adding
+            // the layout phase changes the slanted bracket edges.
+            charge = charge
+                .checked_add(
+                    (path.ops().len() as u64)
+                        .checked_mul(3 * std::mem::size_of::<PathOp<FontPoint>>() as u64)
+                        .ok_or_else(geometry_limit)?,
+                )
+                .ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() {
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
+            }
+            let mut ops = Vec::new();
+            ops.try_reserve_exact(path.ops().len()).map_err(|_| {
+                RenderError::new(ErrorCode::AllocationFailed, "linked font grid allocation")
+            })?;
+            let mut previous = FontPoint::ZERO;
+            for &op in path.ops() {
+                let converted = if metric_font == blob.id() {
+                    match op {
+                        PathOp::QuadTo(control, end) => {
+                            let toward = |from: FontPoint| {
+                                FontPoint::new(
+                                    from.x().get()
+                                        + (control.x().get() - from.x().get()) * 2.0 / 3.0,
+                                    from.y().get()
+                                        + (control.y().get() - from.y().get()) * 2.0 / 3.0,
+                                )
+                            };
+                            PathOp::CubicTo(toward(previous)?, toward(end)?, end)
+                        }
+                        other => other,
+                    }
+                } else {
+                    op
+                };
+                previous = match op {
+                    PathOp::MoveTo(p)
+                    | PathOp::LineTo(p)
+                    | PathOp::QuadTo(_, p)
+                    | PathOp::CubicTo(_, _, p) => p,
+                    PathOp::Close => previous,
+                };
+                ops.push(converted.try_map(|p| {
+                    FontPoint::new(
+                        f64::from(q6(p.x().get() * size)?.ticks()) / (size * 64.0),
+                        f64::from(q6(p.y().get() * size)?.ticks()) / (size * 64.0),
+                    )
+                })?);
+            }
+            path = Arc::new(Outline::new(ops, limits)?);
+        }
         if state.geometry().underline() || state.geometry().strikeout() {
             let metrics = catalog
-                .decoration_metrics(context, blob.id())
+                .decoration_metrics(context, metric_font)
                 .map_err(font_error)?;
+            let decoration_scale = catalog
+                .ass_oriented_font_scale(metric_font, cell_size, vertical)
+                .map_err(font_error)?
+                .get()
+                / size;
+            let decoration_shift = catalog
+                .admitted_baseline_delta(
+                    primary,
+                    blob.id(),
+                    glyph.cluster().text(),
+                    cell_size,
+                    state.shaping().font(),
+                    vertical,
+                )
+                .get()
+                / size;
             let extra = 5
                 * (usize::from(state.geometry().underline())
                     + usize::from(state.geometry().strikeout()));
@@ -733,8 +832,10 @@ pub fn geometry(
                     continue;
                 }
                 let (y0, y1) = (
-                    f64::from(centre) - f64::from(thickness) / 2.0,
-                    f64::from(centre) + f64::from(thickness) / 2.0,
+                    (f64::from(centre) - f64::from(thickness) / 2.0) * decoration_scale
+                        + decoration_shift,
+                    (f64::from(centre) + f64::from(thickness) / 2.0) * decoration_scale
+                        + decoration_shift,
                 );
                 // A decoration is another filled contour, not an opposite-
                 // winding hole where it crosses a TrueType glyph.

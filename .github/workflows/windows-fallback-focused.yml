@@ -1,0 +1,66 @@
+name: Platform font fallback focused checks
+on:
+  push:
+    branches: [task/T015-visual-compatibility-repair]
+    paths:
+      - 'crates/taiyou-font/**'
+      - 'crates/taiyou-cli/**'
+      - 'crates/taiyou-render/**'
+      - '.github/workflows/windows-fallback-focused.yml'
+      - 'scripts/check-windows-fallback.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-fallback-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  focused:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Formatting evidence
+        shell: pwsh
+        run: |
+          cargo fmt --all
+          git diff --binary | Out-File -Encoding utf8 "$env:RUNNER_TEMP/fallback-format.patch"
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: python build-support/acquire.py
+      - if: runner.os == 'Windows'
+        run: python experiments/xy-oracle/acquire-mua.py
+      - run: python build-support/build-native.py
+      - name: Existing shaping and focused host tests
+        shell: pwsh
+        run: |
+          $env:PKG_CONFIG_PATH = "$env:RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          $env:PKG_CONFIG_ALL_STATIC = '1'
+          $env:LIBZ_SYS_STATIC = '1'
+          $env:TAIYOU_TEST_FONT = "$env:RUNNER_TEMP/taiyou-native-sources/font.otf"
+          $env:TAIYOU_TEST_BOLD = "$env:RUNNER_TEMP/taiyou-native-sources/bold.otf"
+          $env:TAIYOU_TEST_COLLECTION = "$env:RUNNER_TEMP/taiyou-native-sources/collection.otc"
+          $env:TAIYOU_SHAPING_REFERENCES = "$env:RUNNER_TEMP/taiyou-shaping-reference.tsv"
+          cargo test --locked -p taiyou-font --features native --test shaping
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked -p taiyou-cli --features native --lib
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if ($IsWindows) { python scripts/check-windows-fallback.py }
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: platform-fallback-focused-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/fallback-format.patch
+            ${{ runner.temp }}/windows-fallback/
+          retention-days: 7

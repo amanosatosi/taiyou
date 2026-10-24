@@ -481,10 +481,13 @@ pub struct EvaluatedRun {
     geometry: GeometryStyle,
     effects: EffectStyle,
     paint: PaintSet,
+    outline_has_fill: bool,
+    shadow_has_fill: bool,
     decoded: Option<DecodedSpan>,
 }
 impl EvaluatedRun {
     pub fn with_event_fade(mut self, alpha: i32) -> Self {
+        self.outline_has_fill &= alpha == 0;
         self.paint = self.paint.faded(alpha);
         self
     }
@@ -500,6 +503,8 @@ impl EvaluatedRun {
             geometry: GeometryStyle::from_style(style),
             effects: EffectStyle::from_style(style),
             paint: PaintSet::from_style(style),
+            outline_has_fill: style.primary().a() == 255 && style.secondary().a() == 255,
+            shadow_has_fill: style.primary().a() != 0,
             decoded: None,
         }
     }
@@ -547,6 +552,18 @@ impl EvaluatedRun {
     }
     pub fn paint(&self) -> &PaintSet {
         &self.paint
+    }
+    /// Historical outline underlay uses both unfaded opacities and zero fade.
+    pub const fn outline_has_fill(&self) -> bool {
+        self.outline_has_fill
+    }
+    /// Shadow fill depends on the original primary opacity, before event fade,
+    /// with filled shadows retained by sweep and outline karaoke.
+    pub fn shadow_has_fill(&self) -> bool {
+        self.shadow_has_fill
+            || self
+                .karaoke
+                .is_some_and(|k| matches!(k.kind, KaraokeTag::Sweep | KaraokeTag::Outline))
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

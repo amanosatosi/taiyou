@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "release_tag": "3.2.0.810",
+  "release_asset_id": 147296997,
+  "archive_sha256": "742202308b27e94b016877fe4f4637ab810d5319b2e633bce950b2ed53113ebd",
+  "csri_dll": "x64/VSFilter.dll",
+  "csri_dll_sha256": "b304c9849db63e6632487506a133698bc41465dee51a439e80d53b2b28507dd4"
+}
