@@ -19,6 +19,7 @@ pub(crate) struct HostLink {
     pub text: Arc<str>,
     pub size: FiniteF64,
     pub scale: FiniteF64,
+    pub request: FontRequest,
 }
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
@@ -49,25 +50,25 @@ pub struct ValidatedFontCatalog {
 }
 impl ValidatedFontCatalog {
     pub fn has_host_font_links(&self) -> bool { !self.host_links.is_empty() }
-    pub(crate) fn host_link(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64) -> Option<&HostLink> {
-        self.host_links.iter().find(|link| link.primary == primary && link.fallback == fallback && link.text.as_ref() == text && link.size == size)
+    pub(crate) fn host_link(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest) -> Option<&HostLink> {
+        self.host_links.iter().find(|link| link.primary == primary && link.fallback == fallback && link.text.as_ref() == text && link.size == size && &link.request == request)
     }
     /// Resolve the already admitted host observation; performs no OS discovery.
     /// Geometry consumes the same immutable scale selected during shaping.
-    pub fn admitted_font_scale(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, vertical: bool) -> Result<FiniteF64, FontError> {
+    pub fn admitted_font_scale(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest, vertical: bool) -> Result<FiniteF64, FontError> {
         if !vertical {
-            if let Some(link) = self.host_link(primary, fallback, text, size) {
+            if let Some(link) = self.host_link(primary, fallback, text, size, request) {
                 return Ok(link.scale);
             }
         }
         self.ass_oriented_font_scale(fallback, size, vertical)
     }
-    pub fn admitted_metric_font(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, vertical: bool) -> FontId {
-        if !vertical && self.host_link(primary, fallback, text, size).is_some() { primary } else { fallback }
+    pub fn admitted_metric_font(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest, vertical: bool) -> FontId {
+        if !vertical && self.host_link(primary, fallback, text, size, request).is_some() { primary } else { fallback }
     }
-    pub fn needs_host_font_link(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, vertical: bool) -> bool {
+    pub fn needs_host_font_link(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest, vertical: bool) -> bool {
         !vertical && primary != fallback && self.host_links.iter().any(|link| link.fallback == fallback)
-            && self.host_link(primary, fallback, text, size).is_none()
+            && self.host_link(primary, fallback, text, size, request).is_none()
     }
     pub fn ass_oriented_cell_metrics(
         &self,
@@ -367,20 +368,20 @@ impl FontCatalogBuilder {
     }
     #[cfg_attr(not(windows), allow(dead_code))]
     pub(crate) fn host_link(&mut self, link: HostLink) -> Result<(), FontError> {
-        if let Some(old) = self.host_links.iter().find(|old| old.primary == link.primary && old.fallback == link.fallback && old.size == link.size && old.text == link.text) {
+        if let Some(old) = self.host_links.iter().find(|old| old.primary == link.primary && old.fallback == link.fallback && old.size == link.size && old.text == link.text && old.request == link.request) {
             if old.scale != link.scale {
                 return Err(error(ErrorCode::NativeFailure, "inconsistent Windows font-link observation"));
             }
             return Ok(());
         }
         let charge = (self.host_links.len() as u64 + 1).checked_mul(3 * std::mem::size_of::<HostLink>() as u64)
-            .and_then(|n| n.checked_add(link.text.len() as u64 * 3))
+            .and_then(|n| n.checked_add((link.text.len() as u64 + link.request.family().len() as u64) * 3))
             .and_then(|n| n.checked_add(self.names)).ok_or_else(|| FontError::transient_limit("host links overflow"))?;
         if charge > self.limits.transient_bytes() {
             return Err(FontError::transient_limit("host links exceed budget"));
         }
         self.host_links.try_reserve_exact(1).map_err(|_| error(ErrorCode::AllocationFailed, "host link allocation"))?;
-        self.names = self.names.checked_add(link.text.len() as u64 * 3).ok_or_else(|| FontError::transient_limit("host link names overflow"))?;
+        self.names = self.names.checked_add((link.text.len() as u64 + link.request.family().len() as u64) * 3).ok_or_else(|| FontError::transient_limit("host link names overflow"))?;
         self.host_links.push(link);
         Ok(())
     }
@@ -791,7 +792,8 @@ mod tests {
         let before = builder.snapshot(&mut ingestion).unwrap();
         let size = FiniteF64::new(60.0).unwrap();
         let scale = FiniteF64::new(0.02).unwrap();
-        let link = HostLink { primary, fallback, text: Arc::from("a\u{301}"), size, scale };
+        let request = FontRequest::new(Arc::from("Primary"), 400, false, false);
+        let link = HostLink { primary, fallback, text: Arc::from("a\u{301}"), size, scale, request: request.clone() };
         builder.host_link(link.clone()).unwrap();
         builder.host_link(link.clone()).unwrap();
         let after = builder.snapshot(&mut ingestion).unwrap();
@@ -799,12 +801,15 @@ mod tests {
         assert!(!before.has_host_font_links());
         for catalog in [&after, &copy] {
             assert_eq!(catalog.host_links.len(), 1);
-            assert_eq!(catalog.admitted_font_scale(primary, fallback, "a\u{301}", size, false).unwrap(), scale);
-            assert_eq!(catalog.admitted_metric_font(primary, fallback, "a\u{301}", size, false), primary);
+            assert_eq!(catalog.admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false).unwrap(), scale);
+            assert_eq!(catalog.admitted_metric_font(primary, fallback, "a\u{301}", size, &request, false), primary);
             for (text, size, vertical) in [("a", size, false), ("a\u{301}", FiniteF64::new(61.0).unwrap(), false), ("a\u{301}", size, true)] {
-                assert_eq!(catalog.admitted_font_scale(primary, fallback, text, size, vertical).unwrap(), catalog.ass_oriented_font_scale(fallback, size, vertical).unwrap());
-                assert_eq!(catalog.admitted_metric_font(primary, fallback, text, size, vertical), fallback);
+                assert_eq!(catalog.admitted_font_scale(primary, fallback, text, size, &request, vertical).unwrap(), catalog.ass_oriented_font_scale(fallback, size, vertical).unwrap());
+                assert_eq!(catalog.admitted_metric_font(primary, fallback, text, size, &request, vertical), fallback);
             }
+            let other_style = FontRequest::new(Arc::from("Primary"), 700, true, false);
+            assert_eq!(catalog.admitted_font_scale(primary, fallback, "a\u{301}", size, &other_style, false).unwrap(), catalog.ass_font_scale(fallback, size).unwrap());
+            assert!(catalog.needs_host_font_link(primary, fallback, "a\u{301}", size, &other_style, false));
         }
         let mut inconsistent = link.clone();
         inconsistent.scale = FiniteF64::ONE;
@@ -813,7 +818,7 @@ mod tests {
         let mut another = link;
         another.text = Arc::from("b\u{301}");
         assert_eq!(builder.host_link(another).unwrap_err().code(), ErrorCode::LimitExceeded);
-        assert_eq!(before.admitted_font_scale(primary, fallback, "a\u{301}", size, false).unwrap(), before.ass_oriented_font_scale(fallback, size, false).unwrap());
+        assert_eq!(before.admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false).unwrap(), before.ass_oriented_font_scale(fallback, size, false).unwrap());
     }
     #[test]
     fn alias_membership_preserves_weight_italic_and_ordinal_ties() {

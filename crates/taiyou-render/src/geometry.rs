@@ -625,13 +625,14 @@ pub fn geometry(
             state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
         let primary = if catalog.has_host_font_links() { taiyou_font::resolve_family(catalog, state.shaping().font(), limits).map_err(font_error)? } else { blob.id() };
         let cell_size = finite(state.shaping().font_size().get() * ly)?;
-        let metric_font = catalog.admitted_metric_font(primary, blob.id(), glyph.cluster().text(), cell_size, vertical);
+        let metric_font = catalog.admitted_metric_font(primary, blob.id(), glyph.cluster().text(), cell_size, state.shaping().font(), vertical);
         let size = catalog
             .admitted_font_scale(
                 primary,
                 blob.id(),
                 glyph.cluster().text(),
                 cell_size,
+                state.shaping().font(),
                 vertical,
             )
             .map_err(font_error)?

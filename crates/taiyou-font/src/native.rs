@@ -3727,6 +3727,7 @@ pub mod windows {
         fn SelectObject(dc: Raw, object: Raw) -> Raw;
         fn GetObjectW(object: Raw, bytes: i32, buffer: *mut c_void) -> i32;
         fn GetTextMetricsW(dc: Raw, metrics: *mut TextMetric) -> i32;
+        fn GetTextFaceW(dc: Raw, length: i32, family: *mut u16) -> i32;
         fn GetTextExtentPoint32W(dc: Raw, text: *const u16, length: i32, extent: *mut Extent) -> i32;
         fn AddFontMemResourceEx(bytes: *const c_void, length: u32, reserved: Raw, count: *mut u32) -> Raw;
         fn RemoveFontMemResourceEx(handle: Raw) -> i32;
@@ -4035,7 +4036,11 @@ pub mod windows {
         ) -> Result<(), FontError> {
             let request = style.font();
             let catalog = builder.snapshot(&mut CatalogIngestor::new())?;
-            let primary = crate::resolve_family(&catalog, request, &self.limits).ok();
+            let primary = match crate::resolve_family(&catalog, request, &self.limits) {
+                Ok(id) => Some(id),
+                Err(error) if error.code() == ErrorCode::FontUnavailable => None,
+                Err(error) => return Err(error),
+            };
             let size = FiniteF64::new(style.font_size().get() * layout_scale_y)
                 .map_err(|_| limited())?;
             if !request.vertical() && !request.family().starts_with('@') {
@@ -4063,7 +4068,8 @@ pub mod windows {
             if length == 0 { return Ok(false); }
             let height = (size.get() * 64.0 + 0.5).floor();
             if height <= 0.0 || height > f64::from(i32::MAX) { return Err(limited()); }
-            let base = catalog.faces().iter().find(|f| f.blob().id() == primary).ok_or_else(limited)?;
+            let base_index = catalog.faces().iter().position(|f| f.blob().id() == primary).ok_or_else(limited)?;
+            let base = &catalog.faces()[base_index];
             let family = utf16(base.family(), &self.limits)?;
             if family.len() > 32 { return Ok(false); }
             let mut lf = LogFont { height: height as i32, width: 0, escapement: 0, orientation: 0,
@@ -4090,6 +4096,12 @@ pub mod windows {
                 if scope.font.is_null() { return Ok(false); }
                 scope.original = SelectObject(scope.dc, scope.font);
                 if scope.original.is_null() || scope.original as isize == -1 { scope.original = ptr::null_mut(); return Ok(false); }
+                let mut selected = [0_u16; 128];
+                let selected_len = GetTextFaceW(scope.dc, 128, selected.as_mut_ptr());
+                if selected_len <= 0 || selected_len > 128 { return Ok(false); }
+                let end = selected.iter().position(|&c| c == 0).ok_or_else(limited)?;
+                let selected = String::from_utf16(&selected[..end]).map_err(|_| limited())?;
+                if !catalog.matches_family(base_index, &crate::fold_family(&selected, &self.limits)?) { return Ok(false); }
                 let mut raw = ptr::null_mut();
                 check(CoCreateInstance(&MULTILANGUAGE, ptr::null_mut(), 1, &FONTLINK2, &mut raw))?;
                 let link = owned(raw)?;
@@ -4126,12 +4138,18 @@ pub mod windows {
                     let mapped_font = owned(raw)?;
                     let fallback = self.register_file(context, builder, &mapped_font, (input.len() + family.len()) as u64 * 2)?;
                     let snapshot = builder.snapshot(&mut CatalogIngestor::new())?;
+                    let probe = snapshot.shape_raw(context, fallback, &crate::shape::NativeRequest {
+                        text, context: 0..text.len(), range: 0..text.len(), rtl: false,
+                        script: u32::from_be_bytes(*b"Zyyy"), language: "und", ligatures: true,
+                        kerning: false, vertical: false,
+                    }, &self.limits, false)?;
+                    if probe.glyphs.is_empty() || probe.glyphs.iter().any(|g| g.glyph == 0) { return Ok(false); }
                     let upem = snapshot.ass_cell_metrics(fallback)?.0;
                     let scale = (f64::from(tm.height - tm.internal_leading) / (64.0 * f64::from(upem)))
                         * (f64::from(linked_extent.x) / f64::from(mapped_extent.x));
                     let scale = FiniteF64::new(scale).map_err(|_| limited())?;
                     if scale.get() <= 0.0 { return Ok(false); }
-                    builder.host_link(crate::catalog::HostLink { primary, fallback, text: std::sync::Arc::from(text), size, scale })?;
+                    builder.host_link(crate::catalog::HostLink { primary, fallback, text: std::sync::Arc::from(text), size, scale, request: request.clone() })?;
                     Ok(true)
                 })();
                 let release = call!(link.0, 8, (Raw) -> i32, mapped);

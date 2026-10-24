@@ -623,7 +623,7 @@ fn shape_item(
         for g in &raw.glyphs {
             let end = *ends.get(ends.partition_point(|&p| p <= g.cluster)).ok_or_else(limited)?;
             let cluster = map.decoded_span(g.cluster..end)?;
-            linked_group &= input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size).is_some();
+            linked_group &= input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size, input.style.font()).is_some();
         }
         let metric_font = if linked_group { input.primary } else { face.id() };
         let baseline_offset =
@@ -671,7 +671,7 @@ fn shape_item(
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
-            let scale = input.catalog.admitted_font_scale(input.primary, face.id(), cluster.text(), cell_size, vertical)?.get();
+            let scale = input.catalog.admitted_font_scale(input.primary, face.id(), cluster.text(), cell_size, input.style.font(), vertical)?.get();
             let position = GlyphPosition::new(
                 finite(f64::from(g.advance_x) * scale / lx)?,
                 finite(-f64::from(g.advance_y) * scale / ly)?,

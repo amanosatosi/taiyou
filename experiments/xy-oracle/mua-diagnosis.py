@@ -48,6 +48,7 @@ def gdi_metrics(font, texts, families):
     face = api("GetTextFaceW", C.c_int, W.HDC, C.c_int, W.LPWSTR)
     extent = api("GetTextExtentPoint32W", W.BOOL, W.HDC, W.LPCWSTR, C.c_int, C.POINTER(Size))
     indices = api("GetGlyphIndicesW", W.DWORD, W.HDC, W.LPCWSTR, C.c_int, C.POINTER(W.WORD), W.DWORD)
+    float_width = api("GetCharWidthFloatW", W.BOOL, W.HDC, W.UINT, W.UINT, C.POINTER(C.c_float))
     begin = api("BeginPath", W.BOOL, W.HDC)
     end = api("EndPath", W.BOOL, W.HDC)
     text_out = api("TextOutW", W.BOOL, W.HDC, C.c_int, C.c_int, W.LPCWSTR, C.c_int)
@@ -144,6 +145,11 @@ def gdi_metrics(font, texts, families):
                         assert extent(dc, text, n, C.byref(size))
                         glyphs = (W.WORD * n)()
                         assert indices(dc, text, n, glyphs, 1) != 0xFFFFFFFF
+                        float_widths = []
+                        for char in text:
+                            value = C.c_float()
+                            valid = float_width(dc, ord(char), ord(char), C.byref(value))
+                            float_widths.append(value.value if valid else None)
                         assert begin(dc) and text_out(dc, 0, 0, text, n) and end(dc)
                         length = get_path(dc, None, None, 0)
                         assert 0 < length < 20000, f"GDI path length {length}"
@@ -153,6 +159,7 @@ def gdi_metrics(font, texts, families):
                                      "text": text, "underline": underline, "font_height_q6": 3840,
                                      "metrics": {name: getattr(tm, name) for name, _ in tm._fields_},
                                      "extent_q6": [size.x, size.y], "primary_glyph_indices": list(glyphs),
+                                     "character_width_float_q6": float_widths,
                                      "points_q6": [[p.x, p.y, t] for p, t in zip(points, types)]})
                 finally:
                     select(dc, previous)
