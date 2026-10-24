@@ -181,7 +181,18 @@ fn rasterize_impl(
     let mut prev = (0.0, 0.0);
     let mut first = prev;
     let mut count = 0_u64;
-    let point = |p: DevicePoint| (f64::from(p.x().ticks()), f64::from(p.y().ticks()));
+    // PathData::AlignLeftTop runs before xy flattens curves. Evaluating the
+    // same polynomial in absolute viewport coordinates can truncate a sample
+    // one Q6 tick differently after an otherwise integral translation.
+    let (ox, oy) = if xy {
+        hull.map_or((0, 0), |(x, y, _, _)| (x.div_euclid(64) * 64, y.div_euclid(64) * 64))
+    } else {
+        (0, 0)
+    };
+    let point = |p: DevicePoint| (
+        (i64::from(p.x().ticks()) - ox) as f64,
+        (i64::from(p.y().ticks()) - oy) as f64,
+    );
     for &op in ops {
         match op {
             PathOp::MoveTo(p) => {
@@ -221,6 +232,10 @@ fn rasterize_impl(
         if count > remaining {
             return Err(limit());
         }
+    }
+    for edge in &mut edges {
+        edge.x += ox / 8;
+        edge.y += oy / 8;
     }
     edges.sort_unstable_by_key(|e| (e.y, e.x, e.w));
     let edge_bytes = edges.capacity() as u64 * std::mem::size_of::<Edge>() as u64;
@@ -377,6 +392,32 @@ fn rasterize_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn xy_cubic_flattening_is_independent_of_integral_viewport_translation() {
+        let limits = Limits::default();
+        let p = |x, y| DevicePoint::new(Q6::from_ticks(x * 64), Q6::from_ticks(y * 64));
+        let source = [
+            PathOp::MoveTo(p(0, 0)),
+            PathOp::CubicTo(p(32, -8), p(32, 24), p(0, 16)),
+            PathOp::CubicTo(p(-8, 16), p(-8, 0), p(0, 0)),
+            PathOp::Close,
+        ];
+        let original = rasterize_body(&source, &limits).unwrap();
+        for (x, y) in [(150, 35), (-100, -200), (1700, 900)] {
+            let moved: Vec<_> = source.iter().map(|op| op.try_map(|point| {
+                Ok(DevicePoint::new(
+                    Q6::from_ticks(point.x().ticks() + x * 64),
+                    Q6::from_ticks(point.y().ticks() + y * 64),
+                ))
+            }).unwrap()).collect();
+            let output = rasterize_body(&moved, &limits).unwrap();
+            assert_eq!(output.data(), original.data());
+            assert_eq!(output.bounds().x0(), original.bounds().x0() + x);
+            assert_eq!(output.bounds().y0(), original.bounds().y0() + y);
+            assert_eq!(output.bounds().width(), original.bounds().width());
+            assert_eq!(output.bounds().height(), original.bounds().height());
+        }
+    }
     fn rectangle(x0: i32, y0: i32, x1: i32, y1: i32) -> Vec<PathOp<DevicePoint>> {
         let p = |x, y| DevicePoint::new(Q6::from_ticks(x * 64), Q6::from_ticks(y * 64));
         vec![

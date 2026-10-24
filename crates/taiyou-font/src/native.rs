@@ -2653,8 +2653,16 @@ mod tests {
         let corpus = std::path::PathBuf::from(std::env::var("TAIYOU_CORPUS").unwrap());
         let mut context = FontContext::new().unwrap();
         for (relative, sizes, chars) in [
-            ("regression/blurs/Aileron-Regular.otf", &[100_u32][..], "+·¶"),
-            ("regression/v4++/DejaVuSans.ttf", &[30_u32, 60][..], "Karaoke"),
+            (
+                "regression/blurs/Aileron-Regular.otf",
+                &[100_u32][..],
+                "+·¶",
+            ),
+            (
+                "regression/v4++/DejaVuSans.ttf",
+                &[30_u32, 60][..],
+                "Karaoke",
+            ),
         ] {
             let bytes: Arc<[u8]> = std::fs::read(corpus.join(relative)).unwrap().into();
             for &size in sizes {

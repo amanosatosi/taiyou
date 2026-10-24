@@ -261,24 +261,6 @@ fn gaussian_byte(sum: f32, nearest_even: bool) -> u8 {
     value.clamp(0.0, 255.0) as u8
 }
 
-#[cfg(test)]
-mod gaussian_conversion_tests {
-    use super::gaussian_byte;
-
-    #[test]
-    fn native_blocks_keep_the_xy_nearest_even_tie_and_scalar_tail() {
-        assert_eq!(gaussian_byte(12.5, true), 12);
-        assert_eq!(gaussian_byte(12.5, false), 13);
-        assert_eq!(gaussian_byte(13.5, true), 14);
-        assert_eq!(gaussian_byte(13.5, false), 14);
-        for native in [true, false] {
-            assert_eq!(gaussian_byte(0.0, native), 0);
-            assert_eq!(gaussian_byte(64.0, native), 64);
-            assert_eq!(gaussian_byte(255.0, native), 255);
-        }
-    }
-}
-
 fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, RenderError> {
     let (bounds, w, h) = extent(mask, spec.padding, limits)?;
     let n = w.checked_mul(h).ok_or_else(limit)?;
@@ -352,4 +334,22 @@ fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, Rend
         }
     }
     Ok(Arc::new(mask.with_data(bounds, w, data.into())?))
+}
+
+#[cfg(test)]
+mod gaussian_conversion_tests {
+    use super::gaussian_byte;
+
+    #[test]
+    fn native_blocks_keep_the_xy_nearest_even_tie_and_scalar_tail() {
+        assert_eq!(gaussian_byte(12.5, true), 12);
+        assert_eq!(gaussian_byte(12.5, false), 13);
+        assert_eq!(gaussian_byte(13.5, true), 14);
+        assert_eq!(gaussian_byte(13.5, false), 14);
+        for native in [true, false] {
+            assert_eq!(gaussian_byte(0.0, native), 0);
+            assert_eq!(gaussian_byte(64.0, native), 64);
+            assert_eq!(gaussian_byte(255.0, native), 255);
+        }
+    }
 }
