@@ -1,7 +1,8 @@
 //! Owned font data and private native typography adapters.
 //!
-//! The explicit native feature uses the T002 pinned source recipe, never system
-//! discovery. Native/unsafe and shared-interface review remain acceptance gates.
+//! Native shaping uses the T002 pinned source recipe. SystemFontSource is an
+//! explicit host admission step; immutable catalogs never discover fonts.
+//! Native/unsafe and shared-interface review remain acceptance gates.
 #[cfg(feature = "native")]
 mod catalog;
 #[cfg(feature = "native")]
@@ -17,7 +18,13 @@ pub mod source_map;
 pub use catalog::{
     FontCatalogBuilder, ValidatedFontCatalog, fold_family, resolve_family, validate_catalog,
 };
-#[cfg(feature = "native")]
-pub use native::{FontContext, NativeWorkExperiment, RasterContext};
 #[cfg(all(feature = "native", windows))]
 pub use native::windows::WindowsFontSource;
+#[cfg(all(feature = "native", windows))]
+pub use native::windows::WindowsFontSource as SystemFontSource;
+#[cfg(all(feature = "native", target_os = "linux"))]
+pub use native::fontconfig::SystemFontSource;
+#[cfg(all(feature = "native", target_os = "macos"))]
+pub use native::coretext::SystemFontSource;
+#[cfg(feature = "native")]
+pub use native::{FontContext, NativeWorkExperiment, RasterContext};

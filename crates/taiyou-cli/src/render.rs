@@ -8,8 +8,10 @@ use std::{
 use taiyou_render::renderer::*;
 
 mod output;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod system_fonts;
+
+const HAS_SYSTEM_FONTS: bool = cfg!(any(windows, target_os = "linux", target_os = "macos"));
 
 fn invalid(detail: &str) -> RenderError {
     RenderError::new(ErrorCode::InvalidArgument, detail)
@@ -111,13 +113,18 @@ impl Arguments {
             "tolerant" => UnsupportedPolicy::Tolerant,
             _ => return Err(invalid("unsupported policy must be strict or tolerant")),
         };
-        let font_source = values.get("--font-source").map(|s| s.to_str()
-            .ok_or_else(|| invalid("font source is not UTF-8"))).transpose()?;
+        let font_source = values
+            .get("--font-source")
+            .map(|s| {
+                s.to_str()
+                    .ok_or_else(|| invalid("font source is not UTF-8"))
+            })
+            .transpose()?;
         let system_fonts = match font_source {
-            None => cfg!(windows),
+            None => HAS_SYSTEM_FONTS,
             Some("explicit") => false,
-            Some("system") if cfg!(windows) => true,
-            Some("system") => return Err(invalid("system font discovery requires Windows")),
+            Some("system") if HAS_SYSTEM_FONTS => true,
+            Some("system") => return Err(invalid("no system font provider on this platform")),
             Some(_) => return Err(invalid("font source must be explicit or system")),
         };
         let input = PathBuf::from(get("--input")?);
@@ -315,14 +322,18 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
             )
             .map_err(font_error)?;
     }
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     if args.system_fonts {
         // Attachments precede host fallback. render_parsed's registration is
         // idempotent and retains its existing validation/diagnostic behavior.
         for attachment in parsed.embedded_fonts() {
-            let count = context.face_count(attachment.shared_bytes()).map_err(font_error)?;
+            let count = context
+                .face_count(attachment.shared_bytes())
+                .map_err(font_error)?;
             for index in 0..count {
-                builder.register(&mut context, attachment.bytes(), index).map_err(font_error)?;
+                builder
+                    .register(&mut context, attachment.bytes(), index)
+                    .map_err(font_error)?;
             }
         }
         system_fonts::extend(&parsed, &request, &mut context, &mut builder, limits)?;
@@ -377,9 +388,9 @@ mod font_source_tests {
     #[test]
     fn explicit_mode_disables_host_discovery_on_every_platform() {
         assert!(!Arguments::parse(arguments(Some("explicit"))).unwrap().system_fonts);
-        assert_eq!(Arguments::parse(arguments(None)).unwrap().system_fonts, cfg!(windows));
+        assert_eq!(Arguments::parse(arguments(None)).unwrap().system_fonts, HAS_SYSTEM_FONTS);
         assert!(Arguments::parse(arguments(Some("automatic"))).is_err());
-        #[cfg(not(windows))]
+        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
         assert!(Arguments::parse(arguments(Some("system"))).is_err());
     }
 }

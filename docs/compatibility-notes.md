@@ -7,9 +7,29 @@ when established ASS behavior conflicts. Libass is equally valuable for bug
 discovery and modern Unicode/shaping behavior. Local source
 identities are recorded in [the reference map](LOCAL_REFERENCES.md). Source
 inspection establishes semantics, not pixel equivalence. The frozen libass-tests
-PNGs are **libass references**, not authenticated xy captures; no authenticated
-xy output is available for the findings below. Internal passing tests alone do
-not establish historical compatibility.
+PNGs are **libass references**, not authenticated xy captures. PR #35 now also
+captures the official xy-VSFilter 3.2.0.810 DLL through CSRI; direct captures take
+priority where available. Older source-only findings below retain their original
+evidence limits. Internal passing tests alone do not establish compatibility.
+
+**Host font fallback (in progress).** The direct MUA Office witness at `0915b31`
+shows angle brackets in xy and missing-glyph boxes in Taiyou. Pinterf
+`RTS.cpp:CMyFont/CText::CreatePath` selects a LOGFONT and sends text to GDI;
+Taiyou previously exposed only supplied fonts. The host admission path now follows
+libass's platform-provider approach (`ass_directwrite.c`, `ass_fontconfig.c`,
+`ass_coretext.c`), while retaining Taiyou's whole-cluster HarfBuzz retries and
+immutable catalogs. Only OS-selected faces are admitted. Explicit corpus mode
+keeps fixture fonts, identities and order; it never discovers installed fonts.
+Provider-selected substitutions are catalog metadata, preserved when adding
+embedded fonts. This does not claim GDI and platform providers choose identical
+faces, scale factors or metrics.
+
+The first direct checkpoint at `2177a94` was **3 same / 10 good / 85 bad /
+4 errors**, versus **3 / 10 / 86 / 3** at `0915b31`. All three exact cases were
+preserved; there were no new exact cases. The fourth error was the Myanmar
+witness exceeding the 128 MiB native font admission reservation, not a visual
+improvement. Resource-limit review and the next actual capture remain pending.
+See [checkpoint report](https://github.com/amanosatosi/taiyou/actions/runs/40037379434).
 
 **Repair sprint — ASS pair kerning.** Hash-authenticated Windows GDI probes
 of the frozen DejaVu Sans and Arimo faces report additive A/V and T/o widths at

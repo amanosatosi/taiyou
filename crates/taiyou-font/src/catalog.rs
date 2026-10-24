@@ -284,6 +284,26 @@ pub struct FontCatalogBuilder {
     legacy_charmaps: Vec<Option<u16>>,
 }
 impl FontCatalogBuilder {
+    /// Re-admit a validated catalog under this owner's limits, preserving host
+    /// substitutions when a renderer appends embedded fonts. The old snapshot
+    /// remains immutable; native bytes are authenticated normally.
+    pub fn from_catalog(
+        context: &mut FontContext,
+        catalog: &ValidatedFontCatalog,
+        limits: Limits,
+    ) -> Result<Self, FontError> {
+        let mut builder = Self::new(limits);
+        for face in catalog.faces() {
+            builder.register(context, face.blob().bytes(), face.blob().id().face_index())?;
+        }
+        for (index, aliases) in catalog.aliases.iter().enumerate() {
+            for alias in aliases.iter() {
+                let face = &catalog.faces()[index];
+                builder.host_substitution(&FontRequest::new(Arc::from(alias.as_str()), face.weight(), face.italic(), false), face.blob().id())?;
+            }
+        }
+        Ok(builder)
+    }
     pub fn new(limits: Limits) -> Self {
         Self {
             limits,
@@ -299,6 +319,34 @@ impl FontCatalogBuilder {
     }
     pub const fn registered_bytes(&self) -> u64 {
         self.bytes
+    }
+    /// Record a host provider's substitution only when no explicitly admitted
+    /// face already matches the requested family. This is catalog data, never
+    /// an implicit system lookup during resolution or shaping.
+    pub(crate) fn host_substitution(
+        &mut self,
+        request: &FontRequest,
+        id: FontId,
+    ) -> Result<(), FontError> {
+        let name = fold_family(request.family().strip_prefix('@').unwrap_or(request.family()), &self.limits)?;
+        if self.records.iter().enumerate().any(|(i, r)| r.folded_family() == name || self.aliases[i].contains(&name)) {
+            return Ok(());
+        }
+        let index = self.records.iter().position(|r| r.blob().id() == id)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "host substitution face is absent"))?;
+        let charge = (name.len() as u64).checked_add(3 * std::mem::size_of::<String>() as u64)
+            .and_then(|n| n.checked_add(self.names))
+            .ok_or_else(|| error(ErrorCode::LimitExceeded, "host substitution name overflow"))?;
+        if charge.checked_mul(3).is_none_or(|n| n > self.limits.transient_bytes()) {
+            return Err(FontError::transient_limit("host substitution names exceed budget"));
+        }
+        let mut aliases = Vec::new();
+        aliases.try_reserve_exact(self.aliases[index].len() + 1).map_err(|_| error(ErrorCode::AllocationFailed, "host substitution allocation failed"))?;
+        aliases.extend(self.aliases[index].iter().cloned());
+        aliases.push(name);
+        self.aliases[index] = aliases.into();
+        self.names = charge;
+        Ok(())
     }
     pub fn register(
         &mut self,

@@ -1,5 +1,19 @@
 # T002 dependency and native recipe candidate
 
+PR #35 host-font provider proposal adds OS services, not a different shaping
+engine or Cargo dependency: Windows DirectWrite IDWriteFactory2/FontFallback
+(Windows 8.1+ system API, Microsoft Windows licensing); Linux Fontconfig
+libfontconfig.so.1 (2.11.91+ API, MIT license); macOS CoreText/CoreFoundation
+(system frameworks, Apple platform licensing). Fontconfig is dynamically linked;
+Linux packagers must supply its runtime and development linker library. These
+services select installed font candidates only in CLI system mode. Explicit
+catalogs and corpus adapters do not call them. Alternatives are enumerating and
+parsing every installed font, hardcoded fallback families, or replacing Taiyou's
+shaper with libass; none is selected. The approach follows local libass 0.17.5
+provider sources (ISC), without copying pinterf GPL code. The new native/API
+boundary remains subject to PR review. Android has no adapter in this candidate;
+its embedding host can continue supplying explicit catalogs.
+
 Compatibility repair intake: `encoding_rs =0.8.35`, optional native-font feature,
 default features disabled. Purpose: allocation-free Unicode-to-Big5/Shift-JIS
 (and related Microsoft DBCS) code conversion before looking up non-Unicode font
