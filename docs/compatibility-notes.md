@@ -105,10 +105,42 @@ The strict supplemental five-case smoke deliberately remains red for CFF's 42
 pixels. Its three original exact guards and TrueType all pass. Corpus output
 continues to use explicit fixture catalogs; MUA alone opts into system fonts.
 
-The subsequent native-centering correction follows `CLine::PaintAll`'s integer
+The native-centering correction follows `CLine::PaintAll`'s integer
 `m_width / 2`, avoiding a spurious sixteenth-pixel phase for odd eighth-pixel
 extents. New numeric witnesses cover split shaped runs, following words and a
-non-unit physical metric grid. Its exact-head renderer verification is pending.
+non-unit physical metric grid. The [full direct run at
+`c914602`](https://github.com/amanosatosi/taiyou/actions/runs/40110046313)
+is **4 same / 11 good / 84 bad / 3 errors**, with the same four exact cases and
+no regressed exact cases. The six MUA reductions retain **214 / 0 / 188**.
+The [separate full frozen-libass comparison](https://github.com/amanosatosi/taiyou/actions/runs/40110046334)
+remains red: **1 exact / 100 pixel mismatches / 0 unsupported / 0 execution or
+infrastructure errors / 0 crashes**; two successful parser-only probes and one
+upstream-disabled source are separate from those 101 visual frames. All 187
+frozen assets are reverified. Direct-xy success is never inferred from that
+different oracle's PNGs.
+
+The [native contour dump](https://github.com/amanosatosi/taiyou/actions/runs/40110042300)
+retains seven HarfBuzz glyphs for Burmese-only: IDs 9, 29, 276, 274, 29, 30, 276,
+with baseline 2713 Q6 ticks and scale 2.584 native ticks per design unit. GDI's
+572 path points each have a nearest point of the same command kind in the
+quadratic-to-cubic converted outline within one native Q6 tick (including
+explicit closing endpoints); this is not a proof of path-order equality. For example,
+GDI has cubic control `(198,1692)` where the continuous converted outline rounds
+to `(198,1691)`. This is native outline conversion/rounding evidence, not a
+proof of the precise scaler rounding rule. Production fill already uses the xy
+span rasterizer; substituting a FreeType grayscale rasterizer cannot explain or
+repair that upstream path discrepancy. No family-specific coordinate adjustment
+or speculative shaping rewrite is made.
+
+The owner separately authorized correcting the independent single-H C
+reference's word extent/centering and the W2 experiment's layout-equivalence
+expectation. Its original raw width measurements, historical records, workloads,
+native-work/budget assertions, every alignment and zero-tolerance comparison
+remain intact. The T017 shadow timer now enters only the executed shadow branch,
+independently of its skip predicate. Its CLI instrumentation preserves the actual
+font-source configuration; current measured cohorts explicitly select fixture
+fonts and the original 128 MiB budget. Current full native/performance evidence is
+still pending; hosted smoke must not be described as controlled throughput.
 
 The Windows adapter uses platform GDI32/COM/MLang supplied by the runner's Windows
 installation, with DirectWrite retaining file admission and the general fallback
