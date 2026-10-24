@@ -19,6 +19,19 @@ CASES = {
     "regression/embedded-font/efont-1000.png",
     "regression/implicit-pos/shift-dir-9500.png",
     "regression/scaling_playres/playresx_sbas-yes-4000.png",
+    "regression/blurs/be-0500.png",
+    "regression/blurs/be-3500.png",
+    "regression/blurs/blur+t-1000.png",
+    "regression/blurs/blur+t-1900.png",
+    "regression/blurs-anamorphic/blur-0000.png",
+    "regression/ssa/alpha-2000.png",
+    "regression/ssa/effect-delay-1600.png",
+    "regression/v4++/kt-01000.png",
+    "regression/v4++/kt-04800.png",
+    "regression/v4++/kt-06700.png",
+    "regression/v4++/kt-11000.png",
+    "regression/karaoke/karaoke-and-runsplits-2800.png",
+    "regression/karaoke/357-k-and-kf-desynced-7170.png",
 }
 
 
@@ -75,11 +88,24 @@ def main():
     paint_case = {"id": "witness/packed-paint", "source": "authored/packed-paint.ass", "source_external": str(paint_source),
                   "reference": None, "timestamp_ms": 1000, "width": 64, "height": 32,
                   "fonts": cff["fonts"], "inventory": True, "scale": "1"}
-    report["supplemental_authored_cases"] = [paint_case["id"]]
+    blur_source = out / "drawing-blurs.ass"
+    blur_lines = []
+    for row, tag in enumerate([r"\blur0", r"\blur0.5", r"\blur1", r"\blur2", r"\blur8", r"\blur16", r"\be1", r"\be4", r"\be0.5"]):
+        # Native paths with both straight and cubic edges isolate filtering
+        # from installed fonts, shaping, and native outline conversion.
+        for col, drawing in enumerate(["m 0 0 l 23 0 23 13 0 13", "m 0 0 b 32 -8 32 24 0 16 b -8 16 -8 0 0 0"]):
+            blur_lines.append(f"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{{\\pos({50+col*100},{35+row*50})\\p1{tag}}}{drawing}\n")
+    blur_source.write_text(
+        paint_source.read_text(encoding="utf-8").split("[Events]")[0].replace("PlayResX: 64", "PlayResX: 256").replace("PlayResY: 32", "PlayResY: 512")
+        + "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n" + "".join(blur_lines), encoding="utf-8")
+    blur_case = {"id": "witness/drawing-blurs", "source": "authored/drawing-blurs.ass", "source_external": str(blur_source),
+                 "reference": None, "timestamp_ms": 1000, "width": 256, "height": 512,
+                 "fonts": cff["fonts"], "inventory": True, "scale": "1"}
+    report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"]]
     failed = False
     report_path = out / "report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    for case in selected + [paint_case]:
+    for case in selected + [paint_case, blur_case]:
         assert case["inventory"] is True  # oracle.render_taiyou enforces explicit mode
         xy = parallel.xy_case(case, corpus, dll, release, out / "xy")
         taiyou = parallel.taiyou_case(case, corpus, binary, out / "taiyou")
