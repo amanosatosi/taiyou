@@ -455,10 +455,11 @@ impl FontCatalogBuilder {
             }
             return Ok(());
         }
-        let charge = (self.host_links.len() as u64 + 1)
-            .checked_mul(3 * std::mem::size_of::<HostLink>() as u64)
+        let charge = (link.text.len() as u64)
+            .checked_add(link.request.family().len() as u64)
+            .and_then(|n| n.checked_mul(3))
             .and_then(|n| {
-                n.checked_add((link.text.len() as u64 + link.request.family().len() as u64) * 3)
+                n.checked_add(3 * std::mem::size_of::<HostLink>() as u64)
             })
             .and_then(|n| n.checked_add(self.names))
             .ok_or_else(|| FontError::transient_limit("host links overflow"))?;
@@ -468,10 +469,9 @@ impl FontCatalogBuilder {
         self.host_links
             .try_reserve_exact(1)
             .map_err(|_| error(ErrorCode::AllocationFailed, "host link allocation"))?;
-        self.names = self
-            .names
-            .checked_add((link.text.len() as u64 + link.request.family().len() as u64) * 3)
-            .ok_or_else(|| FontError::transient_limit("host link names overflow"))?;
+        // Carry retained observations into the next font's intake/publication
+        // reservation, rather than checking their vector in isolation.
+        self.names = charge;
         self.host_links.push(link);
         Ok(())
     }
