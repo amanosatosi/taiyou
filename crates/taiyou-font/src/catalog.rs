@@ -20,6 +20,8 @@ pub(crate) struct HostLink {
     pub size: FiniteF64,
     pub scale: FiniteF64,
     pub request: FontRequest,
+    pub baseline_delta: FiniteF64,
+    pub advance: FiniteF64,
 }
 fn error(code: ErrorCode, detail: &str) -> FontError {
     FontError::new(code, detail)
@@ -69,6 +71,9 @@ impl ValidatedFontCatalog {
     pub fn needs_host_font_link(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest, vertical: bool) -> bool {
         !vertical && primary != fallback && self.host_links.iter().any(|link| link.fallback == fallback)
             && self.host_link(primary, fallback, text, size, request).is_none()
+    }
+    pub fn admitted_baseline_delta(&self, primary: FontId, fallback: FontId, text: &str, size: FiniteF64, request: &FontRequest, vertical: bool) -> FiniteF64 {
+        if vertical { FiniteF64::ZERO } else { self.host_link(primary, fallback, text, size, request).map_or(FiniteF64::ZERO, |link| link.baseline_delta) }
     }
     pub fn ass_oriented_cell_metrics(
         &self,
@@ -369,7 +374,7 @@ impl FontCatalogBuilder {
     #[cfg_attr(not(windows), allow(dead_code))]
     pub(crate) fn host_link(&mut self, link: HostLink) -> Result<(), FontError> {
         if let Some(old) = self.host_links.iter().find(|old| old.primary == link.primary && old.fallback == link.fallback && old.size == link.size && old.text == link.text && old.request == link.request) {
-            if old.scale != link.scale {
+            if old.scale != link.scale || old.baseline_delta != link.baseline_delta || old.advance != link.advance {
                 return Err(error(ErrorCode::NativeFailure, "inconsistent Windows font-link observation"));
             }
             return Ok(());
@@ -793,7 +798,7 @@ mod tests {
         let size = FiniteF64::new(60.0).unwrap();
         let scale = FiniteF64::new(0.02).unwrap();
         let request = FontRequest::new(Arc::from("Primary"), 400, false, false);
-        let link = HostLink { primary, fallback, text: Arc::from("a\u{301}"), size, scale, request: request.clone() };
+        let link = HostLink { primary, fallback, text: Arc::from("a\u{301}"), size, scale, request: request.clone(), baseline_delta: FiniteF64::new(0.015625).unwrap(), advance: FiniteF64::new(18.5).unwrap() };
         builder.host_link(link.clone()).unwrap();
         builder.host_link(link.clone()).unwrap();
         let after = builder.snapshot(&mut ingestion).unwrap();
@@ -803,6 +808,8 @@ mod tests {
             assert_eq!(catalog.host_links.len(), 1);
             assert_eq!(catalog.admitted_font_scale(primary, fallback, "a\u{301}", size, &request, false).unwrap(), scale);
             assert_eq!(catalog.admitted_metric_font(primary, fallback, "a\u{301}", size, &request, false), primary);
+            assert_eq!(catalog.admitted_baseline_delta(primary, fallback, "a\u{301}", size, &request, false), link.baseline_delta);
+            assert_eq!(catalog.host_link(primary, fallback, "a\u{301}", size, &request).unwrap().advance, link.advance);
             for (text, size, vertical) in [("a", size, false), ("a\u{301}", FiniteF64::new(61.0).unwrap(), false), ("a\u{301}", size, true)] {
                 assert_eq!(catalog.admitted_font_scale(primary, fallback, text, size, &request, vertical).unwrap(), catalog.ass_oriented_font_scale(fallback, size, vertical).unwrap());
                 assert_eq!(catalog.admitted_metric_font(primary, fallback, text, size, &request, vertical), fallback);
@@ -813,6 +820,9 @@ mod tests {
         }
         let mut inconsistent = link.clone();
         inconsistent.scale = FiniteF64::ONE;
+        assert_eq!(builder.host_link(inconsistent).unwrap_err().code(), ErrorCode::NativeFailure);
+        let mut inconsistent = link.clone();
+        inconsistent.advance = FiniteF64::ONE;
         assert_eq!(builder.host_link(inconsistent).unwrap_err().code(), ErrorCode::NativeFailure);
         builder.limits = Limits::default().with_transient_bytes(1).unwrap();
         let mut another = link;

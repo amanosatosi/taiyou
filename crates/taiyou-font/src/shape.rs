@@ -629,7 +629,7 @@ fn shape_item(
         let baseline_offset =
             input
                 .catalog
-                .ass_oriented_baseline_offset(metric_font, cell_size, vertical)?
+                .ass_oriented_baseline_offset(face.id(), cell_size, vertical)?
                 / ly;
         if u32::from(input.catalog.ass_cell_metrics(face.id())?.0) != raw.upem {
             return Err(error(
@@ -666,14 +666,27 @@ fn shape_item(
             return Err(limited());
         }
         reserve(&mut glyphs, raw.glyphs.len(), limits)?;
-        for g in &raw.glyphs {
+        let mut cluster_advance = 0.0;
+        for (glyph_index, g) in raw.glyphs.iter().enumerate() {
             let end = *ends
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
             let scale = input.catalog.admitted_font_scale(input.primary, face.id(), cluster.text(), cell_size, input.style.font(), vertical)?.get();
+            let link = if vertical { None } else { input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size, input.style.font()) };
+            let baseline_offset = if let Some(link) = link {
+                (input.catalog.ass_oriented_baseline_offset(input.primary, cell_size, vertical)? + link.baseline_delta.get()) / ly
+            } else { baseline_offset };
+            // Retain HarfBuzz's complete cluster and mark offsets. GDI's rounded
+            // linked advance is applied once, on the final glyph of the cluster.
+            cluster_advance += f64::from(g.advance_x) * scale;
+            let adjustment = if raw.glyphs.get(glyph_index + 1).is_none_or(|next| next.cluster != g.cluster) {
+                let adjustment = link.map_or(0.0, |link| link.advance.get() - cluster_advance);
+                cluster_advance = 0.0;
+                adjustment
+            } else { 0.0 };
             let position = GlyphPosition::new(
-                finite(f64::from(g.advance_x) * scale / lx)?,
+                finite((f64::from(g.advance_x) * scale + adjustment) / lx)?,
                 finite(-f64::from(g.advance_y) * scale / ly)?,
                 finite(f64::from(g.offset_x) * scale / lx)?,
                 finite(-f64::from(g.offset_y) * scale / ly + baseline_offset)?,

@@ -3718,6 +3718,10 @@ pub mod windows {
     #[repr(C)]
     #[derive(Default)]
     struct Extent { x: i32, y: i32 }
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct GdiPoint { x: i32, y: i32 }
+    struct GdiPath { points: Vec<GdiPoint>, types: Vec<u8> }
     #[link(name = "gdi32")]
     unsafe extern "system" {
         fn CreateCompatibleDC(dc: Raw) -> Raw;
@@ -3731,6 +3735,11 @@ pub mod windows {
         fn GetTextExtentPoint32W(dc: Raw, text: *const u16, length: i32, extent: *mut Extent) -> i32;
         fn AddFontMemResourceEx(bytes: *const c_void, length: u32, reserved: Raw, count: *mut u32) -> Raw;
         fn RemoveFontMemResourceEx(handle: Raw) -> i32;
+        fn SetBkMode(dc: Raw, mode: i32) -> i32;
+        fn BeginPath(dc: Raw) -> i32;
+        fn EndPath(dc: Raw) -> i32;
+        fn TextOutW(dc: Raw, x: i32, y: i32, text: *const u16, length: i32) -> i32;
+        fn GetPath(dc: Raw, points: *mut GdiPoint, types: *mut u8, count: i32) -> i32;
     }
     #[link(name = "ole32")]
     unsafe extern "system" {
@@ -3752,6 +3761,77 @@ pub mod windows {
                 if self.apartment { CoUninitialize(); }
             }
         }
+    }
+    fn gdi_path(dc: Raw, text: &[u16], limits: &Limits) -> Result<Option<GdiPath>, FontError> {
+        let length = i32::try_from(text.len() - 1).map_err(|_| limited())?;
+        // SAFETY: callers retain a selected owned DC and terminated input for
+        // the synchronous path transaction. GetPath's checked count bounds both
+        // initialized writable arrays; no native point buffer is published.
+        unsafe {
+            if BeginPath(dc) == 0 { return Ok(None); }
+            let written = TextOutW(dc, 0, 0, text.as_ptr(), length);
+            let ended = EndPath(dc);
+            if written == 0 || ended == 0 { return Ok(None); }
+            let count = GetPath(dc, ptr::null_mut(), ptr::null_mut(), 0);
+            if count <= 0 { return Ok(None); }
+            let charge = (count as u64).checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64).ok_or_else(limited)?;
+            if count as u64 > limits.path_segments_per_frame() || charge > limits.transient_bytes() { return Err(limited()); }
+            let count = usize::try_from(count).map_err(|_| limited())?;
+            let mut points = Vec::new();
+            let mut types = Vec::new();
+            points.try_reserve_exact(count).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "GDI linked path allocation"))?;
+            types.try_reserve_exact(count).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "GDI linked path types allocation"))?;
+            points.resize(count, GdiPoint::default());
+            types.resize(count, 0);
+            if GetPath(dc, points.as_mut_ptr(), types.as_mut_ptr(), count as i32) != count as i32 { return Ok(None); }
+            Ok(Some(GdiPath { points, types }))
+        }
+    }
+    /// Recover a linked font's actual integer EM and baseline from GDI paths.
+    /// Rounded text advances cannot identify these: the MUA bracket's advance
+    /// rounds to 1697 Q6 ticks while its EM is 3393, not 3394. A candidate is
+    /// accepted only when every path point/type matches at one vertical shift.
+    fn gdi_realization(dc: Raw, font: &LogFont, text: &[u16], linked: &GdiPath, widths: (i32, i32, i32), limits: &Limits) -> Result<Option<(i32, i64)>, FontError> {
+        let (wanted, ordinary, em) = widths;
+        if ordinary <= 1 || wanted <= 0 || em <= 0 { return Ok(None); }
+        let low = ((f64::from(wanted) - 1.0) * f64::from(em) / (f64::from(ordinary) + 1.0)).floor().max(1.0);
+        let high = ((f64::from(wanted) + 1.0) * f64::from(em) / (f64::from(ordinary) - 1.0)).ceil();
+        // Bound host-admission work, not comparison accuracy. If the interval
+        // is broad or ambiguous, retain the existing provider path instead of
+        // guessing a realization. No raster pixel tolerance is involved.
+        if high > f64::from(i32::MAX) || high - low > 32.0 { return Ok(None); }
+        let mut found = None;
+        for em in low as i32..=high as i32 {
+            let mut lf = *font;
+            lf.height = -em;
+            // SAFETY: request-local DC/font with SDK layout, checked negative
+            // height and retained inputs. The closure cannot bypass restoration
+            // and font deletion; selected font ownership never escapes.
+            let observed = unsafe {
+                let candidate = CreateFontIndirectW(&lf);
+                if candidate.is_null() { return Ok(None); }
+                let old = SelectObject(dc, candidate);
+                if old.is_null() || old as isize == -1 { DeleteObject(candidate); return Ok(None); }
+                let result = (|| -> Result<Option<(i32, i64)>, FontError> {
+                    let mut tm: TextMetric = std::mem::zeroed();
+                    if GetTextMetricsW(dc, &mut tm) == 0 || tm.height - tm.internal_leading != em { return Ok(None); }
+                    let Some(path) = gdi_path(dc, text, limits)? else { return Ok(None); };
+                    if path.types != linked.types || path.points.len() != linked.points.len() { return Ok(None); }
+                    let shift = i64::from(linked.points[0].y) - i64::from(path.points[0].y);
+                    if path.points.iter().zip(&linked.points).all(|(a,b)| a.x == b.x && i64::from(a.y) + shift == i64::from(b.y)) {
+                        Ok(Some((em, i64::from(tm.ascent) + shift)))
+                    } else { Ok(None) }
+                })();
+                SelectObject(dc, old);
+                DeleteObject(candidate);
+                result?
+            };
+            if let Some(observed) = observed {
+                if found.is_some() { return Ok(None); }
+                found = Some(observed);
+            }
+        }
+        Ok(found)
     }
     // Exact SDK vtable slots and signatures (dwrite.h, dwrite_1.h, dwrite_2.h).
     // Every object is an owned DirectWrite interface. Calls are synchronous,
@@ -4102,6 +4182,7 @@ pub mod windows {
                 let end = selected.iter().position(|&c| c == 0).ok_or_else(limited)?;
                 let selected = String::from_utf16(&selected[..end]).map_err(|_| limited())?;
                 if !catalog.matches_family(base_index, &crate::fold_family(&selected, &self.limits)?) { return Ok(false); }
+                if SetBkMode(scope.dc, 1) == 0 { return Ok(false); }
                 let mut raw = ptr::null_mut();
                 check(CoCreateInstance(&MULTILANGUAGE, ptr::null_mut(), 1, &FONTLINK2, &mut raw))?;
                 let link = owned(raw)?;
@@ -4120,6 +4201,9 @@ pub mod windows {
                 let result = (|| -> Result<bool, FontError> {
                     let mut linked_extent = Extent::default();
                     if GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut linked_extent) == 0 { return Ok(false); }
+                    let mut base_tm: TextMetric = std::mem::zeroed();
+                    if GetTextMetricsW(scope.dc, &mut base_tm) == 0 { return Ok(false); }
+                    let Some(linked_path) = gdi_path(scope.dc, &input, &self.limits)? else { return Ok(false); };
                     let previous = SelectObject(scope.dc, mapped);
                     if previous.is_null() || previous as isize == -1 { return Ok(false); }
                     let mut mapped_extent = Extent::default();
@@ -4130,13 +4214,15 @@ pub mod windows {
                         && GetObjectW(mapped, std::mem::size_of::<LogFont>() as i32, (&mut mapped_lf as *mut LogFont).cast()) == std::mem::size_of::<LogFont>() as i32;
                     SelectObject(scope.dc, scope.font);
                     if !valid || linked_extent.x <= 0 || mapped_extent.x <= 0 || tm.height <= tm.internal_leading { return Ok(false); }
+                    let Some((em, baseline)) = gdi_realization(scope.dc, &mapped_lf, &input, &linked_path, (linked_extent.x, mapped_extent.x, tm.height - tm.internal_leading), &self.limits)? else { return Ok(false); };
                     let mut raw = ptr::null_mut();
                     check(call!(self._factory.0, 17, (*mut Raw) -> i32, &mut raw))?;
                     let interop = owned(raw)?;
                     raw = ptr::null_mut();
                     check(call!(interop.0, 3, (*const LogFont, *mut Raw) -> i32, &mapped_lf, &mut raw))?;
                     let mapped_font = owned(raw)?;
-                    let fallback = self.register_file(context, builder, &mapped_font, (input.len() + family.len()) as u64 * 2)?;
+                    let path_cost = (linked_path.points.len() as u64).checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64).ok_or_else(limited)?;
+                    let fallback = self.register_file(context, builder, &mapped_font, (input.len() + family.len()) as u64 * 2 + path_cost)?;
                     let snapshot = builder.snapshot(&mut CatalogIngestor::new())?;
                     let probe = snapshot.shape_raw(context, fallback, &crate::shape::NativeRequest {
                         text, context: 0..text.len(), range: 0..text.len(), rtl: false,
@@ -4145,11 +4231,12 @@ pub mod windows {
                     }, &self.limits, false)?;
                     if probe.glyphs.is_empty() || probe.glyphs.iter().any(|g| g.glyph == 0) { return Ok(false); }
                     let upem = snapshot.ass_cell_metrics(fallback)?.0;
-                    let scale = (f64::from(tm.height - tm.internal_leading) / (64.0 * f64::from(upem)))
-                        * (f64::from(linked_extent.x) / f64::from(mapped_extent.x));
+                    let scale = f64::from(em) / (64.0 * f64::from(upem));
                     let scale = FiniteF64::new(scale).map_err(|_| limited())?;
                     if scale.get() <= 0.0 { return Ok(false); }
-                    builder.host_link(crate::catalog::HostLink { primary, fallback, text: std::sync::Arc::from(text), size, scale, request: request.clone() })?;
+                    let baseline_delta = FiniteF64::new((baseline - i64::from(base_tm.ascent)) as f64 / 64.0).map_err(|_| limited())?;
+                    let advance = FiniteF64::new(f64::from(linked_extent.x) / 64.0).map_err(|_| limited())?;
+                    builder.host_link(crate::catalog::HostLink { primary, fallback, text: std::sync::Arc::from(text), size, scale, request: request.clone(), baseline_delta, advance })?;
                     Ok(true)
                 })();
                 let release = call!(link.0, 8, (Raw) -> i32, mapped);
