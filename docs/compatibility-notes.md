@@ -139,8 +139,15 @@ native-work/budget assertions, every alignment and zero-tolerance comparison
 remain intact. The T017 shadow timer now enters only the executed shadow branch,
 independently of its skip predicate. Its CLI instrumentation preserves the actual
 font-source configuration; current measured cohorts explicitly select fixture
-fonts and the original 128 MiB budget. Current full native/performance evidence is
-still pending; hosted smoke must not be described as controlled throughput.
+fonts and the original 128 MiB budget. The [full native matrix at
+`b5902b3`](https://github.com/amanosatosi/taiyou/actions/runs/40126071476) passes
+Windows 2022, Ubuntu 24.04 and macOS 15. At `d46ac86`, the repaired optimized
+experiment retains 54 newly executed samples: 48 completed frames and six typed
+default-segment-limit failures across the two 500-event workloads. Expanded
+caller-budget variants and full/partial/minimal identity checks pass. Historical
+records, workloads, safety budgets and no-retry invariants remain intact; the
+failure event ordinal may change with corrected geometry. Hosted smoke is not
+controlled playback throughput.
 
 The Windows adapter uses platform GDI32/COM/MLang supplied by the runner's Windows
 installation, with DirectWrite retaining file admission and the general fallback
@@ -207,14 +214,27 @@ glyph diagnostics removed. Arabic/symbol output was unchanged by the cmap bridge
 contour/collision corrections subsequently improve symbol cases 1,668→829 and
 1,012→714. These remain mismatches.
 
-**Partial — synthetic italics.** Pinterf's LOGFONT italic request reaches GDI
+**Verified direct xy — synthetic italic reductions.** Pinterf's LOGFONT italic request reaches GDI
 TextOut/GetPath. The focused Windows GDI probe authenticates the two frozen font
 bytes and verifies actual selected family. At positive cell height 6400, CFF slant
 is approximately 0.1763 and TrueType approximately 0.33984, with unchanged advance.
 Taiyou applies format-specific shear before vertical orientation/ASS transforms,
 updates ink support and avoids double-slanting actual italic faces. Catalog,
-shaping and rendered/seek regressions pass. Remaining edge coverage differs from
-libass; this probe is GDI evidence, not an authenticated xy rendering capture.
+shaping and rendered/seek regressions pass. The later [authenticated direct run
+at `889440d`](https://github.com/amanosatosi/taiyou/actions/runs/40127465376)
+makes both frozen faux-italic frames exact against xy. They still differ from
+the separate libass PNGs.
+
+The CFF program has rectangle corners `(3,863)`, `(3,-144)`, `(997,-144)`,
+`(997,863)`, UPEM1000, cell863+144 and advance977. GDI measures the rounded EM6356
+at cell6400, yielding advance6210 Q6 ticks. Its CFF contours instead retain the
+fractional scale6400/1007: sheared corners round to `(986,0)`, `(-142,6400)`,
+`(6175,6400)`, `(7304,0)`, matching the authenticated GDI path. Using the rounded
+metric scale for contours made the lower-right x coordinate6176 and left 42
+different edge pixels. Taiyou now separates horizontal CFF contour/ink scaling
+from rounded metric/advance scaling, using portable catalog data and arithmetic.
+TrueType, vertical mapping and admitted host realizations retain their existing
+scales. No font name, glyph ID or coordinate offset selects this behavior.
 
 ## Glyph outlines and rasterization
 
@@ -351,6 +371,33 @@ differences are unresolved; the shared contour correction improves the latter
 fixture 15,839→13,980 differing pixels without a scaling-specific patch.
 
 ## Alpha and compositing
+
+**Verified direct xy — packed RGB and inverse alpha.** Pinterf
+`Rasterizer.cpp:pixmix_c/packed_pix_mix_sse2` combines the complete numerator
+`dst*(256-a)+color*(a+1)` before truncating `/256`, while its bitmap stores inverse
+alpha. At drawImg `(949,684)`, xy has premultiplied `(23,6,6,98)`; Taiyou's old
+separately rounded `/255` products gave `(24,7,7,98)`. The portable native-coverage
+paint path now follows the measured packed rule and converts inverse alpha to
+public opacity. Generic A8 composition remains separately typed. Byte-range,
+premultiplication, zero-coverage and overlap regressions remain exact.
+
+The full direct scoreboard progresses **4/11/84/3 → 5/13/81/3 → 6/12/81/3**
+(same/good/bad/errors): [packed paint](https://github.com/amanosatosi/taiyou/actions/runs/40125520184)
+adds exact `regression/draw-images/drawImg-104396.png` (236 pixels to zero);
+[fractional CFF contours](https://github.com/amanosatosi/taiyou/actions/runs/40127465376)
+adds exact `regression/faux-italics/cff-0000.png` (42 pixels to zero). Both
+`scaling_playres/playresx_sbas-{no,yes}-1000.png` move bad to good. All prior exact
+frames remain exact; there are no good-to-bad changes against the 4/11 checkpoint.
+The three errors remain xy CSRI open failures, with Taiyou renders retained.
+MUA stays **214/0/188** with or without underline; it is not promoted to exact.
+
+The [supplemental direct smoke](https://github.com/amanosatosi/taiyou/actions/runs/40127461718)
+passes all six selected corpus frames and an authored packed-paint/overlap
+control. The earlier authored control first lacked a metadata field and then
+used abbreviated ASS fields that pinterf interprets positionally; its failed
+attempts remain in their original artifacts. The corrected control uses standard
+ASS style/event fields and is separate from the unchanged 102-frame scoreboard.
+Correcting that diagnostic input is not counted as a renderer compatibility win.
 
 **Source-verified — RGB overlays and matrix metadata.** Libass ass_types.h
 documents that its image API preserves ASS RGB and delegates video-dependent
