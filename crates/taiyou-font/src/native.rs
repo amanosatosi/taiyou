@@ -2681,7 +2681,7 @@ mod tests {
                                 let code = ft::FT_Load_Glyph(face.raw, glyph, flags | ft::FT_LOAD_NO_BITMAP);
                                 if code != 0 { return Err(native_error(code, "probe glyph failed")); }
                                 let outline = &(*(*face.raw).glyph).outline;
-                                let mut state = OutlineCopy {ops: Vec::new(), failed: false, open: false};
+                                let mut state = OutlineCopy {ops: Vec::with_capacity(outline.n_points as usize * 4 + 16), failed: false, open: false};
                                 let code = FT_Outline_Decompose(outline, &outline_funcs(), (&mut state as *mut OutlineCopy).cast());
                                 if code != 0 || state.failed { return Err(native_error(code, "probe decomposition failed")); }
                                 if state.open {state.ops.push(PathOp::Close);}

@@ -185,14 +185,18 @@ fn rasterize_impl(
     // same polynomial in absolute viewport coordinates can truncate a sample
     // one Q6 tick differently after an otherwise integral translation.
     let (ox, oy) = if xy {
-        hull.map_or((0, 0), |(x, y, _, _)| (x.div_euclid(64) * 64, y.div_euclid(64) * 64))
+        hull.map_or((0, 0), |(x, y, _, _)| {
+            (x.div_euclid(64) * 64, y.div_euclid(64) * 64)
+        })
     } else {
         (0, 0)
     };
-    let point = |p: DevicePoint| (
-        (i64::from(p.x().ticks()) - ox) as f64,
-        (i64::from(p.y().ticks()) - oy) as f64,
-    );
+    let point = |p: DevicePoint| {
+        (
+            (i64::from(p.x().ticks()) - ox) as f64,
+            (i64::from(p.y().ticks()) - oy) as f64,
+        )
+    };
     for &op in ops {
         match op {
             PathOp::MoveTo(p) => {
@@ -404,12 +408,18 @@ mod tests {
         ];
         let original = rasterize_body(&source, &limits).unwrap();
         for (x, y) in [(150, 35), (-100, -200), (1700, 900)] {
-            let moved: Vec<_> = source.iter().map(|op| op.try_map(|point| {
-                Ok(DevicePoint::new(
-                    Q6::from_ticks(point.x().ticks() + x * 64),
-                    Q6::from_ticks(point.y().ticks() + y * 64),
-                ))
-            }).unwrap()).collect();
+            let moved: Vec<_> = source
+                .iter()
+                .map(|op| {
+                    op.try_map(|point| {
+                        Ok(DevicePoint::new(
+                            Q6::from_ticks(point.x().ticks() + x * 64),
+                            Q6::from_ticks(point.y().ticks() + y * 64),
+                        ))
+                    })
+                    .unwrap()
+                })
+                .collect();
             let output = rasterize_body(&moved, &limits).unwrap();
             assert_eq!(output.data(), original.data());
             assert_eq!(output.bounds().x0(), original.bounds().x0() + x);
