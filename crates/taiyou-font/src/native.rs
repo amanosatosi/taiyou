@@ -283,6 +283,33 @@ impl FontContext {
         glyph: u32,
         limits: &Limits,
     ) -> Result<GlyphOutline, FontError> {
+        self.outline_at_scale(blob, glyph, None, limits)
+    }
+
+    pub(crate) fn ass_outline_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        scale: FiniteF64,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        let cff = self.with_face(blob.shared_bytes(), blob.id().face_index(), |face| {
+            // SAFETY: the format string belongs to this live request-local face.
+            unsafe {
+                let format = FT_Get_Font_Format(face.raw);
+                Ok(!format.is_null() && std::ffi::CStr::from_ptr(format).to_bytes() == b"CFF")
+            }
+        })?;
+        self.outline_at_scale(blob, glyph, if cff { None } else { Some(scale) }, limits)
+    }
+
+    fn outline_at_scale(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        scale: Option<FiniteF64>,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
         self.check_bytes(blob.bytes())?;
         let native_charge = (blob.bytes().len() as u64)
             .checked_mul(12)
@@ -319,10 +346,20 @@ impl FontContext {
                     ));
                 }
                 check_outline_face((*face.raw).face_flags)?;
-                let flags = ft::FT_LOAD_NO_SCALE
-                    | ft::FT_LOAD_NO_HINTING
-                    | ft::FT_LOAD_NO_BITMAP
-                    | ft::FT_LOAD_IGNORE_TRANSFORM;
+                let mut flags = ft::FT_LOAD_NO_BITMAP | ft::FT_LOAD_IGNORE_TRANSFORM;
+                if let Some(scale) = scale {
+                    let height = (scale.get() * f64::from((*face.raw).units_per_EM) * 4096.0).round();
+                    if !(1.0..=f64::from(u16::MAX) * 64.0).contains(&height) {
+                        return Err(FontError::new(ErrorCode::LimitExceeded, "native font size exceeded"));
+                    }
+                    let code = ft::FT_Set_Char_Size(face.raw, 0, height as ft::FT_F26Dot6, 72, 72);
+                    if code != 0 {
+                        return Err(native_error(code, "native outline size failed"));
+                    }
+                    flags |= ft::FT_LOAD_NO_AUTOHINT | ft::FT_LOAD_TARGET_MONO;
+                } else {
+                    flags |= ft::FT_LOAD_NO_SCALE | ft::FT_LOAD_NO_HINTING;
+                }
                 let code = ft::FT_Load_Glyph(face.raw, glyph, flags);
                 if code != 0 {
                     return Err(native_error(code, "FT_Load_Glyph outline failed"));
@@ -424,6 +461,13 @@ impl FontContext {
                     state.close();
                     if state.failed {
                         return Err(native_error(0, "outline copy capacity exceeded"));
+                    }
+                }
+                if let Some(scale) = scale {
+                    let denominator = scale.get() * 4096.0;
+                    for op in &mut state.ops {
+                        *op = op.try_map(|p| FontPoint::new(p.x().get() / denominator, p.y().get() / denominator))
+                            .map_err(|e| FontError::new(e.code(), e.detail()))?;
                     }
                 }
                 let owned = Outline::new(state.ops, limits).map_err(|e| {

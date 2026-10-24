@@ -347,6 +347,20 @@ impl ValidatedFontCatalog {
             })?;
         context.outline_authenticated(face.blob(), glyph, limits)
     }
+    /// ASS native-size realization through the portable FreeType adapter.
+    /// The owned result retains design-unit coordinates; no face is shared.
+    pub fn ass_outline(
+        &self,
+        context: &mut FontContext,
+        font: FontId,
+        glyph: u32,
+        scale: FiniteF64,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        let face = self.faces().iter().find(|f| f.blob().id() == font)
+            .ok_or_else(|| error(ErrorCode::InvalidArgument, "font absent from validated catalog"))?;
+        context.ass_outline_authenticated(face.blob(), glyph, scale, limits)
+    }
     pub(crate) fn shape_raw(
         &self,
         context: &mut FontContext,

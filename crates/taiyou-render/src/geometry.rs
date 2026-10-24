@@ -599,27 +599,6 @@ pub fn geometry(
             .with_transient_bytes(remaining)
             .and_then(|l| l.with_path_segments_per_frame(remaining_segments))
             .map_err(|_| geometry_limit())?;
-        let outline = catalog
-            .outline(context, blob.id(), glyph.glyph(), &intake_limits)
-            .map_err(font_error)?;
-        total = total
-            .checked_add(outline.outline().ops().len())
-            .ok_or_else(geometry_limit)?;
-        check_path_budget(total, limits)?;
-        charge = charge
-            .checked_add(
-                (outline.outline().ops().len() as u64)
-                    .checked_mul(
-                        4 * (std::mem::size_of::<PathOp<FontPoint>>()
-                            + std::mem::size_of::<PathOp<DevicePoint>>())
-                            as u64,
-                    )
-                    .ok_or_else(geometry_limit)?,
-            )
-            .ok_or_else(geometry_limit)?;
-        if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
-            return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
-        }
         let [lx, ly] = placement.device.layout_scale();
         let vertical =
             state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
@@ -649,6 +628,29 @@ pub fn geometry(
             )
             .map_err(font_error)?
             .get();
+        let outline = if metric_font != blob.id() || size <= 0.0 {
+            catalog.outline(context, blob.id(), glyph.glyph(), &intake_limits)
+        } else {
+            catalog.ass_outline(context, blob.id(), glyph.glyph(), finite(size)?, &intake_limits)
+        }.map_err(font_error)?;
+        total = total
+            .checked_add(outline.outline().ops().len())
+            .ok_or_else(geometry_limit)?;
+        check_path_budget(total, limits)?;
+        charge = charge
+            .checked_add(
+                (outline.outline().ops().len() as u64)
+                    .checked_mul(
+                        4 * (std::mem::size_of::<PathOp<FontPoint>>()
+                            + std::mem::size_of::<PathOp<DevicePoint>>())
+                            as u64,
+                    )
+                    .ok_or_else(geometry_limit)?,
+            )
+            .ok_or_else(geometry_limit)?;
+        if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
+            return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
+        }
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (
@@ -709,8 +711,8 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(ops, limits)?);
         }
-        if metric_font != blob.id() {
-            // GDI extracts the linked glyph in the font's integer Q6 grid
+        if size > 0.0 {
+            // GDI extracts the glyph in the font's integer Q6 grid
             // before word placement/ASS transforms. Rounding only after adding
             // the layout phase changes the slanted bracket edges.
             charge = charge
@@ -729,8 +731,25 @@ pub fn geometry(
             ops.try_reserve_exact(path.ops().len()).map_err(|_| {
                 RenderError::new(ErrorCode::AllocationFailed, "linked font grid allocation")
             })?;
-            for op in path.ops() {
-                ops.push(op.try_map(|p| {
+            let mut previous = FontPoint::ZERO;
+            for &op in path.ops() {
+                let converted = if metric_font == blob.id() {
+                    match op {
+                        PathOp::QuadTo(control, end) => {
+                            let toward = |from: FontPoint| FontPoint::new(
+                                from.x().get() + (control.x().get() - from.x().get()) * 2.0 / 3.0,
+                                from.y().get() + (control.y().get() - from.y().get()) * 2.0 / 3.0,
+                            );
+                            PathOp::CubicTo(toward(previous)?, toward(end)?, end)
+                        }
+                        other => other,
+                    }
+                } else { op };
+                previous = match op {
+                    PathOp::MoveTo(p) | PathOp::LineTo(p) | PathOp::QuadTo(_, p) | PathOp::CubicTo(_, _, p) => p,
+                    PathOp::Close => previous,
+                };
+                ops.push(converted.try_map(|p| {
                     FontPoint::new(
                         f64::from(q6(p.x().get() * size)?.ticks()) / (size * 64.0),
                         f64::from(q6(p.y().get() * size)?.ticks()) / (size * 64.0),
