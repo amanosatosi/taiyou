@@ -86,12 +86,16 @@ def gdi_metrics(font, texts, families):
                         assert link.value
                         vtable = C.cast(link, C.POINTER(C.POINTER(C.c_void_p))).contents
                         map_font = C.WINFUNCTYPE(C.c_long, C.c_void_p, W.HDC, W.DWORD, W.WCHAR, C.POINTER(W.HFONT))(vtable[10])
+                        char_pages = C.WINFUNCTYPE(C.c_long, C.c_void_p, W.WCHAR, C.POINTER(W.DWORD))(vtable[3])
                         release_font = C.WINFUNCTYPE(C.c_long, C.c_void_p, W.HFONT)(vtable[8])
                         release_link = C.WINFUNCTYPE(W.ULONG, C.c_void_p)(vtable[2])
                         try:
                             for char in "〈〉":
+                                pages = W.DWORD()
+                                assert char_pages(link, char, C.byref(pages)) >= 0
                                 mapped = W.HFONT()
-                                hr = map_font(link, dc, 0, char, C.byref(mapped))
+                                # chSrc is for characters WITHOUT a code page.
+                                hr = map_font(link, dc, pages.value, "\0" if pages.value else char, C.byref(mapped))
                                 assert hr >= 0 and mapped.value, f"MLang MapFont {hr}"
                                 old = select(dc, mapped)
                                 try:
@@ -103,7 +107,7 @@ def gdi_metrics(font, texts, families):
                                     assert 0 < length < 20000
                                     points, types = (Point * length)(), (W.BYTE * length)()
                                     assert get_path(dc, points, types, length) == length
-                                    mapped_candidates.append({"character": char, "family": mapped_name.value,
+                                    mapped_candidates.append({"character": char, "codepages": pages.value, "family": mapped_name.value,
                                         "metrics": {name: getattr(mapped_tm, name) for name, _ in mapped_tm._fields_},
                                         "points_q6": [[p.x, p.y, t] for p, t in zip(points, types)]})
                                 finally:
@@ -201,9 +205,9 @@ def main():
                    "taiyou_log": taiyou["render"]["log"]}
             report["cases"].append(row)
             print("MUA_DIAGNOSIS=" + json.dumps(row, ensure_ascii=False), flush=True)
+    (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     gdi = gdi_metrics(Path(os.environ["MUA_OFFICE_FONT"]), ["စမ်းမယ်", "〈〉", "〈စမ်းမယ်〉"], families)
     (out / "gdi-metrics.json").write_text(json.dumps(gdi, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
