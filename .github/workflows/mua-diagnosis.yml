@@ -1,0 +1,56 @@
+name: MUA direct xy diagnosis (supplemental)
+on:
+  push:
+    branches: [task/T015-visual-compatibility-repair]
+    paths:
+      - 'experiments/xy-oracle/mua-diagnosis.py'
+      - 'crates/taiyou-cli/examples/mua_metrics.rs'
+      - '.github/workflows/mua-diagnosis.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mua-diagnosis-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnosis:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Formatting evidence
+        shell: pwsh
+        run: |
+          cargo fmt --all
+          git diff --binary | Out-File -Encoding utf8 "$env:RUNNER_TEMP/mua-format.patch"
+      - run: python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: git config --global core.symlinks true
+      - run: python validation/acquire.py
+      - run: python experiments/xy-oracle/acquire-mua.py
+      - shell: pwsh
+        run: ./experiments/xy-oracle/acquire.ps1
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Compile diagnostic using existing native dependencies
+        shell: pwsh
+        run: |
+          $env:PKG_CONFIG_PATH = "$env:RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          $env:PKG_CONFIG_ALL_STATIC = '1'
+          $env:LIBZ_SYS_STATIC = '1'
+          cargo build --locked -p taiyou-cli --features native --example mua_metrics
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python experiments/xy-oracle/mua-diagnosis.py --output "$env:RUNNER_TEMP/mua-diagnosis"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mua-diagnosis-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/mua-diagnosis/
+            ${{ runner.temp }}/mua-format.patch
+          retention-days: 7
