@@ -107,12 +107,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     PathOp::MoveTo(p) => println!("NATIVE_PATH M {:?}", point(p)),
                     PathOp::LineTo(p) => println!("NATIVE_PATH L {:?}", point(p)),
                     PathOp::QuadTo(a, b) => println!("NATIVE_PATH Q {:?} {:?}", point(a), point(b)),
-                    PathOp::CubicTo(a, b, c) => println!(
-                        "NATIVE_PATH C {:?} {:?} {:?}",
-                        point(a),
-                        point(b),
-                        point(c)
-                    ),
+                    PathOp::CubicTo(a, b, c) => {
+                        println!("NATIVE_PATH C {:?} {:?} {:?}", point(a), point(b), point(c))
+                    }
                     PathOp::Close => println!("NATIVE_PATH Z"),
                 }
             }
