@@ -3694,8 +3694,18 @@ pub mod windows {
         [0xad, 0xc8, 0xfb, 0xce, 0xa6, 0x0a, 0xe9, 0x2b],
     );
     const UNKNOWN: Guid = Guid(0, 0, 0, [0xc0, 0, 0, 0, 0, 0, 0, 0x46]);
-    const MULTILANGUAGE: Guid = Guid(0x275c23e2, 0x3747, 0x11d0, [0x9f, 0xea, 0, 0xaa, 0, 0x3f, 0x86, 0x46]);
-    const FONTLINK2: Guid = Guid(0xdccfc162, 0x2b38, 0x11d2, [0xb7, 0xec, 0, 0xc0, 0x4f, 0x8f, 0x5d, 0x9a]);
+    const MULTILANGUAGE: Guid = Guid(
+        0x275c23e2,
+        0x3747,
+        0x11d0,
+        [0x9f, 0xea, 0, 0xaa, 0, 0x3f, 0x86, 0x46],
+    );
+    const FONTLINK2: Guid = Guid(
+        0xdccfc162,
+        0x2b38,
+        0x11d2,
+        [0xb7, 0xec, 0, 0xc0, 0x4f, 0x8f, 0x5d, 0x9a],
+    );
     const INVALID: i32 = 0x80070057_u32 as i32;
     #[link(name = "dwrite")]
     unsafe extern "system" {
@@ -3704,24 +3714,60 @@ pub mod windows {
     #[repr(C)]
     #[derive(Clone, Copy)]
     struct LogFont {
-        height: i32, width: i32, escapement: i32, orientation: i32, weight: i32,
-        italic: u8, underline: u8, strikeout: u8, charset: u8, out_precision: u8,
-        clip_precision: u8, quality: u8, pitch_family: u8, family: [u16; 32],
+        height: i32,
+        width: i32,
+        escapement: i32,
+        orientation: i32,
+        weight: i32,
+        italic: u8,
+        underline: u8,
+        strikeout: u8,
+        charset: u8,
+        out_precision: u8,
+        clip_precision: u8,
+        quality: u8,
+        pitch_family: u8,
+        family: [u16; 32],
     }
     #[repr(C)]
     struct TextMetric {
-        height: i32, ascent: i32, descent: i32, internal_leading: i32, external_leading: i32,
-        average_width: i32, maximum_width: i32, weight: i32, overhang: i32, aspect_x: i32, aspect_y: i32,
-        first: u16, last: u16, default: u16, break_char: u16,
-        italic: u8, underlined: u8, struck: u8, pitch_family: u8, charset: u8,
+        height: i32,
+        ascent: i32,
+        descent: i32,
+        internal_leading: i32,
+        external_leading: i32,
+        average_width: i32,
+        maximum_width: i32,
+        weight: i32,
+        overhang: i32,
+        aspect_x: i32,
+        aspect_y: i32,
+        first: u16,
+        last: u16,
+        default: u16,
+        break_char: u16,
+        italic: u8,
+        underlined: u8,
+        struck: u8,
+        pitch_family: u8,
+        charset: u8,
     }
     #[repr(C)]
     #[derive(Default)]
-    struct Extent { x: i32, y: i32 }
+    struct Extent {
+        x: i32,
+        y: i32,
+    }
     #[repr(C)]
     #[derive(Clone, Copy, Default)]
-    struct GdiPoint { x: i32, y: i32 }
-    struct GdiPath { points: Vec<GdiPoint>, types: Vec<u8> }
+    struct GdiPoint {
+        x: i32,
+        y: i32,
+    }
+    struct GdiPath {
+        points: Vec<GdiPoint>,
+        types: Vec<u8>,
+    }
     #[link(name = "gdi32")]
     unsafe extern "system" {
         fn CreateCompatibleDC(dc: Raw) -> Raw;
@@ -3732,8 +3778,18 @@ pub mod windows {
         fn GetObjectW(object: Raw, bytes: i32, buffer: *mut c_void) -> i32;
         fn GetTextMetricsW(dc: Raw, metrics: *mut TextMetric) -> i32;
         fn GetTextFaceW(dc: Raw, length: i32, family: *mut u16) -> i32;
-        fn GetTextExtentPoint32W(dc: Raw, text: *const u16, length: i32, extent: *mut Extent) -> i32;
-        fn AddFontMemResourceEx(bytes: *const c_void, length: u32, reserved: Raw, count: *mut u32) -> Raw;
+        fn GetTextExtentPoint32W(
+            dc: Raw,
+            text: *const u16,
+            length: i32,
+            extent: *mut Extent,
+        ) -> i32;
+        fn AddFontMemResourceEx(
+            bytes: *const c_void,
+            length: u32,
+            reserved: Raw,
+            count: *mut u32,
+        ) -> Raw;
         fn RemoveFontMemResourceEx(handle: Raw) -> i32;
         fn SetBkMode(dc: Raw, mode: i32) -> i32;
         fn BeginPath(dc: Raw) -> i32;
@@ -3745,20 +3801,42 @@ pub mod windows {
     unsafe extern "system" {
         fn CoInitializeEx(reserved: Raw, model: u32) -> i32;
         fn CoUninitialize();
-        fn CoCreateInstance(class: *const Guid, outer: Raw, context: u32, iid: *const Guid, result: *mut Raw) -> i32;
+        fn CoCreateInstance(
+            class: *const Guid,
+            outer: Raw,
+            context: u32,
+            iid: *const Guid,
+            result: *mut Raw,
+        ) -> i32;
     }
-    struct GdiScope { dc: Raw, original: Raw, font: Raw, resource: Raw, apartment: bool }
+    struct GdiScope {
+        dc: Raw,
+        original: Raw,
+        font: Raw,
+        resource: Raw,
+        apartment: bool,
+    }
     impl Drop for GdiScope {
         fn drop(&mut self) {
             // SAFETY: all handles belong to this request-local scope. Restore
             // the stock font before deleting ours; release private registration
             // only after destroying its DC/font. No handle crosses publication.
             unsafe {
-                if !self.original.is_null() { SelectObject(self.dc, self.original); }
-                if !self.font.is_null() { DeleteObject(self.font); }
-                if !self.dc.is_null() { DeleteDC(self.dc); }
-                if !self.resource.is_null() { RemoveFontMemResourceEx(self.resource); }
-                if self.apartment { CoUninitialize(); }
+                if !self.original.is_null() {
+                    SelectObject(self.dc, self.original);
+                }
+                if !self.font.is_null() {
+                    DeleteObject(self.font);
+                }
+                if !self.dc.is_null() {
+                    DeleteDC(self.dc);
+                }
+                if !self.resource.is_null() {
+                    RemoveFontMemResourceEx(self.resource);
+                }
+                if self.apartment {
+                    CoUninitialize();
+                }
             }
         }
     }
@@ -3768,22 +3846,42 @@ pub mod windows {
         // the synchronous path transaction. GetPath's checked count bounds both
         // initialized writable arrays; no native point buffer is published.
         unsafe {
-            if BeginPath(dc) == 0 { return Ok(None); }
+            if BeginPath(dc) == 0 {
+                return Ok(None);
+            }
             let written = TextOutW(dc, 0, 0, text.as_ptr(), length);
             let ended = EndPath(dc);
-            if written == 0 || ended == 0 { return Ok(None); }
+            if written == 0 || ended == 0 {
+                return Ok(None);
+            }
             let count = GetPath(dc, ptr::null_mut(), ptr::null_mut(), 0);
-            if count <= 0 { return Ok(None); }
-            let charge = (count as u64).checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64).ok_or_else(limited)?;
-            if count as u64 > limits.path_segments_per_frame() || charge > limits.transient_bytes() { return Err(limited()); }
+            if count <= 0 {
+                return Ok(None);
+            }
+            let charge = (count as u64)
+                .checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64)
+                .ok_or_else(limited)?;
+            if count as u64 > limits.path_segments_per_frame() || charge > limits.transient_bytes()
+            {
+                return Err(limited());
+            }
             let count = usize::try_from(count).map_err(|_| limited())?;
             let mut points = Vec::new();
             let mut types = Vec::new();
-            points.try_reserve_exact(count).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "GDI linked path allocation"))?;
-            types.try_reserve_exact(count).map_err(|_| FontError::new(ErrorCode::AllocationFailed, "GDI linked path types allocation"))?;
+            points.try_reserve_exact(count).map_err(|_| {
+                FontError::new(ErrorCode::AllocationFailed, "GDI linked path allocation")
+            })?;
+            types.try_reserve_exact(count).map_err(|_| {
+                FontError::new(
+                    ErrorCode::AllocationFailed,
+                    "GDI linked path types allocation",
+                )
+            })?;
             points.resize(count, GdiPoint::default());
             types.resize(count, 0);
-            if GetPath(dc, points.as_mut_ptr(), types.as_mut_ptr(), count as i32) != count as i32 { return Ok(None); }
+            if GetPath(dc, points.as_mut_ptr(), types.as_mut_ptr(), count as i32) != count as i32 {
+                return Ok(None);
+            }
             Ok(Some(GdiPath { points, types }))
         }
     }
@@ -3791,15 +3889,28 @@ pub mod windows {
     /// Rounded text advances cannot identify these: the MUA bracket's advance
     /// rounds to 1697 Q6 ticks while its EM is 3393, not 3394. A candidate is
     /// accepted only when every path point/type matches at one vertical shift.
-    fn gdi_realization(dc: Raw, font: &LogFont, text: &[u16], linked: &GdiPath, widths: (i32, i32, i32), limits: &Limits) -> Result<Option<(i32, i64)>, FontError> {
+    fn gdi_realization(
+        dc: Raw,
+        font: &LogFont,
+        text: &[u16],
+        linked: &GdiPath,
+        widths: (i32, i32, i32),
+        limits: &Limits,
+    ) -> Result<Option<(i32, i64)>, FontError> {
         let (wanted, ordinary, em) = widths;
-        if ordinary <= 1 || wanted <= 0 || em <= 0 { return Ok(None); }
-        let low = ((f64::from(wanted) - 1.0) * f64::from(em) / (f64::from(ordinary) + 1.0)).floor().max(1.0);
+        if ordinary <= 1 || wanted <= 0 || em <= 0 {
+            return Ok(None);
+        }
+        let low = ((f64::from(wanted) - 1.0) * f64::from(em) / (f64::from(ordinary) + 1.0))
+            .floor()
+            .max(1.0);
         let high = ((f64::from(wanted) + 1.0) * f64::from(em) / (f64::from(ordinary) - 1.0)).ceil();
         // Bound host-admission work, not comparison accuracy. If the interval
         // is broad or ambiguous, retain the existing provider path instead of
         // guessing a realization. No raster pixel tolerance is involved.
-        if high > f64::from(i32::MAX) || high - low > 32.0 { return Ok(None); }
+        if high > f64::from(i32::MAX) || high - low > 32.0 {
+            return Ok(None);
+        }
         let mut found = None;
         for em in low as i32..=high as i32 {
             let mut lf = *font;
@@ -3809,25 +3920,45 @@ pub mod windows {
             // and font deletion; selected font ownership never escapes.
             let observed = unsafe {
                 let candidate = CreateFontIndirectW(&lf);
-                if candidate.is_null() { return Ok(None); }
+                if candidate.is_null() {
+                    return Ok(None);
+                }
                 let old = SelectObject(dc, candidate);
-                if old.is_null() || old as isize == -1 { DeleteObject(candidate); return Ok(None); }
+                if old.is_null() || old as isize == -1 {
+                    DeleteObject(candidate);
+                    return Ok(None);
+                }
                 let result = (|| -> Result<Option<(i32, i64)>, FontError> {
                     let mut tm: TextMetric = std::mem::zeroed();
-                    if GetTextMetricsW(dc, &mut tm) == 0 || tm.height - tm.internal_leading != em { return Ok(None); }
-                    let Some(path) = gdi_path(dc, text, limits)? else { return Ok(None); };
-                    if path.types != linked.types || path.points.len() != linked.points.len() { return Ok(None); }
+                    if GetTextMetricsW(dc, &mut tm) == 0 || tm.height - tm.internal_leading != em {
+                        return Ok(None);
+                    }
+                    let Some(path) = gdi_path(dc, text, limits)? else {
+                        return Ok(None);
+                    };
+                    if path.types != linked.types || path.points.len() != linked.points.len() {
+                        return Ok(None);
+                    }
                     let shift = i64::from(linked.points[0].y) - i64::from(path.points[0].y);
-                    if path.points.iter().zip(&linked.points).all(|(a,b)| a.x == b.x && i64::from(a.y) + shift == i64::from(b.y)) {
+                    if path
+                        .points
+                        .iter()
+                        .zip(&linked.points)
+                        .all(|(a, b)| a.x == b.x && i64::from(a.y) + shift == i64::from(b.y))
+                    {
                         Ok(Some((em, i64::from(tm.ascent) + shift)))
-                    } else { Ok(None) }
+                    } else {
+                        Ok(None)
+                    }
                 })();
                 SelectObject(dc, old);
                 DeleteObject(candidate);
                 result?
             };
             if let Some(observed) = observed {
-                if found.is_some() { return Ok(None); }
+                if found.is_some() {
+                    return Ok(None);
+                }
                 found = Some(observed);
             }
         }
@@ -4111,8 +4242,12 @@ pub mod windows {
         /// The OS supplies candidates and linked advances; HarfBuzz still owns
         /// whole-cluster shaping. No GDI handle is retained by the catalog.
         pub fn extend_catalog_for_style(
-            &mut self, context: &mut FontContext, builder: &mut FontCatalogBuilder,
-            text: &str, style: &ShapeStyle, layout_scale_y: f64,
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            style: &ShapeStyle,
+            layout_scale_y: f64,
         ) -> Result<(), FontError> {
             let request = style.font();
             let catalog = builder.snapshot(&mut CatalogIngestor::new())?;
@@ -4121,8 +4256,8 @@ pub mod windows {
                 Err(error) if error.code() == ErrorCode::FontUnavailable => None,
                 Err(error) => return Err(error),
             };
-            let size = FiniteF64::new(style.font_size().get() * layout_scale_y)
-                .map_err(|_| limited())?;
+            let size =
+                FiniteF64::new(style.font_size().get() * layout_scale_y).map_err(|_| limited())?;
             if !request.vertical() && !request.family().starts_with('@') {
                 if let Some(primary) = primary {
                     if self.gdi_link(context, builder, (&catalog, primary), text, request, size)? {
@@ -4133,31 +4268,68 @@ pub mod windows {
             self.extend_catalog(context, builder, text, request)
         }
         fn gdi_link(
-            &self, context: &mut FontContext, builder: &mut FontCatalogBuilder,
-            base_catalog: (&crate::ValidatedFontCatalog, FontId), text: &str,
-            request: &FontRequest, size: FiniteF64,
+            &self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            base_catalog: (&crate::ValidatedFontCatalog, FontId),
+            text: &str,
+            request: &FontRequest,
+            size: FiniteF64,
         ) -> Result<bool, FontError> {
             let (catalog, primary) = base_catalog;
             // AddFontMemResourceEx is process-private, not thread-private.
             // Serialize its short admission scope so different private fonts
             // with the same family cannot race our own GDI font mapper.
             static ADMISSION: std::sync::Mutex<()> = std::sync::Mutex::new(());
-            let _admission = ADMISSION.lock().map_err(|_| FontError::new(ErrorCode::NativeFailure, "Windows font admission lock poisoned"))?;
+            let _admission = ADMISSION.lock().map_err(|_| {
+                FontError::new(
+                    ErrorCode::NativeFailure,
+                    "Windows font admission lock poisoned",
+                )
+            })?;
             let input = utf16(text, &self.limits)?;
             let length = i32::try_from(input.len() - 1).map_err(|_| limited())?;
-            if length == 0 { return Ok(false); }
+            if length == 0 {
+                return Ok(false);
+            }
             let height = (size.get() * 64.0 + 0.5).floor();
-            if height <= 0.0 || height > f64::from(i32::MAX) { return Err(limited()); }
-            let base_index = catalog.faces().iter().position(|f| f.blob().id() == primary).ok_or_else(limited)?;
+            if height <= 0.0 || height > f64::from(i32::MAX) {
+                return Err(limited());
+            }
+            let base_index = catalog
+                .faces()
+                .iter()
+                .position(|f| f.blob().id() == primary)
+                .ok_or_else(limited)?;
             let base = &catalog.faces()[base_index];
             let family = utf16(base.family(), &self.limits)?;
-            if family.len() > 32 { return Ok(false); }
-            let mut lf = LogFont { height: height as i32, width: 0, escapement: 0, orientation: 0,
-                weight: i32::from(request.weight()), italic: u8::from(request.italic()), underline: 0,
-                strikeout: 0, charset: 1, out_precision: 4, clip_precision: 0, quality: 4,
-                pitch_family: 0, family: [0; 32] };
+            if family.len() > 32 {
+                return Ok(false);
+            }
+            let mut lf = LogFont {
+                height: height as i32,
+                width: 0,
+                escapement: 0,
+                orientation: 0,
+                weight: i32::from(request.weight()),
+                italic: u8::from(request.italic()),
+                underline: 0,
+                strikeout: 0,
+                charset: 1,
+                out_precision: 4,
+                clip_precision: 0,
+                quality: 4,
+                pitch_family: 0,
+                family: [0; 32],
+            };
             lf.family[..family.len()].copy_from_slice(&family);
-            let mut scope = GdiScope { dc: ptr::null_mut(), original: ptr::null_mut(), font: ptr::null_mut(), resource: ptr::null_mut(), apartment: false };
+            let mut scope = GdiScope {
+                dc: ptr::null_mut(),
+                original: ptr::null_mut(),
+                font: ptr::null_mut(),
+                resource: ptr::null_mut(),
+                apartment: false,
+            };
             // SAFETY: validated immutable primary bytes and terminated UTF-16
             // inputs outlive every synchronous GDI/MLang call. SDK structures
             // have C layout and writable outputs of their exact declared size.
@@ -4165,78 +4337,192 @@ pub mod windows {
             // its matching apartment release, including on every early return.
             unsafe {
                 let hr = CoInitializeEx(ptr::null_mut(), 0);
-                if hr >= 0 { scope.apartment = true; }
-                else if hr != 0x80010106_u32 as i32 { return Err(FontError::new(ErrorCode::NativeFailure, "Windows font-link apartment failed").with_native_code(i64::from(hr))); }
+                if hr >= 0 {
+                    scope.apartment = true;
+                } else if hr != 0x80010106_u32 as i32 {
+                    return Err(FontError::new(
+                        ErrorCode::NativeFailure,
+                        "Windows font-link apartment failed",
+                    )
+                    .with_native_code(i64::from(hr)));
+                }
                 let mut count = 0;
-                scope.resource = AddFontMemResourceEx(base.blob().bytes().as_ptr().cast(), u32::try_from(base.blob().bytes().len()).map_err(|_| limited())?, ptr::null_mut(), &mut count);
-                if scope.resource.is_null() || count == 0 { return Ok(false); }
+                scope.resource = AddFontMemResourceEx(
+                    base.blob().bytes().as_ptr().cast(),
+                    u32::try_from(base.blob().bytes().len()).map_err(|_| limited())?,
+                    ptr::null_mut(),
+                    &mut count,
+                );
+                if scope.resource.is_null() || count == 0 {
+                    return Ok(false);
+                }
                 scope.dc = CreateCompatibleDC(ptr::null_mut());
-                if scope.dc.is_null() { return Ok(false); }
+                if scope.dc.is_null() {
+                    return Ok(false);
+                }
                 scope.font = CreateFontIndirectW(&lf);
-                if scope.font.is_null() { return Ok(false); }
+                if scope.font.is_null() {
+                    return Ok(false);
+                }
                 scope.original = SelectObject(scope.dc, scope.font);
-                if scope.original.is_null() || scope.original as isize == -1 { scope.original = ptr::null_mut(); return Ok(false); }
+                if scope.original.is_null() || scope.original as isize == -1 {
+                    scope.original = ptr::null_mut();
+                    return Ok(false);
+                }
                 let mut selected = [0_u16; 128];
                 let selected_len = GetTextFaceW(scope.dc, 128, selected.as_mut_ptr());
-                if selected_len <= 0 || selected_len > 128 { return Ok(false); }
+                if selected_len <= 0 || selected_len > 128 {
+                    return Ok(false);
+                }
                 let end = selected.iter().position(|&c| c == 0).ok_or_else(limited)?;
                 let selected = String::from_utf16(&selected[..end]).map_err(|_| limited())?;
-                if !catalog.matches_family(base_index, &crate::fold_family(&selected, &self.limits)?) { return Ok(false); }
-                if SetBkMode(scope.dc, 1) == 0 { return Ok(false); }
+                if !catalog
+                    .matches_family(base_index, &crate::fold_family(&selected, &self.limits)?)
+                {
+                    return Ok(false);
+                }
+                if SetBkMode(scope.dc, 1) == 0 {
+                    return Ok(false);
+                }
                 let mut raw = ptr::null_mut();
-                check(CoCreateInstance(&MULTILANGUAGE, ptr::null_mut(), 1, &FONTLINK2, &mut raw))?;
+                check(CoCreateInstance(
+                    &MULTILANGUAGE,
+                    ptr::null_mut(),
+                    1,
+                    &FONTLINK2,
+                    &mut raw,
+                ))?;
                 let link = owned(raw)?;
                 let (mut pages, mut covered) = (0_u32, 0_i32);
-                check(call!(link.0, 4, (*const u16, i32, u32, *mut u32, *mut i32) -> i32, input.as_ptr(), length, 0, &mut pages, &mut covered))?;
+                check(
+                    call!(link.0, 4, (*const u16, i32, u32, *mut u32, *mut i32) -> i32, input.as_ptr(), length, 0, &mut pages, &mut covered),
+                )?;
                 // Only a code-page mapping covering the COMPLETE supplied
                 // cluster is admitted. Do not search/register every system font
                 // or use a partial mapping as a character-level shape split.
-                if pages == 0 || covered != length { return Ok(false); }
+                if pages == 0 || covered != length {
+                    return Ok(false);
+                }
                 raw = ptr::null_mut();
                 let hr = call!(link.0, 10, (Raw, u32, u16, *mut Raw) -> i32, scope.dc, pages, 0, &mut raw);
-                if hr < 0 || raw.is_null() { return Ok(false); }
+                if hr < 0 || raw.is_null() {
+                    return Ok(false);
+                }
                 let mapped = raw;
                 // MLang owns this cached font, so ReleaseFont (not DeleteObject)
                 // must run even if a later native call or admission fails.
                 let result = (|| -> Result<bool, FontError> {
                     let mut linked_extent = Extent::default();
-                    if GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut linked_extent) == 0 { return Ok(false); }
+                    if GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut linked_extent)
+                        == 0
+                    {
+                        return Ok(false);
+                    }
                     let mut base_tm: TextMetric = std::mem::zeroed();
-                    if GetTextMetricsW(scope.dc, &mut base_tm) == 0 { return Ok(false); }
-                    let Some(linked_path) = gdi_path(scope.dc, &input, &self.limits)? else { return Ok(false); };
+                    if GetTextMetricsW(scope.dc, &mut base_tm) == 0 {
+                        return Ok(false);
+                    }
+                    let Some(linked_path) = gdi_path(scope.dc, &input, &self.limits)? else {
+                        return Ok(false);
+                    };
                     let previous = SelectObject(scope.dc, mapped);
-                    if previous.is_null() || previous as isize == -1 { return Ok(false); }
+                    if previous.is_null() || previous as isize == -1 {
+                        return Ok(false);
+                    }
                     let mut mapped_extent = Extent::default();
                     let mut tm: TextMetric = std::mem::zeroed();
                     let mut mapped_lf: LogFont = std::mem::zeroed();
-                    let valid = GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut mapped_extent) != 0
-                        && GetTextMetricsW(scope.dc, &mut tm) != 0
-                        && GetObjectW(mapped, std::mem::size_of::<LogFont>() as i32, (&mut mapped_lf as *mut LogFont).cast()) == std::mem::size_of::<LogFont>() as i32;
+                    let valid =
+                        GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut mapped_extent)
+                            != 0
+                            && GetTextMetricsW(scope.dc, &mut tm) != 0
+                            && GetObjectW(
+                                mapped,
+                                std::mem::size_of::<LogFont>() as i32,
+                                (&mut mapped_lf as *mut LogFont).cast(),
+                            ) == std::mem::size_of::<LogFont>() as i32;
                     SelectObject(scope.dc, scope.font);
-                    if !valid || linked_extent.x <= 0 || mapped_extent.x <= 0 || tm.height <= tm.internal_leading { return Ok(false); }
-                    let Some((em, baseline)) = gdi_realization(scope.dc, &mapped_lf, &input, &linked_path, (linked_extent.x, mapped_extent.x, tm.height - tm.internal_leading), &self.limits)? else { return Ok(false); };
+                    if !valid
+                        || linked_extent.x <= 0
+                        || mapped_extent.x <= 0
+                        || tm.height <= tm.internal_leading
+                    {
+                        return Ok(false);
+                    }
+                    let Some((em, baseline)) = gdi_realization(
+                        scope.dc,
+                        &mapped_lf,
+                        &input,
+                        &linked_path,
+                        (
+                            linked_extent.x,
+                            mapped_extent.x,
+                            tm.height - tm.internal_leading,
+                        ),
+                        &self.limits,
+                    )?
+                    else {
+                        return Ok(false);
+                    };
                     let mut raw = ptr::null_mut();
                     check(call!(self._factory.0, 17, (*mut Raw) -> i32, &mut raw))?;
                     let interop = owned(raw)?;
                     raw = ptr::null_mut();
-                    check(call!(interop.0, 3, (*const LogFont, *mut Raw) -> i32, &mapped_lf, &mut raw))?;
+                    check(
+                        call!(interop.0, 3, (*const LogFont, *mut Raw) -> i32, &mapped_lf, &mut raw),
+                    )?;
                     let mapped_font = owned(raw)?;
-                    let path_cost = (linked_path.points.len() as u64).checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64).ok_or_else(limited)?;
-                    let fallback = self.register_file(context, builder, &mapped_font, (input.len() + family.len()) as u64 * 2 + path_cost)?;
+                    let path_cost = (linked_path.points.len() as u64)
+                        .checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64)
+                        .ok_or_else(limited)?;
+                    let fallback = self.register_file(
+                        context,
+                        builder,
+                        &mapped_font,
+                        (input.len() + family.len()) as u64 * 2 + path_cost,
+                    )?;
                     let snapshot = builder.snapshot(&mut CatalogIngestor::new())?;
-                    let probe = snapshot.shape_raw(context, fallback, &crate::shape::NativeRequest {
-                        text, context: 0..text.len(), range: 0..text.len(), rtl: false,
-                        script: u32::from_be_bytes(*b"Zyyy"), language: "und", ligatures: true,
-                        kerning: false, vertical: false,
-                    }, &self.limits, false)?;
-                    if probe.glyphs.is_empty() || probe.glyphs.iter().any(|g| g.glyph == 0) { return Ok(false); }
+                    let probe = snapshot.shape_raw(
+                        context,
+                        fallback,
+                        &crate::shape::NativeRequest {
+                            text,
+                            context: 0..text.len(),
+                            range: 0..text.len(),
+                            rtl: false,
+                            script: u32::from_be_bytes(*b"Zyyy"),
+                            language: "und",
+                            ligatures: true,
+                            kerning: false,
+                            vertical: false,
+                        },
+                        &self.limits,
+                        false,
+                    )?;
+                    if probe.glyphs.is_empty() || probe.glyphs.iter().any(|g| g.glyph == 0) {
+                        return Ok(false);
+                    }
                     let upem = snapshot.ass_cell_metrics(fallback)?.0;
                     let scale = f64::from(em) / (64.0 * f64::from(upem));
                     let scale = FiniteF64::new(scale).map_err(|_| limited())?;
-                    if scale.get() <= 0.0 { return Ok(false); }
-                    let baseline_delta = FiniteF64::new((baseline - i64::from(base_tm.ascent)) as f64 / 64.0).map_err(|_| limited())?;
-                    let advance = FiniteF64::new(f64::from(linked_extent.x) / 64.0).map_err(|_| limited())?;
-                    builder.host_link(crate::catalog::HostLink { primary, fallback, text: std::sync::Arc::from(text), size, scale, request: request.clone(), baseline_delta, advance })?;
+                    if scale.get() <= 0.0 {
+                        return Ok(false);
+                    }
+                    let baseline_delta =
+                        FiniteF64::new((baseline - i64::from(base_tm.ascent)) as f64 / 64.0)
+                            .map_err(|_| limited())?;
+                    let advance =
+                        FiniteF64::new(f64::from(linked_extent.x) / 64.0).map_err(|_| limited())?;
+                    builder.host_link(crate::catalog::HostLink {
+                        primary,
+                        fallback,
+                        text: std::sync::Arc::from(text),
+                        size,
+                        scale,
+                        request: request.clone(),
+                        baseline_delta,
+                        advance,
+                    })?;
                     Ok(true)
                 })();
                 let release = call!(link.0, 8, (Raw) -> i32, mapped);

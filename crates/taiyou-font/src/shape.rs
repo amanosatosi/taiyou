@@ -619,13 +619,29 @@ fn shape_item(
             FiniteF64::new(input.style.font_size().get() * ly).map_err(|_| limited())?;
         let vertical =
             input.style.font().vertical() || input.style.font().family().starts_with('@');
-        let mut linked_group = !vertical;
-        for g in &raw.glyphs {
-            let end = *ends.get(ends.partition_point(|&p| p <= g.cluster)).ok_or_else(limited)?;
+        let ordinary_scale = input.catalog.ass_oriented_font_scale(face.id(), cell_size, vertical)?.get();
+        let mut linked_group = !vertical && input.catalog.has_host_font_links();
+        for g in raw.glyphs.iter().take(if linked_group { raw.glyphs.len() } else { 0 }) {
+            let end = *ends
+                .get(ends.partition_point(|&p| p <= g.cluster))
+                .ok_or_else(limited)?;
             let cluster = map.decoded_span(g.cluster..end)?;
-            linked_group &= input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size, input.style.font()).is_some();
+            linked_group &= input
+                .catalog
+                .host_link(
+                    input.primary,
+                    face.id(),
+                    cluster.text(),
+                    cell_size,
+                    input.style.font(),
+                )
+                .is_some();
         }
-        let metric_font = if linked_group { input.primary } else { face.id() };
+        let metric_font = if linked_group {
+            input.primary
+        } else {
+            face.id()
+        };
         let baseline_offset =
             input
                 .catalog
@@ -647,9 +663,10 @@ fn shape_item(
                     .checked_add(raw.glyphs.len())
                     .ok_or_else(limited)?,
             metrics: {
-                let m = input
-                    .catalog
-                    .ass_oriented_line_metrics(metric_font, cell_size, vertical)?;
+                let m =
+                    input
+                        .catalog
+                        .ass_oriented_line_metrics(metric_font, cell_size, vertical)?;
                 RunMetrics::new(
                     finite(m.ascent().get() / ly)?,
                     finite(m.descent().get() / ly)?,
@@ -672,19 +689,41 @@ fn shape_item(
                 .get(ends.partition_point(|&p| p <= g.cluster))
                 .ok_or_else(|| error(ErrorCode::NativeFailure, "missing HarfBuzz cluster end"))?;
             let cluster = map.decoded_span(g.cluster..end)?;
-            let scale = input.catalog.admitted_font_scale(input.primary, face.id(), cluster.text(), cell_size, input.style.font(), vertical)?.get();
-            let link = if vertical { None } else { input.catalog.host_link(input.primary, face.id(), cluster.text(), cell_size, input.style.font()) };
+            let link = if vertical {
+                None
+            } else {
+                input.catalog.host_link(
+                    input.primary,
+                    face.id(),
+                    cluster.text(),
+                    cell_size,
+                    input.style.font(),
+                )
+            };
+            let scale = link.map_or(ordinary_scale, |link| link.scale.get());
             let baseline_offset = if let Some(link) = link {
-                (input.catalog.ass_oriented_baseline_offset(input.primary, cell_size, vertical)? + link.baseline_delta.get()) / ly
-            } else { baseline_offset };
+                (input
+                    .catalog
+                    .ass_oriented_baseline_offset(input.primary, cell_size, vertical)?
+                    + link.baseline_delta.get())
+                    / ly
+            } else {
+                baseline_offset
+            };
             // Retain HarfBuzz's complete cluster and mark offsets. GDI's rounded
             // linked advance is applied once, on the final glyph of the cluster.
             cluster_advance += f64::from(g.advance_x) * scale;
-            let adjustment = if raw.glyphs.get(glyph_index + 1).is_none_or(|next| next.cluster != g.cluster) {
+            let adjustment = if raw
+                .glyphs
+                .get(glyph_index + 1)
+                .is_none_or(|next| next.cluster != g.cluster)
+            {
                 let adjustment = link.map_or(0.0, |link| link.advance.get() - cluster_advance);
                 cluster_advance = 0.0;
                 adjustment
-            } else { 0.0 };
+            } else {
+                0.0
+            };
             let position = GlyphPosition::new(
                 finite((f64::from(g.advance_x) * scale + adjustment) / lx)?,
                 finite(-f64::from(g.advance_y) * scale / ly)?,

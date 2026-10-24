@@ -31,8 +31,17 @@ pub(super) fn extend(
         }
         if let Some(source) = &mut source {
             #[cfg(windows)]
-            source.extend_catalog_for_style(context, builder, text, style,
-                parsed.track().script().layout_res().map_or(1.0, |res| f64::from(res.height()) / f64::from(parsed.track().script().play_res().height())))
+            source
+                .extend_catalog_for_style(
+                    context,
+                    builder,
+                    text,
+                    style,
+                    parsed.track().script().layout_res().map_or(1.0, |res| {
+                        f64::from(res.height())
+                            / f64::from(parsed.track().script().play_res().height())
+                    }),
+                )
                 .map_err(font_error)?;
             #[cfg(not(windows))]
             source
@@ -68,22 +77,35 @@ pub(super) fn extend(
                     })
                 })
                 .ok_or_else(|| invalid("missing cluster has no evaluated font request"))?;
-            discover(
-                missing.decoded.text(),
-                run.shaping(),
-                context,
-                builder,
-            )?;
+            discover(missing.decoded.text(), run.shaping(), context, builder)?;
         }
         #[cfg(windows)]
         for glyph in shaped.runs().iter().flat_map(|r| r.glyphs()) {
-            let run = event.runs().iter().find(|r| r.decoded().is_some_and(|s| s.start() <= glyph.cluster().start() && glyph.cluster().start() < s.end()))
+            let run = event
+                .runs()
+                .iter()
+                .find(|r| {
+                    r.decoded().is_some_and(|s| {
+                        s.start() <= glyph.cluster().start() && glyph.cluster().start() < s.end()
+                    })
+                })
                 .ok_or_else(|| invalid("host cluster has no evaluated font request"))?;
-            let primary = resolve_family(&catalog, run.shaping().font(), limits).map_err(font_error)?;
-            let ly = parsed.track().script().layout_res().map_or(1.0, |res| f64::from(res.height()) / f64::from(parsed.track().script().play_res().height()));
+            let primary =
+                resolve_family(&catalog, run.shaping().font(), limits).map_err(font_error)?;
+            let ly = parsed.track().script().layout_res().map_or(1.0, |res| {
+                f64::from(res.height()) / f64::from(parsed.track().script().play_res().height())
+            });
             let size = FiniteF64::new(run.shaping().font_size().get() * ly).map_err(parse_error)?;
-            let vertical = run.shaping().font().vertical() || run.shaping().font().family().starts_with('@');
-            if catalog.needs_host_font_link(primary, glyph.font(), glyph.cluster().text(), size, run.shaping().font(), vertical) {
+            let vertical =
+                run.shaping().font().vertical() || run.shaping().font().family().starts_with('@');
+            if catalog.needs_host_font_link(
+                primary,
+                glyph.font(),
+                glyph.cluster().text(),
+                size,
+                run.shaping().font(),
+                vertical,
+            ) {
                 discover(glyph.cluster().text(), run.shaping(), context, builder)?;
             }
         }
