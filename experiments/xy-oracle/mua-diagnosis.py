@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import uuid
 
 import oracle
 import parallel
@@ -57,6 +58,7 @@ def gdi_metrics(font, texts, families):
     dc = create_dc(None)
     assert dc
     rows = []
+    mapped_candidates = []
     try:
         assert background(dc, 1)
         for family in sorted(families):
@@ -70,6 +72,46 @@ def gdi_metrics(font, texts, families):
                     assert face(dc, 256, actual)
                     tm = Metrics()
                     assert metrics(dc, C.byref(tm))
+                    if family == "MUA Office" and underline == 0:
+                        # This is a bounded GDI-era candidate probe, not an
+                        # assertion that MLang and TextOut link identically.
+                        # SDK IMLangFontLink2 inherits four IMLangCodePages
+                        # methods: MapFont/ReleaseFont are vtable slots 10/8.
+                        ole = C.OleDLL("ole32")
+                        ole.CoInitializeEx(None, 2)
+                        clsid = (C.c_byte * 16).from_buffer_copy(uuid.UUID("275c23e2-3747-11d0-9fea-00aa003f8646").bytes_le)
+                        iid = (C.c_byte * 16).from_buffer_copy(uuid.UUID("dccfc162-2b38-11d2-b7ec-00c04f8f5d9a").bytes_le)
+                        link = C.c_void_p()
+                        ole.CoCreateInstance(C.byref(clsid), None, 1, C.byref(iid), C.byref(link))
+                        assert link.value
+                        vtable = C.cast(link, C.POINTER(C.POINTER(C.c_void_p))).contents
+                        map_font = C.WINFUNCTYPE(C.c_long, C.c_void_p, W.HDC, W.DWORD, W.WCHAR, C.POINTER(W.HFONT))(vtable[10])
+                        release_font = C.WINFUNCTYPE(C.c_long, C.c_void_p, W.HFONT)(vtable[8])
+                        release_link = C.WINFUNCTYPE(W.ULONG, C.c_void_p)(vtable[2])
+                        try:
+                            for char in "〈〉":
+                                mapped = W.HFONT()
+                                hr = map_font(link, dc, 0, char, C.byref(mapped))
+                                assert hr >= 0 and mapped.value, f"MLang MapFont {hr}"
+                                old = select(dc, mapped)
+                                try:
+                                    mapped_name = C.create_unicode_buffer(256)
+                                    mapped_tm = Metrics()
+                                    assert face(dc, 256, mapped_name) and metrics(dc, C.byref(mapped_tm))
+                                    assert begin(dc) and text_out(dc, 0, 0, char, 1) and end(dc)
+                                    length = get_path(dc, None, None, 0)
+                                    assert 0 < length < 20000
+                                    points, types = (Point * length)(), (W.BYTE * length)()
+                                    assert get_path(dc, points, types, length) == length
+                                    mapped_candidates.append({"character": char, "family": mapped_name.value,
+                                        "metrics": {name: getattr(mapped_tm, name) for name, _ in mapped_tm._fields_},
+                                        "points_q6": [[p.x, p.y, t] for p, t in zip(points, types)]})
+                                finally:
+                                    select(dc, old)
+                                    assert release_font(link, mapped) >= 0
+                        finally:
+                            release_link(link)
+                            ole.CoUninitialize()
                     for text in texts:
                         n = len(text.encode("utf-16-le")) // 2
                         size = Size()
@@ -92,7 +134,7 @@ def gdi_metrics(font, texts, families):
     finally:
         delete_dc(dc)
         remove(resource)
-    return rows
+    return {"textout": rows, "mlang_candidates": mapped_candidates}
 
 
 def visible(raw, width, height):
@@ -105,9 +147,19 @@ def main():
     assert os.environ.get("GITHUB_ACTIONS") == "true" and os.name == "nt"
     p = argparse.ArgumentParser()
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--gdi-only", action="store_true")
     args = p.parse_args()
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
+    if args.gdi_only:
+        font = Path(os.environ["MUA_OFFICE_FONT"])
+        texts = ["စမ်းမယ်", "〈〉", "〈စမ်းမယ်〉"]
+        data = gdi_metrics(font, texts, {"MUA Office"})
+        families = {r["family"] for r in data["mlang_candidates"]} - {"MUA Office"}
+        data["candidate_textout"] = gdi_metrics(font, texts, families)["textout"]
+        (out / "gdi-link.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("MLANG_CANDIDATES=" + json.dumps(data["mlang_candidates"], ensure_ascii=False), flush=True)
+        return
     corpus = Path(os.environ["TAIYOU_CORPUS"])
     release = Path(os.environ["RUNNER_TEMP"]) / "xy-vsfilter-release"
     binary = oracle.ROOT / "target/debug/taiyou.exe"

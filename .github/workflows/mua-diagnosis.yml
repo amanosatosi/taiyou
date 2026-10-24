@@ -13,6 +13,22 @@ concurrency:
   group: mua-diagnosis-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  gdi-link:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: python experiments/xy-oracle/acquire-mua.py
+      - shell: pwsh
+        run: python experiments/xy-oracle/mua-diagnosis.py --gdi-only --output "$env:RUNNER_TEMP/gdi-link"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mua-gdi-link-${{ github.sha }}
+          path: ${{ runner.temp }}/gdi-link/
+          retention-days: 7
   diagnosis:
     runs-on: windows-2022
     timeout-minutes: 35
