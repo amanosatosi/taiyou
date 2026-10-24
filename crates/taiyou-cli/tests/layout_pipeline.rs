@@ -38,8 +38,16 @@ fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coales
         assert_eq!(l.glyphs().len(), glyph_count);
         if glyph_count == 2 {
             let advance = 292.0 * (965.0 / 64000.0);
-            assert_eq!(l.glyphs()[1].position().x().get(), advance);
-            assert_eq!(l.lines()[0].advance().get(), advance + advance * 2.0);
+            let word_extent = |width: f64| ((width * 64.0 + 4.0).trunc() as i64 >> 3) as f64 / 8.0;
+            // The geometry override creates two CText words. Each has a
+            // rounded extent; neither immutable shaped advance is rounded.
+            assert_eq!(s.runs()[0].glyphs()[0].advance_x().get(), advance);
+            assert_eq!(s.runs()[1].glyphs()[0].advance_x().get(), advance);
+            assert_eq!(l.glyphs()[1].position().x().get(), word_extent(advance));
+            assert_eq!(
+                l.lines()[0].advance().get(),
+                word_extent(advance) + word_extent(advance * 2.0)
+            );
         }
     }
 }

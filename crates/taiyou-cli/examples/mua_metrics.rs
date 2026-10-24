@@ -58,6 +58,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             catalog.decoration_metrics(&mut context, id)?
         );
     }
+    let primary = resolve_family(&catalog, event.runs()[0].shaping().font(), &limits)?;
+    let mut pen_x = 0.0;
     for run in shaped.runs() {
         println!(
             "RUN text={:?} metrics={:?} face_metrics={:?}",
@@ -76,6 +78,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 g.offset_x(),
                 g.offset_y()
             );
+            // Diagnostic only: preserve FreeType's design-unit commands and
+            // expose their pre-placement native coordinates for comparison
+            // with the independent GDI TextOut/GetPath capture. No raster or
+            // reference expectation is generated from these observations.
+            let scale = catalog
+                .admitted_font_scale(
+                    primary,
+                    g.font(),
+                    g.cluster().text(),
+                    FiniteF64::new(60.0)?,
+                    event.runs()[0].shaping().font(),
+                    false,
+                )?
+                .get();
+            let outline = catalog.outline(&mut context, g.font(), g.glyph(), &limits)?;
+            println!(
+                "NATIVE_GLYPH start={} glyph={} pen={} baseline={} scale={}",
+                g.cluster().start(),
+                g.glyph(),
+                (pen_x + g.offset_x().get()) * 64.0,
+                (run.metrics().ascent().get() + g.offset_y().get()) * 64.0,
+                scale * 64.0
+            );
+            for op in outline.outline().ops() {
+                let point = |p: FontPoint| (p.x().get(), p.y().get());
+                match *op {
+                    PathOp::MoveTo(p) => println!("NATIVE_PATH M {:?}", point(p)),
+                    PathOp::LineTo(p) => println!("NATIVE_PATH L {:?}", point(p)),
+                    PathOp::QuadTo(a, b) => println!("NATIVE_PATH Q {:?} {:?}", point(a), point(b)),
+                    PathOp::CubicTo(a, b, c) => println!(
+                        "NATIVE_PATH C {:?} {:?} {:?}",
+                        point(a),
+                        point(b),
+                        point(c)
+                    ),
+                    PathOp::Close => println!("NATIVE_PATH Z"),
+                }
+            }
+            pen_x += g.advance_x().get();
         }
     }
     assert!(
