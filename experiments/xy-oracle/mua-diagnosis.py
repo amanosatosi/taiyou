@@ -2,6 +2,8 @@
 import argparse
 import ctypes as C
 from ctypes import wintypes as W
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -50,6 +52,7 @@ def gdi_metrics(font, texts, families):
     end = api("EndPath", W.BOOL, W.HDC)
     text_out = api("TextOutW", W.BOOL, W.HDC, C.c_int, C.c_int, W.LPCWSTR, C.c_int)
     get_path = api("GetPath", C.c_int, W.HDC, C.POINTER(Point), C.POINTER(W.BYTE), C.c_int)
+    font_data = api("GetFontData", W.DWORD, W.HDC, W.DWORD, W.DWORD, W.LPVOID, W.DWORD)
     background = api("SetBkMode", C.c_int, W.HDC, C.c_int)
     data = C.create_string_buffer(font.read_bytes())
     count = W.DWORD()
@@ -59,6 +62,7 @@ def gdi_metrics(font, texts, families):
     assert dc
     rows = []
     mapped_candidates = []
+    sibling_faces = []
     try:
         assert background(dc, 1)
         for family in sorted(families):
@@ -102,6 +106,24 @@ def gdi_metrics(font, texts, families):
                                     mapped_name = C.create_unicode_buffer(256)
                                     mapped_tm = Metrics()
                                     assert face(dc, 256, mapped_name) and metrics(dc, C.byref(mapped_tm))
+                                    if not sibling_faces:
+                                        from fontTools.ttLib import TTCollection, TTFont
+                                        tag = int.from_bytes(b"ttcf", "little")
+                                        size = font_data(dc, tag, 0, None, 0)
+                                        if size == 0xFFFFFFFF:
+                                            tag, size = 0, font_data(dc, 0, 0, None, 0)
+                                        assert 0 < size <= 64 * 1024 * 1024
+                                        buffer = C.create_string_buffer(size)
+                                        assert font_data(dc, tag, 0, buffer, size) == size
+                                        content = buffer.raw
+                                        fonts = TTCollection(io.BytesIO(content)).fonts if content[:4] == b"ttcf" else [TTFont(io.BytesIO(content))]
+                                        for sfnt in fonts:
+                                            sibling_faces.append({"family": sfnt["name"].getDebugName(1),
+                                                "upem": sfnt["head"].unitsPerEm,
+                                                "win_ascent": sfnt["OS/2"].usWinAscent,
+                                                "win_descent": sfnt["OS/2"].usWinDescent,
+                                                "file_sha256": hashlib.sha256(content).hexdigest()})
+                                            sfnt.close()
                                     assert begin(dc) and text_out(dc, 0, 0, char, 1) and end(dc)
                                     length = get_path(dc, None, None, 0)
                                     assert 0 < length < 20000
@@ -138,7 +160,7 @@ def gdi_metrics(font, texts, families):
     finally:
         delete_dc(dc)
         remove(resource)
-    return {"textout": rows, "mlang_candidates": mapped_candidates}
+    return {"textout": rows, "mlang_candidates": mapped_candidates, "sibling_faces": sibling_faces}
 
 
 def visible(raw, width, height):
@@ -159,10 +181,10 @@ def main():
         font = Path(os.environ["MUA_OFFICE_FONT"])
         texts = ["စမ်းမယ်", "〈〉", "〈စမ်းမယ်〉"]
         data = gdi_metrics(font, texts, {"MUA Office"})
-        families = {r["family"] for r in data["mlang_candidates"]} - {"MUA Office"}
+        families = {r["family"] for r in data["mlang_candidates"] + data["sibling_faces"]} - {"MUA Office"}
         data["candidate_textout"] = gdi_metrics(font, texts, families)["textout"]
         (out / "gdi-link.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        print("MLANG_CANDIDATES=" + json.dumps(data["mlang_candidates"], ensure_ascii=False), flush=True)
+        print("MLANG_CANDIDATES=" + json.dumps(data["mlang_candidates"]), flush=True)
         return
     corpus = Path(os.environ["TAIYOU_CORPUS"])
     release = Path(os.environ["RUNNER_TEMP"]) / "xy-vsfilter-release"

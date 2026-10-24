@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+      - run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - run: python experiments/xy-oracle/acquire-mua.py
       - shell: pwsh
         run: python experiments/xy-oracle/mua-diagnosis.py --gdi-only --output "$env:RUNNER_TEMP/gdi-link"
