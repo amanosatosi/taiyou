@@ -97,10 +97,15 @@ int main(int argc, char **argv) {
         require(face->glyph->format == FT_GLYPH_FORMAT_OUTLINE);
         FT_Outline *outline = &face->glyph->outline;
         double advance = face->glyph->metrics.horiAdvance * scale;
+        /* Owner-authorized correction: RTS.cpp CText::GetTextInfo stores a
+         * rounded eighth-pixel word extent; CLine::PaintAll divides its integer
+         * m_width by two for centering. Keep the independent path/raster and
+         * every alignment/color/zero-tolerance comparison unchanged. */
+        long word_eighths = (long)(advance * 64.0 + 4.0) >> 3;
         int col = (a - 1) % 3, row = (a - 1) / 3;
         double x = col == 0 ? 10.0 : col == 1 ? 80.0 : 150.0;
         double y = row == 0 ? 90.0 : row == 1 ? 50.0 : 10.0;
-        x -= col == 0 ? 0.0 : col == 1 ? advance / 2.0 : advance;
+        x -= col == 0 ? 0.0 : col == 1 ? (word_eighths / 2) / 8.0 : word_eighths / 8.0;
         y += row == 0 ? -descent : row == 1 ? (ascent - descent) / 2.0 : ascent;
         if (a == 10) { x = -2.0; y = -8.0 + ascent; }
         y += floor(os2->usWinAscent * scale * 64.0 + 0.5) / 64.0 - ascent;
