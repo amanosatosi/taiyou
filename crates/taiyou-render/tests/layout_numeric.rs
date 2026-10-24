@@ -142,6 +142,41 @@ fn event(text: &str, runs: Vec<R>, empty: &[(u32, f64, f64)], style: Style) -> S
 fn constraints(n: u8) -> LayoutConstraints {
     LayoutConstraints::new(Alignment::new(n).unwrap())
 }
+#[test]
+fn native_word_extents_round_before_alignment_without_rounding_each_glyph() {
+    // Authenticated GDI witnesses: Fansub Block's A measures 6210 native Q6
+    // ticks. CText stores (6210+4)>>3 = 776 eighth-pixels, i.e. 97 pixels.
+    let input = event("A", vec![r(0..1, 0, 8.0, 2.0, vec![g(1, 0..1, 6210.0 / 64.0)])], &[], Style::core_default());
+    for alignment in 1..=9 {
+        let output = layout(&input, &constraints(alignment)).unwrap();
+        let x = -97.0 * f64::from((alignment - 1) % 3) / 2.0;
+        assert_eq!(output.lines()[0].advance(), f(97.0));
+        assert_eq!(output.glyphs()[0].position().x(), f(x));
+        assert_eq!(output.shaped().runs()[0].glyphs()[0].advance_x(), f(6210.0 / 64.0));
+    }
+    // A script/font item boundary inside the same evaluated word is not a word
+    // extent boundary. Keep its internal advance, then round the combined word.
+    let input = event("ab", vec![r(0..1, 0, 8.0, 2.0, vec![g(1, 0..1, 25.546875)]), r(1..2, 0, 8.0, 2.0, vec![g(2, 1..2, 25.546875)])], &[], Style::core_default());
+    let output = layout(&input, &constraints(5)).unwrap();
+    assert_eq!(output.lines()[0].advance(), f(51.125));
+    assert_eq!(output.glyphs()[0].position().x(), f(-25.5625));
+    assert_eq!(output.glyphs()[1].position().x(), f(-0.015625));
+}
+
+#[test]
+fn following_words_use_rounded_extents_in_the_physical_metric_grid() {
+    let input = event("ab cd", vec![r(0..5, 0, 8.0, 2.0, vec![g(1, 0..1, 26.515625), g(2, 1..2, 26.515625), g(3, 2..3, 0.28125), g(4, 3..4, 10.03125), g(5, 4..5, 10.03125)])], &[], Style::core_default());
+    let output = layout(&input, &constraints(7)).unwrap();
+    assert_eq!(output.lines()[0].advance(), f(73.375));
+    assert_eq!(output.glyphs().iter().map(|g| g.position().x().get()).collect::<Vec<_>>(), [0.0, 26.515625, 53.0, 53.25, 63.28125]);
+    let input = event("ab", vec![r(0..2, 0, 8.0, 2.0, vec![g(1, 0..1, 26.515625), g(2, 1..2, 26.515625)])], &[], Style::core_default());
+    let output = layout(&input, &constraints(5).with_metric_scale_x(f(2.0)).unwrap()).unwrap();
+    assert_eq!(output.lines()[0].advance(), f(53.0625));
+    assert_eq!(output.glyphs()[0].position().x(), f(-26.53125));
+    for bad in [0.0, -1.0] {
+        assert_eq!(constraints(5).with_metric_scale_x(f(bad)).unwrap_err().code(), ErrorCode::InvalidArgument);
+    }
+}
 fn multiline() -> ShapedEvent {
     let a = g(1, 0..1, 10.0);
     let mut b = g(2, 1..2, 10.0);

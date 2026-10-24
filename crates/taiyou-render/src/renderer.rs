@@ -235,6 +235,7 @@ fn prepare_local(
     let stage_held = add(stage_held, shape_charge)?;
     let mut constraints = LayoutConstraints::new(shaped.placement().alignment())
         .with_wrap(evaluated.wrap_mode())
+        .with_metric_scale_x(FiniteF64::new(device_mapping(track, request)?.layout_scale()[0]).map_err(convert)?)?
         .with_limits(available(limits, stage_held)?);
     if evaluated.wrap_mode().get() != 2 {
         let style_index = usize::try_from(event.style().index()).map_err(|_| limited())?;
