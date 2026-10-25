@@ -24,6 +24,7 @@ fn zeros<T: Default + Clone>(n: usize) -> Result<Vec<T>, RenderError> {
 /// Resolved target-space filter. Target scale is output/original-video size,
 /// not text scale or SBAS. LayoutRes overrides the host's original video size;
 /// without either, target scale is (1,1).
+#[derive(Clone, Debug, PartialEq)]
 pub struct BlurSpec {
     gaussian: bool,
     sigma: [f64; 2],
@@ -178,6 +179,14 @@ fn extent(
     Ok((bounds, bounds.width() as usize, bounds.height() as usize))
 }
 
+/// Preserve the original full combined extent/scratch checks on retained hits.
+pub(crate) fn preflight_effects(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<(), RenderError> {
+    if spec.active && !mask.bounds().is_empty() {
+        extent(mask, spec.support(), limits)?;
+    }
+    Ok(())
+}
+
 /// Immutable full-support filtering, before viewport/clip composition.
 pub fn apply_effects(
     mask: &Arc<Mask>,
@@ -188,7 +197,7 @@ pub fn apply_effects(
         return Ok(mask.clone());
     }
     // Preflight the entire combined operation before any filtering/allocation.
-    extent(mask, spec.support(), limits)?;
+    preflight_effects(mask, spec, limits)?;
     let mut result = mask.clone();
     if spec.gaussian {
         result = gaussian(&result, spec, limits)?;

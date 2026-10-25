@@ -5,6 +5,8 @@ use std::num::NonZeroUsize;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CacheConfig {
     Disabled,
+    /// Retain raster masks, bypassing filtered-result retention for diagnostics.
+    MasksOnly,
     /// Bounded intermediate retention within Limits::cache_bytes().
     Bounded,
 }

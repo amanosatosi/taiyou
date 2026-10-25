@@ -18,11 +18,21 @@ fn main() {
         std::fs::File::create(std::env::var("TAIYOU_PERF_FAILURES").unwrap()).unwrap();
     writeln!(failures, "workload\twidth\tscenario\tresult").unwrap();
     let mut failed = false;
-    let cached = std::env::var("TAIYOU_PERF_CACHE").is_ok_and(|v|v=="on");
-    let cache_label = if cached { "on" } else { "off" };
+    let cache_mode = std::env::var("TAIYOU_PERF_CACHE").unwrap_or_else(|_|"off".into());
+    assert!(["off","masks","on"].contains(&cache_mode.as_str()));
+    let cached = cache_mode != "off";
+    let cache_label = cache_mode.as_str();
     let config = RendererConfig {
-        limits: limits.clone().with_cache_bytes(if cached { 128 * 1024 * 1024 } else { 0 }),
-        cache: if cached { CacheConfig::Bounded } else { CacheConfig::Disabled },
+        limits: limits
+            .clone()
+            .with_cache_bytes(if cached { 128 * 1024 * 1024 } else { 0 }),
+        cache: if cache_mode == "masks" {
+            CacheConfig::MasksOnly
+        } else if cached {
+            CacheConfig::Bounded
+        } else {
+            CacheConfig::Disabled
+        },
         ..Default::default()
     };
     let mut context = FontContext::with_limits(limits.clone()).unwrap();
@@ -136,8 +146,8 @@ fn main() {
                     unsupported: UnsupportedPolicy::Strict,
                 };
                 // Correctness is strict and outside the timed region.
-                let mut uncached_config=config.clone();
-                uncached_config.cache=CacheConfig::Disabled;
+                let mut uncached_config = config.clone();
+                uncached_config.cache = CacheConfig::Disabled;
                 let expected = Renderer::new(uncached_config).unwrap().render(
                     parsed.track().clone(),
                     fonts.clone(),
@@ -216,7 +226,11 @@ fn main() {
                         t.span_union.as_nanos(),
                         t.mask_generation.as_nanos(),
                         t.mask_combination.as_nanos(),
-                        c.hits,c.misses,c.evictions,c.entries,c.retained_bytes
+                        c.hits,
+                        c.misses,
+                        c.evictions,
+                        c.entries,
+                        c.retained_bytes
                     );
                 }
             }

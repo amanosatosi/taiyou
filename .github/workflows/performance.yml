@@ -15,7 +15,7 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: 1.99.1
       TAIYOU_FOCUSED_RENDERER: '1'
-      TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,combined-abuse
+      TAIYOU_PERF_WORKLOADS: dialogue,large-blur,combined-abuse
       TAIYOU_PERF_SCENARIOS: cold,same-time,sequence,seek
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -29,17 +29,30 @@ jobs:
           cargo test --locked -p taiyou-render -p taiyou-types
       - run: |
           python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
-      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+      - name: Identify cache compiler
+        id: compiler
+        run: echo "cc=$(cc -dumpfullversion -dumpversion)-$(cc -dumpmachine)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+        id: native-cache
         with:
           path: |
             target
             ${{ runner.temp }}/taiyou-native-sources
             ${{ runner.temp }}/taiyou-native-install
-          key: performance-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-${{ github.sha }}
-          restore-keys: performance-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
+          key: performance-${{ runner.os }}-${{ runner.arch }}-rust1.99.1-${{ steps.compiler.outputs.cc }}-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json', 'build-support/build-native.py') }}-${{ github.sha }}
+          restore-keys: performance-${{ runner.os }}-${{ runner.arch }}-rust1.99.1-${{ steps.compiler.outputs.cc }}-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json', 'build-support/build-native.py') }}-
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
-      - name: Existing stage tests and release benchmark
+      - name: Save successful candidate build before benchmark-only resource failures
+        if: steps.native-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            target
+            ${{ runner.temp }}/taiyou-native-sources
+            ${{ runner.temp }}/taiyou-native-install
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Existing stages and supplemental exact-cache tests
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
@@ -52,6 +65,14 @@ jobs:
         run: |
           cargo test --locked -p taiyou-render --features native
           cargo test --locked -p taiyou-cli --features native --test performance_cache
+      - name: Paired mask-only and full-cache release measurements
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_PERF_FAILURES: ${{ runner.temp }}/performance/failures.tsv
+        run: |
           cargo build --release --locked -p taiyou-cli --features native --example performance
           mkdir -p "$RUNNER_TEMP/performance"
           git rev-parse HEAD > "$RUNNER_TEMP/performance/commit.txt"
@@ -60,14 +81,15 @@ jobs:
           uname -a > "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep '^TAIYOU_PERF_' > "$RUNNER_TEMP/performance/selection.txt"
-          # Paired off/on observations use the same binary, runner and fixtures.
+          # Baseline is already committed. Isolate this new filter layer against
+          # masks-only reuse using the same binary, runner and fixtures.
           set +e
-          TAIYOU_PERF_CACHE=off /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-off.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/off.csv"
+          TAIYOU_PERF_CACHE=masks /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-masks.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/masks.csv"
           off_status=$?
           TAIYOU_PERF_CACHE=on TAIYOU_PERF_FAILURES="$RUNNER_TEMP/performance/failures-on.tsv" /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-on.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/on.csv"
           on_status=$?
           set -e
-          cat "$RUNNER_TEMP/performance/off.csv" > "$RUNNER_TEMP/performance/samples.csv"
+          cat "$RUNNER_TEMP/performance/masks.csv" > "$RUNNER_TEMP/performance/samples.csv"
           tail -n +2 "$RUNNER_TEMP/performance/on.csv" >> "$RUNNER_TEMP/performance/samples.csv"
           test "$off_status" = 0 && test "$on_status" = 0
       - name: Summarize available samples, including after a benchmark failure

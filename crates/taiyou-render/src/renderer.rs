@@ -68,10 +68,10 @@ fn filter_mask(
     event_charge: u64,
     limits: &Limits,
     timings: &mut crate::timing::StageTimings,
+    masks: &mut crate::cache::MaskCache,
 ) -> Result<Arc<Mask>, RenderError> {
     let timer = timings.start();
-    let filtered =
-        crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+    let filtered = masks.filter(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
     timings.effects += crate::timing::StageTimings::elapsed(timer);
     if !Arc::ptr_eq(&mask, &filtered) {
         charge_mask(&filtered, held, event_charge, limits)?;
@@ -418,7 +418,11 @@ impl Renderer {
         }
         let output = OutputBudget::new(&config.limits);
         #[cfg(feature = "native")]
-        let masks = crate::cache::MaskCache::new(if config.cache == CacheConfig::Bounded { config.limits.cache_bytes() } else { 0 });
+        let masks = crate::cache::MaskCache::new(if config.cache != CacheConfig::Disabled {
+            config.limits.cache_bytes()
+        } else {
+            0
+        }).with_filter_retention(config.cache == CacheConfig::Bounded);
         Ok(Self {
             config,
             #[cfg(feature = "native")]
@@ -996,7 +1000,9 @@ impl Renderer {
                         [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let mut fill = self.masks.fill(&mut fill_context, group, &mut self.timings)?;
+                    let mut fill = self
+                        .masks
+                        .fill(&mut fill_context, group, &mut self.timings)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
@@ -1094,6 +1100,7 @@ impl Renderer {
                             event_charge,
                             limits,
                             &mut self.timings,
+                            &mut self.masks,
                         )?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
@@ -1112,6 +1119,7 @@ impl Renderer {
                             event_charge,
                             limits,
                             &mut self.timings,
+                            &mut self.masks,
                         )?;
                         expanded = Some(mask.clone());
                         if box_outline && state.paint().outline().a() != 0 {
@@ -1148,6 +1156,7 @@ impl Renderer {
                             event_charge,
                             limits,
                             &mut self.timings,
+                            &mut self.masks,
                         )?;
                         // RTS.cpp's outline fBody flag and libass's
                         // FILTER_FILL_IN_BORDER retain E under opaque primary
@@ -1218,6 +1227,7 @@ impl Renderer {
                                 event_charge,
                                 limits,
                                 &mut self.timings,
+                                &mut self.masks,
                             )?
                         } else if border_exists {
                             let remaining = limits
@@ -1248,6 +1258,7 @@ impl Renderer {
                                 event_charge,
                                 limits,
                                 &mut self.timings,
+                                &mut self.masks,
                             )?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
@@ -1270,6 +1281,7 @@ impl Renderer {
                                 event_charge,
                                 limits,
                                 &mut self.timings,
+                                &mut self.masks,
                             )?
                         };
                         if !opaque && border_exists && !state.shadow_has_fill() {
