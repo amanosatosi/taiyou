@@ -129,7 +129,7 @@ pub fn coverage_groups(
             line_index += 1;
         }
         let opaque = state(start).effects().border_style() == BorderStyle::OpaqueBox;
-        let line_end = if opaque {
+        let line_end = if opaque || state(start).karaoke().is_some() {
             event
                 .layout()
                 .lines()
@@ -148,7 +148,7 @@ pub fn coverage_groups(
                 || a.geometry() != b.geometry()
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
-                || a.karaoke() != b.karaoke()
+                || !karaoke_append(a.karaoke(), b.karaoke())
                 || a.outline_has_fill() != b.outline_has_fill()
                 || a.shadow_has_fill() != b.shadow_has_fill()
                 // Drawing words are independent overlays, even with identical
@@ -189,6 +189,14 @@ pub fn coverage_groups(
         start = end;
     }
     Ok(groups)
+}
+
+fn karaoke_append(left: Option<Karaoke>, right: Option<Karaoke>) -> bool {
+    // CLine::Compact/CWord::Append retain the left clock when the right
+    // word has zero duration and the same karaoke kind. Layout has already
+    // measured both words independently; only their overlay/paint is joined.
+    left == right || matches!((left, right), (Some(a), Some(b))
+        if a.kind == b.kind && b.start_ms == b.end_ms)
 }
 /// Conservative full source support, independent of any output viewport.
 pub fn coverage_bounds(group: &CoverageGroup) -> Result<PixelRect, RenderError> {

@@ -10,6 +10,8 @@ on:
       - 'crates/taiyou-render/src/geometry.rs'
       - 'crates/taiyou-render/src/layout.rs'
       - 'crates/taiyou-render/src/axis_widen.rs'
+      - 'crates/taiyou-render/src/raster.rs'
+      - 'crates/taiyou-render/src/renderer.rs'
       - 'crates/taiyou-render/src/effects.rs'
       - 'crates/taiyou-types/src/layout.rs'
       - 'experiments/xy-oracle/near-matches.py'

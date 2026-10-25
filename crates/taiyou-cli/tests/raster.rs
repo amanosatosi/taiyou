@@ -91,10 +91,15 @@ fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
             .any(|p| matches!(p, PathOp::CubicTo(..)))
     }));
     assert!(event.glyphs().iter().any(|g| {
-        g.geometry
+        g.outline
+            .outline()
             .ops()
             .iter()
             .any(|p| matches!(p, PathOp::QuadTo(..)))
+            && g.geometry
+                .ops()
+                .iter()
+                .any(|p| matches!(p, PathOp::CubicTo(..)))
     }));
     let groups = coverage_groups(event, &limits()).unwrap();
     assert_eq!(groups.len(), 1);
@@ -146,6 +151,11 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
         ("A{\\fscx200}V", 2),
         ("A{\\fs30}V", 2),
         ("f{\\c&HFF0000&}f", 1),
+        ("{\\kf100}A{\\kt0}V", 1),
+        ("{\\kf100}A{\\kt500}V", 1),
+        ("{\\kf100}A{\\kf100}V", 2),
+        ("{\\kf100}A{\\kt0\\c&HFF0000&}V", 2),
+        ("{\\kf100}A\\N{\\kt0}V", 2),
     ] {
         let groups = coverage_groups(geometry_for(text), &limits()).unwrap();
         assert_eq!(groups.len(), count, "{text}");

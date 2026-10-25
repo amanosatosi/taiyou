@@ -18,6 +18,9 @@ CASES = {
     "regression/draw-images/drawImg-104396.png",
     "regression/embedded-font/efont-1000.png",
     "regression/implicit-pos/shift-dir-9500.png",
+    "regression/implicit-pos/bordercollision-2000.png",
+    *{f"regression/implicit-pos/shift-dir-{time:04d}.png" for time in range(500, 9500, 1000)},
+    "regression/scaling_playres/playresx_sbas-yes-3000.png",
     "regression/scaling_playres/playresx_sbas-yes-4000.png",
     "regression/blurs/be-0500.png",
     "regression/blurs/be-3500.png",
@@ -34,6 +37,8 @@ CASES = {
     "regression/karaoke/357-k-and-kf-desynced-7170.png",
 }
 
+FAMILIES = ("regression/v4++/", "regression/karaoke/")
+
 
 def main():
     assert os.environ.get("GITHUB_ACTIONS") == "true" and os.name == "nt"
@@ -47,12 +52,13 @@ def main():
     binary = oracle.ROOT / "target/debug/taiyou.exe"
     dll, probe, attempts = oracle.find_csri_dll(release, out)
     visual, nonvisual = oracle.inventory_cases("a5073319af8117271d8ac13ef5c088197ff2d59b")
-    selected = [case for case in visual if case["id"] in CASES]
-    assert len(selected) == len(CASES) and {case["id"] for case in selected} == CASES
+    selected = [case for case in visual if case["id"] in CASES or case["id"].startswith(FAMILIES)]
+    selected_ids = {case["id"] for case in selected}
+    assert CASES <= selected_ids
     report = {"candidate_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "purpose": "supplemental strict xy smoke, never a replacement for the full run",
               "dll": probe, "dll_probe_attempts": attempts,
-              "selected": sorted(CASES), "unselected": [c["id"] for c in visual if c["id"] not in CASES],
+              "selected": sorted(selected_ids), "unselected": [c["id"] for c in visual if c["id"] not in selected_ids],
               "nonvisual": nonvisual, "cases": []}
     # Read the frozen CFF program rather than infer its design coordinates from
     # raster edges. This is diagnostic source evidence, not a generated oracle.
