@@ -559,3 +559,11 @@ controls measure the remaining discrete boundary choices independently.
 The CFF blur residual is concentrated on the curved paragraph glyph, mostly
 one native coverage unit lower; drawing blur controls remain exact. No filter
 arithmetic was changed on that evidence. Karaoke timing was not rewritten.
+
+Authored unhinted TrueType conics at an exact1024-unit realization isolate
+GetPath conversion from font instructions. All eight measured controls follow
+28.4 device coordinates, truncating `(start + 2*control + 2)/3`, then integer
+GetPath rounding. Signed y-down arithmetic matters even for a flat control.
+The same rule increases matching observed DejaVu path points from887/954 to
+920/954 without changing CFF or straight segments. This is geometric evidence;
+only the subsequent direct xy renders establish a compatibility improvement.

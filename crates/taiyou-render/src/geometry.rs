@@ -12,6 +12,54 @@ fn q6(v: f64) -> Result<Q6, RenderError> {
     Q6::from_pixels(finite(v)?).map_err(|_| geometry_limit())
 }
 
+// Authored GDI conics establish a 28.4 device grid and truncating (a+2b+2)/3
+// controls, followed by GetPath's integer conversion. Keep the calculation in
+// device y-down coordinates: negating an already rounded y-up control changes
+// half-grid ties. This is portable integer path conversion, not native drawing.
+#[cfg(feature = "native")]
+fn native_conic_control(
+    from: FontPoint,
+    control: FontPoint,
+    size: f64,
+) -> Result<FontPoint, RenderError> {
+    let fixed = |value: f64| -> Result<i64, RenderError> {
+        let n = (value * size * 1024.0 + 0.5).floor();
+        if !n.is_finite() || n.abs() > f64::from(i32::MAX) * 16.0 {
+            return Err(geometry_limit());
+        }
+        Ok(n as i64)
+    };
+    let coordinate = |a, b| -> Result<f64, RenderError> {
+        let control = (fixed(a)? + 2 * fixed(b)? + 2) / 3;
+        Ok((control + 8).div_euclid(16) as f64 / (size * 64.0))
+    };
+    FontPoint::new(
+        coordinate(from.x().get(), control.x().get())?,
+        -coordinate(-from.y().get(), -control.y().get())?,
+    )
+    .map_err(|_| geometry_limit())
+}
+
+#[cfg(all(test, feature = "native"))]
+mod conic_tests {
+    use super::*;
+
+    #[test]
+    fn native_controls_follow_measured_device_grid_and_signed_division() {
+        for (from, control, expected) in [
+            ((0.0, 0.0), (61.0, 121.0), (41.0, 81.0)),
+            ((-100.0, -100.0), (-38.0, 20.0), (-59.0, -20.0)),
+            ((289.0, 317.875), (289.0, 225.90625), (289.0, 256.0)),
+        ] {
+            let point = |p: (f64, f64)| FontPoint::new(p.0, p.1).unwrap();
+            assert_eq!(
+                native_conic_control(point(from), point(control), 1.0 / 64.0).unwrap(),
+                point(expected)
+            );
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeviceMapping {
     play_res: Size,
@@ -772,15 +820,11 @@ pub fn geometry(
                 let converted = if metric_font == blob.id() {
                     match op {
                         PathOp::QuadTo(control, end) => {
-                            let toward = |from: FontPoint| {
-                                FontPoint::new(
-                                    from.x().get()
-                                        + (control.x().get() - from.x().get()) * 2.0 / 3.0,
-                                    from.y().get()
-                                        + (control.y().get() - from.y().get()) * 2.0 / 3.0,
-                                )
-                            };
-                            PathOp::CubicTo(toward(previous)?, toward(end)?, end)
+                            PathOp::CubicTo(
+                                native_conic_control(previous, control, size)?,
+                                native_conic_control(end, control, size)?,
+                                end,
+                            )
                         }
                         other => other,
                     }

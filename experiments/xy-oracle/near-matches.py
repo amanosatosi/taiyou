@@ -28,6 +28,8 @@ CASES = {
     "regression/blurs/blur+t-1900.png",
     "regression/blurs-anamorphic/blur-0000.png",
     "regression/ssa/alpha-2000.png",
+    *{f"regression/ssa/alpha-{time:04d}.png" for time in range(0, 5000, 1000)},
+    *{f"regression/vsf-quirks-var/alpha-clipping-{time:04d}.png" for time in (2040, 2560, 4960)},
     "regression/ssa/effect-delay-1600.png",
     "regression/v4++/kt-01000.png",
     "regression/v4++/kt-04800.png",
