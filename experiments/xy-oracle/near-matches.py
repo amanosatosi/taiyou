@@ -31,6 +31,7 @@ CASES = {
     *{f"regression/ssa/alpha-{time:04d}.png" for time in range(0, 5000, 1000)},
     *{f"regression/vsf-quirks-var/alpha-clipping-{time:04d}.png" for time in (2040, 2560, 4960)},
     "regression/ssa/effect-delay-1600.png",
+    *{f"regression/ssa/effect-delay-{time:04d}.png" for time in (600, 1600, 2600, 3960, 4960, 5960)},
     "regression/v4++/kt-01000.png",
     "regression/v4++/kt-04800.png",
     "regression/v4++/kt-06700.png",
@@ -67,6 +68,27 @@ def main():
     from fontTools.ttLib import TTFont
     from fontTools.pens.recordingPen import RecordingPen
     cff = next(case for case in selected if case["id"] == "regression/faux-italics/cff-0000.png")
+    ssa = next(case for case in selected if case["id"] == "regression/ssa/effect-delay-1600.png")
+    diagnostic = subprocess.run(
+        [str(oracle.ROOT / "target/debug/examples/mua_metrics.exe"),
+         str(corpus / ssa["source"]), str(corpus / ssa["fonts"][0]["path"]), "--explicit-layout"],
+        capture_output=True, text=True, encoding="utf-8")
+    (out / "ssa-layout.txt").write_text(diagnostic.stdout + diagnostic.stderr, encoding="utf-8")
+    assert diagnostic.returncode == 0
+    motion_source = out / "drawing-motion.ass"
+    motion_lines = []
+    for line in (corpus / ssa["source"]).read_text(encoding="utf-8-sig").splitlines():
+        if line.startswith("Dialogue:"):
+            fields = line.split(",", 9)
+            if fields[3] != "Probe":
+                continue
+            fields[9] = r"{\p1}m 0 0 l 2 0 2 2 0 2"
+            line = ",".join(fields)
+        motion_lines.append(line)
+    motion_source.write_text("\n".join(motion_lines) + "\n", encoding="utf-8")
+    motion_cases = [{**ssa, "id": f"witness/drawing-motion-{time}",
+                     "source_external": str(motion_source), "reference": None,
+                     "timestamp_ms": time} for time in (600, 1600, 2600, 3960, 4960, 5960)]
     report["cff_outline_evidence"] = []
     for spec in cff["fonts"]:
         path = corpus / spec["path"]
@@ -133,11 +155,12 @@ def main():
     kernel_case = {"id": "witness/ellipse-phases", "source": "authored/ellipse-phases.ass", "source_external": str(kernel_source),
                    "reference": None, "timestamp_ms": 1000, "width": 256, "height": 512,
                    "fonts": cff["fonts"], "inventory": True, "scale": "1"}
-    report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"], border_case["id"], kernel_case["id"]]
+    report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"], border_case["id"], kernel_case["id"],
+                                               *[case["id"] for case in motion_cases]]
     failed = False
     report_path = out / "report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    for case in selected + [paint_case, blur_case, border_case, kernel_case]:
+    for case in selected + [paint_case, blur_case, border_case, kernel_case] + motion_cases:
         assert case["inventory"] is True  # oracle.render_taiyou enforces explicit mode
         xy = parallel.xy_case(case, corpus, dll, release, out / "xy")
         taiyou = parallel.taiyou_case(case, corpus, binary, out / "taiyou")

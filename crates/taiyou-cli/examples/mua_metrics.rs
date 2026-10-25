@@ -5,6 +5,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use taiyou_render::{renderer::*, shaping::*};
 
     let paths: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
+    if paths.len() == 3 && paths[2].as_os_str() == "--explicit-layout" {
+        return explicit_layout(&paths[0], &paths[1]);
+    }
     assert_eq!(paths.len(), 2, "expected ASS and explicit MUA font paths");
     let limits = Limits::default().with_transient_bytes(256 * 1024 * 1024)?;
     let mut context = FontContext::with_limits(limits.clone())?;
@@ -120,6 +123,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         shaped.missing().is_empty(),
         "diagnostic has missing clusters"
     );
+    Ok(())
+}
+
+#[cfg(all(feature = "native", windows))]
+fn explicit_layout(
+    source: &std::path::Path,
+    font: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use taiyou_render::{layout::*, shaping::*};
+    let limits = Limits::default();
+    let mut context = FontContext::with_limits(limits.clone())?;
+    let mut builder = FontCatalogBuilder::new(limits.clone());
+    builder.register(&mut context, &std::fs::read(font)?, 0)?;
+    let catalog = builder.snapshot(&mut CatalogIngestor::new())?;
+    let parsed = taiyou_ass::parse_ass(
+        &std::fs::read(source)?,
+        &ParseOptions::default(),
+        &mut TrackIngestor::new(),
+    )?;
+    let track = parsed.track();
+    let play = track.script().play_res();
+    let physical = track.script().layout_res().unwrap_or(play);
+    let scale = [
+        f64::from(physical.width()) / f64::from(play.width()),
+        f64::from(physical.height()) / f64::from(play.height()),
+    ];
+    for event in track.events() {
+        let evaluated = taiyou_render::evaluate(track, event.id(), event.start(), Profile::CoreV1)?;
+        let shaped = shape_event(
+            &mut context,
+            &catalog,
+            &evaluated,
+            &ShapeOptions::default()
+                .with_kerning(false)
+                .with_layout_scale(scale)?,
+            &limits,
+        )?;
+        assert!(shaped.missing().is_empty());
+        let style = &track.styles()[event.style().index() as usize];
+        let margins = event.margins().inherit(style.margins());
+        let constraints = LayoutConstraints::new(shaped.placement().alignment())
+            .with_wrap(evaluated.wrap_mode())
+            .with_metric_scale_x(FiniteF64::new(scale[0])?)?
+            .with_width(FiniteF64::new(
+                f64::from(play.width()) - f64::from(margins.left()) - f64::from(margins.right()),
+            )?)?;
+        let local = layout(&shaped, &constraints)?;
+        println!(
+            "EXPLICIT_LAYOUT event={:?} effect={:?} bounds={:?}",
+            event.id(),
+            event.effect(),
+            local.logical_bounds()
+        );
+        for line in local.lines() {
+            println!(
+                "EXPLICIT_LINE text={:?} advance={} baseline={:?}",
+                line.decoded().text(),
+                line.advance().get() * scale[0] * 8.0,
+                line.baseline()
+            );
+        }
+    }
     Ok(())
 }
 

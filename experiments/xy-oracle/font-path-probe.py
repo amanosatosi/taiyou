@@ -181,6 +181,19 @@ def main():
                                      "stored_device": stored,
                                      "native_outlines": [native_outline(char, f) for f in (2, 3, 258, 259)],
                                      "gdi": [[p.x, -p.y, int(t)] for p, t in zip(points, types)]})
+                        if relative.endswith("DejaVuSans.ttf") and char == chars[0] and size in (30, 60):
+                            script = (corpus / "regression/ssa/effect-delay.ass").read_text(encoding="utf-8-sig")
+                            texts = [line.split(",", 9)[9] for line in script.splitlines() if line.startswith("Dialogue:")]
+                            words = sorted({word for text in texts for word in text.split(" ") if word}) + [" "]
+                            observed = []
+                            for word in words:
+                                word_size = Size()
+                                assert extent(dc, word, len(word), C.byref(word_size))
+                                advance = sum(font["hmtx"].metrics[font.getBestCmap()[ord(c)]][0] for c in word)
+                                observed.append({"text": word, "advance_q6": word_size.x,
+                                                 "word_units": (word_size.x + 4) >> 3,
+                                                 "design_advance": advance})
+                            rows[-1]["ssa_word_extents"] = observed
                 finally:
                     select(dc, previous)
                     delete(hfont)
