@@ -10,6 +10,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   baseline:
+    # New optional performance evidence runs at explicit checkpoints. Existing
+    # Fast, platform and complete external-comparison workflows remain unchanged.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[perf]')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:

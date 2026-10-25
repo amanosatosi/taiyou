@@ -18,8 +18,8 @@ fn main() {
         std::fs::File::create(std::env::var("TAIYOU_PERF_FAILURES").unwrap()).unwrap();
     writeln!(failures, "workload\twidth\tscenario\tresult").unwrap();
     let mut failed = false;
-    let cache_mode = std::env::var("TAIYOU_PERF_CACHE").unwrap_or_else(|_|"off".into());
-    assert!(["off","masks","on"].contains(&cache_mode.as_str()));
+    let cache_mode = std::env::var("TAIYOU_PERF_CACHE").unwrap_or_else(|_| "off".into());
+    assert!(["off", "masks", "on"].contains(&cache_mode.as_str()));
     let cached = cache_mode != "off";
     let cache_label = cache_mode.as_str();
     let config = RendererConfig {

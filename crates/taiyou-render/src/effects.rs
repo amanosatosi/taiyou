@@ -180,7 +180,11 @@ fn extent(
 }
 
 /// Preserve the original full combined extent/scratch checks on retained hits.
-pub(crate) fn preflight_effects(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<(), RenderError> {
+pub(crate) fn preflight_effects(
+    mask: &Mask,
+    spec: &BlurSpec,
+    limits: &Limits,
+) -> Result<(), RenderError> {
     if spec.active && !mask.bounds().is_empty() {
         extent(mask, spec.support(), limits)?;
     }

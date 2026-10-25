@@ -130,7 +130,7 @@ mod masks {
             };
         }
         pub(crate) fn with_filter_retention(mut self, enabled: bool) -> Self {
-            self.filter_retention=enabled;
+            self.filter_retention = enabled;
             self
         }
         pub(crate) fn stats(&self) -> CacheStats {
@@ -143,68 +143,124 @@ mod masks {
         fn make_room(&mut self, charge: u64) -> bool {
             // Pinned allocations stay indexed and charged until their consumers
             // finish; removing an index alone is not a memory release.
-            let index_bytes=self.entries.capacity() as u64 * size_of::<Entry>() as u64;
-            if self.entries.capacity()==0 || charge>self.limit.saturating_sub(index_bytes) {
-                self.stats.bypasses+=1;
+            let index_bytes = self.entries.capacity() as u64 * size_of::<Entry>() as u64;
+            if self.entries.capacity() == 0 || charge > self.limit.saturating_sub(index_bytes) {
+                self.stats.bypasses += 1;
                 return false;
             }
-            while self.used.saturating_add(charge)>self.limit || self.entries.len()==self.entries.capacity() {
-                let victim=self.entries.iter().enumerate().filter(|(_,e)|Arc::strong_count(&e.mask)==1).min_by_key(|(i,e)|(e.touched,*i)).map(|(i,_)|i);
-                let Some(index)=victim else { self.stats.bypasses+=1; return false; };
-                let removed=self.entries.remove(index);
-                self.used-=removed.charge;
-                self.stats.evictions+=1;
+            while self.used.saturating_add(charge) > self.limit
+                || self.entries.len() == self.entries.capacity()
+            {
+                let victim = self
+                    .entries
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, e)| Arc::strong_count(&e.mask) == 1)
+                    .min_by_key(|(i, e)| (e.touched, *i))
+                    .map(|(i, _)| i);
+                let Some(index) = victim else {
+                    self.stats.bypasses += 1;
+                    return false;
+                };
+                let removed = self.entries.remove(index);
+                self.used -= removed.charge;
+                self.stats.evictions += 1;
             }
             true
         }
-        pub(crate) fn filter(&mut self, mask:&Arc<Mask>,spec:&crate::effects::BlurSpec,limits:&Limits) -> Result<Arc<Mask>,RenderError> {
+        pub(crate) fn filter(
+            &mut self,
+            mask: &Arc<Mask>,
+            spec: &crate::effects::BlurSpec,
+            limits: &Limits,
+        ) -> Result<Arc<Mask>, RenderError> {
             if !spec.active() || mask.bounds().is_empty() {
                 return Ok(mask.clone());
             }
-            if self.entries.capacity()==0 || !self.filter_retention {
-                self.stats.misses+=1;
-                return crate::effects::apply_effects(mask,spec,limits);
+            if self.entries.capacity() == 0 || !self.filter_retention {
+                self.stats.misses += 1;
+                return crate::effects::apply_effects(mask, spec, limits);
             }
             // Run the original combined scratch/extent preflight on hits too.
-            crate::effects::preflight_effects(mask,spec,limits)?;
-            let key_limits=limits.clone().with_cache_bytes(0).with_transient_bytes(u64::MAX).map_err(|_|geometry_limit())?;
-            let bounds=mask.bounds();
-            let origin=PixelOffset::new(bounds.x0(),bounds.y0());
-            self.ordinal=self.ordinal.saturating_add(1);
+            crate::effects::preflight_effects(mask, spec, limits)?;
+            let key_limits = limits
+                .clone()
+                .with_cache_bytes(0)
+                .with_transient_bytes(u64::MAX)
+                .map_err(|_| geometry_limit())?;
+            let bounds = mask.bounds();
+            let origin = PixelOffset::new(bounds.x0(), bounds.y0());
+            self.ordinal = self.ordinal.saturating_add(1);
             for entry in &mut self.entries {
-                let Some(filter)=entry.key.filter.as_ref() else { continue; };
-                if entry.key.schema_revision==1 && entry.key.profile==Profile::CoreV1 && entry.key.coverage_revision==1
-                    && entry.key.limits==key_limits && filter.spec==*spec
-                    && filter.width==bounds.width() && filter.height==bounds.height()
-                    && filter.stride==mask.stride() && filter.xy_units==mask.is_xy_coverage()
-                    && filter.data==mask.data()
+                let Some(filter) = entry.key.filter.as_ref() else {
+                    continue;
+                };
+                if entry.key.schema_revision == 1
+                    && entry.key.profile == Profile::CoreV1
+                    && entry.key.coverage_revision == 1
+                    && entry.key.limits == key_limits
+                    && filter.spec == *spec
+                    && filter.width == bounds.width()
+                    && filter.height == bounds.height()
+                    && filter.stride == mask.stride()
+                    && filter.xy_units == mask.is_xy_coverage()
+                    && filter.data == mask.data()
                 {
-                    if let Some(result)=relocated(&entry.mask,entry.origin,origin) {
-                        self.stats.hits+=1;
-                        entry.touched=self.ordinal;
+                    if let Some(result) = relocated(&entry.mask, entry.origin, origin) {
+                        self.stats.hits += 1;
+                        entry.touched = self.ordinal;
                         return Ok(result);
                     }
                 }
             }
-            self.stats.misses+=1;
-            let result=crate::effects::apply_effects(mask,spec,limits)?;
-            if Arc::ptr_eq(mask,&result) {
-                self.stats.bypasses+=1;
+            self.stats.misses += 1;
+            let result = crate::effects::apply_effects(mask, spec, limits)?;
+            if Arc::ptr_eq(mask, &result) {
+                self.stats.bypasses += 1;
                 return Ok(result);
             }
-            let charge=(mask.data().len() as u64).saturating_add(result.data().len() as u64).saturating_add(size_of::<Mask>() as u64+32);
-            if !self.make_room(charge) { return Ok(result); }
-            let mut data=Vec::new();
-            if data.try_reserve_exact(mask.data().len()).is_err() { self.stats.bypasses+=1; return Ok(result); }
+            let charge = (mask.data().len() as u64)
+                .saturating_add(result.data().len() as u64)
+                .saturating_add(size_of::<Mask>() as u64 + 32);
+            if !self.make_room(charge) {
+                return Ok(result);
+            }
+            let mut data = Vec::new();
+            if data.try_reserve_exact(mask.data().len()).is_err() {
+                self.stats.bypasses += 1;
+                return Ok(result);
+            }
             data.extend_from_slice(mask.data());
-            let actual_charge=charge.saturating_add((data.capacity()-data.len()) as u64);
-            if !self.make_room(actual_charge) { return Ok(result); }
-            self.used+=actual_charge;
-            self.stats.peak_bytes=self.stats.peak_bytes.max(self.used);
+            let actual_charge = charge.saturating_add((data.capacity() - data.len()) as u64);
+            if !self.make_room(actual_charge) {
+                return Ok(result);
+            }
+            self.used += actual_charge;
+            self.stats.peak_bytes = self.stats.peak_bytes.max(self.used);
             self.entries.push(Entry {
-                key:Key { schema_revision:1,profile:Profile::CoreV1,coverage_revision:1,ops:Vec::new(),kind:Kind::Body,limits:key_limits,
-                    filter:Some(FilterKey { spec:spec.clone(),data,width:bounds.width(),height:bounds.height(),stride:mask.stride(),xy_units:mask.is_xy_coverage() }) },
-                mask:result.clone(),origin,segments:0,required_peak:0,required_work:0,touched:self.ordinal,charge:actual_charge,
+                key: Key {
+                    schema_revision: 1,
+                    profile: Profile::CoreV1,
+                    coverage_revision: 1,
+                    ops: Vec::new(),
+                    kind: Kind::Body,
+                    limits: key_limits,
+                    filter: Some(FilterKey {
+                        spec: spec.clone(),
+                        data,
+                        width: bounds.width(),
+                        height: bounds.height(),
+                        stride: mask.stride(),
+                        xy_units: mask.is_xy_coverage(),
+                    }),
+                },
+                mask: result.clone(),
+                origin,
+                segments: 0,
+                required_peak: 0,
+                required_work: 0,
+                touched: self.ordinal,
+                charge: actual_charge,
             });
             Ok(result)
         }
@@ -285,8 +341,13 @@ mod masks {
                 self.stats.misses += 1;
                 self.stats.bypasses += 1;
                 return match kind {
-                    Kind::Body => crate::stroke::rasterize_translated_xy_timed(ctx, group, dx, dy, timings).map(|mask| (mask, 0)),
-                    Kind::Border(rx, ry) => crate::stroke::rasterize_expanded_axes_xy_timed(ctx, group, rx, ry, dx, dy, remaining, timings),
+                    Kind::Body => {
+                        crate::stroke::rasterize_translated_xy_timed(ctx, group, dx, dy, timings)
+                            .map(|mask| (mask, 0))
+                    }
+                    Kind::Border(rx, ry) => crate::stroke::rasterize_expanded_axes_xy_timed(
+                        ctx, group, rx, ry, dx, dy, remaining, timings,
+                    ),
                 };
             }
             // Preserve the original path validation/allocation and reservation.
@@ -362,7 +423,9 @@ mod masks {
                 .saturating_mul(size_of::<PathOp<DevicePoint>>() as u64)
                 .saturating_add(mask.data().len() as u64)
                 .saturating_add(size_of::<Mask>() as u64 + 32);
-            if !self.make_room(charge) { return Ok((mask, segments)); }
+            if !self.make_room(charge) {
+                return Ok((mask, segments));
+            }
             let mut canonical = Vec::new();
             if canonical.try_reserve_exact(ops.len()).is_err() {
                 self.stats.bypasses += 1;
@@ -564,35 +627,42 @@ mod masks {
         }
         #[test]
         fn filter_key_covers_bytes_units_parameters_bounds_and_resource_checks() {
-            let mut cache=MaskCache::new(64*1024);
-            let limits=Limits::default();
-            let f=|n|FiniteF64::new(n).unwrap();
-            let spec=crate::effects::BlurSpec::new(f(2.0),f(1.5),[1.0,1.0],&limits).unwrap();
-            let mask=|x:i32,xy:bool,first:u8| {
-                let bounds=PixelRect::new(x,3,x+3,6).unwrap();
-                let data:Arc<[u8]>=Arc::from([first,8,32,0,64,5,40,0,16,1,12,0]);
-                Arc::new(if xy { Mask::new_xy(bounds,4,data) } else { Mask::new(bounds,4,data) }.unwrap())
+            let mut cache = MaskCache::new(64 * 1024);
+            let limits = Limits::default();
+            let f = |n| FiniteF64::new(n).unwrap();
+            let spec = crate::effects::BlurSpec::new(f(2.0), f(1.5), [1.0, 1.0], &limits).unwrap();
+            let mask = |x: i32, xy: bool, first: u8| {
+                let bounds = PixelRect::new(x, 3, x + 3, 6).unwrap();
+                let data: Arc<[u8]> = Arc::from([first, 8, 32, 0, 64, 5, 40, 0, 16, 1, 12, 0]);
+                Arc::new(
+                    if xy {
+                        Mask::new_xy(bounds, 4, data)
+                    } else {
+                        Mask::new(bounds, 4, data)
+                    }
+                    .unwrap(),
+                )
             };
-            for (x,xy,first) in [(0,true,1),(10,true,1),(10,false,1),(10,false,2)] {
-                let input=mask(x,xy,first);
-                let actual=cache.filter(&input,&spec,&limits).unwrap();
-                let expected=crate::effects::apply_effects(&input,&spec,&limits).unwrap();
-                assert_eq!(actual.bounds(),expected.bounds());
-                assert_eq!(actual.stride(),expected.stride());
-                assert_eq!(actual.is_xy_coverage(),expected.is_xy_coverage());
-                assert_eq!(actual.data(),expected.data());
+            for (x, xy, first) in [(0, true, 1), (10, true, 1), (10, false, 1), (10, false, 2)] {
+                let input = mask(x, xy, first);
+                let actual = cache.filter(&input, &spec, &limits).unwrap();
+                let expected = crate::effects::apply_effects(&input, &spec, &limits).unwrap();
+                assert_eq!(actual.bounds(), expected.bounds());
+                assert_eq!(actual.stride(), expected.stride());
+                assert_eq!(actual.is_xy_coverage(), expected.is_xy_coverage());
+                assert_eq!(actual.data(), expected.data());
             }
-            assert_eq!(cache.stats().hits,1);
-            assert_eq!(cache.stats().misses,3);
-            let input=mask(0,true,1);
-            let other=crate::effects::BlurSpec::new(f(3.0),f(1.5),[1.0,1.0],&limits).unwrap();
-            drop(cache.filter(&input,&other,&limits).unwrap());
-            assert_eq!(cache.stats().misses,4);
-            let tiny=limits.with_transient_bytes(1).unwrap();
-            let a=crate::effects::apply_effects(&input,&spec,&tiny).unwrap_err();
-            let b=cache.filter(&input,&spec,&tiny).unwrap_err();
-            assert_eq!(a.code(),b.code());
-            assert_eq!(a.resource_failure(),b.resource_failure());
+            assert_eq!(cache.stats().hits, 1);
+            assert_eq!(cache.stats().misses, 3);
+            let input = mask(0, true, 1);
+            let other = crate::effects::BlurSpec::new(f(3.0), f(1.5), [1.0, 1.0], &limits).unwrap();
+            drop(cache.filter(&input, &other, &limits).unwrap());
+            assert_eq!(cache.stats().misses, 4);
+            let tiny = limits.with_transient_bytes(1).unwrap();
+            let a = crate::effects::apply_effects(&input, &spec, &tiny).unwrap_err();
+            let b = cache.filter(&input, &spec, &tiny).unwrap_err();
+            assert_eq!(a.code(), b.code());
+            assert_eq!(a.resource_failure(), b.resource_failure());
         }
     }
 }

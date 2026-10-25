@@ -26,6 +26,17 @@ outline stores against their respective limits. This is not a single shaping
 cache. The useful transferable principles are layered immutable results, exact
 dependency keys, retaining prerequisite ownership, and bounded eviction/accounting.
 
+`ass_shaper.c:213..274` shows why foundational metrics are separate from complete
+shaped text: face-size construction sets size and copies metrics; glyph-metric
+construction sets size and loads the glyph. `:466..484` supplies these cached
+metrics to a HarfBuzz sub-font. These avoid repeated native metric work across
+otherwise different text runs. The native font faces involved are mutable; this
+is not permission to share them across Taiyou workers. Taiyou would retain owned
+immutable metric/outline values through its own validated boundary when justified.
+The renderer's limit-cut function visibly handles composite/bitmap/outline stores;
+do not infer an identical bound for every other libass store or adopt negative
+native-error sentinels as Taiyou's error-retention policy.
+
 Taiyou must not copy libass's transform quantization, coverage, blur, outline
 semantics, pointer-derived keys or threading limitations. Its source-backed
 mask arithmetic remains unchanged. Foundational metric/outline reuse is still a

@@ -39,3 +39,8 @@ compiler and process memory. Hosted runners provide performance smoke only;
 controlled hardware remains necessary for definitive claims and automatic worker
 thresholds. There is no timing gate. Initial numbers must be recorded and committed
 before any caching/threading behavior changes.
+
+The optional performance workflow now runs on explicitly marked `[perf]` commits
+or manual dispatches. Formatting/documentation follow-ups do not rerun expensive
+measurements. Existing mandatory correctness, platform and full external comparison
+workflows are unchanged. Skipped measurement jobs are never reported as passes.

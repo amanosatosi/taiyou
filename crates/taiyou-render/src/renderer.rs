@@ -422,7 +422,8 @@ impl Renderer {
             config.limits.cache_bytes()
         } else {
             0
-        }).with_filter_retention(config.cache == CacheConfig::Bounded);
+        })
+        .with_filter_retention(config.cache == CacheConfig::Bounded);
         Ok(Self {
             config,
             #[cfg(feature = "native")]
