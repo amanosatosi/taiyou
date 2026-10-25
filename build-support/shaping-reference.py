@@ -41,6 +41,16 @@ for case in records:
     lines.append("case " + case["id"] + " " + " ".join(map(str, [observed["upem"], *observed["metrics"]])))
     lines.extend("glyph " + " ".join(map(str, glyph)) for glyph in observed["glyphs"])
     lines.append("end")
+    if case["script"] == "Latn" and case.get("ligatures", True):
+        # Supplemental ASS observations, independent of Taiyou. Preserve every
+        # original expected record/check above, including native GSUB samples.
+        output = subprocess.check_output([str(exe), str(font), str(text_path), str(case.get("face", 0)),
+                                          case["direction"], case["script"], case["language"],
+                                          str(start), str(end), "0"], text=True)
+        unligated = json.loads(output)
+        lines.append("case " + case["id"] + "-xy " + " ".join(map(str, [unligated["upem"], *unligated["metrics"]])))
+        lines.extend("glyph " + " ".join(map(str, glyph)) for glyph in unligated["glyphs"])
+        lines.append("end")
     with TTFont(font, fontNumber=case.get("face", 0), recalcTimestamp=False) as sfnt:
         cells.append("case:" + case["id"] + " " + " ".join(map(str, [sfnt["head"].unitsPerEm, sfnt["OS/2"].usWinAscent, sfnt["OS/2"].usWinDescent])))
 destination = temporary / "taiyou-shaping-reference.tsv"

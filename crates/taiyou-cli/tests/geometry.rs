@@ -102,19 +102,14 @@ fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
         }
     }
     assert!(output.glyphs().iter().any(|g| g.geometry.ops().is_empty()));
-    let ligature = output
+    let letters: Vec<_> = output
         .glyphs()
         .iter()
-        .find(|g| g.cluster.text() == "ff")
-        .unwrap();
-    assert_eq!(
-        ligature
-            .cluster
-            .original_ranges(&Limits::default())
-            .unwrap()
-            .len(),
-        2
-    );
+        .filter(|g| g.cluster.text() == "f")
+        .flat_map(|g| g.cluster.original_ranges(&Limits::default()).unwrap())
+        .collect();
+    assert_eq!(letters.len(), 2);
+    assert!(letters[0].end() < letters[1].start());
 }
 
 #[test]

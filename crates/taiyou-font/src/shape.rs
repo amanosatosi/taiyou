@@ -500,7 +500,11 @@ fn request<'a>(input: &'a ResolvedRun, range: Range<usize>) -> NativeRequest<'a>
         rtl: input.item.level % 2 != 0,
         script: input.item.script,
         language: input.options.language(),
-        ligatures: input.style.spacing().get() == 0.0,
+        // GDI TextOut does not form optional Latin ff/fi/fl ligatures. Keep
+        // HarfBuzz's required features and complex-script shaping intact;
+        // only the optional liga/clig switches for Latin differ here.
+        ligatures: input.style.spacing().get() == 0.0
+            && input.item.script != u32::from_be_bytes(*b"Latn"),
         kerning: input.options.kerning,
         vertical: input.style.font().vertical() || input.style.font().family().starts_with('@'),
     }

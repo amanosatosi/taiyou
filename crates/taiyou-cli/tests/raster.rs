@@ -201,7 +201,7 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
         ("A{\\rBorder}V", 2),
         ("A{\\fscx200}V", 2),
         ("A{\\fs30}V", 2),
-        ("f{\\c&HFF0000&}f", 1),
+        ("f{\\c&HFF0000&}f", 2),
         ("{\\kf100}A{\\kt0}V", 1),
         ("{\\kf100}A{\\kt500}V", 1),
         ("{\\kf100}A{\\kf100}V", 2),
@@ -219,8 +219,12 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
                     .original_ranges(&limits())
                     .unwrap()
                     .len(),
-                2
+                1
             );
+            let left = event.glyphs()[0].cluster.original_ranges(&limits()).unwrap();
+            let right = event.glyphs()[1].cluster.original_ranges(&limits()).unwrap();
+            assert_eq!(right.len(), 1);
+            assert!(left[0].end() < right[0].start());
         }
         for g in &groups {
             assert_eq!(g.policy().members().len(), g.instances().len());

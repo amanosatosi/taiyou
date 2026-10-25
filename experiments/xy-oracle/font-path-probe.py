@@ -233,10 +233,19 @@ def main():
                                 cursor += len(points)
                             assert cursor == len(complete)
                             rows[-1]["ssa_ink_pens"] = pens
-                            rows[-1]["latin_ligature_paths"] = [
-                                {"text": value, "textout_points": len(fine_path(value)),
-                                 "separate_points": sum(len(fine_path(c)) for c in value)}
-                                for value in ("Effect:", "office", "ff", "fi", "fl")]
+                            ligatures = []
+                            for value in ("Effect:", "office", "ff", "fi", "fl"):
+                                whole = fine_path(value)
+                                separate, pen = [], 0
+                                for character in value:
+                                    separate.extend([[p[0] + pen, p[1], p[2]] for p in fine_path(character)])
+                                    width = Size()
+                                    assert extent(dc, character, 1, C.byref(width))
+                                    pen += width.x
+                                ligatures.append({"text": value, "textout_points": len(whole),
+                                                  "separate_points": len(separate),
+                                                  "same_integer_advance_path": whole == separate})
+                            rows[-1]["latin_ligature_paths"] = ligatures
                 finally:
                     select(dc, previous)
                     delete(hfont)
