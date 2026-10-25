@@ -49,6 +49,7 @@ fn include(target: &mut Option<ScriptBounds>, b: ScriptBounds) -> Result<(), Ren
 fn finish_word(
     pen: &mut f64,
     origin: f64,
+    measured: f64,
     min: &mut f64,
     max: &mut f64,
     constraints: &LayoutConstraints,
@@ -57,7 +58,7 @@ fn finish_word(
     // after native font measurement and ASS x scaling. Glyph positions inside
     // that word keep their native precision; the next word starts at its extent.
     let grid = constraints.metric_scale_x().get();
-    let width = crate::xy_wrap::width_units((*pen - origin) * grid)? as f64 / (8.0 * grid);
+    let width = crate::xy_wrap::width_units(measured * grid)? as f64 / (8.0 * grid);
     *pen = origin + width;
     finite(*pen)?;
     *min = min.min(*pen);
@@ -243,7 +244,10 @@ fn xy_plan(
                 .ok_or_else(limited)?;
             let state = &input.evaluated().runs()[association(input, glyph.cluster().start())?];
             let scale = state.geometry().scale_x().get() * constraints.scale_x().get();
-            widths[i] += glyph.advance_x().get() * scale;
+            widths[i] += crate::xy_wrap::measured_advance(
+                glyph.advance_x().get(),
+                constraints.metric_scale_x().get(),
+            )? * scale;
             if run
                 .glyphs()
                 .get(g + 1)
@@ -449,6 +453,7 @@ pub fn layout(
         let begin = drafts.len();
         let mut word_key = None;
         let mut word_origin = 0.0;
+        let mut word_measured = 0.0;
         if visible_start == visible_end {
             let metrics = input
                 .empty_lines()
@@ -496,7 +501,14 @@ pub fn layout(
             let mut group = 0;
             if let Some(drawing) = run.drawing() {
                 if word_key.take().is_some() {
-                    finish_word(&mut pen_x, word_origin, &mut min, &mut max, constraints)?;
+                    finish_word(
+                        &mut pen_x,
+                        word_origin,
+                        word_measured,
+                        &mut min,
+                        &mut max,
+                        constraints,
+                    )?;
                 }
                 let a = association(input, run.decoded().start())?;
                 let state = &input.evaluated().runs()[a];
@@ -579,10 +591,18 @@ pub fn layout(
                 let key = (a, first, space);
                 if word_key != Some(key) {
                     if word_key.is_some() {
-                        finish_word(&mut pen_x, word_origin, &mut min, &mut max, constraints)?;
+                        finish_word(
+                            &mut pen_x,
+                            word_origin,
+                            word_measured,
+                            &mut min,
+                            &mut max,
+                            constraints,
+                        )?;
                     }
                     word_key = Some(key);
                     word_origin = pen_x;
+                    word_measured = 0.0;
                 }
                 while run
                     .face_metrics()
@@ -623,6 +643,10 @@ pub fn layout(
                     ink,
                 });
                 pen_x += glyph.advance_x().get() * sx;
+                word_measured += crate::xy_wrap::measured_advance(
+                    glyph.advance_x().get(),
+                    constraints.metric_scale_x().get(),
+                )? * sx;
                 pen_y += glyph.advance_y().get() * sy;
                 // Core spacing is one contribution per cluster advance, including
                 // the final cluster. Marks in a multi-glyph cluster add no spacing.
@@ -632,13 +656,21 @@ pub fn layout(
                     .is_none_or(|next| next.cluster() != glyph.cluster())
                 {
                     pen_x += state.shaping().spacing().get() * sx;
+                    word_measured += state.shaping().spacing().get() * sx;
                 }
                 finite(pen_x)?;
                 finite(pen_y)?;
             }
         }
         if word_key.is_some() {
-            finish_word(&mut pen_x, word_origin, &mut min, &mut max, constraints)?;
+            finish_word(
+                &mut pen_x,
+                word_origin,
+                word_measured,
+                &mut min,
+                &mut max,
+                constraints,
+            )?;
         }
         // GetNextLine halves the integer eighth-pixel metrics only when
         // the next word is itself a hard break. Compacted spaces are not an

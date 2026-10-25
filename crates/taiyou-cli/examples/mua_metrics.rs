@@ -131,7 +131,7 @@ fn explicit_layout(
     source: &std::path::Path,
     font: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use taiyou_render::{layout::*, shaping::*};
+    use taiyou_render::{layout::*, renderer::*, shaping::*};
     let limits = Limits::default();
     let mut context = FontContext::with_limits(limits.clone())?;
     let mut builder = FontCatalogBuilder::new(limits.clone());

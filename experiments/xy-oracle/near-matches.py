@@ -74,7 +74,7 @@ def main():
          str(corpus / ssa["source"]), str(corpus / ssa["fonts"][0]["path"]), "--explicit-layout"],
         capture_output=True, text=True, encoding="utf-8")
     (out / "ssa-layout.txt").write_text(diagnostic.stdout + diagnostic.stderr, encoding="utf-8")
-    assert diagnostic.returncode == 0
+    report["ssa_layout_diagnostic_exit"] = diagnostic.returncode
     motion_source = out / "drawing-motion.ass"
     motion_lines = []
     for line in (corpus / ssa["source"]).read_text(encoding="utf-8-sig").splitlines():
@@ -157,7 +157,7 @@ def main():
                    "fonts": cff["fonts"], "inventory": True, "scale": "1"}
     report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"], border_case["id"], kernel_case["id"],
                                                *[case["id"] for case in motion_cases]]
-    failed = False
+    failed = diagnostic.returncode != 0
     report_path = out / "report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for case in selected + [paint_case, blur_case, border_case, kernel_case] + motion_cases:
