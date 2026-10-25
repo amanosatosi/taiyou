@@ -1,8 +1,8 @@
-//! Uncached inline CoreV1 coordinator. Native contexts exist only during a call.
+//! CoreV1 coordinator with bounded masks and ordered parallel composition.
 #[cfg(feature = "native")]
 use crate::collision::{CollisionInput, PlacedEvent, resolve_collisions};
 #[cfg(feature = "native")]
-use crate::{compose, geometry::*, layout, raster::*};
+use crate::{geometry::*, layout, raster::*};
 #[cfg(feature = "native")]
 use std::sync::Arc;
 use std::{cell::Cell, marker::PhantomData};
@@ -397,6 +397,10 @@ fn transition_placement(
 pub struct Renderer {
     config: RendererConfig,
     #[cfg(feature = "native")]
+    pool: Option<rayon::ThreadPool>,
+    #[cfg(feature = "native")]
+    composition_band_rows: usize,
+    #[cfg(feature = "native")]
     masks: crate::cache::MaskCache,
     timings: crate::timing::StageTimings,
     output: OutputBudget,
@@ -410,13 +414,27 @@ pub struct Renderer {
 }
 impl Renderer {
     pub fn new(config: RendererConfig) -> Result<Self, RenderError> {
-        if config.workers.get() != 1 || config.profile != Profile::CoreV1 {
+        if config.profile != Profile::CoreV1 {
             return Err(RenderError::new(
                 ErrorCode::UnsupportedFeature,
-                "T014 requires CoreV1 and exactly one worker",
+                "renderer requires CoreV1",
             ));
         }
         let output = OutputBudget::new(&config.limits);
+        #[cfg(feature = "native")]
+        let pool = if config.workers.get() == 1 {
+            None
+        } else {
+            Some(rayon::ThreadPoolBuilder::new()
+                .num_threads(config.workers.get())
+                .thread_name(|n| format!("taiyou-compose-{n}"))
+                .build()
+                .map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "renderer worker pool creation failed"))?)
+        };
+        #[cfg(feature = "native")]
+        if pool.as_ref().is_some_and(|pool|pool.current_num_threads()!=config.workers.get()) {
+            return Err(RenderError::new(ErrorCode::InvalidArgument,"worker count exceeds pool support"));
+        }
         #[cfg(feature = "native")]
         let masks = crate::cache::MaskCache::new(if config.cache != CacheConfig::Disabled {
             config.limits.cache_bytes()
@@ -425,6 +443,10 @@ impl Renderer {
         })
         .with_filter_retention(config.cache == CacheConfig::Bounded);
         Ok(Self {
+            #[cfg(feature = "native")]
+            pool,
+            #[cfg(feature = "native")]
+            composition_band_rows: 64,
             config,
             #[cfg(feature = "native")]
             masks,
@@ -443,6 +465,12 @@ impl Renderer {
     /// Enable observational timing. Disabled by default; no scheduling uses it.
     pub fn set_timing_enabled(&mut self, enabled: bool) {
         self.timings.enabled = enabled;
+    }
+    /// Dispatch granularity for deterministic row composition, in whole rows.
+    /// Useful for explicit host tuning and benchmarks; does not change pixels.
+    #[cfg(feature = "native")]
+    pub fn set_composition_band_rows(&mut self, rows: std::num::NonZeroUsize) {
+        self.composition_band_rows = rows.get();
     }
     pub fn last_timings(&self) -> &crate::timing::StageTimings {
         &self.timings
@@ -1565,11 +1593,13 @@ impl Renderer {
         held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
         available(limits, held)?;
         let timer = self.timings.start();
-        let frame = compose(
+        let frame = crate::compose::compose_inner(
             request.viewport.size(),
             &operations,
             limits,
             &mut self.output,
+            self.pool.as_ref(),
+            self.composition_band_rows,
         )?
         .with_diagnostics(diagnostics);
         self.timings.composition += crate::timing::StageTimings::elapsed(timer);

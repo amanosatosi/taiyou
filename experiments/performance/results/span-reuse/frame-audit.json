@@ -1,0 +1,28 @@
+{
+  "before": "9fc4b5719682a5e278c85a059ef56e2192242a26",
+  "after": "eedd7d3d81860b4ff5df8a651c8e5b13dedec9a5",
+  "visual_frames": 101,
+  "changed": null,
+  "independent_visual": {
+    "total": 101,
+    "counts": {
+      "PASS_EXACT": 1,
+      "PASS_APPROVED_TOLERANCE": 0,
+      "EXPECTED_DIFFERENCE": 0,
+      "UNSUPPORTED": 0,
+      "REGRESSION": 100,
+      "CRASH": 0,
+      "INFRA_ERROR": 0
+    },
+    "exact_matches": 1,
+    "observed": {
+      "PASS_EXACT": 1,
+      "PIXEL_MISMATCH": 100,
+      "BLOCKED_BY_UNSUPPORTED_FEATURE": 0,
+      "EXECUTION_FAILED": 0,
+      "INFRA_ERROR": 0,
+      "CRASH": 0
+    }
+  },
+  "scope": "Supplemental Taiyou byte audit; independent oracle failures remain failures"
+}

@@ -1,4 +1,4 @@
-//! C7 single-worker configuration and checked square-pixel viewport.
+//! C7 explicit worker/cache configuration and checked square-pixel viewport.
 use crate::*;
 use std::num::NonZeroUsize;
 

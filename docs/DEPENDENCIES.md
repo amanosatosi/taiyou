@@ -1,5 +1,17 @@
 # T002 dependency and native recipe candidate
 
+PR #36 performance candidate adds exact `rayon =1.11.0` (MIT OR Apache-2.0,
+upstream MSRV 1.80) for one renderer-owned fixed-size pool and safe disjoint row
+composition. [Pinned upstream manifest](https://github.com/rayon-rs/rayon/blob/v1.11.0/Cargo.toml)
+and [pool API](https://docs.rs/rayon/latest/rayon/struct.ThreadPool.html) describe
+the selected API. Worker=1 remains inline; no global pool or native face sharing.
+Its resolved rayon-core, either and Crossbeam packages/checksums are recorded in
+the Actions-generated workspace lock and the existing Actions advisory/license
+audit. No optional WebAssembly spin-lock feature is enabled. Alternatives:
+per-frame std scoped threads impose repeated startup costs; a handwritten pool
+adds an unnecessary synchronization/lifetime framework. This is a candidate
+dependency/concurrency review surface, not a licensing or merge acceptance claim.
+
 PR #35 host-font provider proposal adds OS services, not a different shaping
 engine or Cargo dependency: Windows DirectWrite IDWriteFactory2/FontFallback
 (Windows 8.1+ system API, Microsoft Windows licensing); Linux Fontconfig

@@ -2,7 +2,7 @@
 //!
 //! The explicit native feature connects evaluation, shaping, local layout,
 //! owned geometry, grayscale coverage, FreeType border/shadow masks and scalar
-//! composition through the single-worker CoreV1 coordinator.
+//! composition through the CoreV1 coordinator and its optional owned worker pool.
 
 #[cfg(feature = "native")]
 mod ass_clip;

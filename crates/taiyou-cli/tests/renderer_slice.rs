@@ -288,7 +288,7 @@ fn renderer_slice_unsupported_errors_diagnostics_and_limits() {
             workers: std::num::NonZeroUsize::new(2).unwrap(),
             ..Default::default()
         })
-        .is_err()
+        .is_ok()
     );
     assert!(
         Renderer::new(RendererConfig {

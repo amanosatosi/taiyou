@@ -27,6 +27,12 @@ jobs:
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - name: Format evidence and safe workspace checks
         run: |
+          # Resolve the new pinned pool dependency on Actions only. The returned
+          # lock is reviewed/committed before final exact-head validation.
+          cargo update -p taiyou-render
+          mkdir -p "$RUNNER_TEMP/performance"
+          cp Cargo.lock "$RUNNER_TEMP/performance/Cargo.lock"
+          cargo metadata --locked --format-version 1 > "$RUNNER_TEMP/performance/dependencies.json"
           cargo fmt --all
           git diff --binary > "$RUNNER_TEMP/performance-format.patch"
           cargo test --locked -p taiyou-render -p taiyou-types
@@ -64,7 +70,7 @@ jobs:
         run: |
           cargo test --locked -p taiyou-render --features native
           cargo test --locked -p taiyou-cli --features native --test performance_cache
-      - name: Paired uncached and cached span-reuse release measurements
+      - name: Paired cache and worker release measurements
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
@@ -85,18 +91,24 @@ jobs:
           set +e
           TAIYOU_PERF_CACHE=off /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-off.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/off.csv"
           off_status=$?
-          TAIYOU_PERF_CACHE=on TAIYOU_PERF_FAILURES="$RUNNER_TEMP/performance/failures-on.tsv" /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-on.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/on.csv"
-          on_status=$?
+          on_status=0
+          for workers in 1 2 4 8; do
+            TAIYOU_PERF_WORKERS="$workers" TAIYOU_PERF_CACHE=on TAIYOU_PERF_FAILURES="$RUNNER_TEMP/performance/failures-on-$workers.tsv" /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-on-$workers.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/on-$workers.csv"
+            result=$?
+            if test "$result" != 0; then on_status="$result"; fi
+          done
           set -e
           cat "$RUNNER_TEMP/performance/off.csv" > "$RUNNER_TEMP/performance/samples.csv"
-          tail -n +2 "$RUNNER_TEMP/performance/on.csv" >> "$RUNNER_TEMP/performance/samples.csv"
+          for workers in 1 2 4 8; do
+            tail -n +2 "$RUNNER_TEMP/performance/on-$workers.csv" >> "$RUNNER_TEMP/performance/samples.csv"
+          done
           test "$off_status" = 0 && test "$on_status" = 0
       - name: Summarize available samples, including after a benchmark failure
         if: ${{ !cancelled() }}
         run: |
           python experiments/performance/summarize.py "$RUNNER_TEMP/performance/samples.csv" "$RUNNER_TEMP/performance/summary.json"
           cat "$RUNNER_TEMP/performance/failures.tsv"
-          cat "$RUNNER_TEMP/performance/failures-on.tsv"
+          cat "$RUNNER_TEMP/performance"/failures-on-*.tsv
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

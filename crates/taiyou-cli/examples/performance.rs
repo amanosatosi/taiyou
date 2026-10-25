@@ -3,6 +3,9 @@
 fn main() {
     use std::{hint::black_box, io::Write, time::Instant};
     use taiyou_render::renderer::*;
+    let workers:usize=std::env::var("TAIYOU_PERF_WORKERS").unwrap_or_else(|_|"1".into()).parse().unwrap();
+    let band_rows:usize=std::env::var("TAIYOU_PERF_BAND_ROWS").unwrap_or_else(|_|"64".into()).parse().unwrap();
+    let fixed=std::env::var("TAIYOU_PERF_FIXED_SAMPLES").as_deref()==Ok("1");
     let samples: usize = std::env::var("TAIYOU_PERF_SAMPLES")
         .unwrap_or_else(|_| "31".into())
         .parse()
@@ -23,6 +26,7 @@ fn main() {
     let cached = cache_mode != "off";
     let cache_label = cache_mode.as_str();
     let config = RendererConfig {
+        workers: std::num::NonZeroUsize::new(workers).unwrap(),
         limits: limits
             .clone()
             .with_cache_bytes(if cached { 128 * 1024 * 1024 } else { 0 }),
@@ -139,6 +143,7 @@ fn main() {
                     continue;
                 }
                 let mut renderer = Renderer::new(config.clone()).unwrap();
+                renderer.set_composition_band_rows(std::num::NonZeroUsize::new(band_rows).unwrap());
                 renderer.set_timing_enabled(true);
                 let mut request = RenderRequest {
                     now: TimeUs::from_micros(1_000_000),
@@ -148,6 +153,7 @@ fn main() {
                 // Correctness is strict and outside the timed region.
                 let mut uncached_config = config.clone();
                 uncached_config.cache = CacheConfig::Disabled;
+                uncached_config.workers=std::num::NonZeroUsize::MIN;
                 let expected = Renderer::new(uncached_config).unwrap().render(
                     parsed.track().clone(),
                     fonts.clone(),
@@ -175,11 +181,12 @@ fn main() {
                 for sample in 0..samples {
                     // Bound hosted-runner smoke cost; publish the actual count.
                     // This timer affects sampling only, never render decisions.
-                    if sample >= 3 && scenario_start.elapsed().as_secs() >= 2 {
+                    if !fixed && sample >= 3 && scenario_start.elapsed().as_secs() >= 2 {
                         break;
                     }
                     if scenario == "cold" {
                         renderer = Renderer::new(config.clone()).unwrap();
+                        renderer.set_composition_band_rows(std::num::NonZeroUsize::new(band_rows).unwrap());
                         renderer.set_timing_enabled(true);
                     }
                     let now = match scenario {
@@ -208,7 +215,7 @@ fn main() {
                     let t = renderer.last_timings();
                     let c = renderer.cache_stats();
                     println!(
-                        "{name},{width},{height},{scenario},{sample},1,{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                        "{name},{width},{height},{scenario},{sample},{workers},{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                         t.evaluation.as_nanos(),
                         t.shaping.as_nanos(),
                         t.layout.as_nanos(),
