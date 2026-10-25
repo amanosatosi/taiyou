@@ -1245,18 +1245,27 @@ impl Renderer {
                             let pen = |ordinal: usize| -> Result<f64, RenderError> {
                                 let g = local.glyphs().get(ordinal).ok_or_else(limited)?;
                                 let run = &local.shaped().runs()[g.run_index()];
-                                let style = &local.shaped().evaluated().runs()[g.association_index()];
-                                let offset = if run.drawing().is_some() { 0.0 } else {
+                                let style =
+                                    &local.shaped().evaluated().runs()[g.association_index()];
+                                let offset = if run.drawing().is_some() {
+                                    0.0
+                                } else {
                                     run.glyphs()[g.glyph_index()].offset_x().get()
-                                        * style.geometry().scale_x().get() * local.local_scale().0.get()
+                                        * style.geometry().scale_x().get()
+                                        * local.local_scale().0.get()
                                 };
                                 Ok(g.position().x().get() - offset)
                             };
-                            let line = local.lines().iter().find(|line| line.glyph_range().contains(&members.start))
+                            let line = local
+                                .lines()
+                                .iter()
+                                .find(|line| line.glyph_range().contains(&members.start))
                                 .ok_or_else(limited)?;
                             let right = if members.end < line.glyph_range().end {
                                 pen(members.end)?
-                            } else { line.logical_bounds().x1().get() };
+                            } else {
+                                line.logical_bounds().x1().get()
+                            };
                             let width = (right - pen(members.start)?) * sx;
                             let native = ((state.effects().border_x().get() + progress * width)
                                 * 8.0)

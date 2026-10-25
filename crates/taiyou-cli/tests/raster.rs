@@ -103,8 +103,8 @@ fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
                 .ticks()
         };
         assert_eq!(origin(2) - origin(0), expected);
-        let layout_delta = local.glyphs()[2].position().x().get()
-            - local.glyphs()[0].position().x().get();
+        let layout_delta =
+            local.glyphs()[2].position().x().get() - local.glyphs()[0].position().x().get();
         rounded_layout_differs |= Q6::from_pixels(f(layout_delta)).unwrap().ticks() != expected;
     }
     assert!(

@@ -519,3 +519,28 @@ kt-01000 improves290 to82, kt-04800 975 to489, kt-06700 1883 to1520 and
 kt-11000 964 to574. Larger karaoke geometry and CFF blur residuals remain.
 Native platform acceptance and final exact-head Actions are recorded in PR35;
 format-only gate failures at the measurement head are not platform passes.
+
+Round 2 source-backed compaction checkpoint at 6980b92: authenticated full xy
+measures17 same /10 good /72 bad /3 xy-side errors against a014c98's17/6/76/3.
+All17 exact guards survive. kt-{08000,08640,08960,09000} move bad to good;
+there are no new exacts or regressed exacts. CWord::Append/CLine::Compact retain
+the preceding clock for compatible zero-duration suffixes and concatenate text
+for one CreatePath/TextOut extraction. Geometry now keeps that continuous ink
+cursor while layout retains separately rounded word extents; coverage stays
+within each line, and karaoke sweeps the stored layout width. Ten animated CFF
+blur cases improve roughly5600–6200 to154–178 differing pixels but remain BAD.
+Libass's karaoke parser documents the same zero-duration suffix exception;
+its glyph-boundary sweep arithmetic remains a separate comparison control.
+Full native CI's stale quadratic-after-geometry assertion now checks preserved
+quadratics in the owned font outline and their cubic geometry conversion.
+A focused regression separately exercises continuous ink and rounded layout.
+
+The extended GDI/GetGlyphOutline observations confirm hinted CFF coordinates
+instead of an arbitrary translation. FreeType2.14.3's Adobe interpreter has a
+2000-ppem transform safeguard (src/psaux/psft.c); that safeguard was not raised.
+TrueType interpreter35 and sixteenfold diagnostic sampling did not outperform
+current monochrome native realization. No alternative renderer mode or OS
+rendering call was introduced. The remaining border-family investigation must
+account for pinterf's eighth-grid elliptical span dilation versus the current
+portable vector stroker, including bounded work and all current exact guards.
+Current exact-head Actions and remaining owner acknowledgment are in PR35.
