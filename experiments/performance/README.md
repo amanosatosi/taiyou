@@ -11,8 +11,10 @@ single-worker/no-cache defaults. Parsing and font admission occur before the
 render measurements. Cold means a fresh renderer, with the same already-admitted
 immutable track/catalog. Same-time repeats the warm-up timestamp. Warm-repeat
 uses another fixed timestamp; sequence advances by 16,667 us and seek jumps both
-forward and backward. Each scenario has 31 samples. p95/p99 use nearest rank;
-31 samples do not support strong tail-latency claims. No external renderer ratios.
+forward and backward. Each scenario has up to 31 samples; hosted smoke stops after
+two seconds once at least three samples finish, with actual counts recorded.
+p95/p99 use nearest rank; these counts do not support strong tail-latency claims.
+No external renderer ratios. Definitive controlled runs still need longer samples.
 
 Opt-in renderer-owned instrumentation measures evaluation, shaping, layout,
 collision footprint/solver, geometry, clips, masks (raster/stroke/blur together),

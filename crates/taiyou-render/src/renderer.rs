@@ -1075,7 +1075,14 @@ impl Renderer {
                         None
                     };
                     if opaque || !border_exists {
-                        fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
+                        fill = filter_mask(
+                            fill,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                        )?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
                     let mut border = if let Some(boxes) = box_group.as_ref() {
@@ -1086,7 +1093,14 @@ impl Renderer {
                         let mask = rasterize_xy(&mut raster, boxes)?;
                         drop(raster);
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
+                        let mask = filter_mask(
+                            mask,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                        )?;
                         expanded = Some(mask.clone());
                         if box_outline && state.paint().outline().a() != 0 {
                             Some(mask)
@@ -1114,7 +1128,14 @@ impl Renderer {
                         drop(stroke_context);
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
+                        let mask = filter_mask(
+                            mask,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                        )?;
                         // RTS.cpp's outline fBody flag and libass's
                         // FILTER_FILL_IN_BORDER retain E under opaque primary
                         // AND secondary paint. Subtracting F in that case
@@ -1169,7 +1190,14 @@ impl Renderer {
                                 crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                            )?
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -1191,7 +1219,14 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                            )?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
@@ -1205,7 +1240,14 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                            )?
                         };
                         if !opaque && border_exists && !state.shadow_has_fill() {
                             // Both references subtract the unfiltered body

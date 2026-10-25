@@ -14,7 +14,8 @@ fn main() {
         .unwrap()
         .with_path_segments_per_frame(32_000_000)
         .unwrap();
-    let mut failures = std::fs::File::create(std::env::var("TAIYOU_PERF_FAILURES").unwrap()).unwrap();
+    let mut failures =
+        std::fs::File::create(std::env::var("TAIYOU_PERF_FAILURES").unwrap()).unwrap();
     writeln!(failures, "workload\twidth\tscenario\tresult").unwrap();
     let mut failed = false;
     let config = RendererConfig {
@@ -103,9 +104,17 @@ fn main() {
                 viewport: Viewport::full(Size::new(width, height)).unwrap(),
                 unsupported: UnsupportedPolicy::Strict,
             };
-            let standard = Renderer::new(RendererConfig::default()).unwrap().render(parsed.track().clone(), fonts.clone(), &default_request);
+            let standard = Renderer::new(RendererConfig::default()).unwrap().render(
+                parsed.track().clone(),
+                fonts.clone(),
+                &default_request,
+            );
             if let Err(error) = standard {
-                writeln!(failures, "{name}\t{width}\tproduction-default-preflight\t{error:?}").unwrap();
+                writeln!(
+                    failures,
+                    "{name}\t{width}\tproduction-default-preflight\t{error:?}"
+                )
+                .unwrap();
             }
             for scenario in ["cold", "same-time", "warm-repeat", "sequence", "seek"] {
                 let mut renderer = Renderer::new(config.clone()).unwrap();
@@ -116,9 +125,11 @@ fn main() {
                     unsupported: UnsupportedPolicy::Strict,
                 };
                 // Correctness is strict and outside the timed region.
-                let expected = Renderer::new(config.clone())
-                    .unwrap()
-                    .render(parsed.track().clone(), fonts.clone(), &request);
+                let expected = Renderer::new(config.clone()).unwrap().render(
+                    parsed.track().clone(),
+                    fonts.clone(),
+                    &request,
+                );
                 let expected = match expected {
                     Ok(frame) => frame,
                     Err(error) => {
@@ -137,7 +148,13 @@ fn main() {
                 );
                 assert_eq!(expected.diagnostics(), actual.diagnostics());
                 drop((actual, expected));
+                let scenario_start = Instant::now();
                 for sample in 0..samples {
+                    // Bound hosted-runner smoke cost; publish the actual count.
+                    // This timer affects sampling only, never render decisions.
+                    if sample >= 3 && scenario_start.elapsed().as_secs() >= 2 {
+                        break;
+                    }
                     if scenario == "cold" {
                         renderer = Renderer::new(config.clone()).unwrap();
                         renderer.set_timing_enabled(true);
@@ -150,14 +167,19 @@ fn main() {
                     };
                     request.now = TimeUs::from_micros(now);
                     let start = Instant::now();
-                    let frame = match renderer.render(parsed.track().clone(), fonts.clone(), &request) {
-                        Ok(frame) => frame,
-                        Err(error) => {
-                            writeln!(failures, "{name}\t{width}\t{scenario}/sample-{sample}\t{error:?}").unwrap();
-                            failed = true;
-                            continue;
-                        }
-                    };
+                    let frame =
+                        match renderer.render(parsed.track().clone(), fonts.clone(), &request) {
+                            Ok(frame) => frame,
+                            Err(error) => {
+                                writeln!(
+                                    failures,
+                                    "{name}\t{width}\t{scenario}/sample-{sample}\t{error:?}"
+                                )
+                                .unwrap();
+                                failed = true;
+                                continue;
+                            }
+                        };
                     let total = start.elapsed().as_nanos();
                     black_box(frame.pixels());
                     let t = renderer.last_timings();
@@ -179,7 +201,9 @@ fn main() {
             }
         }
     }
-    if failed { std::process::exit(2); }
+    if failed {
+        std::process::exit(2);
+    }
 }
 #[cfg(not(feature = "native"))]
 fn main() {

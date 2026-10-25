@@ -14,7 +14,7 @@ default one-million work-unit cap. No controlled-hardware claim.
 
 Only 1080p dialogue finished: 31 samples in each of five playback scenarios.
 Raw samples are retained in `initial-1080p.csv`; nearest-rank distributions in
-`initial-1080p.json`. Cold median 42.029 ms, repeated timestamp median 42.088 ms.
+`initial-1080p.json`. Cold median 42.031 ms, repeated timestamp median 42.089 ms.
 Masks/strokes/effects dominate (~36.5 ms), followed by composition (~3.5 ms),
 geometry (~1.8 ms), shaping (~0.14 ms). No retained caches existed, so repeated
 timestamps did not improve rendering. No cache/threading changes precede these
