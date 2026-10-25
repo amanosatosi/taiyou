@@ -2728,9 +2728,14 @@ mod tests {
                     // SAFETY: the property copies this local integer into the
                     // diagnostic context's exclusively owned library; all
                     // earlier probe faces have been dropped before changing it.
-                    let code = unsafe { FT_Property_Set(context.library.0,
-                        c"truetype".as_ptr(), c"interpreter-version".as_ptr(),
-                        (&interpreter as *const u32).cast()) };
+                    let code = unsafe {
+                        FT_Property_Set(
+                            context.library.0,
+                            c"truetype".as_ptr(),
+                            c"interpreter-version".as_ptr(),
+                            (&interpreter as *const u32).cast(),
+                        )
+                    };
                     assert_eq!(code, 0);
                     context.with_face(bytes.clone(), 0, |face| {
                         // SAFETY: request-local diagnostic face and pinned bytes
@@ -2739,6 +2744,10 @@ mod tests {
                             let precise = f64::from((*face.raw).units_per_EM) * f64::from(size) * 64.0
                                 / if relative.ends_with(".otf") {1200.0} else {2384.0};
                             let em = if relative.ends_with(".otf") {precise} else {precise.round()};
+                            if em * f64::from(samples) > f64::from(u16::MAX) {
+                                println!("FONT_PATH_PROBE_UNAVAILABLE font={relative} size={size} samples={samples} reason=FreeType-ppem-limit");
+                                return Ok(());
+                            }
                             let code = ft::FT_Set_Char_Size(face.raw, 0, (em * 64.0 * f64::from(samples)).round() as ft::FT_F26Dot6, 72, 72);
                             if code != 0 { return Err(native_error(code, "probe size failed")); }
                             for ch in chars.chars() {

@@ -79,6 +79,41 @@ fn geometry_for(text: &str) -> Arc<GeometryEvent> {
     )
 }
 #[test]
+fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
+    let mut rounded_layout_differs = false;
+    for size in [17.37, 20.0, 23.51] {
+        let event = geometry_for(&format!("{{\\fs{size}}}A A"));
+        let local = event.layout();
+        let advance: f64 = local.glyphs()[..2]
+            .iter()
+            .map(|g| {
+                local.shaped().runs()[g.run_index()].glyphs()[g.glyph_index()]
+                    .advance_x()
+                    .get()
+            })
+            .sum();
+        let expected = Q6::from_pixels(f(advance)).unwrap().ticks();
+        let origin = |index: usize| {
+            event.glyphs()[index]
+                .geometry
+                .mapping()
+                .point(FontPoint::ZERO)
+                .unwrap()
+                .x()
+                .ticks()
+        };
+        assert_eq!(origin(2) - origin(0), expected);
+        let layout_delta = local.glyphs()[2].position().x().get()
+            - local.glyphs()[0].position().x().get();
+        rounded_layout_differs |= Q6::from_pixels(f(layout_delta)).unwrap().ticks() != expected;
+    }
+    assert!(
+        rounded_layout_differs,
+        "fixture must expose independent word extent rounding"
+    );
+}
+
+#[test]
 fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
     let event = geometry_for("Oé ب क 語");
     let ids: std::collections::BTreeSet<_> =

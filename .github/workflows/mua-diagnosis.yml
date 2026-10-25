@@ -81,6 +81,7 @@ jobs:
       - run: python build-support/acquire.py
       - run: python build-support/build-native.py
       - name: Compile diagnostic using existing native dependencies
+        id: diagnostic-build
         shell: pwsh
         run: |
           $env:PKG_CONFIG_PATH = "$env:RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
@@ -88,8 +89,19 @@ jobs:
           $env:LIBZ_SYS_STATIC = '1'
           cargo build --locked -p taiyou-cli --features native --example mua_metrics
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Observe portable native font paths
+        if: ${{ !cancelled() && steps.diagnostic-build.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $env:PKG_CONFIG_PATH = "$env:RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          $env:PKG_CONFIG_ALL_STATIC = '1'
+          $env:LIBZ_SYS_STATIC = '1'
           cargo test --locked -p taiyou-font --features native font_native_path_observations -- --ignored --nocapture | Out-File -Encoding utf8 "$env:RUNNER_TEMP/font-path-freetype.txt"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Focused direct xy rendering
+        if: ${{ !cancelled() && steps.diagnostic-build.outcome == 'success' }}
+        shell: pwsh
+        run: |
           python experiments/xy-oracle/mua-diagnosis.py --output "$env:RUNNER_TEMP/mua-diagnosis"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python experiments/xy-oracle/near-matches.py --output "$env:RUNNER_TEMP/near-matches"

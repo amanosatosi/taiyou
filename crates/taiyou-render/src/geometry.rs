@@ -520,7 +520,11 @@ pub fn geometry(
     })?;
     let mut total = 0usize;
     for (ordinal, positioned) in layout.glyphs().iter().enumerate() {
-        while layout.lines().get(line_index).is_some_and(|line| line.glyph_range().end <= ordinal) {
+        while layout
+            .lines()
+            .get(line_index)
+            .is_some_and(|line| line.glyph_range().end <= ordinal)
+        {
             line_index += 1;
         }
         let run = &layout.shaped().runs()[positioned.run_index()];
@@ -570,10 +574,14 @@ pub fn geometry(
         let glyph = &run.glyphs()[positioned.glyph_index()];
         let sx = state.geometry().scale_x().get() * layout.local_scale().0.get();
         let continuous = state.shaping().spacing().get() == 0.0;
-        let append = continuous && compacted.is_some_and(|(line, association)| {
-            line == line_index && crate::evaluate::appendable_text_words(
-                &layout.shaped().evaluated().runs()[association], state)
-        });
+        let append = continuous
+            && compacted.is_some_and(|(line, association)| {
+                line == line_index
+                    && crate::evaluate::appendable_text_words(
+                        &layout.shaped().evaluated().runs()[association],
+                        state,
+                    )
+            });
         if !append {
             compacted = Some((line_index, positioned.association_index()));
             ink_pen = positioned.position().x().get() - glyph.offset_x().get() * sx;
@@ -583,8 +591,13 @@ pub fn geometry(
         // extracts the concatenated string in one TextOut call. Its internal
         // glyph cursor does not include the intermediate layout rounding.
         let ink_position = if continuous {
-            ScriptPoint::new(finite(ink_pen + glyph.offset_x().get() * sx)?, positioned.position().y())
-        } else { positioned.position() };
+            ScriptPoint::new(
+                finite(ink_pen + glyph.offset_x().get() * sx)?,
+                positioned.position().y(),
+            )
+        } else {
+            positioned.position()
+        };
         ink_pen += glyph.advance_x().get() * sx;
         finite(ink_pen)?;
         let blob = catalog

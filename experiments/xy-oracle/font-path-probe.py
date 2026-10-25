@@ -7,6 +7,7 @@ from ctypes import wintypes as W
 import json
 import os
 from pathlib import Path
+import struct
 
 from fontTools.ttLib import TTFont
 from fontTools.pens.basePen import BasePen
@@ -44,6 +45,11 @@ def main():
         _fields_ = [("x", W.LONG), ("y", W.LONG)]
     class Size(C.Structure):
         _fields_ = [("x", W.LONG), ("y", W.LONG)]
+    class GlyphMetrics(C.Structure):
+        _fields_ = [("width", W.UINT), ("height", W.UINT), ("origin", Point),
+                    ("advance_x", C.c_short), ("advance_y", C.c_short)]
+    class Transform(C.Structure):
+        _fields_ = [(name, C.c_float) for name in ("xx", "xy", "yx", "yy", "x", "y")]
     add = api("AddFontMemResourceEx", W.HANDLE, W.LPVOID, W.DWORD, W.LPVOID, C.POINTER(W.DWORD))
     remove = api("RemoveFontMemResourceEx", W.BOOL, W.HANDLE)
     dc_new = api("CreateCompatibleDC", W.HDC, W.HDC)
@@ -59,6 +65,37 @@ def main():
     path = api("GetPath", C.c_int, W.HDC, C.POINTER(Point), C.POINTER(W.BYTE), C.c_int)
     extent = api("GetTextExtentPoint32W", W.BOOL, W.HDC, W.LPCWSTR, C.c_int, C.POINTER(Size))
     face = api("GetTextFaceW", C.c_int, W.HDC, C.c_int, W.LPWSTR)
+    glyph_outline = api("GetGlyphOutlineW", W.DWORD, W.HDC, W.UINT, W.UINT,
+                        C.POINTER(GlyphMetrics), W.DWORD, W.LPVOID, W.LPVOID)
+    save = api("SaveDC", C.c_int, W.HDC)
+    restore = api("RestoreDC", W.BOOL, W.HDC, C.c_int)
+    mode = api("SetGraphicsMode", C.c_int, W.HDC, C.c_int)
+    world = api("SetWorldTransform", W.BOOL, W.HDC, C.POINTER(Transform))
+
+    def native_outline(character, format):
+        matrix = (C.c_int32 * 4)(65536, 0, 0, 65536)
+        gm = GlyphMetrics()
+        n = glyph_outline(dc, ord(character), format, C.byref(gm), 0, None, matrix)
+        if n == 0xFFFFFFFF:
+            return {"format": format, "status": "GDI_ERROR"}
+        assert 0 < n <= 2 * 1024 * 1024
+        buffer = C.create_string_buffer(n)
+        assert glyph_outline(dc, ord(character), format, C.byref(gm), n, buffer, matrix) == n
+        raw, at, contours = buffer.raw, 0, []
+        point = lambda at: [v / 65536 for v in struct.unpack_from("<ii", raw, at)]
+        while at < n:
+            length, kind = struct.unpack_from("<II", raw, at)
+            assert kind == 24 and 16 <= length <= n - at
+            end = at + length
+            contour = {"start": point(at + 8), "curves": []}
+            at += 16
+            while at < end:
+                kind, count = struct.unpack_from("<HH", raw, at)
+                assert kind in (1, 2, 3) and count > 0 and at + 4 + count * 8 <= end
+                contour["curves"].append({"kind": kind, "points": [point(at + 4 + i * 8) for i in range(count)]})
+                at += 4 + count * 8
+            contours.append(contour)
+        return {"format": format, "status": "OK", "contours": contours}
     corpus = Path(os.environ["TAIYOU_CORPUS"])
     rows = []
     for relative, sizes, chars in [
@@ -91,12 +128,25 @@ def main():
                         assert 0 < n < 10000
                         points, types = (Point * n)(), (W.BYTE * n)()
                         assert path(dc, points, types, n) == n
+                        saved = save(dc)
+                        assert saved
+                        try:
+                            assert mode(dc, 2)
+                            transform = Transform(1 / 64, 0, 0, 1 / 64, 0, 0)
+                            assert world(dc, C.byref(transform))
+                            fine, fine_types = (Point * n)(), (W.BYTE * n)()
+                            assert path(dc, fine, fine_types, n) == n
+                            stored = [[p.x / 64, -p.y / 64, int(t)] for p, t in zip(fine, fine_types)]
+                        finally:
+                            assert restore(dc, saved)
                         width = Size()
                         assert extent(dc, char, 1, C.byref(width))
                         rows.append({"font": relative, "family": family, "size": size, "char": char,
                                      "upem": font["head"].unitsPerEm,
                                      "win_cell": [font["OS/2"].usWinAscent, font["OS/2"].usWinDescent],
                                      "cff": "CFF " in font, "design": pen.ops, "advance_q6": width.x,
+                                     "stored_device": stored,
+                                     "native_outlines": [native_outline(char, f) for f in (2, 3, 258, 259)],
                                      "gdi": [[p.x, -p.y, int(t)] for p, t in zip(points, types)]})
                 finally:
                     select(dc, previous)
