@@ -5,7 +5,8 @@ use taiyou_render::{
 };
 #[test]
 fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coalesce() {
-    for (text, glyph_count) in [("f{\\fscx200}f", 2), ("f{\\c&HFF0000&}f", 1)] {
+    for (text, run_count, second_scale) in [("f{\\fscx200}f", 2, 2.0), ("f{\\c&HFF0000&}f", 1, 1.0)]
+    {
         let input = format!(
             "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
         );
@@ -35,11 +36,27 @@ fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coales
         )
         .unwrap();
         let l = layout(&s, &LayoutConstraints::new(s.placement().alignment())).unwrap();
-        assert_eq!(l.glyphs().len(), glyph_count);
-        if glyph_count == 2 {
+        assert_eq!(l.glyphs().len(), 2);
+        assert_eq!(s.runs().len(), run_count);
+        {
             let advance = 292.0 * (965.0 / 64000.0);
-            assert_eq!(l.glyphs()[1].position().x().get(), advance);
-            assert_eq!(l.lines()[0].advance().get(), advance + advance * 2.0);
+            let word_extent = |width: f64| ((width * 64.0 + 4.0).trunc() as i64 >> 3) as f64 / 8.0;
+            // Both override boundaries retain two CText extents, even when
+            // paint-only changes coalesce into one immutable shaping run.
+            assert!(
+                s.runs()
+                    .iter()
+                    .flat_map(|r| r.glyphs())
+                    .all(|g| g.advance_x().get() == advance)
+            );
+            // Native text measurement rounds this pinned glyph to282 native
+            // units before applying the word's ASS scale. Ink stays precise.
+            let measured = 282.0 / 64.0;
+            assert_eq!(l.glyphs()[1].position().x().get(), word_extent(measured));
+            assert_eq!(
+                l.lines()[0].advance().get(),
+                word_extent(measured) + word_extent(measured * second_scale)
+            );
         }
     }
 }
@@ -98,15 +115,13 @@ fn layout_pipeline_actual_ass_escapes_alignment_and_retained_source() {
                 .get(),
             30.125
         );
-        let ligature = output
+        let mut spans: Vec<_> = output
             .glyphs()
             .iter()
-            .find(|g| g.cluster().text() == "ff")
-            .unwrap();
-        let spans = ligature
-            .cluster()
-            .original_ranges(&Default::default())
-            .unwrap();
+            .filter(|g| g.cluster().text() == "f")
+            .flat_map(|g| g.cluster().original_ranges(&Default::default()).unwrap())
+            .collect();
+        spans.sort_by_key(|s| s.start());
         assert_eq!(spans.len(), 2);
         assert!(spans[0].end() < spans[1].start());
         assert!(output.glyphs().iter().any(|g| {

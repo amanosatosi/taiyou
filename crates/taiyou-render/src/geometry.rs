@@ -12,6 +12,54 @@ fn q6(v: f64) -> Result<Q6, RenderError> {
     Q6::from_pixels(finite(v)?).map_err(|_| geometry_limit())
 }
 
+// Authored GDI conics establish a 28.4 device grid and truncating (a+2b+2)/3
+// controls, followed by GetPath's integer conversion. Keep the calculation in
+// device y-down coordinates: negating an already rounded y-up control changes
+// half-grid ties. This is portable integer path conversion, not native drawing.
+#[cfg(feature = "native")]
+fn native_conic_control(
+    from: FontPoint,
+    control: FontPoint,
+    size: f64,
+) -> Result<FontPoint, RenderError> {
+    let fixed = |value: f64| -> Result<i64, RenderError> {
+        let n = (value * size * 1024.0 + 0.5).floor();
+        if !n.is_finite() || n.abs() > f64::from(i32::MAX) * 16.0 {
+            return Err(geometry_limit());
+        }
+        Ok(n as i64)
+    };
+    let coordinate = |a, b| -> Result<f64, RenderError> {
+        let control = (fixed(a)? + 2 * fixed(b)? + 2) / 3;
+        Ok((control + 8).div_euclid(16) as f64 / (size * 64.0))
+    };
+    FontPoint::new(
+        coordinate(from.x().get(), control.x().get())?,
+        -coordinate(-from.y().get(), -control.y().get())?,
+    )
+    .map_err(|_| geometry_limit())
+}
+
+#[cfg(all(test, feature = "native"))]
+mod conic_tests {
+    use super::*;
+
+    #[test]
+    fn native_controls_follow_measured_device_grid_and_signed_division() {
+        for (from, control, expected) in [
+            ((0.0, 0.0), (61.0, 121.0), (41.0, 81.0)),
+            ((-100.0, -100.0), (-38.0, 20.0), (-59.0, -20.0)),
+            ((289.0, 317.875), (289.0, 225.90625), (289.0, 256.0)),
+        ] {
+            let point = |p: (f64, f64)| FontPoint::new(p.0, p.1).unwrap();
+            assert_eq!(
+                native_conic_control(point(from), point(control), 1.0 / 64.0).unwrap(),
+                point(expected)
+            );
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DeviceMapping {
     play_res: Size,
@@ -121,6 +169,49 @@ impl GeometryMap {
     pub fn with_shear_offset(mut self, offset: FontPoint) -> Self {
         self.shear_offset = offset;
         self
+    }
+    #[cfg(feature = "native")]
+    pub(crate) fn transforms_border(self) -> bool {
+        self.projection[..2]
+            .iter()
+            .any(|a| a.get().rem_euclid(360.0) != 0.0)
+    }
+    // Border radii are measured after font/ASS scaling, before Z/X/Y rotation.
+    // This retains SBAS and independent axis sizing without inverting a 3D map.
+    #[cfg(feature = "native")]
+    pub(crate) fn border_base_point(mut self, p: FontPoint) -> Result<DevicePoint, RenderError> {
+        self.rotation = FiniteF64::ZERO;
+        self.projection[0] = FiniteF64::ZERO;
+        self.projection[1] = FiniteF64::ZERO;
+        self.point(p)
+    }
+    #[cfg(feature = "native")]
+    pub(crate) fn project_border_point(self, p: DevicePoint) -> Result<DevicePoint, RenderError> {
+        let content = self.device.content;
+        let dx = f64::from(content.width()) / f64::from(self.device.play_res.width());
+        let dy = f64::from(content.height()) / f64::from(self.device.play_res.height());
+        let [lx, ly] = self.device.layout_scale();
+        let x =
+            ((p.x().as_pixels().get() - f64::from(content.x0())) / dx - self.origin.x().get()) * lx;
+        let y =
+            ((p.y().as_pixels().get() - f64::from(content.y0())) / dy - self.origin.y().get()) * ly;
+        let (sin, cos) = match self.rotation.get().rem_euclid(360.0) {
+            0.0 => (0.0, 1.0),
+            90.0 => (1.0, 0.0),
+            180.0 => (0.0, -1.0),
+            270.0 => (-1.0, 0.0),
+            a => a.to_radians().sin_cos(),
+        };
+        let (x, y) = project_3d(
+            cos * x + sin * y,
+            -sin * x + cos * y,
+            self.projection[0].get(),
+            self.projection[1].get(),
+        )?;
+        Ok(DevicePoint::new(
+            q6((x / lx + self.origin.x().get()) * dx + f64::from(content.x0()))?,
+            q6((y / ly + self.origin.y().get()) * dy + f64::from(content.y0()))?,
+        ))
     }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
         let (x, y) = self.precise_point(p)?;
@@ -502,7 +593,9 @@ pub fn geometry(
     }
     let mut glyphs = Vec::new();
     let mut items = Vec::new();
-    let mut word_key = None;
+    let mut compacted: Option<(usize, usize)> = None;
+    let mut line_index = 0;
+    let mut ink_pen = 0.0;
     let mut word_advance = 0.0;
     items.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
@@ -517,10 +610,18 @@ pub fn geometry(
         )
     })?;
     let mut total = 0usize;
-    for positioned in layout.glyphs() {
+    for (ordinal, positioned) in layout.glyphs().iter().enumerate() {
+        while layout
+            .lines()
+            .get(line_index)
+            .is_some_and(|line| line.glyph_range().end <= ordinal)
+        {
+            line_index += 1;
+        }
         let run = &layout.shaped().runs()[positioned.run_index()];
         let state = &layout.shaped().evaluated().runs()[positioned.association_index()];
         if let Some(drawing) = run.drawing() {
+            compacted = None;
             total = total
                 .checked_add(drawing.outline.ops().len())
                 .ok_or_else(geometry_limit)?;
@@ -562,15 +663,39 @@ pub fn geometry(
             continue;
         }
         let glyph = &run.glyphs()[positioned.glyph_index()];
-        let start = positioned.cluster().start() as usize;
-        let word_start = layout.shaped().source_map().text()[..start]
-            .rfind([' ', '\n'])
-            .map_or(0, |i| i + 1);
-        let key = (positioned.association_index(), word_start);
-        if word_key != Some(key) {
-            word_key = Some(key);
+        let native_advance = crate::xy_wrap::measured_advance(
+            glyph.advance_x().get(),
+            placement.device.layout_scale()[0],
+        )?;
+        let sx = state.geometry().scale_x().get() * layout.local_scale().0.get();
+        let continuous = state.shaping().spacing().get() == 0.0;
+        let append = continuous
+            && compacted.is_some_and(|(line, association)| {
+                line == line_index
+                    && crate::evaluate::appendable_text_words(
+                        &layout.shaped().evaluated().runs()[association],
+                        state,
+                    )
+            });
+        if !append {
+            compacted = Some((line_index, positioned.association_index()));
+            ink_pen = positioned.position().x().get() - glyph.offset_x().get() * sx;
             word_advance = 0.0;
         }
+        // CLine::Compact adds the rounded layout extents, but CText::CreatePath
+        // extracts the concatenated string in one TextOut call. Its internal
+        // glyph cursor sums native integer glyph extents; it does not include
+        // the intermediate eighth-pixel rounding of each word's layout width.
+        let ink_position = if continuous {
+            ScriptPoint::new(
+                finite(ink_pen + glyph.offset_x().get() * sx)?,
+                positioned.position().y(),
+            )
+        } else {
+            positioned.position()
+        };
+        ink_pen += native_advance * sx;
+        finite(ink_pen)?;
         let blob = catalog
             .faces()
             .iter()
@@ -599,9 +724,47 @@ pub fn geometry(
             .with_transient_bytes(remaining)
             .and_then(|l| l.with_path_segments_per_frame(remaining_segments))
             .map_err(|_| geometry_limit())?;
-        let outline = catalog
-            .outline(context, blob.id(), glyph.glyph(), &intake_limits)
-            .map_err(font_error)?;
+        let [lx, ly] = placement.device.layout_scale();
+        let vertical =
+            state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
+        let primary = if catalog.has_host_font_links() {
+            taiyou_font::resolve_family(catalog, state.shaping().font(), limits)
+                .map_err(font_error)?
+        } else {
+            blob.id()
+        };
+        let cell_size = finite(state.shaping().font_size().get() * ly)?;
+        let metric_font = catalog.admitted_metric_font(
+            primary,
+            blob.id(),
+            glyph.cluster().text(),
+            cell_size,
+            state.shaping().font(),
+            vertical,
+        );
+        let size = catalog
+            .admitted_outline_scale(
+                primary,
+                blob.id(),
+                glyph.cluster().text(),
+                cell_size,
+                state.shaping().font(),
+                vertical,
+            )
+            .map_err(font_error)?
+            .get();
+        let outline = if metric_font != blob.id() || size <= 0.0 {
+            catalog.outline(context, blob.id(), glyph.glyph(), &intake_limits)
+        } else {
+            catalog.ass_outline(
+                context,
+                blob.id(),
+                glyph.glyph(),
+                finite(size)?,
+                &intake_limits,
+            )
+        }
+        .map_err(font_error)?;
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;
@@ -620,24 +783,13 @@ pub fn geometry(
         if charge.checked_add(4096).ok_or_else(geometry_limit)? > limits.transient_bytes() {
             return Err(geometry_limit().with_resource_failure(ResourceFailure::TransientMemory));
         }
-        let [lx, ly] = placement.device.layout_scale();
-        let vertical =
-            state.shaping().font().vertical() || state.shaping().font().family().starts_with('@');
-        let size = catalog
-            .ass_oriented_font_scale(
-                blob.id(),
-                finite(state.shaping().font_size().get() * ly)?,
-                vertical,
-            )
-            .map_err(font_error)?
-            .get();
         let additional = layout.local_scale();
         let mapping = GeometryMap::new(
             (
                 finite(size / lx * state.geometry().scale_x().get() * additional.0.get())?,
                 finite(size / ly * state.geometry().scale_y().get() * additional.1.get())?,
             ),
-            positioned.position(),
+            ink_position,
             placement.anchor,
             placement.origin.or(layout.shaped().placement().origin()),
             state.geometry().rotation_z(),
@@ -691,10 +843,76 @@ pub fn geometry(
             }
             path = Arc::new(Outline::new(ops, limits)?);
         }
+        if size > 0.0 {
+            // GDI extracts the glyph in the font's integer Q6 grid
+            // before word placement/ASS transforms. Rounding only after adding
+            // the layout phase changes the slanted bracket edges.
+            charge = charge
+                .checked_add(
+                    (path.ops().len() as u64)
+                        .checked_mul(3 * std::mem::size_of::<PathOp<FontPoint>>() as u64)
+                        .ok_or_else(geometry_limit)?,
+                )
+                .ok_or_else(geometry_limit)?;
+            if charge > limits.transient_bytes() {
+                return Err(
+                    geometry_limit().with_resource_failure(ResourceFailure::TransientMemory)
+                );
+            }
+            let mut ops = Vec::new();
+            ops.try_reserve_exact(path.ops().len()).map_err(|_| {
+                RenderError::new(ErrorCode::AllocationFailed, "linked font grid allocation")
+            })?;
+            let mut previous = FontPoint::ZERO;
+            for &op in path.ops() {
+                let converted = if metric_font == blob.id() {
+                    match op {
+                        PathOp::QuadTo(control, end) => PathOp::CubicTo(
+                            native_conic_control(previous, control, size)?,
+                            native_conic_control(end, control, size)?,
+                            end,
+                        ),
+                        other => other,
+                    }
+                } else {
+                    op
+                };
+                previous = match op {
+                    PathOp::MoveTo(p)
+                    | PathOp::LineTo(p)
+                    | PathOp::QuadTo(_, p)
+                    | PathOp::CubicTo(_, _, p) => p,
+                    PathOp::Close => previous,
+                };
+                ops.push(converted.try_map(|p| {
+                    FontPoint::new(
+                        f64::from(q6(p.x().get() * size)?.ticks()) / (size * 64.0),
+                        f64::from(q6(p.y().get() * size)?.ticks()) / (size * 64.0),
+                    )
+                })?);
+            }
+            path = Arc::new(Outline::new(ops, limits)?);
+        }
         if state.geometry().underline() || state.geometry().strikeout() {
             let metrics = catalog
-                .decoration_metrics(context, blob.id())
+                .decoration_metrics(context, metric_font)
                 .map_err(font_error)?;
+            let decoration_scale = catalog
+                .ass_oriented_font_scale(metric_font, cell_size, vertical)
+                .map_err(font_error)?
+                .get()
+                / size;
+            let decoration_shift = catalog
+                .admitted_baseline_delta(
+                    primary,
+                    blob.id(),
+                    glyph.cluster().text(),
+                    cell_size,
+                    state.shaping().font(),
+                    vertical,
+                )
+                .get()
+                / size;
             let extra = 5
                 * (usize::from(state.geometry().underline())
                     + usize::from(state.geometry().strikeout()));
@@ -733,8 +951,10 @@ pub fn geometry(
                     continue;
                 }
                 let (y0, y1) = (
-                    f64::from(centre) - f64::from(thickness) / 2.0,
-                    f64::from(centre) + f64::from(thickness) / 2.0,
+                    (f64::from(centre) - f64::from(thickness) / 2.0) * decoration_scale
+                        + decoration_shift,
+                    (f64::from(centre) + f64::from(thickness) / 2.0) * decoration_scale
+                        + decoration_shift,
                 );
                 // A decoration is another filled contour, not an opposite-
                 // winding hole where it crosses a TrueType glyph.
@@ -762,7 +982,7 @@ pub fn geometry(
             (word_advance + glyph.offset_x().get()) * lx / size,
             (ascent - glyph.offset_y().get() * ly) / size,
         )?);
-        word_advance += glyph.advance_x().get();
+        word_advance += native_advance;
         finite(word_advance)?;
         let mapped = map_outline(path, mapping, limits)?;
         items.push(GeometryItem {

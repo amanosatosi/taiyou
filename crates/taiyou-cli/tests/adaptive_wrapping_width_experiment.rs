@@ -124,6 +124,79 @@ fn width_range(input: &ShapedEvent, visible: std::ops::Range<u32>) -> f64 {
     }
     max - min
 }
+// Owner-authorized layout-equivalence correction. Keep width/width_range above
+// unchanged: their raw-advance measurements remain the historical W2 experiment.
+// CText publishes rounded word extents, independently of native glyph positions.
+fn native_word_width(input: &ShapedEvent, visible: std::ops::Range<u32>) -> f64 {
+    let mut order: Vec<_> = (0..input.runs().len()).collect();
+    let levels: Vec<_> = input.runs().iter().map(|r| r.bidi_level()).collect();
+    if let Some(low) = levels.iter().copied().filter(|v| v % 2 == 1).min() {
+        for level in (low..=*levels.iter().max().unwrap()).rev() {
+            let mut at = 0;
+            while at < order.len() {
+                if levels[order[at]] < level {
+                    at += 1;
+                    continue;
+                }
+                let begin = at;
+                while at < order.len() && levels[order[at]] >= level {
+                    at += 1;
+                }
+                order[begin..at].reverse();
+            }
+        }
+    }
+    let mut words = Vec::<((usize, usize, bool), f64)>::new();
+    for index in order {
+        let run = &input.runs()[index];
+        for (index, glyph) in run.glyphs().iter().enumerate() {
+            let cluster = glyph.cluster();
+            if cluster.end() <= visible.start || cluster.start() >= visible.end {
+                continue;
+            }
+            let at = cluster.start();
+            let (association, state) = input
+                .evaluated()
+                .runs()
+                .iter()
+                .enumerate()
+                .find(|(_, r)| r.decoded().is_some_and(|r| r.start() <= at && at < r.end()))
+                .unwrap();
+            let space = cluster.text() == " ";
+            let begin = if space {
+                at as usize
+            } else {
+                input.source_map().text()[..at as usize]
+                    .rfind(' ')
+                    .map_or(0, |i| i + 1)
+            };
+            let key = (association, begin, space);
+            if words.last().is_none_or(|(old, _)| *old != key) {
+                words.push((key, 0.0));
+            }
+            let word = &mut words.last_mut().unwrap().1;
+            // Independent native measurement; width/width_range intentionally
+            // retain the original raw advances for the performance experiment.
+            let fixed = (glyph.advance_x().get() * 1024.0 + 0.5).floor();
+            let measured = ((fixed + 8.0) / 16.0).floor() / 64.0;
+            *word += measured * state.geometry().scale_x().get();
+            if run
+                .glyphs()
+                .get(index + 1)
+                .is_none_or(|g| g.cluster() != cluster)
+            {
+                *word += state.shaping().spacing().get() * state.geometry().scale_x().get();
+            }
+        }
+    }
+    let (mut pen, mut low, mut high) = (0.0_f64, 0.0_f64, 0.0_f64);
+    for (_, word) in words {
+        pen += ((word * 64.0 + 4.0).trunc() as i64 >> 3) as f64 / 8.0;
+        low = low.min(pen);
+        high = high.max(pen);
+    }
+    high - low
+}
 fn same_advances(a: &ShapedEvent, b: &ShapedEvent, limits: &Limits) {
     assert_eq!(a.runs().len(), b.runs().len());
     assert_eq!(a.diagnostics(), b.diagnostics());
@@ -171,7 +244,7 @@ fn same_advances(a: &ShapedEvent, b: &ShapedEvent, limits: &Limits) {
     let end = text.trim_end_matches(' ').len().max(start);
     assert_eq!(
         local.logical_bounds().width(),
-        width_range(b, start as u32..end as u32)
+        native_word_width(b, start as u32..end as u32)
     );
 }
 

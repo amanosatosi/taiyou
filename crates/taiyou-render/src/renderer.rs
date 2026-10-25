@@ -211,6 +211,7 @@ fn prepare_local(
         fonts,
         &evaluated,
         &taiyou_font::ShapeOptions::default()
+            .with_kerning(ass_kerning(track))
             .with_layout_scale(device_mapping(track, request)?.layout_scale())
             .map_err(crate::geometry::font_error)?,
         &available(limits, stage_held)?,
@@ -234,6 +235,9 @@ fn prepare_local(
     let stage_held = add(stage_held, shape_charge)?;
     let mut constraints = LayoutConstraints::new(shaped.placement().alignment())
         .with_wrap(evaluated.wrap_mode())
+        .with_metric_scale_x(
+            FiniteF64::new(device_mapping(track, request)?.layout_scale()[0]).map_err(convert)?,
+        )?
         .with_limits(available(limits, stage_held)?);
     if evaluated.wrap_mode().get() != 2 {
         let style_index = usize::try_from(event.style().index()).map_err(|_| limited())?;
@@ -252,6 +256,30 @@ fn prepare_local(
     let stage_held = add(stage_held, layout_charge)?;
     available(limits, stage_held)?;
     Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
+}
+#[cfg(feature = "native")]
+fn ass_kerning(track: &Track) -> bool {
+    // Standard ASS measurements in pinterf use additive GDI extents; libass
+    // likewise defaults Kerning to false. Its optional header is retained in
+    // ScriptInfo metadata, including duplicate source order.
+    track
+        .script()
+        .metadata()
+        .iter()
+        .rev()
+        .find(|(key, _)| key.eq_ignore_ascii_case("Kerning"))
+        .is_some_and(|(_, value)| {
+            // libass ass.c parse_bool: yes prefix or positive decimal prefix.
+            value
+                .get(..3)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("yes"))
+                || value
+                    .strip_prefix('+')
+                    .unwrap_or(value)
+                    .bytes()
+                    .take_while(u8::is_ascii_digit)
+                    .any(|digit| digit != b'0')
+        })
 }
 /// Natural script-space alignment anchor. Margins define the horizontal usable
 /// rectangle; middle vertical alignment is the script midpoint. Explicit pos
@@ -449,16 +477,9 @@ impl Renderer {
         } else {
             let mut context = FontContext::with_limits(self.config.limits.clone())
                 .map_err(crate::geometry::font_error)?;
-            let mut builder = FontCatalogBuilder::new(self.config.limits.clone());
-            for face in fonts.faces() {
-                builder
-                    .register(
-                        &mut context,
-                        face.blob().bytes(),
-                        face.blob().id().face_index(),
-                    )
+            let mut builder =
+                FontCatalogBuilder::from_catalog(&mut context, &fonts, self.config.limits.clone())
                     .map_err(crate::geometry::font_error)?;
-            }
             for attachment in parsed.embedded_fonts() {
                 let attachment_error = |e| {
                     crate::geometry::font_error(e).with_context(None, Some(attachment.source()))
@@ -1037,10 +1058,22 @@ impl Renderer {
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
                         let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
-                        let subtraction_limits = available(limits, add(held, event_charge)?)?;
-                        let border_mask =
-                            crate::stroke::subtract_coverage(&mask, &fill, &subtraction_limits)?;
-                        charge_mask(&border_mask, &mut held, event_charge, limits)?;
+                        // RTS.cpp's outline fBody flag and libass's
+                        // FILTER_FILL_IN_BORDER retain E under opaque primary
+                        // AND secondary paint. Subtracting F in that case
+                        // punches alpha gaps into antialiased body edges.
+                        let border_mask = if state.outline_has_fill() {
+                            mask.clone()
+                        } else {
+                            let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let border_mask = crate::stroke::subtract_coverage(
+                                &mask,
+                                &fill,
+                                &subtraction_limits,
+                            )?;
+                            charge_mask(&border_mask, &mut held, event_charge, limits)?;
+                            border_mask
+                        };
                         expanded = Some(mask);
                         Some(border_mask)
                     } else {
@@ -1052,6 +1085,7 @@ impl Renderer {
                     let shadow = if state.paint().shadow().a() == 0
                         || (state.effects().shadow_x().get() == 0.0
                             && state.effects().shadow_y().get() == 0.0)
+                        || (!opaque && !border_exists && !state.shadow_has_fill())
                     {
                         None
                     } else {
@@ -1067,8 +1101,8 @@ impl Renderer {
                             false,
                             track.script().scaled_border_shadow(),
                         )?;
-                        if dx.ticks() == 0 && dy.ticks() == 0 {
-                            Some(Arc::clone(expanded.as_ref().unwrap_or(&fill)))
+                        let mask = if dx.ticks() == 0 && dy.ticks() == 0 {
+                            Arc::clone(expanded.as_ref().unwrap_or(&fill))
                         } else if let Some(boxes) = box_group.as_ref() {
                             let mut raster = RasterContext::with_limits(available(
                                 limits,
@@ -1078,13 +1112,7 @@ impl Renderer {
                                 crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -1106,13 +1134,7 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
@@ -1126,18 +1148,59 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            Some(filter_mask(
-                                mask,
-                                &blur_spec,
-                                &mut held,
-                                event_charge,
-                                limits,
-                            )?)
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                        };
+                        if !opaque && border_exists && !state.shadow_has_fill() {
+                            // Both references subtract the unfiltered body
+                            // from the filtered outline in the shadow overlay.
+                            // Rasterize that body at the SAME shadow phase;
+                            // subtracting the event's original fill is wrong.
+                            let body = if dx.ticks() == 0 && dy.ticks() == 0 {
+                                fill.clone()
+                            } else {
+                                let mut raster = RasterContext::with_limits(available(
+                                    limits,
+                                    add(held, event_charge)?,
+                                )?)?;
+                                let body = crate::stroke::rasterize_translated_xy(
+                                    &mut raster,
+                                    group,
+                                    dx,
+                                    dy,
+                                )?;
+                                drop(raster);
+                                charge_mask(&body, &mut held, event_charge, limits)?;
+                                body
+                            };
+                            let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let ring = crate::stroke::subtract_coverage(
+                                &mask,
+                                &body,
+                                &subtraction_limits,
+                            )?;
+                            charge_mask(&ring, &mut held, event_charge, limits)?;
+                            for old in [&mask, &body] {
+                                if !Arc::ptr_eq(old, &fill)
+                                    && !expanded.as_ref().is_some_and(|e| Arc::ptr_eq(old, e))
+                                {
+                                    let charge = (old.data().len() as u64)
+                                        .checked_mul(3)
+                                        .ok_or_else(limited)?;
+                                    held = held.checked_sub(charge).ok_or_else(limited)?;
+                                }
+                            }
+                            Some(ring)
+                        } else {
+                            Some(mask)
                         }
                     };
                     drop(box_group);
                     event_charge = event_charge.checked_sub(box_charge).ok_or_else(limited)?;
                     if (border_exists || (opaque && border.is_none()))
+                        && border
+                            .as_ref()
+                            .zip(expanded.as_ref())
+                            .is_none_or(|(border, expanded)| !Arc::ptr_eq(border, expanded))
                         && shadow
                             .as_ref()
                             .zip(expanded.as_ref())
@@ -1174,19 +1237,36 @@ impl Renderer {
                                 progress = 1.0 - progress;
                                 std::mem::swap(&mut fill_paint, &mut secondary);
                             }
-                            let mut width = 0.0;
-                            for i in group.policy().members().clone() {
-                                let g = &placed.layout().glyphs()[i];
-                                let run = &placed.layout().shaped().runs()[g.run_index()];
-                                width += if let Some(d) = run.drawing() {
-                                    d.width.get()
+                            // CWord::Append adds independently rounded layout
+                            // extents. Karaoke sweeps that stored m_width, not
+                            // the continuous glyph cursor used by TextOut.
+                            let local = placed.layout();
+                            let members = group.policy().members();
+                            let pen = |ordinal: usize| -> Result<f64, RenderError> {
+                                let g = local.glyphs().get(ordinal).ok_or_else(limited)?;
+                                let run = &local.shaped().runs()[g.run_index()];
+                                let style =
+                                    &local.shaped().evaluated().runs()[g.association_index()];
+                                let offset = if run.drawing().is_some() {
+                                    0.0
                                 } else {
-                                    run.glyphs()[g.glyph_index()].advance_x().get()
+                                    run.glyphs()[g.glyph_index()].offset_x().get()
+                                        * style.geometry().scale_x().get()
+                                        * local.local_scale().0.get()
                                 };
-                            }
-                            width *= state.geometry().scale_x().get()
-                                * placed.layout().local_scale().0.get()
-                                * sx;
+                                Ok(g.position().x().get() - offset)
+                            };
+                            let line = local
+                                .lines()
+                                .iter()
+                                .find(|line| line.glyph_range().contains(&members.start))
+                                .ok_or_else(limited)?;
+                            let right = if members.end < line.glyph_range().end {
+                                pen(members.end)?
+                            } else {
+                                line.logical_bounds().x1().get()
+                            };
+                            let width = (right - pen(members.start)?) * sx;
                             let native = ((state.effects().border_x().get() + progress * width)
                                 * 8.0)
                                 .trunc();

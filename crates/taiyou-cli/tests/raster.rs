@@ -79,6 +79,57 @@ fn geometry_for(text: &str) -> Arc<GeometryEvent> {
     )
 }
 #[test]
+fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
+    let mut rounded_layout_differs = false;
+    let mut native_differs = false;
+    for size in [17.37, 20.0, 23.51] {
+        let event = geometry_for(&format!("{{\\fs{size}}}A A"));
+        let local = event.layout();
+        let advance: f64 = local.glyphs()[..2]
+            .iter()
+            .map(|g| {
+                local.shaped().runs()[g.run_index()].glyphs()[g.glyph_index()]
+                    .advance_x()
+                    .get()
+            })
+            .sum();
+        let native_advance: f64 = local.glyphs()[..2]
+            .iter()
+            .map(|g| {
+                let raw = local.shaped().runs()[g.run_index()].glyphs()[g.glyph_index()]
+                    .advance_x()
+                    .get();
+                let fixed = (raw * 1024.0 + 0.5).floor();
+                ((fixed + 8.0) / 16.0).floor() / 64.0
+            })
+            .sum();
+        native_differs |= native_advance != advance;
+        let expected = Q6::from_pixels(f(native_advance)).unwrap().ticks();
+        let origin = |index: usize| {
+            event.glyphs()[index]
+                .geometry
+                .mapping()
+                .point(FontPoint::ZERO)
+                .unwrap()
+                .x()
+                .ticks()
+        };
+        assert_eq!(origin(2) - origin(0), expected);
+        let layout_delta =
+            local.glyphs()[2].position().x().get() - local.glyphs()[0].position().x().get();
+        rounded_layout_differs |= Q6::from_pixels(f(layout_delta)).unwrap().ticks() != expected;
+    }
+    assert!(
+        rounded_layout_differs,
+        "fixture must expose independent word extent rounding"
+    );
+    assert!(
+        native_differs,
+        "fixture must expose native glyph measurement"
+    );
+}
+
+#[test]
 fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
     let event = geometry_for("Oé ب क 語");
     let ids: std::collections::BTreeSet<_> =
@@ -91,10 +142,15 @@ fn raster_fixed_fonts_owned_fallback_curves_and_repeatability() {
             .any(|p| matches!(p, PathOp::CubicTo(..)))
     }));
     assert!(event.glyphs().iter().any(|g| {
-        g.geometry
+        g.outline
+            .outline()
             .ops()
             .iter()
             .any(|p| matches!(p, PathOp::QuadTo(..)))
+            && g.geometry
+                .ops()
+                .iter()
+                .any(|p| matches!(p, PathOp::CubicTo(..)))
     }));
     let groups = coverage_groups(event, &limits()).unwrap();
     assert_eq!(groups.len(), 1);
@@ -145,7 +201,13 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
         ("A{\\rBorder}V", 2),
         ("A{\\fscx200}V", 2),
         ("A{\\fs30}V", 2),
-        ("f{\\c&HFF0000&}f", 1),
+        ("f{\\c&HFF0000&}f", 2),
+        ("{\\kf100}A{\\kt0}V", 1),
+        ("{\\kf100}A{\\kt500}V", 1),
+        ("{\\kf100}A{\\kf100}V", 2),
+        ("{\\kf100}A{\\kt0\\c&HFF0000&}V", 2),
+        ("{\\kf100}A\\N{\\kt0}V", 2),
+        ("A\\NV", 2),
     ] {
         let groups = coverage_groups(geometry_for(text), &limits()).unwrap();
         assert_eq!(groups.len(), count, "{text}");
@@ -157,8 +219,18 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
                     .original_ranges(&limits())
                     .unwrap()
                     .len(),
-                2
+                1
             );
+            let left = event.glyphs()[0]
+                .cluster
+                .original_ranges(&limits())
+                .unwrap();
+            let right = event.glyphs()[1]
+                .cluster
+                .original_ranges(&limits())
+                .unwrap();
+            assert_eq!(right.len(), 1);
+            assert!(left[0].end() < right[0].start());
         }
         for g in &groups {
             assert_eq!(g.policy().members().len(), g.instances().len());

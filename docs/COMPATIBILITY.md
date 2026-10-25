@@ -22,7 +22,7 @@ The upstream [differences document](https://github.com/libass/libass/wiki/Differ
 
 | Area | Reported disagreement | Taiyou disposition |
 |---|---|---|
-| Borders under transforms | VSFilter preserves border widths through transforms; libass differs | Follow verified xy transform/stroke behavior when implemented |
+| Borders under transforms | VSFilter widens after 3D transforms; libass transforms expanded outlines | Owner-directed exception: follow libass for nonzero X/Y rotation; preserve ordinary xy borders |
 | Automatic wrapping | libass balances lines differently from VSFilter | Follow verified xy wrapping for standard mode; `\warpmode1` is the separate Taiyou Unicode extension |
 | Missing SBAS header | libass has FFmpeg-generated-file exceptions | Explicit profile parsing rule, no accidental heuristic |
 | Style Encoding / `\fe` | Font-selection constraints differ | T026; no locale-derived guesses |

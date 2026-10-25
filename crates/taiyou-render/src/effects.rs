@@ -206,11 +206,14 @@ fn gaussian(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, 
     let mut output = zeros::<u8>(n)?;
     let kx = coefficients(spec.sigma[0], spec.radius[0])?;
     let ky = coefficients(spec.sigma[1], spec.radius[1])?;
+    let native = mask.is_xy_coverage();
     // No byte quantization between Gaussian axes. No FMA or fast math.
     for y in 0..mask.bounds().height() as usize {
         for x in 0..w {
             let mut sum = 0.0_f32;
-            for (k, weight) in kx.iter().enumerate() {
+            for i in 0..kx.len() {
+                let k = gaussian_tap(i, kx.len(), native);
+                let weight = kx[k];
                 let sx = x as i64 + k as i64 - 2 * i64::from(spec.radius[0]);
                 if sx >= 0 && sx < i64::from(mask.bounds().width()) {
                     sum += f32::from(mask.data()[y * mask.stride() + sx as usize]) * weight;
@@ -222,18 +225,40 @@ fn gaussian(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, 
     for y in 0..h {
         for x in 0..w {
             let mut sum = 0.0_f32;
-            for (k, weight) in ky.iter().enumerate() {
+            for i in 0..ky.len() {
+                let k = gaussian_tap(i, ky.len(), native);
+                let weight = ky[k];
                 let sy = y as i64 + k as i64 - i64::from(spec.radius[1]);
                 if sy >= 0 && sy < h as i64 {
                     sum += horizontal[sy as usize * w + x] * weight;
                 }
             }
-            // The reference scalar conversion uses +0.5. SIMD/MXCSR tail
-            // equivalence is not asserted for this scalar A8 backend.
-            output[y * w + x] = (sum + 0.5).floor().clamp(0.0, 255.0) as u8;
+            // xy's transposed byte conversion rounds complete 16-column
+            // blocks to nearest/even, then uses +0.5 for the remaining tail.
+            // Reproduce the arithmetic without a platform SIMD dependency.
+            output[y * w + x] = gaussian_byte(sum, native && x < w / 16 * 16);
         }
     }
     Ok(Arc::new(mask.with_data(bounds, w, output.into())?))
+}
+
+fn gaussian_tap(i: usize, length: usize, native: bool) -> usize {
+    // xy_filter.cpp's general float filter accumulates each four-tap group
+    // in 0,2,1,3 order. Its symmetric three-tap specialization uses 0,1,2.
+    if native && length > 3 {
+        (i & !3) + [0, 2, 1, 3][i & 3]
+    } else {
+        i
+    }
+}
+
+fn gaussian_byte(sum: f32, nearest_even: bool) -> u8 {
+    let value = if nearest_even {
+        sum.round_ties_even()
+    } else {
+        (sum + 0.5).floor()
+    };
+    value.clamp(0.0, 255.0) as u8
 }
 
 fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, RenderError> {
@@ -309,4 +334,22 @@ fn edge(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, Rend
         }
     }
     Ok(Arc::new(mask.with_data(bounds, w, data.into())?))
+}
+
+#[cfg(test)]
+mod gaussian_conversion_tests {
+    use super::gaussian_byte;
+
+    #[test]
+    fn native_blocks_keep_the_xy_nearest_even_tie_and_scalar_tail() {
+        assert_eq!(gaussian_byte(12.5, true), 12);
+        assert_eq!(gaussian_byte(12.5, false), 13);
+        assert_eq!(gaussian_byte(13.5, true), 14);
+        assert_eq!(gaussian_byte(13.5, false), 14);
+        for native in [true, false] {
+            assert_eq!(gaussian_byte(0.0, native), 0);
+            assert_eq!(gaussian_byte(64.0, native), 64);
+            assert_eq!(gaussian_byte(255.0, native), 255);
+        }
+    }
 }

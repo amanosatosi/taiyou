@@ -37,11 +37,16 @@ fn shaping_parser_utf8_combining_and_ligature_gaps_survive_input_release() {
             )
             .unwrap()
         };
-        let glyph = shaped.runs()[0].glyphs().last().unwrap();
-        let spans = glyph
-            .cluster()
-            .original_ranges(&Default::default())
-            .unwrap();
+        let requested = expected.concat();
+        let start = shaped.source_map().text().rfind(&requested).unwrap() as u32;
+        let mut spans: Vec<_> = shaped.runs()[0]
+            .glyphs()
+            .iter()
+            .filter(|g| g.cluster().start() >= start)
+            .flat_map(|g| g.cluster().original_ranges(&Default::default()).unwrap())
+            .collect();
+        spans.sort_by_key(|s| s.start());
+        spans.dedup();
         assert_eq!(spans.len(), 2);
         assert!(spans[0].end() < spans[1].start());
         for (span, expected) in spans.iter().zip(expected) {

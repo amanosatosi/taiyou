@@ -158,6 +158,21 @@ pub fn collision_footprint_with_limits(
             "fixed explicit rotation origin requires a separate collision policy",
         ));
     }
+    let logical = local.logical_bounds();
+    // An ink overhang does not turn a zero-width ASS text rectangle into a
+    // collision obstacle. Pinterf's allocator tests rectangle intersection;
+    // libass fix_collisions likewise excludes zero-area events. A horizontal
+    // outline can give that rectangle width, so retain its normal reservation.
+    if logical.width() == 0.0
+        && local
+            .shaped()
+            .evaluated()
+            .runs()
+            .iter()
+            .all(|run| run.effects().border_x().get() == 0.0)
+    {
+        return Ok(logical);
+    }
     let sx = f64::from(device.content().width()) / f64::from(device.play_res().width());
     let sy = f64::from(device.content().height()) / f64::from(device.play_res().height());
     let [lx, ly] = device.layout_scale();

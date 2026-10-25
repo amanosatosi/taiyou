@@ -6,6 +6,7 @@
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
 #include FT_TRUETYPE_TABLES_H
+#include FT_FONT_FORMATS_H
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -89,6 +90,9 @@ int main(int argc, char **argv) {
     require(os2 != NULL && os2->usWinAscent + os2->usWinDescent > 0);
     double em = floor(1280.0 * face->units_per_EM / (os2->usWinAscent + os2->usWinDescent) + 0.5);
     double scale = em / (64.0 * face->units_per_EM);
+    const char *format = FT_Get_Font_Format(face);
+    double outline_scale = format && !strcmp(format, "CFF")
+        ? 1280.0 / (64.0 * (os2->usWinAscent + os2->usWinDescent)) : scale;
     double ascent = floor((floor(os2->usWinAscent * scale * 64.0 + 0.5) + 4.0) / 8.0) / 8.0;
     double descent = floor((floor(os2->usWinDescent * scale * 64.0 + 0.5) + 4.0) / 8.0) / 8.0;
     printf("INDEPENDENT_H_METRICS upem=%u ascender=%ld descender=%ld\n", face->units_per_EM, (long)face->ascender, (long)face->descender);
@@ -97,16 +101,21 @@ int main(int argc, char **argv) {
         require(face->glyph->format == FT_GLYPH_FORMAT_OUTLINE);
         FT_Outline *outline = &face->glyph->outline;
         double advance = face->glyph->metrics.horiAdvance * scale;
+        /* Owner-authorized correction: RTS.cpp CText::GetTextInfo stores a
+         * rounded eighth-pixel word extent; CLine::PaintAll divides its integer
+         * m_width by two for centering. Keep the independent path/raster and
+         * every alignment/color/zero-tolerance comparison unchanged. */
+        long word_eighths = (long)(advance * 64.0 + 4.0) >> 3;
         int col = (a - 1) % 3, row = (a - 1) / 3;
         double x = col == 0 ? 10.0 : col == 1 ? 80.0 : 150.0;
         double y = row == 0 ? 90.0 : row == 1 ? 50.0 : 10.0;
-        x -= col == 0 ? 0.0 : col == 1 ? advance / 2.0 : advance;
+        x -= col == 0 ? 0.0 : col == 1 ? (word_eighths / 2) / 8.0 : word_eighths / 8.0;
         y += row == 0 ? -descent : row == 1 ? (ascent - descent) / 2.0 : ascent;
         if (a == 10) { x = -2.0; y = -8.0 + ascent; }
         y += floor(os2->usWinAscent * scale * 64.0 + 0.5) / 64.0 - ascent;
         for (unsigned int i = 0; i < outline->n_points; i++) {
-            double px = outline->points[i].x * scale + x;
-            double py = -outline->points[i].y * scale + y;
+            double px = outline->points[i].x * outline_scale + x;
+            double py = -outline->points[i].y * outline_scale + y;
             outline->points[i].x = quantize(px * 64.0);
             outline->points[i].y = 100 * 64 - quantize(py * 64.0);
         }

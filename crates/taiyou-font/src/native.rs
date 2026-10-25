@@ -283,6 +283,26 @@ impl FontContext {
         glyph: u32,
         limits: &Limits,
     ) -> Result<GlyphOutline, FontError> {
+        self.outline_at_scale(blob, glyph, None, limits)
+    }
+
+    pub(crate) fn ass_outline_authenticated(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        scale: FiniteF64,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
+        self.outline_at_scale(blob, glyph, Some(scale), limits)
+    }
+
+    fn outline_at_scale(
+        &mut self,
+        blob: &FontBlob,
+        glyph: u32,
+        scale: Option<FiniteF64>,
+        limits: &Limits,
+    ) -> Result<GlyphOutline, FontError> {
         self.check_bytes(blob.bytes())?;
         let native_charge = (blob.bytes().len() as u64)
             .checked_mul(12)
@@ -319,10 +339,24 @@ impl FontContext {
                     ));
                 }
                 check_outline_face((*face.raw).face_flags)?;
-                let flags = ft::FT_LOAD_NO_SCALE
-                    | ft::FT_LOAD_NO_HINTING
-                    | ft::FT_LOAD_NO_BITMAP
-                    | ft::FT_LOAD_IGNORE_TRANSFORM;
+                let mut flags = ft::FT_LOAD_NO_BITMAP | ft::FT_LOAD_IGNORE_TRANSFORM;
+                if let Some(scale) = scale {
+                    let height =
+                        (scale.get() * f64::from((*face.raw).units_per_EM) * 4096.0).round();
+                    if !(1.0..=f64::from(u16::MAX) * 64.0).contains(&height) {
+                        return Err(FontError::new(
+                            ErrorCode::LimitExceeded,
+                            "native font size exceeded",
+                        ));
+                    }
+                    let code = ft::FT_Set_Char_Size(face.raw, 0, height as ft::FT_F26Dot6, 72, 72);
+                    if code != 0 {
+                        return Err(native_error(code, "native outline size failed"));
+                    }
+                    flags |= ft::FT_LOAD_NO_AUTOHINT | ft::FT_LOAD_TARGET_MONO;
+                } else {
+                    flags |= ft::FT_LOAD_NO_SCALE | ft::FT_LOAD_NO_HINTING;
+                }
                 let code = ft::FT_Load_Glyph(face.raw, glyph, flags);
                 if code != 0 {
                     return Err(native_error(code, "FT_Load_Glyph outline failed"));
@@ -424,6 +458,16 @@ impl FontContext {
                     state.close();
                     if state.failed {
                         return Err(native_error(0, "outline copy capacity exceeded"));
+                    }
+                }
+                if let Some(scale) = scale {
+                    let denominator = scale.get() * 4096.0;
+                    for op in &mut state.ops {
+                        *op = op
+                            .try_map(|p| {
+                                FontPoint::new(p.x().get() / denominator, p.y().get() / denominator)
+                            })
+                            .map_err(|e| FontError::new(e.code(), e.detail()))?;
                     }
                 }
                 let owned = Outline::new(state.ops, limits).map_err(|e| {
@@ -675,11 +719,12 @@ impl FontContext {
                     request.language.len() as i32,
                 ),
             );
-            let flags = if request.range.start == request.context.start {
-                hb::HB_BUFFER_FLAG_BOT
-            } else {
-                0
-            } | if request.range.end == request.context.end {
+            // ASS supplies literal marks, including standalone zero-advance
+            // accents. BOT asks HarfBuzz's generic pre-shaping pass to insert
+            // a dotted-circle base for them. Libass leaves BOT unset too.
+            // Keep script-specific shaping and the supplied paragraph context;
+            // do not globally disable dotted circles in complex-script shapers.
+            let flags = if request.range.end == request.context.end {
                 hb::HB_BUFFER_FLAG_EOT
             } else {
                 0
@@ -699,7 +744,7 @@ impl FontContext {
                 end: u32::MAX,
             };
             let features = [
-                feature(u32::from_be_bytes(*b"kern"), 1),
+                feature(u32::from_be_bytes(*b"kern"), u32::from(request.kerning)),
                 feature(u32::from_be_bytes(*b"liga"), u32::from(request.ligatures)),
                 feature(u32::from_be_bytes(*b"clig"), u32::from(request.ligatures)),
                 feature(u32::from_be_bytes(*b"vert"), u32::from(request.vertical)),
@@ -990,6 +1035,13 @@ struct Os2Prefix {
     weight: u16,
 }
 unsafe extern "C" {
+    #[cfg(test)]
+    fn FT_Property_Set(
+        library: ft::FT_Library,
+        module: *const std::ffi::c_char,
+        property: *const std::ffi::c_char,
+        value: *const std::ffi::c_void,
+    ) -> ft::FT_Error;
     fn FT_Library_Version(
         library: ft::FT_Library,
         major: *mut ft::FT_Int,
@@ -1016,7 +1068,8 @@ std::thread_local! {
     static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 struct Library(ft::FT_Library);
-type CoverageRasterizer = fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>;
+type CoverageRasterizer<'a> =
+    dyn Fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError> + 'a;
 /// Per-call-worker raster owner, neither Send nor Sync. No native handle escapes.
 /// ```compile_fail
 /// fn require_send<T: Send>() {}
@@ -1323,14 +1376,14 @@ impl RasterContext {
         radius_x: Q6,
         radius_y: Q6,
         remaining_segments: u64,
-        coverage: CoverageRasterizer,
+        coverage: impl Fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
         self.stroke_rasterize_path_axes_impl(
             ops,
             radius_x,
             radius_y,
             remaining_segments,
-            Some(coverage),
+            Some(&coverage),
         )
     }
     fn stroke_rasterize_path_axes_impl(
@@ -1339,7 +1392,7 @@ impl RasterContext {
         radius_x: Q6,
         radius_y: Q6,
         remaining_segments: u64,
-        coverage: Option<CoverageRasterizer>,
+        coverage: Option<&CoverageRasterizer<'_>>,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
         let radius = radius_x.max(radius_y);
         let invalid =
@@ -2647,6 +2700,76 @@ impl FontContext {
 mod tests {
     use super::*;
     #[test]
+    #[ignore = "Actions-only diagnostic requiring the pinned external corpus"]
+    fn font_native_path_observations() {
+        let corpus = std::path::PathBuf::from(std::env::var("TAIYOU_CORPUS").unwrap());
+        let mut context = FontContext::new().unwrap();
+        for (relative, sizes, chars) in [
+            (
+                "regression/blurs/Aileron-Regular.otf",
+                &[100_u32][..],
+                "+·¶",
+            ),
+            (
+                "regression/v4++/DejaVuSans.ttf",
+                &[30_u32, 35, 42, 60][..],
+                "KaraokeW",
+            ),
+        ] {
+            let bytes: Arc<[u8]> = std::fs::read(corpus.join(relative)).unwrap().into();
+            for &size in sizes {
+                for (interpreter, samples, flags) in [
+                    (40_u32, 1_u32, ft::FT_LOAD_NO_HINTING),
+                    (40, 1, 0),
+                    (40, 1, ft::FT_LOAD_TARGET_MONO),
+                    (35, 1, 0),
+                    (35, 1, ft::FT_LOAD_TARGET_MONO),
+                    (35, 16, 0),
+                ] {
+                    // SAFETY: the property copies this local integer into the
+                    // diagnostic context's exclusively owned library; all
+                    // earlier probe faces have been dropped before changing it.
+                    let code = unsafe {
+                        FT_Property_Set(
+                            context.library.0,
+                            c"truetype".as_ptr(),
+                            c"interpreter-version".as_ptr(),
+                            (&interpreter as *const u32).cast(),
+                        )
+                    };
+                    assert_eq!(code, 0);
+                    context.with_face(bytes.clone(), 0, |face| {
+                        // SAFETY: request-local diagnostic face and pinned bytes
+                        // live through all native reads. No pointers escape.
+                        unsafe {
+                            let precise = f64::from((*face.raw).units_per_EM) * f64::from(size) * 64.0
+                                / if relative.ends_with(".otf") {1200.0} else {2384.0};
+                            let em = if relative.ends_with(".otf") {precise} else {precise.round()};
+                            if em * f64::from(samples) > f64::from(u16::MAX) {
+                                println!("FONT_PATH_PROBE_UNAVAILABLE font={relative} size={size} samples={samples} reason=FreeType-ppem-limit");
+                                return Ok(());
+                            }
+                            let code = ft::FT_Set_Char_Size(face.raw, 0, (em * 64.0 * f64::from(samples)).round() as ft::FT_F26Dot6, 72, 72);
+                            if code != 0 { return Err(native_error(code, "probe size failed")); }
+                            for ch in chars.chars() {
+                                let glyph = ft::FT_Get_Char_Index(face.raw, ch as ft::FT_ULong);
+                                let code = ft::FT_Load_Glyph(face.raw, glyph, flags | ft::FT_LOAD_NO_BITMAP);
+                                if code != 0 { return Err(native_error(code, "probe glyph failed")); }
+                                let outline = &(*(*face.raw).glyph).outline;
+                                let mut state = OutlineCopy {ops: Vec::with_capacity(outline.n_points as usize * 4 + 16), failed: false, open: false};
+                                let code = FT_Outline_Decompose(outline, &outline_funcs(), (&mut state as *mut OutlineCopy).cast());
+                                if code != 0 || state.failed { return Err(native_error(code, "probe decomposition failed")); }
+                                if state.open {state.ops.push(PathOp::Close);}
+                                println!("FONT_PATH_PROBE font={relative} size={size} em={em} interpreter={interpreter} samples={samples} flags={flags} char={ch} ops={:?}", state.ops);
+                            }
+                            Ok(())
+                        }
+                    }).unwrap();
+                }
+            }
+        }
+    }
+    #[test]
     fn legacy_cmap_mapping_preserves_glyphs_metrics_and_unicode_clusters() {
         use sha2::{Digest, Sha256};
         let directory = std::path::PathBuf::from(std::env::var("TAIYOU_TEST_FONT").unwrap());
@@ -2664,6 +2787,7 @@ mod tests {
             script: u32::from_be_bytes(*b"Hani"),
             language: "und",
             ligatures: true,
+            kerning: true,
             vertical: false,
         };
         let mut context = FontContext::new().unwrap();
@@ -2913,6 +3037,7 @@ mod tests {
                 script: u32::from_be_bytes(script),
                 language: "und",
                 ligatures: true,
+                kerning: true,
                 vertical: false,
             }
         }
@@ -3146,6 +3271,7 @@ mod tests {
             script: u32::from_be_bytes(*b"Latn"),
             language: "en",
             ligatures: true,
+            kerning: true,
             vertical: false,
         };
         let retained = {
@@ -3202,5 +3328,1414 @@ mod tests {
         }
         drop(context);
         assert_eq!(LIVE.with(|n| n.get()), (0, 0));
+    }
+}
+
+// Platform providers are explicit host-owned admission adapters. Native handles
+// never enter the renderer's immutable catalog or its workers.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+mod host_file {
+    use super::*;
+    use std::{fs::File, io::Read, path::Path};
+
+    pub(super) fn read(path: &Path, limits: &Limits) -> Result<Vec<u8>, FontError> {
+        let fail = |e: std::io::Error| native_error(0, &format!("system font I/O: {e}"));
+        let file = File::open(path).map_err(fail)?;
+        let length = file.metadata().map_err(fail)?.len();
+        if length == 0
+            || length > limits.font_bytes()
+            || length
+                .checked_mul(13)
+                .and_then(|n| n.checked_add(65536))
+                .is_none_or(|n| n > limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit(
+                "system font intake exceeds budget",
+            ));
+        }
+        let capacity =
+            usize::try_from(length).map_err(|_| native_error(0, "system font size overflow"))?;
+        let mut bytes = Vec::new();
+        bytes.try_reserve_exact(capacity).map_err(|_| {
+            FontError::new(ErrorCode::AllocationFailed, "system font allocation failed")
+        })?;
+        file.take(length).read_to_end(&mut bytes).map_err(fail)?;
+        if bytes.len() != capacity {
+            return Err(native_error(0, "system font changed during admission"));
+        }
+        Ok(bytes)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub mod fontconfig {
+    use super::{FontContext, host_file, native_error};
+    use crate::FontCatalogBuilder;
+    use std::{
+        ffi::{CStr, CString, c_char, c_void},
+        marker::PhantomData,
+        os::unix::ffi::OsStrExt,
+        path::Path,
+        ptr,
+        rc::Rc,
+    };
+    use taiyou_types::*;
+    type Raw = *mut c_void;
+    #[repr(C)]
+    struct FontSet {
+        count: i32,
+        capacity: i32,
+        fonts: *mut Raw,
+    }
+    #[link(name = "libfontconfig.so.1", kind = "dylib", modifiers = "+verbatim")]
+    unsafe extern "C" {
+        fn FcInitLoadConfigAndFonts() -> Raw;
+        fn FcConfigDestroy(config: Raw);
+        fn FcPatternCreate() -> Raw;
+        fn FcPatternDestroy(pattern: Raw);
+        fn FcPatternAddString(pattern: Raw, object: *const c_char, value: *const u8) -> i32;
+        fn FcPatternAddInteger(pattern: Raw, object: *const c_char, value: i32) -> i32;
+        fn FcPatternAddBool(pattern: Raw, object: *const c_char, value: i32) -> i32;
+        fn FcPatternAddCharSet(pattern: Raw, object: *const c_char, value: Raw) -> i32;
+        fn FcPatternGetString(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut *mut u8,
+        ) -> i32;
+        fn FcPatternGetInteger(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut i32,
+        ) -> i32;
+        fn FcPatternGetCharSet(
+            pattern: Raw,
+            object: *const c_char,
+            index: i32,
+            value: *mut Raw,
+        ) -> i32;
+        fn FcPatternDel(pattern: Raw, object: *const c_char) -> i32;
+        fn FcCharSetCreate() -> Raw;
+        fn FcCharSetDestroy(charset: Raw);
+        fn FcCharSetAddChar(charset: Raw, value: u32) -> i32;
+        fn FcCharSetHasChar(charset: Raw, value: u32) -> i32;
+        fn FcConfigSubstitute(config: Raw, pattern: Raw, kind: u32) -> i32;
+        fn FcDefaultSubstitute(pattern: Raw);
+        fn FcFontSort(
+            config: Raw,
+            pattern: Raw,
+            trim: i32,
+            charset: *mut Raw,
+            result: *mut u32,
+        ) -> *mut FontSet;
+        fn FcFontSetDestroy(set: *mut FontSet);
+        fn FcWeightFromOpenType(weight: i32) -> i32;
+    }
+    struct Owned(Raw, unsafe extern "C" fn(Raw));
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            /* SAFETY: unique successful Create reference. */
+            unsafe { (self.1)(self.0) }
+        }
+    }
+    struct Sorted(*mut FontSet);
+    impl Drop for Sorted {
+        fn drop(&mut self) {
+            /* SAFETY: owned FcFontSort result. */
+            unsafe { FcFontSetDestroy(self.0) }
+        }
+    }
+    fn owned(p: Raw, drop: unsafe extern "C" fn(Raw)) -> Result<Owned, FontError> {
+        if p.is_null() {
+            Err(native_error(0, "Fontconfig allocation failed"))
+        } else {
+            Ok(Owned(p, drop))
+        }
+    }
+    fn check(result: i32) -> Result<(), FontError> {
+        if result == 0 {
+            Err(native_error(0, "Fontconfig operation failed"))
+        } else {
+            Ok(())
+        }
+    }
+    /// One host font configuration per admission session, following libass's
+    /// Fontconfig substitution and sorted-coverage approach. Font bytes are
+    /// loaded only for a selected face, never for the full installed inventory.
+    pub struct SystemFontSource {
+        config: Owned,
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
+    impl SystemFontSource {
+        pub fn new(limits: Limits) -> Result<Self, FontError> {
+            // SAFETY: this call transfers a new reference, released by Owned.
+            let config = unsafe { owned(FcInitLoadConfigAndFonts(), FcConfigDestroy)? };
+            Ok(Self {
+                config,
+                limits,
+                _local: PhantomData,
+            })
+        }
+        pub fn extend_catalog(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            request: &FontRequest,
+        ) -> Result<(), FontError> {
+            if text.is_empty() {
+                return Ok(());
+            }
+            if (text.len() as u64)
+                .checked_add(request.family().len() as u64)
+                .and_then(|n| n.checked_mul(64))
+                .is_none_or(|n| n > self.limits.transient_bytes())
+            {
+                return Err(FontError::transient_limit(
+                    "Fontconfig request exceeds budget",
+                ));
+            }
+            let family = CString::new(
+                request
+                    .family()
+                    .strip_prefix('@')
+                    .unwrap_or(request.family()),
+            )
+            .map_err(|_| FontError::new(ErrorCode::InvalidArgument, "font family contains NUL"))?;
+            // SAFETY: all patterns, sets and config are owned for this call;
+            // returned strings/charsets are borrowed only while the set lives.
+            // Fontconfig uses this documented C ABI; no native pointer escapes.
+            unsafe {
+                let pattern = owned(FcPatternCreate(), FcPatternDestroy)?;
+                let charset = owned(FcCharSetCreate(), FcCharSetDestroy)?;
+                for ch in text.chars() {
+                    check(FcCharSetAddChar(charset.0, ch as u32))?;
+                }
+                check(FcPatternAddString(
+                    pattern.0,
+                    c"family".as_ptr(),
+                    family.as_ptr().cast(),
+                ))?;
+                check(FcPatternAddBool(pattern.0, c"outline".as_ptr(), 1))?;
+                check(FcPatternAddInteger(
+                    pattern.0,
+                    c"weight".as_ptr(),
+                    FcWeightFromOpenType(i32::from(request.weight())),
+                ))?;
+                check(FcPatternAddInteger(
+                    pattern.0,
+                    c"slant".as_ptr(),
+                    if request.italic() { 100 } else { 0 },
+                ))?;
+                check(FcPatternAddCharSet(
+                    pattern.0,
+                    c"charset".as_ptr(),
+                    charset.0,
+                ))?;
+                check(FcConfigSubstitute(self.config.0, pattern.0, 0))?;
+                FcDefaultSubstitute(pattern.0);
+                // Like libass, remove automatic locale preference.
+                FcPatternDel(pattern.0, c"lang".as_ptr());
+                let mut result = 0;
+                let raw = FcFontSort(self.config.0, pattern.0, 0, ptr::null_mut(), &mut result);
+                if raw.is_null() {
+                    return Err(native_error(result as i32, "Fontconfig sort failed"));
+                }
+                let set = Sorted(raw);
+                if (*set.0).count < 0 || ((*set.0).count > 0 && (*set.0).fonts.is_null()) {
+                    return Err(native_error(0, "invalid Fontconfig font set"));
+                }
+                // Require a face to cover the complete cluster. Scalar queries
+                // here are coverage checks, never independently shaped pieces.
+                for i in 0..(*set.0).count as usize {
+                    let candidate = *(*set.0).fonts.add(i);
+                    let mut coverage = ptr::null_mut();
+                    if FcPatternGetCharSet(candidate, c"charset".as_ptr(), 0, &mut coverage) != 0
+                        || coverage.is_null()
+                    {
+                        continue;
+                    }
+                    if !text
+                        .chars()
+                        .filter(|c| {
+                            !matches!(*c, '\u{200c}' | '\u{200d}' | '\u{fe00}'..='\u{fe0f}')
+                        })
+                        .all(|ch| FcCharSetHasChar(coverage, ch as u32) != 0)
+                    {
+                        continue;
+                    }
+                    let mut filename = ptr::null_mut();
+                    let mut index = 0;
+                    if FcPatternGetString(candidate, c"file".as_ptr(), 0, &mut filename) != 0
+                        || filename.is_null()
+                        || FcPatternGetInteger(candidate, c"index".as_ptr(), 0, &mut index) != 0
+                    {
+                        continue;
+                    }
+                    // Named variable instances need coordinates; don't silently
+                    // select their base face under the wrong style identity.
+                    if !(0..=0xffff).contains(&index) {
+                        continue;
+                    }
+                    let path = Path::new(std::ffi::OsStr::from_bytes(
+                        CStr::from_ptr(filename.cast()).to_bytes(),
+                    ));
+                    let bytes = host_file::read(path, &self.limits)?;
+                    let id = builder.register(context, &bytes, index as u32)?;
+                    builder.host_substitution(request, id)?;
+                    return Ok(());
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub mod coretext {
+    use super::{FontContext, ft, host_file, native_error};
+    use crate::FontCatalogBuilder;
+    use std::{
+        ffi::{CStr, c_void},
+        marker::PhantomData,
+        os::unix::ffi::OsStrExt,
+        path::Path,
+        ptr,
+        rc::Rc,
+        sync::Arc,
+    };
+    use taiyou_types::*;
+    type Raw = *const c_void;
+    #[repr(C)]
+    struct Range {
+        location: isize,
+        length: isize,
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFRelease(object: Raw);
+        fn CFStringCreateWithBytes(
+            allocator: Raw,
+            bytes: *const u8,
+            length: isize,
+            encoding: u32,
+            external: u8,
+        ) -> Raw;
+        fn CFStringGetLength(string: Raw) -> isize;
+        fn CFStringGetMaximumSizeForEncoding(length: isize, encoding: u32) -> isize;
+        fn CFStringGetCString(string: Raw, buffer: *mut u8, size: isize, encoding: u32) -> u8;
+        fn CFURLCopyFileSystemPath(url: Raw, style: isize) -> Raw;
+    }
+    #[link(name = "CoreText", kind = "framework")]
+    unsafe extern "C" {
+        static kCTFontURLAttribute: Raw;
+        fn CTFontCreateWithName(name: Raw, size: f64, matrix: Raw) -> Raw;
+        fn CTFontCreateCopyWithSymbolicTraits(
+            font: Raw,
+            size: f64,
+            matrix: Raw,
+            value: u32,
+            mask: u32,
+        ) -> Raw;
+        fn CTFontCreateForString(font: Raw, string: Raw, range: Range) -> Raw;
+        fn CTFontCopyAttribute(font: Raw, attribute: Raw) -> Raw;
+        fn CTFontCopyPostScriptName(font: Raw) -> Raw;
+    }
+    const UTF8: u32 = 0x08000100;
+    struct Owned(Raw);
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            /* SAFETY: owned Create/Copy reference. */
+            unsafe { CFRelease(self.0) }
+        }
+    }
+    fn owned(raw: Raw) -> Result<Owned, FontError> {
+        if raw.is_null() {
+            Err(native_error(0, "CoreText font lookup failed"))
+        } else {
+            Ok(Owned(raw))
+        }
+    }
+    fn string(text: &str, limits: &Limits) -> Result<Owned, FontError> {
+        if (text.len() as u64)
+            .checked_mul(4)
+            .is_none_or(|n| n > limits.transient_bytes())
+        {
+            return Err(FontError::transient_limit("CoreText text exceeds budget"));
+        }
+        let len = isize::try_from(text.len())
+            .map_err(|_| native_error(0, "CoreText text length overflow"))?;
+        // SAFETY: CoreFoundation copies this valid UTF-8 buffer synchronously.
+        unsafe {
+            owned(CFStringCreateWithBytes(
+                ptr::null(),
+                text.as_ptr(),
+                len,
+                UTF8,
+                0,
+            ))
+        }
+    }
+    fn bytes(string: &Owned, limits: &Limits) -> Result<Vec<u8>, FontError> {
+        // SAFETY: string is an owned CFString; native copy respects the checked
+        // allocated extent, and success guarantees a NUL-terminated result.
+        unsafe {
+            let len = CFStringGetMaximumSizeForEncoding(CFStringGetLength(string.0), UTF8);
+            let size = len
+                .checked_add(1)
+                .filter(|n| *n > 0)
+                .ok_or_else(|| native_error(0, "CoreText string length overflow"))?;
+            if size as u64 > limits.transient_bytes() {
+                return Err(FontError::transient_limit("CoreText string exceeds budget"));
+            }
+            let mut data = Vec::new();
+            data.try_reserve_exact(size as usize).map_err(|_| {
+                FontError::new(
+                    ErrorCode::AllocationFailed,
+                    "CoreText string allocation failed",
+                )
+            })?;
+            data.resize(size as usize, 0);
+            if CFStringGetCString(string.0, data.as_mut_ptr(), size, UTF8) == 0 {
+                return Err(native_error(0, "CoreText string copy failed"));
+            }
+            let end = data
+                .iter()
+                .position(|b| *b == 0)
+                .ok_or_else(|| native_error(0, "CoreText string terminator absent"))?;
+            data.truncate(end);
+            Ok(data)
+        }
+    }
+    /// CoreText chooses a face; FreeType authenticates the exact collection
+    /// member by PostScript name, as in libass's CoreText provider path.
+    pub struct SystemFontSource {
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
+    impl SystemFontSource {
+        pub fn new(limits: Limits) -> Result<Self, FontError> {
+            Ok(Self {
+                limits,
+                _local: PhantomData,
+            })
+        }
+        pub fn extend_catalog(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            request: &FontRequest,
+        ) -> Result<(), FontError> {
+            if text.is_empty() {
+                return Ok(());
+            }
+            let family = string(
+                request
+                    .family()
+                    .strip_prefix('@')
+                    .unwrap_or(request.family()),
+                &self.limits,
+            )?;
+            let input = string(text, &self.limits)?;
+            // SAFETY: CoreText references are retained throughout synchronous
+            // lookup. Range is in UTF-16 units, covering the complete cluster.
+            unsafe {
+                let base = owned(CTFontCreateWithName(family.0, 12.0, ptr::null()))?;
+                let traits =
+                    u32::from(request.italic()) | (u32::from(request.weight() >= 600) << 1);
+                let styled =
+                    CTFontCreateCopyWithSymbolicTraits(base.0, 0.0, ptr::null(), traits, 3);
+                let styled = if styled.is_null() {
+                    None
+                } else {
+                    Some(Owned(styled))
+                };
+                let font = owned(CTFontCreateForString(
+                    styled.as_ref().unwrap_or(&base).0,
+                    input.0,
+                    Range {
+                        location: 0,
+                        length: CFStringGetLength(input.0),
+                    },
+                ))?;
+                let url = owned(CTFontCopyAttribute(font.0, kCTFontURLAttribute))?;
+                let path = owned(CFURLCopyFileSystemPath(url.0, 0))?;
+                let name = owned(CTFontCopyPostScriptName(font.0))?;
+                let path = bytes(&path, &self.limits)?;
+                let name = bytes(&name, &self.limits)?;
+                let data: Arc<[u8]> =
+                    host_file::read(Path::new(std::ffi::OsStr::from_bytes(&path)), &self.limits)?
+                        .into();
+                let count = context.face_count(data.clone())?;
+                for index in 0..count {
+                    let matches = context.with_face(data.clone(), index, |face| {
+                        // Face owns the returned PostScript string until the
+                        // callback returns; compare before releasing it.
+                        let postscript = ft::FT_Get_Postscript_Name(face.raw);
+                        Ok(!postscript.is_null() && CStr::from_ptr(postscript).to_bytes() == name)
+                    })?;
+                    if matches {
+                        let id = builder.register(context, &data, index)?;
+                        builder.host_substitution(request, id)?;
+                        return Ok(());
+                    }
+                }
+            }
+            Err(native_error(
+                0,
+                "CoreText selected face is absent from its font file",
+            ))
+        }
+    }
+}
+
+// This module is intentionally inside the existing native.rs safety boundary.
+#[cfg(windows)]
+pub mod windows {
+    use crate::{FontCatalogBuilder, FontContext};
+    use std::{ffi::c_void, marker::PhantomData, ptr, rc::Rc};
+    use taiyou_types::*;
+
+    type Raw = *mut c_void;
+    #[repr(C)]
+    #[derive(PartialEq)]
+    struct Guid(u32, u16, u16, [u8; 8]);
+    const FACTORY2: Guid = Guid(
+        0x0439fc60,
+        0xca44,
+        0x4994,
+        [0x8d, 0xee, 0x3a, 0x9a, 0xf7, 0xb7, 0x32, 0xec],
+    );
+    const ANALYSIS: Guid = Guid(
+        0x688e1a58,
+        0x5094,
+        0x47c8,
+        [0xad, 0xc8, 0xfb, 0xce, 0xa6, 0x0a, 0xe9, 0x2b],
+    );
+    const UNKNOWN: Guid = Guid(0, 0, 0, [0xc0, 0, 0, 0, 0, 0, 0, 0x46]);
+    const MULTILANGUAGE: Guid = Guid(
+        0x275c23e2,
+        0x3747,
+        0x11d0,
+        [0x9f, 0xea, 0, 0xaa, 0, 0x3f, 0x86, 0x46],
+    );
+    const FONTLINK2: Guid = Guid(
+        0xdccfc162,
+        0x2b38,
+        0x11d2,
+        [0xb7, 0xec, 0, 0xc0, 0x4f, 0x8f, 0x5d, 0x9a],
+    );
+    const INVALID: i32 = 0x80070057_u32 as i32;
+    #[link(name = "dwrite")]
+    unsafe extern "system" {
+        fn DWriteCreateFactory(kind: u32, iid: *const Guid, factory: *mut Raw) -> i32;
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct LogFont {
+        height: i32,
+        width: i32,
+        escapement: i32,
+        orientation: i32,
+        weight: i32,
+        italic: u8,
+        underline: u8,
+        strikeout: u8,
+        charset: u8,
+        out_precision: u8,
+        clip_precision: u8,
+        quality: u8,
+        pitch_family: u8,
+        family: [u16; 32],
+    }
+    #[repr(C)]
+    struct TextMetric {
+        height: i32,
+        ascent: i32,
+        descent: i32,
+        internal_leading: i32,
+        external_leading: i32,
+        average_width: i32,
+        maximum_width: i32,
+        weight: i32,
+        overhang: i32,
+        aspect_x: i32,
+        aspect_y: i32,
+        first: u16,
+        last: u16,
+        default: u16,
+        break_char: u16,
+        italic: u8,
+        underlined: u8,
+        struck: u8,
+        pitch_family: u8,
+        charset: u8,
+    }
+    #[repr(C)]
+    #[derive(Default)]
+    struct Extent {
+        x: i32,
+        y: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy, Default)]
+    struct GdiPoint {
+        x: i32,
+        y: i32,
+    }
+    struct GdiPath {
+        points: Vec<GdiPoint>,
+        types: Vec<u8>,
+    }
+    #[link(name = "gdi32")]
+    unsafe extern "system" {
+        fn CreateCompatibleDC(dc: Raw) -> Raw;
+        fn DeleteDC(dc: Raw) -> i32;
+        fn CreateFontIndirectW(font: *const LogFont) -> Raw;
+        fn DeleteObject(object: Raw) -> i32;
+        fn SelectObject(dc: Raw, object: Raw) -> Raw;
+        fn GetObjectW(object: Raw, bytes: i32, buffer: *mut c_void) -> i32;
+        fn GetTextMetricsW(dc: Raw, metrics: *mut TextMetric) -> i32;
+        fn GetTextFaceW(dc: Raw, length: i32, family: *mut u16) -> i32;
+        fn GetTextExtentPoint32W(
+            dc: Raw,
+            text: *const u16,
+            length: i32,
+            extent: *mut Extent,
+        ) -> i32;
+        fn AddFontMemResourceEx(
+            bytes: *const c_void,
+            length: u32,
+            reserved: Raw,
+            count: *mut u32,
+        ) -> Raw;
+        fn RemoveFontMemResourceEx(handle: Raw) -> i32;
+        fn SetBkMode(dc: Raw, mode: i32) -> i32;
+        fn BeginPath(dc: Raw) -> i32;
+        fn EndPath(dc: Raw) -> i32;
+        fn TextOutW(dc: Raw, x: i32, y: i32, text: *const u16, length: i32) -> i32;
+        fn GetPath(dc: Raw, points: *mut GdiPoint, types: *mut u8, count: i32) -> i32;
+    }
+    #[link(name = "ole32")]
+    unsafe extern "system" {
+        fn CoInitializeEx(reserved: Raw, model: u32) -> i32;
+        fn CoUninitialize();
+        fn CoCreateInstance(
+            class: *const Guid,
+            outer: Raw,
+            context: u32,
+            iid: *const Guid,
+            result: *mut Raw,
+        ) -> i32;
+    }
+    struct GdiScope {
+        dc: Raw,
+        original: Raw,
+        font: Raw,
+        resource: Raw,
+        apartment: bool,
+    }
+    impl Drop for GdiScope {
+        fn drop(&mut self) {
+            // SAFETY: all handles belong to this request-local scope. Restore
+            // the stock font before deleting ours; release private registration
+            // only after destroying its DC/font. No handle crosses publication.
+            unsafe {
+                if !self.original.is_null() {
+                    SelectObject(self.dc, self.original);
+                }
+                if !self.font.is_null() {
+                    DeleteObject(self.font);
+                }
+                if !self.dc.is_null() {
+                    DeleteDC(self.dc);
+                }
+                if !self.resource.is_null() {
+                    RemoveFontMemResourceEx(self.resource);
+                }
+                if self.apartment {
+                    CoUninitialize();
+                }
+            }
+        }
+    }
+    fn gdi_path(dc: Raw, text: &[u16], limits: &Limits) -> Result<Option<GdiPath>, FontError> {
+        let length = i32::try_from(text.len() - 1).map_err(|_| limited())?;
+        // SAFETY: callers retain a selected owned DC and terminated input for
+        // the synchronous path transaction. GetPath's checked count bounds both
+        // initialized writable arrays; no native point buffer is published.
+        unsafe {
+            if BeginPath(dc) == 0 {
+                return Ok(None);
+            }
+            let written = TextOutW(dc, 0, 0, text.as_ptr(), length);
+            let ended = EndPath(dc);
+            if written == 0 || ended == 0 {
+                return Ok(None);
+            }
+            let count = GetPath(dc, ptr::null_mut(), ptr::null_mut(), 0);
+            if count <= 0 {
+                return Ok(None);
+            }
+            let charge = (count as u64)
+                .checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64)
+                .ok_or_else(limited)?;
+            if count as u64 > limits.path_segments_per_frame() || charge > limits.transient_bytes()
+            {
+                return Err(limited());
+            }
+            let count = usize::try_from(count).map_err(|_| limited())?;
+            let mut points = Vec::new();
+            let mut types = Vec::new();
+            points.try_reserve_exact(count).map_err(|_| {
+                FontError::new(ErrorCode::AllocationFailed, "GDI linked path allocation")
+            })?;
+            types.try_reserve_exact(count).map_err(|_| {
+                FontError::new(
+                    ErrorCode::AllocationFailed,
+                    "GDI linked path types allocation",
+                )
+            })?;
+            points.resize(count, GdiPoint::default());
+            types.resize(count, 0);
+            if GetPath(dc, points.as_mut_ptr(), types.as_mut_ptr(), count as i32) != count as i32 {
+                return Ok(None);
+            }
+            Ok(Some(GdiPath { points, types }))
+        }
+    }
+    /// Recover a linked font's actual integer EM and baseline from GDI paths.
+    /// Rounded text advances cannot identify these: the MUA bracket's advance
+    /// rounds to 1697 Q6 ticks while its EM is 3393, not 3394. A candidate is
+    /// accepted only when every path point/type matches at one vertical shift.
+    fn gdi_realization(
+        dc: Raw,
+        font: &LogFont,
+        text: &[u16],
+        linked: &GdiPath,
+        widths: (i32, i32, i32),
+        limits: &Limits,
+    ) -> Result<Option<(i32, i64)>, FontError> {
+        let (wanted, ordinary, em) = widths;
+        if ordinary <= 1 || wanted <= 0 || em <= 0 {
+            return Ok(None);
+        }
+        let low = ((f64::from(wanted) - 1.0) * f64::from(em) / (f64::from(ordinary) + 1.0))
+            .floor()
+            .max(1.0);
+        let high = ((f64::from(wanted) + 1.0) * f64::from(em) / (f64::from(ordinary) - 1.0)).ceil();
+        // Bound host-admission work, not comparison accuracy. If the interval
+        // is broad or ambiguous, retain the existing provider path instead of
+        // guessing a realization. No raster pixel tolerance is involved.
+        if high > f64::from(i32::MAX) || high - low > 32.0 {
+            return Ok(None);
+        }
+        let mut found = None;
+        for em in low as i32..=high as i32 {
+            let mut lf = *font;
+            lf.height = -em;
+            // SAFETY: request-local DC/font with SDK layout, checked negative
+            // height and retained inputs. The closure cannot bypass restoration
+            // and font deletion; selected font ownership never escapes.
+            let observed = unsafe {
+                let candidate = CreateFontIndirectW(&lf);
+                if candidate.is_null() {
+                    return Ok(None);
+                }
+                let old = SelectObject(dc, candidate);
+                if old.is_null() || old as isize == -1 {
+                    DeleteObject(candidate);
+                    return Ok(None);
+                }
+                let result = (|| -> Result<Option<(i32, i64)>, FontError> {
+                    let mut tm: TextMetric = std::mem::zeroed();
+                    if GetTextMetricsW(dc, &mut tm) == 0 || tm.height - tm.internal_leading != em {
+                        return Ok(None);
+                    }
+                    let Some(path) = gdi_path(dc, text, limits)? else {
+                        return Ok(None);
+                    };
+                    if path.types != linked.types || path.points.len() != linked.points.len() {
+                        return Ok(None);
+                    }
+                    let shift = i64::from(linked.points[0].y) - i64::from(path.points[0].y);
+                    if path
+                        .points
+                        .iter()
+                        .zip(&linked.points)
+                        .all(|(a, b)| a.x == b.x && i64::from(a.y) + shift == i64::from(b.y))
+                    {
+                        Ok(Some((em, i64::from(tm.ascent) + shift)))
+                    } else {
+                        Ok(None)
+                    }
+                })();
+                SelectObject(dc, old);
+                DeleteObject(candidate);
+                result?
+            };
+            if let Some(observed) = observed {
+                if found.is_some() {
+                    return Ok(None);
+                }
+                found = Some(observed);
+            }
+        }
+        Ok(found)
+    }
+    // Exact SDK vtable slots and signatures (dwrite.h, dwrite_1.h, dwrite_2.h).
+    // Every object is an owned DirectWrite interface. Calls are synchronous,
+    // and all input/output pointers below remain valid for the call duration.
+    macro_rules! call {
+        ($object:expr, $slot:expr, ($($ty:ty),*) -> $ret:ty $(, $arg:expr)*) => {{
+            let object = $object;
+            let table = *(object as *const *const *const c_void);
+            let method: unsafe extern "system" fn(Raw, $($ty),*) -> $ret =
+                std::mem::transmute(*table.add($slot));
+            method(object, $($arg),*)
+        }};
+    }
+    struct Com(Raw);
+    impl Drop for Com {
+        fn drop(&mut self) {
+            // SAFETY: one reference was transferred by a successful COM call.
+            unsafe { call!(self.0, 2, () -> u32) };
+        }
+    }
+    fn check(hr: i32) -> Result<(), FontError> {
+        if hr < 0 {
+            Err(
+                FontError::new(ErrorCode::NativeFailure, "Windows font discovery failed")
+                    .with_native_code(i64::from(hr)),
+            )
+        } else {
+            Ok(())
+        }
+    }
+    fn owned(raw: Raw) -> Result<Com, FontError> {
+        if raw.is_null() {
+            Err(FontError::new(
+                ErrorCode::NativeFailure,
+                "Windows font interface is null",
+            ))
+        } else {
+            Ok(Com(raw))
+        }
+    }
+    fn limited() -> FontError {
+        FontError::new(
+            ErrorCode::LimitExceeded,
+            "Windows font discovery budget exceeded",
+        )
+    }
+    fn utf16(value: &str, limits: &Limits) -> Result<Vec<u16>, FontError> {
+        let count = value.len().checked_add(1).ok_or_else(limited)?;
+        if (count as u64)
+            .checked_mul(2)
+            .is_none_or(|n| n > limits.transient_bytes())
+        {
+            return Err(limited());
+        }
+        let mut result = Vec::new();
+        result.try_reserve_exact(count).map_err(|_| {
+            FontError::new(
+                ErrorCode::AllocationFailed,
+                "Windows font text allocation failed",
+            )
+        })?;
+        result.extend(value.encode_utf16());
+        result.push(0);
+        Ok(result)
+    }
+    #[repr(C)]
+    struct AnalysisVtable {
+        query: unsafe extern "system" fn(*mut Analysis, *const Guid, *mut Raw) -> i32,
+        add: unsafe extern "system" fn(*mut Analysis) -> u32,
+        release: unsafe extern "system" fn(*mut Analysis) -> u32,
+        at: unsafe extern "system" fn(*mut Analysis, u32, *mut *const u16, *mut u32) -> i32,
+        before: unsafe extern "system" fn(*mut Analysis, u32, *mut *const u16, *mut u32) -> i32,
+        direction: unsafe extern "system" fn(*mut Analysis) -> u32,
+        locale: unsafe extern "system" fn(*mut Analysis, u32, *mut u32, *mut *const u16) -> i32,
+        numbers: unsafe extern "system" fn(*mut Analysis, u32, *mut u32, *mut Raw) -> i32,
+    }
+    #[repr(C)]
+    struct Analysis {
+        vtable: *const AnalysisVtable,
+        text: *const u16,
+        len: u32,
+    }
+    // SAFETY for the callbacks: DirectWrite calls this exact SDK interface
+    // during MapCharacters only. Analysis and its UTF-16 storage outlive that
+    // synchronous call. Output pointers are checked before writing. No callback
+    // allocates, panics, or passes ownership of borrowed storage.
+    unsafe extern "system" fn query(this: *mut Analysis, iid: *const Guid, out: *mut Raw) -> i32 {
+        unsafe {
+            if iid.is_null() || out.is_null() {
+                return INVALID;
+            }
+            *out = ptr::null_mut();
+            if *iid != UNKNOWN && *iid != ANALYSIS {
+                return 0x80004002_u32 as i32;
+            }
+            *out = this.cast();
+        }
+        0
+    }
+    unsafe extern "system" fn reference(_: *mut Analysis) -> u32 {
+        1
+    }
+    unsafe extern "system" fn at(
+        this: *mut Analysis,
+        pos: u32,
+        text: *mut *const u16,
+        len: *mut u32,
+    ) -> i32 {
+        unsafe {
+            if this.is_null() || text.is_null() || len.is_null() || pos > (*this).len {
+                return INVALID;
+            }
+            *text = if pos < (*this).len {
+                (*this).text.add(pos as usize)
+            } else {
+                ptr::null()
+            };
+            *len = (*this).len - pos;
+        }
+        0
+    }
+    unsafe extern "system" fn before(
+        this: *mut Analysis,
+        pos: u32,
+        text: *mut *const u16,
+        len: *mut u32,
+    ) -> i32 {
+        unsafe {
+            if this.is_null() || text.is_null() || len.is_null() || pos > (*this).len {
+                return INVALID;
+            }
+            *text = if pos > 0 { (*this).text } else { ptr::null() };
+            *len = pos;
+        }
+        0
+    }
+    unsafe extern "system" fn direction(_: *mut Analysis) -> u32 {
+        0
+    }
+    unsafe extern "system" fn locale(
+        this: *mut Analysis,
+        pos: u32,
+        len: *mut u32,
+        name: *mut *const u16,
+    ) -> i32 {
+        static EMPTY: [u16; 1] = [0];
+        unsafe {
+            if this.is_null() || len.is_null() || name.is_null() || pos > (*this).len {
+                return INVALID;
+            }
+            *len = (*this).len - pos;
+            *name = EMPTY.as_ptr();
+        }
+        0
+    }
+    unsafe extern "system" fn numbers(
+        this: *mut Analysis,
+        pos: u32,
+        len: *mut u32,
+        out: *mut Raw,
+    ) -> i32 {
+        unsafe {
+            if this.is_null() || len.is_null() || out.is_null() || pos > (*this).len {
+                return INVALID;
+            }
+            *len = (*this).len - pos;
+            *out = ptr::null_mut();
+        }
+        0
+    }
+    const VTABLE: AnalysisVtable = AnalysisVtable {
+        query,
+        add: reference,
+        release: reference,
+        at,
+        before,
+        direction,
+        locale,
+        numbers,
+    };
+
+    /// Explicit host-owned Windows installed-font snapshot. Only OS-selected
+    /// candidate files enter the bounded immutable catalog. Not Send or Sync;
+    /// deterministic explicit-font clients never need to construct this source.
+    pub struct WindowsFontSource {
+        _factory: Com,
+        collection: Com,
+        fallback: Com,
+        limits: Limits,
+        _local: PhantomData<Rc<()>>,
+    }
+    impl WindowsFontSource {
+        pub fn new(limits: Limits) -> Result<Self, FontError> {
+            let mut raw = ptr::null_mut();
+            // SAFETY: IID names IDWriteFactory2, isolated factory transfers one
+            // reference. Slots 3 and 26 are GetSystemFontCollection/Fallback.
+            unsafe {
+                check(DWriteCreateFactory(1, &FACTORY2, &mut raw))?;
+                let factory = owned(raw)?;
+                raw = ptr::null_mut();
+                check(call!(factory.0, 3, (*mut Raw, i32) -> i32, &mut raw, 0))?;
+                let collection = owned(raw)?;
+                raw = ptr::null_mut();
+                check(call!(factory.0, 26, (*mut Raw) -> i32, &mut raw))?;
+                Ok(Self {
+                    _factory: factory,
+                    collection,
+                    fallback: owned(raw)?,
+                    limits,
+                    _local: PhantomData,
+                })
+            }
+        }
+        /// Discover candidates for complete text/cluster input. Mapping ranges
+        /// are used only to obtain fonts, never to split shaping clusters.
+        pub fn extend_catalog(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            request: &FontRequest,
+        ) -> Result<(), FontError> {
+            if text.is_empty() {
+                return Ok(());
+            }
+            let text = utf16(text, &self.limits)?;
+            let family = utf16(
+                request
+                    .family()
+                    .strip_prefix('@')
+                    .unwrap_or(request.family()),
+                &self.limits,
+            )?;
+            let length = u32::try_from(text.len() - 1).map_err(|_| limited())?;
+            let mut analysis = Analysis {
+                vtable: &VTABLE,
+                text: text.as_ptr(),
+                len: length,
+            };
+            let mut pos = 0;
+            while pos < length {
+                let (mut mapped, mut scale, mut raw) = (0, 1_f32, ptr::null_mut());
+                // SAFETY: MapCharacters uses the stack analysis and borrowed
+                // buffers synchronously; output objects transfer one reference.
+                unsafe {
+                    check(
+                        call!(self.fallback.0, 3, (Raw, u32, u32, Raw, *const u16, u32, u32, u32, *mut u32, *mut Raw, *mut f32) -> i32,
+                        (&mut analysis as *mut Analysis).cast(), pos, length - pos, self.collection.0, family.as_ptr(),
+                        u32::from(request.weight()), if request.italic() { 2 } else { 0 }, 5, &mut mapped, &mut raw, &mut scale),
+                    )?;
+                    let font = if raw.is_null() {
+                        None
+                    } else {
+                        Some(owned(raw)?)
+                    };
+                    if mapped == 0 || mapped > length - pos {
+                        return Err(FontError::new(
+                            ErrorCode::NativeFailure,
+                            "invalid Windows font mapping range",
+                        ));
+                    }
+                    pos += mapped;
+                    if let Some(font) = font {
+                        let id = self.register_file(
+                            context,
+                            builder,
+                            &font,
+                            (text.len() + family.len()) as u64 * 2,
+                        )?;
+                        builder.host_substitution(request, id)?;
+                    }
+                }
+            }
+            Ok(())
+        }
+        /// Windows playback admission with the actual requested cell size.
+        /// The OS supplies candidates and linked advances; HarfBuzz still owns
+        /// whole-cluster shaping. No GDI handle is retained by the catalog.
+        pub fn extend_catalog_for_style(
+            &mut self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            text: &str,
+            style: &ShapeStyle,
+            layout_scale_y: f64,
+        ) -> Result<(), FontError> {
+            let request = style.font();
+            let catalog = builder.snapshot(&mut CatalogIngestor::new())?;
+            let primary = match crate::resolve_family(&catalog, request, &self.limits) {
+                Ok(id) => Some(id),
+                Err(error) if error.code() == ErrorCode::FontUnavailable => None,
+                Err(error) => return Err(error),
+            };
+            let size =
+                FiniteF64::new(style.font_size().get() * layout_scale_y).map_err(|_| limited())?;
+            if !request.vertical() && !request.family().starts_with('@') {
+                if let Some(primary) = primary {
+                    if self.gdi_link(context, builder, (&catalog, primary), text, request, size)? {
+                        return Ok(());
+                    }
+                }
+            }
+            self.extend_catalog(context, builder, text, request)
+        }
+        fn gdi_link(
+            &self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            base_catalog: (&crate::ValidatedFontCatalog, FontId),
+            text: &str,
+            request: &FontRequest,
+            size: FiniteF64,
+        ) -> Result<bool, FontError> {
+            let (catalog, primary) = base_catalog;
+            // AddFontMemResourceEx is process-private, not thread-private.
+            // Serialize its short admission scope so different private fonts
+            // with the same family cannot race our own GDI font mapper.
+            static ADMISSION: std::sync::Mutex<()> = std::sync::Mutex::new(());
+            let _admission = ADMISSION.lock().map_err(|_| {
+                FontError::new(
+                    ErrorCode::NativeFailure,
+                    "Windows font admission lock poisoned",
+                )
+            })?;
+            let input = utf16(text, &self.limits)?;
+            let length = i32::try_from(input.len() - 1).map_err(|_| limited())?;
+            if length == 0 {
+                return Ok(false);
+            }
+            let height = (size.get() * 64.0 + 0.5).floor();
+            if height <= 0.0 || height > f64::from(i32::MAX) {
+                return Err(limited());
+            }
+            let base_index = catalog
+                .faces()
+                .iter()
+                .position(|f| f.blob().id() == primary)
+                .ok_or_else(limited)?;
+            let base = &catalog.faces()[base_index];
+            let family = utf16(base.family(), &self.limits)?;
+            if family.len() > 32 {
+                return Ok(false);
+            }
+            let mut lf = LogFont {
+                height: height as i32,
+                width: 0,
+                escapement: 0,
+                orientation: 0,
+                weight: i32::from(request.weight()),
+                italic: u8::from(request.italic()),
+                underline: 0,
+                strikeout: 0,
+                charset: 1,
+                out_precision: 4,
+                clip_precision: 0,
+                quality: 4,
+                pitch_family: 0,
+                family: [0; 32],
+            };
+            lf.family[..family.len()].copy_from_slice(&family);
+            let mut scope = GdiScope {
+                dc: ptr::null_mut(),
+                original: ptr::null_mut(),
+                font: ptr::null_mut(),
+                resource: ptr::null_mut(),
+                apartment: false,
+            };
+            // SAFETY: validated immutable primary bytes and terminated UTF-16
+            // inputs outlive every synchronous GDI/MLang call. SDK structures
+            // have C layout and writable outputs of their exact declared size.
+            // The local scope owns registration/DC/font; COM objects drop before
+            // its matching apartment release, including on every early return.
+            unsafe {
+                let hr = CoInitializeEx(ptr::null_mut(), 0);
+                if hr >= 0 {
+                    scope.apartment = true;
+                } else if hr != 0x80010106_u32 as i32 {
+                    return Err(FontError::new(
+                        ErrorCode::NativeFailure,
+                        "Windows font-link apartment failed",
+                    )
+                    .with_native_code(i64::from(hr)));
+                }
+                let mut count = 0;
+                scope.resource = AddFontMemResourceEx(
+                    base.blob().bytes().as_ptr().cast(),
+                    u32::try_from(base.blob().bytes().len()).map_err(|_| limited())?,
+                    ptr::null_mut(),
+                    &mut count,
+                );
+                if scope.resource.is_null() || count == 0 {
+                    return Ok(false);
+                }
+                scope.dc = CreateCompatibleDC(ptr::null_mut());
+                if scope.dc.is_null() {
+                    return Ok(false);
+                }
+                scope.font = CreateFontIndirectW(&lf);
+                if scope.font.is_null() {
+                    return Ok(false);
+                }
+                scope.original = SelectObject(scope.dc, scope.font);
+                if scope.original.is_null() || scope.original as isize == -1 {
+                    scope.original = ptr::null_mut();
+                    return Ok(false);
+                }
+                let mut selected = [0_u16; 128];
+                let selected_len = GetTextFaceW(scope.dc, 128, selected.as_mut_ptr());
+                if selected_len <= 0 || selected_len > 128 {
+                    return Ok(false);
+                }
+                let end = selected.iter().position(|&c| c == 0).ok_or_else(limited)?;
+                let selected = String::from_utf16(&selected[..end]).map_err(|_| limited())?;
+                if !catalog
+                    .matches_family(base_index, &crate::fold_family(&selected, &self.limits)?)
+                {
+                    return Ok(false);
+                }
+                if SetBkMode(scope.dc, 1) == 0 {
+                    return Ok(false);
+                }
+                let mut raw = ptr::null_mut();
+                check(CoCreateInstance(
+                    &MULTILANGUAGE,
+                    ptr::null_mut(),
+                    1,
+                    &FONTLINK2,
+                    &mut raw,
+                ))?;
+                let link = owned(raw)?;
+                let (mut pages, mut covered) = (0_u32, 0_i32);
+                check(
+                    call!(link.0, 4, (*const u16, i32, u32, *mut u32, *mut i32) -> i32, input.as_ptr(), length, 0, &mut pages, &mut covered),
+                )?;
+                // Only a code-page mapping covering the COMPLETE supplied
+                // cluster is admitted. Do not search/register every system font
+                // or use a partial mapping as a character-level shape split.
+                if pages == 0 || covered != length {
+                    return Ok(false);
+                }
+                raw = ptr::null_mut();
+                let hr = call!(link.0, 10, (Raw, u32, u16, *mut Raw) -> i32, scope.dc, pages, 0, &mut raw);
+                if hr < 0 || raw.is_null() {
+                    return Ok(false);
+                }
+                let mapped = raw;
+                // MLang owns this cached font, so ReleaseFont (not DeleteObject)
+                // must run even if a later native call or admission fails.
+                let result = (|| -> Result<bool, FontError> {
+                    let mut linked_extent = Extent::default();
+                    if GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut linked_extent)
+                        == 0
+                    {
+                        return Ok(false);
+                    }
+                    let mut base_tm: TextMetric = std::mem::zeroed();
+                    if GetTextMetricsW(scope.dc, &mut base_tm) == 0 {
+                        return Ok(false);
+                    }
+                    let Some(linked_path) = gdi_path(scope.dc, &input, &self.limits)? else {
+                        return Ok(false);
+                    };
+                    let previous = SelectObject(scope.dc, mapped);
+                    if previous.is_null() || previous as isize == -1 {
+                        return Ok(false);
+                    }
+                    let mut mapped_extent = Extent::default();
+                    let mut tm: TextMetric = std::mem::zeroed();
+                    let mut mapped_lf: LogFont = std::mem::zeroed();
+                    let valid =
+                        GetTextExtentPoint32W(scope.dc, input.as_ptr(), length, &mut mapped_extent)
+                            != 0
+                            && GetTextMetricsW(scope.dc, &mut tm) != 0
+                            && GetObjectW(
+                                mapped,
+                                std::mem::size_of::<LogFont>() as i32,
+                                (&mut mapped_lf as *mut LogFont).cast(),
+                            ) == std::mem::size_of::<LogFont>() as i32;
+                    SelectObject(scope.dc, scope.font);
+                    if !valid
+                        || linked_extent.x <= 0
+                        || mapped_extent.x <= 0
+                        || tm.height <= tm.internal_leading
+                    {
+                        return Ok(false);
+                    }
+                    let Some((em, baseline)) = gdi_realization(
+                        scope.dc,
+                        &mapped_lf,
+                        &input,
+                        &linked_path,
+                        (
+                            linked_extent.x,
+                            mapped_extent.x,
+                            tm.height - tm.internal_leading,
+                        ),
+                        &self.limits,
+                    )?
+                    else {
+                        return Ok(false);
+                    };
+                    let mut raw = ptr::null_mut();
+                    check(call!(self._factory.0, 17, (*mut Raw) -> i32, &mut raw))?;
+                    let interop = owned(raw)?;
+                    raw = ptr::null_mut();
+                    check(
+                        call!(interop.0, 3, (*const LogFont, *mut Raw) -> i32, &mapped_lf, &mut raw),
+                    )?;
+                    let mapped_font = owned(raw)?;
+                    let path_cost = (linked_path.points.len() as u64)
+                        .checked_mul(6 * (std::mem::size_of::<GdiPoint>() + 1) as u64)
+                        .ok_or_else(limited)?;
+                    let fallback = self.register_file(
+                        context,
+                        builder,
+                        &mapped_font,
+                        (input.len() + family.len()) as u64 * 2 + path_cost,
+                    )?;
+                    let snapshot = builder.snapshot(&mut CatalogIngestor::new())?;
+                    let probe = snapshot.shape_raw(
+                        context,
+                        fallback,
+                        &crate::shape::NativeRequest {
+                            text,
+                            context: 0..text.len(),
+                            range: 0..text.len(),
+                            rtl: false,
+                            script: u32::from_be_bytes(*b"Zyyy"),
+                            language: "und",
+                            ligatures: true,
+                            kerning: false,
+                            vertical: false,
+                        },
+                        &self.limits,
+                        false,
+                    )?;
+                    if probe.glyphs.is_empty() || probe.glyphs.iter().any(|g| g.glyph == 0) {
+                        return Ok(false);
+                    }
+                    let upem = snapshot.ass_cell_metrics(fallback)?.0;
+                    let scale = f64::from(em) / (64.0 * f64::from(upem));
+                    let scale = FiniteF64::new(scale).map_err(|_| limited())?;
+                    if scale.get() <= 0.0 {
+                        return Ok(false);
+                    }
+                    let baseline_delta =
+                        FiniteF64::new((baseline - i64::from(base_tm.ascent)) as f64 / 64.0)
+                            .map_err(|_| limited())?;
+                    let advance =
+                        FiniteF64::new(f64::from(linked_extent.x) / 64.0).map_err(|_| limited())?;
+                    builder.host_link(crate::catalog::HostLink {
+                        primary,
+                        fallback,
+                        text: std::sync::Arc::from(text),
+                        size,
+                        scale,
+                        request: request.clone(),
+                        baseline_delta,
+                        advance,
+                    })?;
+                    Ok(true)
+                })();
+                let release = call!(link.0, 8, (Raw) -> i32, mapped);
+                check(release)?;
+                result
+            }
+        }
+        fn register_file(
+            &self,
+            context: &mut FontContext,
+            builder: &mut FontCatalogBuilder,
+            font: &Com,
+            text_cost: u64,
+        ) -> Result<FontId, FontError> {
+            // SAFETY: SDK slots: Font::CreateFontFace 13, Face::GetFiles 4 /
+            // GetIndex 5, File::GetReferenceKey 3 / GetLoader 4, Loader::
+            // CreateStreamFromKey 3, Stream::Read/Release/GetSize 3/4/5.
+            // RAII retains every dependency while its borrowed key/fragment is
+            // used. Sizes are checked before allocation/copy. Nothing escapes.
+            unsafe {
+                let mut raw = ptr::null_mut();
+                check(call!(font.0, 13, (*mut Raw) -> i32, &mut raw))?;
+                let face = owned(raw)?;
+                let index = call!(face.0, 5, () -> u32);
+                let mut count = 0;
+                check(call!(face.0, 4, (*mut u32, *mut Raw) -> i32, &mut count, ptr::null_mut()))?;
+                if count != 1 {
+                    return Err(FontError::new(
+                        ErrorCode::UnsupportedFeature,
+                        "Windows fallback is not a single SFNT file",
+                    ));
+                }
+                raw = ptr::null_mut();
+                check(call!(face.0, 4, (*mut u32, *mut Raw) -> i32, &mut count, &mut raw))?;
+                let file = owned(raw)?;
+                let (mut key, mut key_size) = (ptr::null(), 0);
+                check(
+                    call!(file.0, 3, (*mut *const c_void, *mut u32) -> i32, &mut key, &mut key_size),
+                )?;
+                raw = ptr::null_mut();
+                check(call!(file.0, 4, (*mut Raw) -> i32, &mut raw))?;
+                let loader = owned(raw)?;
+                raw = ptr::null_mut();
+                check(
+                    call!(loader.0, 3, (*const c_void, u32, *mut Raw) -> i32, key, key_size, &mut raw),
+                )?;
+                let stream = owned(raw)?;
+                let mut size = 0;
+                check(call!(stream.0, 5, (*mut u64) -> i32, &mut size))?;
+                if size == 0
+                    || size > self.limits.font_bytes()
+                    || size
+                        .checked_mul(13)
+                        .and_then(|n| n.checked_add(text_cost))
+                        .and_then(|n| n.checked_add(65536))
+                        .is_none_or(|n| n > self.limits.transient_bytes())
+                {
+                    return Err(FontError::new(
+                        ErrorCode::LimitExceeded,
+                        &format!(
+                            "Windows font discovery budget exceeded: file={size} transient={} font={}",
+                            self.limits.transient_bytes(),
+                            self.limits.font_bytes()
+                        ),
+                    ));
+                }
+                let count = usize::try_from(size).map_err(|_| limited())?;
+                let mut bytes = Vec::new();
+                bytes.try_reserve_exact(count).map_err(|_| {
+                    FontError::new(
+                        ErrorCode::AllocationFailed,
+                        "Windows font allocation failed",
+                    )
+                })?;
+                bytes.resize(count, 0);
+                let (mut fragment, mut fragment_context) = (ptr::null(), ptr::null_mut());
+                check(
+                    call!(stream.0, 3, (*mut *const c_void, u64, u64, *mut Raw) -> i32,
+                    &mut fragment, 0, size, &mut fragment_context),
+                )?;
+                if fragment.is_null() {
+                    call!(stream.0, 4, (Raw) -> (), fragment_context);
+                    return Err(FontError::new(
+                        ErrorCode::NativeFailure,
+                        "Windows font fragment is null",
+                    ));
+                }
+                ptr::copy_nonoverlapping(fragment.cast::<u8>(), bytes.as_mut_ptr(), count);
+                call!(stream.0, 4, (Raw) -> (), fragment_context);
+                builder.register(context, &bytes, index)
+            }
+        }
     }
 }

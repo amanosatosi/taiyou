@@ -57,7 +57,8 @@ fn zero_style_and_override_depth_suppress_shadow_without_darkening_edges() {
         );
         let positive = render(source("4", &tags, "Hg"), fonts.clone());
         assert_ne!(positive.pixels(), zero.pixels());
-        let invisible_body = format!("{tags}\\1a&HFF&\\3a&HFF&");
+        // Sweep karaoke keeps the shadow body despite invisible fill colors.
+        let invisible_body = format!("{tags}\\1a&HFF&\\2a&HFF&\\3a&HFF&\\kf100");
         let absent = render(source("0", &invisible_body, "Hg"), fonts.clone());
         assert!(absent.pixels().iter().all(|&p| p == 0));
         let visible = render(source("4", &invisible_body, "Hg"), fonts.clone());

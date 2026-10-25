@@ -1,4 +1,4 @@
-//! Explicit-font CoreV1 CLI and C6 straight-alpha PNG export.
+//! Host font admission, CoreV1 CLI and C6 straight-alpha PNG export.
 use std::{
     ffi::OsString,
     fs::File,
@@ -8,6 +8,10 @@ use std::{
 use taiyou_render::renderer::*;
 
 mod output;
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+mod system_fonts;
+
+const HAS_SYSTEM_FONTS: bool = cfg!(any(windows, target_os = "linux", target_os = "macos"));
 
 fn invalid(detail: &str) -> RenderError {
     RenderError::new(ErrorCode::InvalidArgument, detail)
@@ -44,6 +48,7 @@ struct Arguments {
     output: PathBuf,
     raw: Option<PathBuf>,
     policy: UnsupportedPolicy,
+    system_fonts: bool,
 }
 impl Arguments {
     fn parse(args: Vec<OsString>) -> Result<Self, RenderError> {
@@ -55,6 +60,7 @@ impl Arguments {
             if ![
                 "--input",
                 "--font",
+                "--font-source",
                 "--time-us",
                 "--width",
                 "--height",
@@ -107,6 +113,20 @@ impl Arguments {
             "tolerant" => UnsupportedPolicy::Tolerant,
             _ => return Err(invalid("unsupported policy must be strict or tolerant")),
         };
+        let font_source = values
+            .get("--font-source")
+            .map(|s| {
+                s.to_str()
+                    .ok_or_else(|| invalid("font source is not UTF-8"))
+            })
+            .transpose()?;
+        let system_fonts = match font_source {
+            None => HAS_SYSTEM_FONTS,
+            Some("explicit") => false,
+            Some("system") if HAS_SYSTEM_FONTS => true,
+            Some("system") => return Err(invalid("no system font provider on this platform")),
+            Some(_) => return Err(invalid("font source must be explicit or system")),
+        };
         let input = PathBuf::from(get("--input")?);
         let output = PathBuf::from(get("--output")?);
         let raw = values.get("--raw").map(PathBuf::from);
@@ -141,6 +161,7 @@ impl Arguments {
             output,
             raw,
             policy,
+            system_fonts,
         })
     }
 }
@@ -232,9 +253,25 @@ pub fn write_png<W: Write>(frame: &Frame, writer: W, limits: &Limits) -> Result<
     png.write_image_data(&bytes).map_err(fail)?;
     png.finish().map_err(fail)
 }
+fn playback_limits(system_fonts: bool) -> Result<Limits, RenderError> {
+    let limits = Limits::default();
+    if system_fonts {
+        // Owner-approved host-only allowance for installed collection fonts.
+        // Explicit catalogs/corpus adapters retain the library's 128 MiB limit.
+        limits
+            .with_transient_bytes(256 * 1024 * 1024)
+            .map_err(parse_error)
+    } else {
+        Ok(limits)
+    }
+}
+
 pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let args = Arguments::parse(args)?;
-    let mut config = RendererConfig::default();
+    let mut config = RendererConfig {
+        limits: playback_limits(args.system_fonts)?,
+        ..RendererConfig::default()
+    };
     if let Some(radius) = args.filter_radius {
         if args.original.is_none() {
             return Err(invalid(
@@ -278,6 +315,7 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
     let parsed = taiyou_ass::parse_ass(&source, &options, &mut TrackIngestor::new());
     if args.fonts.is_empty()
         && !has_attachments
+        && !(args.system_fonts && parsed.is_ok())
         && !parsed.as_ref().is_ok_and(|p| {
             !p.track().events().is_empty()
                 && !p.track().events().iter().any(taiyou_render::requires_font)
@@ -299,6 +337,22 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
                 0,
             )
             .map_err(font_error)?;
+    }
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
+    if args.system_fonts {
+        // Attachments precede host fallback. render_parsed's registration is
+        // idempotent and retains its existing validation/diagnostic behavior.
+        for attachment in parsed.embedded_fonts() {
+            let count = context
+                .face_count(attachment.shared_bytes())
+                .map_err(font_error)?;
+            for index in 0..count {
+                builder
+                    .register(&mut context, attachment.bytes(), index)
+                    .map_err(font_error)?;
+            }
+        }
+        system_fonts::extend(&parsed, &request, &mut context, &mut builder, limits)?;
     }
     let catalog = builder
         .snapshot(&mut CatalogIngestor::new())
@@ -331,4 +385,63 @@ pub fn run(args: Vec<OsString>) -> Result<(), RenderError> {
         frame.diagnostics().len()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod font_source_tests {
+    use super::*;
+
+    #[test]
+    fn host_allowance_does_not_change_explicit_or_library_limits() {
+        assert_eq!(Limits::default().transient_bytes(), 128 * 1024 * 1024);
+        assert_eq!(playback_limits(false).unwrap(), Limits::default());
+        assert_eq!(
+            playback_limits(true).unwrap().transient_bytes(),
+            256 * 1024 * 1024
+        );
+        assert_eq!(
+            playback_limits(true).unwrap().font_bytes(),
+            Limits::default().font_bytes()
+        );
+    }
+
+    fn arguments(mode: Option<&str>) -> Vec<OsString> {
+        let mut args: Vec<_> = [
+            "--input",
+            "input.ass",
+            "--output",
+            "output.png",
+            "--profile",
+            "core-v1",
+            "--time-us",
+            "0",
+            "--width",
+            "1920",
+            "--height",
+            "1080",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+        if let Some(mode) = mode {
+            args.extend(["--font-source".into(), mode.into()]);
+        }
+        args
+    }
+
+    #[test]
+    fn explicit_mode_disables_host_discovery_on_every_platform() {
+        assert!(
+            !Arguments::parse(arguments(Some("explicit")))
+                .unwrap()
+                .system_fonts
+        );
+        assert_eq!(
+            Arguments::parse(arguments(None)).unwrap().system_fonts,
+            HAS_SYSTEM_FONTS
+        );
+        assert!(Arguments::parse(arguments(Some("automatic"))).is_err());
+        #[cfg(not(any(windows, target_os = "linux", target_os = "macos")))]
+        assert!(Arguments::parse(arguments(Some("system"))).is_err());
+    }
 }

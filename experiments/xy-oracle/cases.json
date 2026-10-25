@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "corpus_commit": "a5073319af8117271d8ac13ef5c088197ff2d59b",
+  "cases": [
+    {
+      "id": "basic",
+      "source": "regression/embedded-font/efont.ass",
+      "reference": "regression/embedded-font/efont-1000.png",
+      "timestamp_ms": 1000,
+      "width": 640,
+      "height": 480,
+      "fonts": [],
+      "embedded_fonts": true
+    },
+    {
+      "id": "shift-dir",
+      "source": "regression/implicit-pos/shift-dir.ass",
+      "reference": "regression/implicit-pos/shift-dir-0500.png",
+      "timestamp_ms": 500,
+      "width": 384,
+      "height": 288,
+      "fonts": [
+        {
+          "path": "regression/implicit-pos/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    },
+    {
+      "id": "scroll",
+      "source": "regression/ssa/effect-delay.ass",
+      "reference": "regression/ssa/effect-delay-1600.png",
+      "timestamp_ms": 1600,
+      "width": 1280,
+      "height": 720,
+      "fonts": [
+        {
+          "path": "regression/ssa/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    },
+    {
+      "id": "sbas",
+      "source": "regression/scaled-border-default/ffmpeg_legacy4.ass",
+      "reference": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
+      "timestamp_ms": 8000,
+      "width": 1152,
+      "height": 864,
+      "fonts": [
+        {
+          "path": "regression/scaled-border-default/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    },
+    {
+      "id": "drawing",
+      "source": "regression/draw-images/drawImg.ass",
+      "reference": "regression/draw-images/drawImg-104396.png",
+      "timestamp_ms": 104396,
+      "width": 1920,
+      "height": 1080,
+      "fonts": [
+        {
+          "path": "regression/draw-images/Arimo-Regular.ttf",
+          "family": "Arimo"
+        }
+      ]
+    },
+    {
+      "id": "karaoke",
+      "source": "regression/v4++/kt.ass",
+      "reference": "regression/v4++/kt-01500.png",
+      "timestamp_ms": 1500,
+      "width": 206,
+      "height": 206,
+      "fonts": [
+        {
+          "path": "regression/v4++/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    },
+    {
+      "id": "alpha",
+      "source": "regression/ssa/alpha.ass",
+      "reference": "regression/ssa/alpha-3000.png",
+      "timestamp_ms": 3000,
+      "width": 108,
+      "height": 56,
+      "fonts": [
+        {
+          "path": "regression/ssa/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    },
+    {
+      "id": "zero-area",
+      "source": "regression/zero-area/zero-area.ass",
+      "reference": "regression/zero-area/zero-area-2000.png",
+      "timestamp_ms": 2000,
+      "width": 384,
+      "height": 288,
+      "fonts": [
+        {
+          "path": "regression/zero-area/DejaVuSans.ttf",
+          "family": "DejaVu Sans"
+        }
+      ]
+    }
+  ]
+}

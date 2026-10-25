@@ -75,10 +75,9 @@ fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
         assert_eq!(&g.cluster, positioned.cluster());
         let run = &output.layout().shaped().evaluated().runs()[g.association];
         // This fixture's Source Sans 3 OS/2 cell is1000+326 at UPEM1000.
-        let native_em = ((run.shaping().font_size().get() * 64.0 + 0.5).floor() * 1000.0 / 1326.0
-            + 0.5)
-            .floor();
-        let size = native_em / 64000.0;
+        // CFF native contours retain fractional mapped EM even though text
+        // advances use integer mapped EM. Keep this matrix independent.
+        let size = (run.shaping().font_size().get() * 64.0 + 0.5).floor() / (64.0 * 1326.0);
         let point = g.outline.outline().ops().iter().find_map(|op| match op {
             PathOp::MoveTo(p) => Some(*p),
             _ => None,
@@ -103,19 +102,14 @@ fn geometry_real_parser_shape_layout_handoff_and_lifetime() {
         }
     }
     assert!(output.glyphs().iter().any(|g| g.geometry.ops().is_empty()));
-    let ligature = output
+    let letters: Vec<_> = output
         .glyphs()
         .iter()
-        .find(|g| g.cluster.text() == "ff")
-        .unwrap();
-    assert_eq!(
-        ligature
-            .cluster
-            .original_ranges(&Limits::default())
-            .unwrap()
-            .len(),
-        2
-    );
+        .filter(|g| g.cluster.text() == "f")
+        .flat_map(|g| g.cluster.original_ranges(&Limits::default()).unwrap())
+        .collect();
+    assert_eq!(letters.len(), 2);
+    assert!(letters[0].end() < letters[1].start());
 }
 
 #[test]

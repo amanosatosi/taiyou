@@ -158,8 +158,8 @@ pub fn rasterize_expanded_axes(
     }
     context.stroke_rasterize_path_axes(&ops, rx, ry, remaining)
 }
-/// Use the same round-stroker contours, with historical scan coverage instead
-/// of analytically rasterizing them into A8 before integer filtering.
+/// Widen the common scan-converted spans before coverage accumulation, retaining
+/// the discrete ellipse's grid decisions and intersections between contours.
 #[cfg(feature = "native")]
 #[allow(clippy::too_many_arguments)]
 pub fn rasterize_expanded_axes_xy(
@@ -172,33 +172,92 @@ pub fn rasterize_expanded_axes_xy(
     remaining: u64,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
-    let ops = coverage_path(group, dx, dy, context.limits())?;
-    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
-        let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
-        let available = context
-            .limits()
-            .transient_bytes()
-            .checked_sub(charge)
-            .filter(|&n| n > 0)
-            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-        return crate::axis_widen::rasterize_axis_xy(
-            &ops,
+    if let Some(first) = group
+        .instances()
+        .first()
+        .filter(|g| g.mapping().transforms_border())
+    {
+        let limits = context.limits().clone();
+        let count = group.instances().iter().try_fold(0usize, |n, g| {
+            n.checked_add(g.outline().ops().len()).ok_or_else(limited)
+        })?;
+        check_path_budget(count, &limits)?;
+        let charge = (count as u64)
+            .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+            .ok_or_else(limited)?;
+        if charge >= limits.transient_bytes() {
+            return Err(limited().with_resource_failure(ResourceFailure::TransientMemory));
+        }
+        let mut base = Vec::new();
+        base.try_reserve_exact(count).map_err(|_| limited())?;
+        for instance in group.instances() {
+            for &op in instance.outline().ops() {
+                base.push(op.try_map(|p| instance.mapping().border_base_point(p))?);
+            }
+        }
+        let mapping = first.mapping();
+        let project = |p| {
+            let p = mapping.project_border_point(p)?;
+            let add = |a: Q6, b: Q6| {
+                a.ticks()
+                    .checked_add(b.ticks())
+                    .map(Q6::from_ticks)
+                    .ok_or_else(limited)
+            };
+            Ok(DevicePoint::new(add(p.x(), dx)?, add(p.y(), dy)?))
+        };
+        let remaining_limits = limits
+            .clone()
+            .with_transient_bytes(limits.transient_bytes() - charge)
+            .map_err(|_| limited())?;
+        if rx.ticks() == 0 || ry.ticks() == 0 {
+            return crate::axis_widen::rasterize_projected_axis(
+                &base,
+                rx,
+                ry,
+                remaining,
+                &remaining_limits,
+                &project,
+            );
+        }
+        // The existing worker-local stroker exports a bounded owned path.
+        // Project it once, then generate final coverage. No pre-transform mask
+        // or second screen-space expansion is constructed.
+        return context.stroke_rasterize_path_axes_with_coverage(
+            &base,
             rx,
             ry,
             remaining,
-            &context
-                .limits()
-                .clone()
-                .with_transient_bytes(available)
-                .map_err(|_| limited())?,
+            |path, limits| {
+                let mut transformed = Vec::new();
+                transformed
+                    .try_reserve_exact(path.len())
+                    .map_err(|_| limited())?;
+                for &op in path {
+                    transformed.push(op.try_map(&project)?);
+                }
+                crate::axis_widen::rasterize_body(&transformed, limits)
+            },
         );
     }
-    context.stroke_rasterize_path_axes_with_coverage(
+    let ops = coverage_path(group, dx, dy, context.limits())?;
+    let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+    let available = context
+        .limits()
+        .transient_bytes()
+        .checked_sub(charge)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    crate::axis_widen::rasterize_axis_xy(
         &ops,
         rx,
         ry,
         remaining,
-        crate::axis_widen::rasterize_body,
+        &context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?,
     )
 }
 

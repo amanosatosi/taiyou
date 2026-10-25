@@ -27,6 +27,17 @@ fn limit() -> RenderError {
 fn add(a: i64, b: i64) -> Result<i64, RenderError> {
     a.checked_add(b).ok_or_else(limit)
 }
+// GetTextExtentPoint32 sums integer glyph extents. Native glyph metrics first
+// pass through the 28.4 device grid; rounding the continuous word sum instead
+// moves an entire centred line at native half-grid thresholds. TextOut's glyph
+// cursor sums these integer extents too, without the per-word eighth rounding.
+pub(crate) fn measured_advance(advance: f64, grid: f64) -> Result<f64, RenderError> {
+    let fixed = (advance * grid * 1024.0 + 0.5).floor();
+    if !fixed.is_finite() || fixed.abs() >= i64::MAX as f64 || grid <= 0.0 {
+        return Err(limit());
+    }
+    Ok(((fixed + 8.0) / 16.0).floor() / (64.0 * grid))
+}
 // xy's width storage is eighth-pixels; its font extent has 64 units/pixel.
 pub(crate) fn width_units(advance: f64) -> Result<i64, RenderError> {
     let value = (advance * 64.0 + 4.0).trunc();
@@ -146,6 +157,24 @@ pub(crate) fn lines(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn native_word_measurement_rounds_glyph_extents_before_summing() {
+        // Measured GDI DejaVu Sans advances at native EM1649 and3299. At the
+        // smaller size 'a' crosses an integer tie only through the 28.4 grid.
+        let a = super::measured_advance(1255.0 * 1649.0 / 2048.0 / 64.0, 1.0).unwrap();
+        assert_eq!(a * 64.0, 1011.0);
+        let measured = [1300.0, 1260.0]
+            .into_iter()
+            .map(|units| super::measured_advance(units * 3299.0 / 2048.0 / 64.0, 1.0).unwrap())
+            .sum::<f64>();
+        assert_eq!(measured * 64.0, 4124.0);
+        assert_eq!(super::width_units(measured).unwrap(), 516);
+        assert_eq!(
+            super::width_units(2560.0 * 3299.0 / 2048.0 / 64.0).unwrap(),
+            515
+        );
+        assert!(super::measured_advance(f64::INFINITY, 1.0).is_err());
+    }
     use super::*;
     fn words(widths: &[i64]) -> Vec<Word> {
         widths

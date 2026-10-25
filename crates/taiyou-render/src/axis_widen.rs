@@ -1,5 +1,5 @@
-//! Degenerate xy ellipse: union nonzero-winding eighth-pixel spans along one
-//! axis, before coverage accumulation. No A8 maximum filter or epsilon radius.
+//! Union nonzero-winding eighth-pixel spans with a discrete ellipse before
+//! coverage accumulation. No A8 maximum filter or vector contour offset.
 //! Behavioural reference: Rasterizer.cpp ScanLineData and CreateWidenedRegion;
 //! xy_widen_region.cpp gen_left_arc's rx==0 branch.
 use std::sync::Arc;
@@ -112,6 +112,39 @@ fn curve(
     // reconnects its last emitted point to the next segment's exact start.
     line(prev, p[3], edges, limits)
 }
+
+// A grid ellipse includes the nearest boundary cells in both dominant-axis
+// directions. Solve the two half-cell squared-distance inequalities directly,
+// rather than accumulating a floating-point angle or translating a native
+// contour-walking implementation. The quarter-cell term resolves the diagonal
+// transition; simply rounding sqrt(a*a*(1-y*y/(b*b))) loses those cells.
+fn ellipse_width(rx: i64, ry: i64, y: i64) -> i64 {
+    if ry == 0 || rx == 0 {
+        return rx;
+    }
+    let (a, b, y) = (i128::from(rx), i128::from(ry), i128::from(y));
+    let (aa, bb) = (a * a, b * b);
+    let largest = |vertical: bool| {
+        let fits = |x: i128| {
+            if vertical {
+                4 * x * x * bb + (4 * y * y - 4 * y + 2) * aa <= 4 * aa * bb
+            } else {
+                ((2 * x - 1).pow(2) + 1) * bb + 4 * y * y * aa <= 4 * aa * bb
+            }
+        };
+        let (mut lo, mut hi) = (0, a + 1);
+        while lo + 1 < hi {
+            let mid = (lo + hi) / 2;
+            if fits(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        lo as i64
+    };
+    largest(false).max(largest(true))
+}
 pub(crate) fn rasterize(
     ops: &[PathOp<DevicePoint>],
     rx: Q6,
@@ -119,7 +152,7 @@ pub(crate) fn rasterize(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, false)
+    rasterize_impl(ops, rx, ry, remaining, limits, false, None)
 }
 /// Same supplied geometry, historical scan conversion and native overlay bounds.
 /// This is not an A8-to-64 conversion of an already rasterized mask.
@@ -134,6 +167,7 @@ pub(crate) fn rasterize_body(
         limits.path_segments_per_frame(),
         limits,
         true,
+        None,
     )
     .map(|(mask, _)| mask)
 }
@@ -144,8 +178,23 @@ pub(crate) fn rasterize_axis_xy(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, true)
+    rasterize_impl(ops, rx, ry, remaining, limits, true, None)
 }
+type Projection<'a> = dyn Fn(DevicePoint) -> Result<DevicePoint, RenderError> + 'a;
+// A single-zero-axis border is an exact segment dilation, not an epsilon ellipse.
+// Keep its existing spans until expansion is complete, project their closed
+// strips, then rasterize once. This fallback creates no intermediate mask.
+pub(crate) fn rasterize_projected_axis(
+    ops: &[PathOp<DevicePoint>],
+    rx: Q6,
+    ry: Q6,
+    remaining: u64,
+    limits: &Limits,
+    project: &Projection<'_>,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    rasterize_impl(ops, rx, ry, remaining, limits, true, Some(project))
+}
+#[allow(clippy::too_many_arguments)]
 fn rasterize_impl(
     ops: &[PathOp<DevicePoint>],
     rx: Q6,
@@ -153,6 +202,7 @@ fn rasterize_impl(
     remaining: u64,
     limits: &Limits,
     xy: bool,
+    projection: Option<&Projection<'_>>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_path_budget(ops.len(), limits)?;
     if rx.ticks() < 0 || ry.ticks() < 0 {
@@ -181,7 +231,22 @@ fn rasterize_impl(
     let mut prev = (0.0, 0.0);
     let mut first = prev;
     let mut count = 0_u64;
-    let point = |p: DevicePoint| (f64::from(p.x().ticks()), f64::from(p.y().ticks()));
+    // PathData::AlignLeftTop runs before xy flattens curves. Evaluating the
+    // same polynomial in absolute viewport coordinates can truncate a sample
+    // one Q6 tick differently after an otherwise integral translation.
+    let (ox, oy) = if xy {
+        hull.map_or((0, 0), |(x, y, _, _)| {
+            (x.div_euclid(64) * 64, y.div_euclid(64) * 64)
+        })
+    } else {
+        (0, 0)
+    };
+    let point = |p: DevicePoint| {
+        (
+            (i64::from(p.x().ticks()) - ox) as f64,
+            (i64::from(p.y().ticks()) - oy) as f64,
+        )
+    };
     for &op in ops {
         match op {
             PathOp::MoveTo(p) => {
@@ -222,6 +287,10 @@ fn rasterize_impl(
             return Err(limit());
         }
     }
+    for edge in &mut edges {
+        edge.x += ox / 8;
+        edge.y += oy / 8;
+    }
     edges.sort_unstable_by_key(|e| (e.y, e.x, e.w));
     let edge_bytes = edges.capacity() as u64 * std::mem::size_of::<Edge>() as u64;
     let mut spans = Vec::new();
@@ -253,8 +322,15 @@ fn rasterize_impl(
     drop(edges);
     let rx = (i64::from(rx.ticks()) + 4).div_euclid(8);
     let ry = (i64::from(ry.ticks()) + 4).div_euclid(8);
-    let mut wide = Vec::new();
+    let mut arc = Vec::new();
     let span_bytes = spans.capacity() as u64 * std::mem::size_of::<Span>() as u64;
+    for y in 0..=ry {
+        push(&mut arc, ellipse_width(rx, ry, y), span_bytes, limits)?;
+    }
+    let mut wide = Vec::new();
+    let span_bytes = span_bytes
+        .checked_add(arc.capacity() as u64 * std::mem::size_of::<i64>() as u64)
+        .ok_or_else(limit)?;
     for s in &spans {
         for y in s.y - ry..=s.y + ry {
             if wide.len() as u64 >= remaining {
@@ -264,8 +340,8 @@ fn rasterize_impl(
                 &mut wide,
                 Span {
                     y,
-                    left: s.left - rx,
-                    right: s.right + rx,
+                    left: s.left - arc[(y - s.y).unsigned_abs() as usize],
+                    right: s.right + arc[(y - s.y).unsigned_abs() as usize],
                 },
                 span_bytes,
                 limits,
@@ -273,6 +349,7 @@ fn rasterize_impl(
         }
     }
     drop(spans);
+    drop(arc);
     wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
     let mut out = 0;
     for i in 0..wide.len() {
@@ -285,6 +362,53 @@ fn rasterize_impl(
         }
     }
     wide.truncate(out);
+    if let Some(project) = projection {
+        let segments = (wide.len() as u64).checked_mul(5).ok_or_else(limit)?;
+        let work = count.checked_add(segments).ok_or_else(limit)?;
+        if work > remaining {
+            return Err(limit());
+        }
+        let live = wide.capacity() as u64 * std::mem::size_of::<Span>() as u64;
+        let mut path = Vec::new();
+        let point = |x: i64, y: i64| {
+            let q = |n| i32::try_from(n).map(Q6::from_ticks).map_err(|_| limit());
+            project(DevicePoint::new(q(x * 8 + ox)?, q(y * 8 + oy)?))
+        };
+        for span in &wide {
+            for op in [
+                PathOp::MoveTo(point(span.left, span.y)?),
+                PathOp::LineTo(point(span.right, span.y)?),
+                PathOp::LineTo(point(span.right, span.y + 1)?),
+                PathOp::LineTo(point(span.left, span.y + 1)?),
+                PathOp::Close,
+            ] {
+                push(&mut path, op, live, limits)?;
+            }
+        }
+        let charge = (path.capacity() as u64)
+            .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+            .ok_or_else(limit)?;
+        drop(wide);
+        let available = limits
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|n| *n > 0)
+            .ok_or_else(limit)?;
+        let limits = limits
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limit())?;
+        let (mask, rendered) = rasterize_impl(
+            &path,
+            Q6::from_ticks(0),
+            Q6::from_ticks(0),
+            remaining - work,
+            &limits,
+            true,
+            None,
+        )?;
+        return Ok((mask, work.checked_add(rendered).ok_or_else(limit)?));
+    }
     if wide.is_empty() {
         return Ok((
             Arc::new(Mask::new(
@@ -377,6 +501,56 @@ fn rasterize_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn discrete_ellipse_retains_dominant_axis_boundary_cells() {
+        assert_eq!(
+            (0..=2).map(|y| ellipse_width(2, 2, y)).collect::<Vec<_>>(),
+            [2, 2, 1]
+        );
+        assert_eq!(
+            (0..=4).map(|y| ellipse_width(4, 4, y)).collect::<Vec<_>>(),
+            [4, 4, 3, 3, 1]
+        );
+        for rx in 0..=32 {
+            for ry in 0..=32 {
+                let widths: Vec<_> = (0..=ry).map(|y| ellipse_width(rx, ry, y)).collect();
+                assert!(widths.iter().all(|&x| (0..=rx).contains(&x)));
+                assert!(widths.windows(2).all(|pair| pair[0] >= pair[1]));
+            }
+        }
+    }
+    #[test]
+    fn xy_cubic_flattening_is_independent_of_integral_viewport_translation() {
+        let limits = Limits::default();
+        let p = |x, y| DevicePoint::new(Q6::from_ticks(x * 64), Q6::from_ticks(y * 64));
+        let source = [
+            PathOp::MoveTo(p(0, 0)),
+            PathOp::CubicTo(p(32, -8), p(32, 24), p(0, 16)),
+            PathOp::CubicTo(p(-8, 16), p(-8, 0), p(0, 0)),
+            PathOp::Close,
+        ];
+        let original = rasterize_body(&source, &limits).unwrap();
+        for (x, y) in [(150, 35), (-100, -200), (1700, 900)] {
+            let moved: Vec<_> = source
+                .iter()
+                .map(|op| {
+                    op.try_map(|point| {
+                        Ok(DevicePoint::new(
+                            Q6::from_ticks(point.x().ticks() + x * 64),
+                            Q6::from_ticks(point.y().ticks() + y * 64),
+                        ))
+                    })
+                    .unwrap()
+                })
+                .collect();
+            let output = rasterize_body(&moved, &limits).unwrap();
+            assert_eq!(output.data(), original.data());
+            assert_eq!(output.bounds().x0(), original.bounds().x0() + x);
+            assert_eq!(output.bounds().y0(), original.bounds().y0() + y);
+            assert_eq!(output.bounds().width(), original.bounds().width());
+            assert_eq!(output.bounds().height(), original.bounds().height());
+        }
+    }
     fn rectangle(x0: i32, y0: i32, x1: i32, y1: i32) -> Vec<PathOp<DevicePoint>> {
         let p = |x, y| DevicePoint::new(Q6::from_ticks(x * 64), Q6::from_ticks(y * 64));
         vec![

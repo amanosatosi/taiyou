@@ -1,0 +1,126 @@
+name: Compare with xy-VSFilter
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/xy-oracle.yml'
+      - 'experiments/xy-oracle/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: xy-compare-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xy-render:
+    name: xy-VSFilter render
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ${{ runner.temp }}/xy-vsfilter-release.7z
+          key: xy-pinterf-3.2.0.810-asset147296997-v1
+      - name: Acquire pinned xy-VSFilter release
+        shell: pwsh
+        run: ./experiments/xy-oracle/acquire.ps1
+      - name: Acquire pinned validation corpus
+        shell: pwsh
+        run: |
+          git config --global core.symlinks true
+          python validation/acquire.py
+      - name: Acquire pinned MUA Office witness font
+        shell: pwsh
+        run: python experiments/xy-oracle/acquire-mua.py
+      - name: Render xy-VSFilter fixtures
+        shell: pwsh
+        run: python experiments/xy-oracle/parallel.py --mode xy --release-root "$env:RUNNER_TEMP/xy-vsfilter-release" --corpus "$env:TAIYOU_CORPUS" --output "$env:RUNNER_TEMP/xy-render"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: xy-vsfilter-render-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/xy-render/
+          if-no-files-found: warn
+          retention-days: 3
+
+  taiyou-render:
+    name: Taiyou build + render
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Acquire pinned validation corpus
+        shell: pwsh
+        run: |
+          git config --global core.symlinks true
+          python validation/acquire.py
+      - name: Acquire pinned MUA Office witness font
+        shell: pwsh
+        run: python experiments/xy-oracle/acquire-mua.py
+      - name: Install exact Taiyou native build tools
+        shell: pwsh
+        run: |
+          python -m pip install --force-reinstall --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - name: Install pinned Rust
+        shell: pwsh
+        run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Build focused Taiyou renderer
+        shell: pwsh
+        env:
+          TAIYOU_FOCUSED_RENDERER: '1'
+          RUSTUP_TOOLCHAIN: 1.99.1
+        run: |
+          python build-support/acquire.py
+          python build-support/build-native.py
+      - name: Render Taiyou fixtures
+        shell: pwsh
+        run: python experiments/xy-oracle/parallel.py --mode taiyou --corpus "$env:TAIYOU_CORPUS" --taiyou "$env:GITHUB_WORKSPACE/target/debug/taiyou.exe" --output "$env:RUNNER_TEMP/taiyou-render"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: taiyou-render-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-render/
+          if-no-files-found: warn
+          retention-days: 3
+
+  compare:
+    name: Compare with xy-VSFilter
+    needs:
+      - xy-render
+      - taiyou-render
+    if: always() && needs.xy-render.result == 'success' && needs.taiyou-render.result == 'success'
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Download xy-VSFilter renders
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: xy-vsfilter-render-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/xy-render
+      - name: Download Taiyou renders
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: taiyou-render-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/taiyou-render
+      - name: Compare rendered frames
+        shell: pwsh
+        run: python experiments/xy-oracle/parallel.py --mode compare --xy-input "$env:RUNNER_TEMP/xy-render" --taiyou-input "$env:RUNNER_TEMP/taiyou-render" --output "$env:RUNNER_TEMP/xy-compare"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: compare-with-xy-vsfilter-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/xy-compare/
+          if-no-files-found: warn
+          retention-days: 7

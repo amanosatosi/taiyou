@@ -47,6 +47,40 @@ def check_retained_release_shapes():
 
 check_retained_release_shapes()
 
+
+def instrument_shadow_work(code):
+    """Time executed shadow work, independently of the no-shadow predicate.
+
+    The renderer may add legitimate reasons to omit a shadow. The measurement
+    belongs inside the nonempty branch, so omitted work contributes no call or
+    time. Fail closed if that branch cannot be identified unambiguously.
+    """
+    pattern = r"(let shadow = if [^{};]+\{\s*None\s*\}\s*else\s*\{)"
+    code, count = re.subn(pattern, r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
+    assert count == 1, "cannot identify the executed shadow-work branch"
+    return code
+
+
+def check_shadow_instrumentation():
+    guard = "let _shadow_measurement = taiyou_types::t017_metrics::guard(9);"
+    for predicate in ["invisible", "invisible || zero_depth", "invisible ||\n (!opaque && !border_exists && !has_fill)"]:
+        source = f"let shadow = if {predicate} {{ None }} else {{ render_shadow()? }};"
+        measured = instrument_shadow_work(source)
+        assert measured.count(guard) == 1
+        assert measured.replace("\n" + guard, "") == source
+        assert measured.index(guard) > measured.index("else {")
+    for source in ["let shadow = None;", "let shadow = if invisible { Some(mask) } else { work() };",
+                   "let shadow = if invisible { None } else { work() };" * 2]:
+        try:
+            instrument_shadow_work(source)
+        except AssertionError:
+            continue
+        raise AssertionError("ambiguous/non-shadow instrumentation accepted")
+    print("T017_SHADOW_WORK_INSTRUMENTATION_VERIFIED: skip predicates preserved; only executed work timed", flush=True)
+
+
+check_shadow_instrumentation()
+
 def cell_identity(historical_bytes, current_bytes, upem, cell, advances):
     """This one pinned CJK witness changed units in T018, not glyph identity."""
     pattern = r"(\d+):FiniteF64\(([-0-9.]+)\):FiniteF64\(([-0-9.]+)\);"
@@ -151,8 +185,7 @@ impl Drop for Report {fn drop(&mut self){report();}}
     marker = ".with_diagnostics(diagnostics)"
     assert code.count(marker) == 1
     code = inject(code, "render", 0, "let _measurement_report = taiyou_types::t017_metrics::Report;")
-    code, shadow_scopes = re.subn(r"(let shadow = if state\.paint\(\)\.shadow\(\)\.a\(\) == 0(?:\s*\|\|\s*\(state\.effects\(\)\.shadow_x\(\)\.get\(\) == 0\.0\s*&& state\.effects\(\)\.shadow_y\(\)\.get\(\) == 0\.0\))?\s*\{\s*None\s*\} else \{)", r"\1\nlet _shadow_measurement = taiyou_types::t017_metrics::guard(9);", code)
-    assert shadow_scopes == 1
+    code = instrument_shadow_work(code)
     if label == "candidate":
         marker = "        let limits = &self.config.limits;"
         # First occurrence in render_staged; the public wrapper has no limits.
@@ -162,10 +195,11 @@ impl Drop for Report {fn drop(&mut self){report();}}
     modifications[str(path.relative_to(destination))] = {"original": hashlib.sha256(original.encode()).hexdigest(), "instrumented": hashlib.sha256(code.encode()).hexdigest()}
     cli_path = destination / "crates/taiyou-cli/src/render.rs"
     cli_original = cli_path.read_text()
-    markers = ("let config = RendererConfig::default();", "let mut config = RendererConfig::default();")
-    assert sum(cli_original.count(value) for value in markers) == 1
-    marker = next(value for value in markers if value in cli_original)
-    cli_code = cli_original.replace(marker, 'let mut config = RendererConfig::default(); if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();} if let Ok(segments) = std::env::var("TAIYOU_EXPERIMENT_SEGMENTS") {config.limits = config.limits.with_path_segments_per_frame(segments.parse().unwrap()).unwrap();}')
+    # Inject at the budget handoff, preserving the actual CLI configuration.
+    # Playback now constructs RendererConfig with a font-source-specific limit.
+    marker = "    let limits = &config.limits;"
+    assert cli_original.count(marker) == 1, "CLI budget handoff changed"
+    cli_code = cli_original.replace(marker, '    if let Ok(bytes) = std::env::var("TAIYOU_EXPERIMENT_BYTES") {config.limits = config.limits.with_transient_bytes(bytes.parse().unwrap()).unwrap();} if let Ok(segments) = std::env::var("TAIYOU_EXPERIMENT_SEGMENTS") {config.limits = config.limits.with_path_segments_per_frame(segments.parse().unwrap()).unwrap();}\n' + marker)
     cli_path.write_text(cli_code)
     modifications[str(cli_path.relative_to(destination))] = {"original": hashlib.sha256(cli_original.encode()).hexdigest(), "instrumented": hashlib.sha256(cli_code.encode()).hexdigest(), "scope": "experiment-only explicit caller budget override, same implementation for every snapshot"}
     driver = r'''use std::{path::PathBuf,time::Instant};
@@ -278,6 +312,9 @@ for name, events in cases:
             resource = out / (stem + ".resource.txt")
             raw = out / (stem + ".rgba")
             command = ["/usr/bin/time", "-f", "%M %U %S", "-o", str(resource), str(binary), "render", "--input", str(script), "--font", str(font), "--time-us", "750000", "--width", "1920" if hd else "160", "--height", "1080" if hd else "100", "--profile", "core-v1", "--output", str(out / (stem + ".png")), "--raw", str(raw)]
+            # Current playback defaults to host fonts/256 MiB. This historical
+            # explicit-font experiment must retain its 128 MiB ordinary cohort.
+            command += ["--font-source", "explicit"]
             start = time.perf_counter_ns()
             result = subprocess.run(command, capture_output=True, timeout=40, env=env)
             elapsed = time.perf_counter_ns() - start

@@ -148,7 +148,13 @@ fn reference(id: &str) -> Expected {
     panic!("missing independently produced provisional reference {id}")
 }
 fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
-    let expected = reference(id);
+    let latin = run.script() == u32::from_be_bytes(*b"Latn");
+    let ass_id = if latin && !matches!(id, "ff-spacing" | "spacing") {
+        format!("{id}-xy")
+    } else {
+        id.to_owned()
+    };
+    let expected = reference(&ass_id);
     assert!(expected.metrics[0] > expected.metrics[1]);
     let (scale, ascent, descent, baseline_offset) = cell_reference(id, size);
     assert_eq!(f64::from(run.metrics().units_per_em()), expected.upem);
@@ -250,7 +256,8 @@ fn shaping_kerning_ligatures_spacing_and_design_unit_scaling() {
     );
     assert_reference(&fi.runs()[0], "ff", 1000.0);
     assert_reference(&no.runs()[0], "ff-spacing", 1000.0);
-    assert!(fi.runs()[0].glyphs().len() < no.runs()[0].glyphs().len());
+    assert_eq!(fi.runs()[0].glyphs().len(), 2);
+    assert_eq!(fi.runs()[0].glyphs().len(), no.runs()[0].glyphs().len());
     let av = shaped(&mut ctx, "AV", &s);
     let a = shaped(&mut ctx, "A", &s);
     let v = shaped(&mut ctx, "V", &s);
@@ -276,6 +283,50 @@ fn shaping_kerning_ligatures_spacing_and_design_unit_scaling() {
         20.0,
     );
 }
+#[test]
+fn kerning_option_preserves_default_and_can_request_additive_advances() {
+    let (mut ctx, catalog, _) = catalog();
+    let style = style("Source Sans 3");
+    let width = |ctx: &mut FontContext, text: &str, options: &ShapeOptions| {
+        shape_event(ctx, &catalog, &plain(text, &style), options, &limits())
+            .unwrap()
+            .runs()
+            .iter()
+            .flat_map(|run| run.glyphs())
+            .map(|glyph| glyph.advance_x().get())
+            .sum::<f64>()
+    };
+    let default = ShapeOptions::default();
+    let additive = default.clone().with_kerning(false);
+    let explicit = default.clone().with_kerning(true);
+    for (pair, left, right) in [("AV", "A", "V"), ("To", "T", "o")] {
+        let sum = width(&mut ctx, left, &additive) + width(&mut ctx, right, &additive);
+        assert!((width(&mut ctx, pair, &additive) - sum).abs() < 1e-10);
+        assert!(width(&mut ctx, pair, &default) < sum);
+        assert_eq!(
+            width(&mut ctx, pair, &default),
+            width(&mut ctx, pair, &explicit)
+        );
+    }
+    // Kerning does not enable optional Latin ligatures. Required GSUB and
+    // complex-script clusters remain covered by the Arabic/Indic cases.
+    let result = shape_event(
+        &mut ctx,
+        &catalog,
+        &plain("ff", &style),
+        &additive,
+        &limits(),
+    )
+    .unwrap();
+    assert_eq!(result.runs()[0].glyphs().len(), 2);
+    assert!(
+        result.runs()[0]
+            .glyphs()
+            .iter()
+            .all(|g| g.cluster().text() == "f")
+    );
+}
+
 #[test]
 fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
     let (mut ctx, catalog, _) = catalog();
@@ -317,7 +368,7 @@ fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
         assert_eq!(result.runs().len(), 1);
         assert_reference(&result.runs()[0], id, 1000.0);
         let glyph = &result.runs()[0].glyphs()[0];
-        if id == "fi" {
+        if id == "fi" || id == "ff" {
             assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a]);
             assert_eq!(
                 result.runs()[0].glyphs()[1]
@@ -325,6 +376,13 @@ fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
                     .original_ranges(&limits())
                     .unwrap(),
                 [b]
+            );
+            assert_eq!(
+                result
+                    .paint_for(result.runs()[0].glyphs()[1].cluster())
+                    .unwrap()
+                    .primary(),
+                Rgba8::new(255, 0, 0, 255)
             );
         } else {
             assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a, b]);
