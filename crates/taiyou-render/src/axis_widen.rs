@@ -152,7 +152,7 @@ pub(crate) fn rasterize(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, false)
+    rasterize_impl(ops, rx, ry, remaining, limits, false, None)
 }
 /// Same supplied geometry, historical scan conversion and native overlay bounds.
 /// This is not an A8-to-64 conversion of an already rasterized mask.
@@ -167,6 +167,7 @@ pub(crate) fn rasterize_body(
         limits.path_segments_per_frame(),
         limits,
         true,
+        None,
     )
     .map(|(mask, _)| mask)
 }
@@ -177,8 +178,19 @@ pub(crate) fn rasterize_axis_xy(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, true)
+    rasterize_impl(ops, rx, ry, remaining, limits, true, None)
 }
+type Projection<'a> = dyn Fn(DevicePoint) -> Result<DevicePoint, RenderError> + 'a;
+// A single-zero-axis border is an exact segment dilation, not an epsilon ellipse.
+// Keep its existing spans until expansion is complete, project their closed
+// strips, then rasterize once. This fallback creates no intermediate mask.
+pub(crate) fn rasterize_projected_axis(
+    ops: &[PathOp<DevicePoint>], rx: Q6, ry: Q6, remaining: u64,
+    limits: &Limits, project: &Projection<'_>,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    rasterize_impl(ops, rx, ry, remaining, limits, true, Some(project))
+}
+#[allow(clippy::too_many_arguments)]
 fn rasterize_impl(
     ops: &[PathOp<DevicePoint>],
     rx: Q6,
@@ -186,6 +198,7 @@ fn rasterize_impl(
     remaining: u64,
     limits: &Limits,
     xy: bool,
+    projection: Option<&Projection<'_>>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_path_budget(ops.len(), limits)?;
     if rx.ticks() < 0 || ry.ticks() < 0 {
@@ -345,6 +358,37 @@ fn rasterize_impl(
         }
     }
     wide.truncate(out);
+    if let Some(project) = projection {
+        let segments = (wide.len() as u64).checked_mul(5).ok_or_else(limit)?;
+        let work = count.checked_add(segments).ok_or_else(limit)?;
+        if work > remaining { return Err(limit()); }
+        let live = wide.capacity() as u64 * std::mem::size_of::<Span>() as u64;
+        let mut path = Vec::new();
+        let point = |x: i64, y: i64| {
+            let q = |n| i32::try_from(n).map(Q6::from_ticks).map_err(|_| limit());
+            project(DevicePoint::new(q(x * 8 + ox)?, q(y * 8 + oy)?))
+        };
+        for span in &wide {
+            for op in [
+                PathOp::MoveTo(point(span.left, span.y)?),
+                PathOp::LineTo(point(span.right, span.y)?),
+                PathOp::LineTo(point(span.right, span.y + 1)?),
+                PathOp::LineTo(point(span.left, span.y + 1)?),
+                PathOp::Close,
+            ] { push(&mut path, op, live, limits)?; }
+        }
+        let charge = (path.capacity() as u64)
+            .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
+            .ok_or_else(limit)?;
+        drop(wide);
+        let available = limits.transient_bytes().checked_sub(charge)
+            .filter(|n| *n > 0).ok_or_else(limit)?;
+        let limits = limits.clone().with_transient_bytes(available).map_err(|_| limit())?;
+        let (mask, rendered) = rasterize_impl(
+            &path, Q6::from_ticks(0), Q6::from_ticks(0), remaining - work, &limits, true, None,
+        )?;
+        return Ok((mask, work.checked_add(rendered).ok_or_else(limit)?));
+    }
     if wide.is_empty() {
         return Ok((
             Arc::new(Mask::new(

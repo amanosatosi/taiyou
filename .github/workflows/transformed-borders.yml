@@ -1,0 +1,55 @@
+name: Transformed borders (libass exception)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rendered:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      TAIYOU_FOCUSED_RENDERER: '1'
+      RUSTUP_TOOLCHAIN: 1.99.1
+      TAIYOU_TRANSFORMED_BORDER_OUTPUT: ${{ runner.temp }}/transformed-borders
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Source and formatting evidence
+        shell: bash
+        run: |
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/transformed-borders-format.patch"
+          python scripts/check-unsafe.py
+          python -m py_compile experiments/transformed-borders/render-libass.py
+      - run: python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Actual renderer and stage regressions
+        shell: bash
+        run: |
+          export TAIYOU_TEST_FONT="$RUNNER_TEMP/taiyou-shaping-fonts/latin.otf"
+          export PKG_CONFIG_PATH="$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          export PKG_CONFIG_ALL_STATIC=1 LIBZ_SYS_STATIC=1
+          cargo test --locked -p taiyou-cli --features native --test transformed_borders --test transforms --test borders_shadows --test drawings
+          cargo test --locked -p taiyou-render --features native --test borders_shadows
+      - name: Live explicit-font libass reference renders
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libass9
+          export TAIYOU_TEST_FONT="$RUNNER_TEMP/taiyou-shaping-fonts/latin.otf"
+          python experiments/transformed-borders/render-libass.py
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: transformed-borders-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/transformed-borders/
+            ${{ runner.temp }}/transformed-borders-format.patch
+          retention-days: 7

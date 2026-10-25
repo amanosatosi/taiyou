@@ -1068,7 +1068,8 @@ std::thread_local! {
     static LIVE: std::cell::Cell<(usize, usize)> = const { std::cell::Cell::new((0, 0)) };
 }
 struct Library(ft::FT_Library);
-type CoverageRasterizer = fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>;
+type CoverageRasterizer<'a> =
+    dyn Fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError> + 'a;
 /// Per-call-worker raster owner, neither Send nor Sync. No native handle escapes.
 /// ```compile_fail
 /// fn require_send<T: Send>() {}
@@ -1375,14 +1376,14 @@ impl RasterContext {
         radius_x: Q6,
         radius_y: Q6,
         remaining_segments: u64,
-        coverage: CoverageRasterizer,
+        coverage: impl Fn(&[PathOp<DevicePoint>], &Limits) -> Result<Arc<Mask>, RenderError>,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
         self.stroke_rasterize_path_axes_impl(
             ops,
             radius_x,
             radius_y,
             remaining_segments,
-            Some(coverage),
+            Some(&coverage),
         )
     }
     fn stroke_rasterize_path_axes_impl(
@@ -1391,7 +1392,7 @@ impl RasterContext {
         radius_x: Q6,
         radius_y: Q6,
         remaining_segments: u64,
-        coverage: Option<CoverageRasterizer>,
+        coverage: Option<&CoverageRasterizer<'_>>,
     ) -> Result<(Arc<Mask>, u64), RenderError> {
         let radius = radius_x.max(radius_y);
         let invalid =

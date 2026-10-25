@@ -170,6 +170,47 @@ impl GeometryMap {
         self.shear_offset = offset;
         self
     }
+    #[cfg(feature = "native")]
+    pub(crate) fn transforms_border(self) -> bool {
+        self.projection[..2]
+            .iter()
+            .any(|a| a.get().rem_euclid(360.0) != 0.0)
+    }
+    // Border radii are measured after font/ASS scaling, before Z/X/Y rotation.
+    // This retains SBAS and independent axis sizing without inverting a 3D map.
+    #[cfg(feature = "native")]
+    pub(crate) fn border_base_point(mut self, p: FontPoint) -> Result<DevicePoint, RenderError> {
+        self.rotation = FiniteF64::ZERO;
+        self.projection[0] = FiniteF64::ZERO;
+        self.projection[1] = FiniteF64::ZERO;
+        self.point(p)
+    }
+    #[cfg(feature = "native")]
+    pub(crate) fn project_border_point(self, p: DevicePoint) -> Result<DevicePoint, RenderError> {
+        let content = self.device.content;
+        let dx = f64::from(content.width()) / f64::from(self.device.play_res.width());
+        let dy = f64::from(content.height()) / f64::from(self.device.play_res.height());
+        let [lx, ly] = self.device.layout_scale();
+        let x = ((p.x().as_pixels().get() - f64::from(content.x0())) / dx - self.origin.x().get()) * lx;
+        let y = ((p.y().as_pixels().get() - f64::from(content.y0())) / dy - self.origin.y().get()) * ly;
+        let (sin, cos) = match self.rotation.get().rem_euclid(360.0) {
+            0.0 => (0.0, 1.0),
+            90.0 => (1.0, 0.0),
+            180.0 => (0.0, -1.0),
+            270.0 => (-1.0, 0.0),
+            a => a.to_radians().sin_cos(),
+        };
+        let (x, y) = project_3d(
+            cos * x + sin * y,
+            -sin * x + cos * y,
+            self.projection[0].get(),
+            self.projection[1].get(),
+        )?;
+        Ok(DevicePoint::new(
+            q6((x / lx + self.origin.x().get()) * dx + f64::from(content.x0()))?,
+            q6((y / ly + self.origin.y().get()) * dy + f64::from(content.y0()))?,
+        ))
+    }
     pub fn point(self, p: FontPoint) -> Result<DevicePoint, RenderError> {
         let (x, y) = self.precise_point(p)?;
         Ok(DevicePoint::new(q6(x)?, q6(y)?))

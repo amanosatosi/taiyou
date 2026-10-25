@@ -606,3 +606,16 @@ the four scroll residuals become432/432/427/431. Their large alternating error
 was text realization, not a delay or motion-state defect. The three desync
 karaoke frames improve6040/6040/6059 to2273/2273/2313 after integer ink advances;
 their remaining edge/coverage differences require separate native-path evidence.
+
+**Owner-directed exception — transformed borders (2026-10-26).** The owner
+selects libass's behavior from issue302/comment372136382 for nonzero X/Y
+rotation. Libass ass_render.c constructs OUTLINE_BORDER with ass_outline_stroke
+before ass_bitmap_construct transforms both outlines; pinterf widens spans
+after transforming the glyph. Taiyou now expands the scaled local plane, applies
+the existing Z/X/Y/perspective mapping, and generates final coverage once. The
+existing worker-local round stroker supplies owned bounded geometry; exact
+single-zero-axis spans use closed strips without an epsilon radius. No new
+native call, dependency, ASS tag, renderer mode or zero-area solver is added.
+Zero X/Y rotation retains the previous span path; blur order and shadow offsets
+remain unchanged. Shadow shape necessarily follows the transformed expansion.
+Live libass controls and platform rendering results are recorded in PR35.
