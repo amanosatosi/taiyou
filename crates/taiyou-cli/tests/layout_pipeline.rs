@@ -43,10 +43,13 @@ fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coales
             // rounded extent; neither immutable shaped advance is rounded.
             assert_eq!(s.runs()[0].glyphs()[0].advance_x().get(), advance);
             assert_eq!(s.runs()[1].glyphs()[0].advance_x().get(), advance);
-            assert_eq!(l.glyphs()[1].position().x().get(), word_extent(advance));
+            // Native text measurement rounds this pinned glyph to282 native
+            // units before applying the word's ASS scale. Ink stays precise.
+            let measured = 282.0 / 64.0;
+            assert_eq!(l.glyphs()[1].position().x().get(), word_extent(measured));
             assert_eq!(
                 l.lines()[0].advance().get(),
-                word_extent(advance) + word_extent(advance * 2.0)
+                word_extent(measured) + word_extent(measured * 2.0)
             );
         }
     }

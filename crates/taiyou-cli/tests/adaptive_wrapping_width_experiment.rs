@@ -175,7 +175,11 @@ fn native_word_width(input: &ShapedEvent, visible: std::ops::Range<u32>) -> f64 
                 words.push((key, 0.0));
             }
             let word = &mut words.last_mut().unwrap().1;
-            *word += glyph.advance_x().get() * state.geometry().scale_x().get();
+            // Independent native measurement; width/width_range intentionally
+            // retain the original raw advances for the performance experiment.
+            let fixed = (glyph.advance_x().get() * 1024.0 + 0.5).floor();
+            let measured = ((fixed + 8.0) / 16.0).floor() / 64.0;
+            *word += measured * state.geometry().scale_x().get();
             if run
                 .glyphs()
                 .get(index + 1)

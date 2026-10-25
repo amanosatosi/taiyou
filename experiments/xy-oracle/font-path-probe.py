@@ -72,6 +72,24 @@ def main():
     mode = api("SetGraphicsMode", C.c_int, W.HDC, C.c_int)
     world = api("SetWorldTransform", W.BOOL, W.HDC, C.POINTER(Transform))
 
+    def fine_path(value):
+        assert begin(dc) and text(dc, 0, 0, value, len(value)) and end(dc)
+        n = path(dc, None, None, 0)
+        assert 0 <= n < 10000
+        if not n:
+            return []
+        saved = save(dc)
+        assert saved
+        try:
+            assert mode(dc, 2)
+            transform = Transform(1 / 64, 0, 0, 1 / 64, 0, 0)
+            assert world(dc, C.byref(transform))
+            points, types = (Point * n)(), (W.BYTE * n)()
+            assert path(dc, points, types, n) == n
+            return [[p.x / 64, -p.y / 64, int(t)] for p, t in zip(points, types)]
+        finally:
+            assert restore(dc, saved)
+
     def native_outline(character, format):
         matrix = (C.c_int32 * 4)(65536, 0, 0, 65536)
         gm = GlyphMetrics()
@@ -194,6 +212,27 @@ def main():
                                                  "word_units": (word_size.x + 4) >> 3,
                                                  "design_advance": advance})
                             rows[-1]["ssa_word_extents"] = observed
+                            sample = next(value for value in texts if value.startswith("This"))[:32]
+                            complete = fine_path(sample)
+                            separate = {c: fine_path(c) for c in set(sample)}
+                            cursor, pens = 0, []
+                            for character in sample:
+                                points = separate[character]
+                                pen = None
+                                deviation = 0
+                                if points:
+                                    pen = complete[cursor][0] - points[0][0]
+                                    deviation = max(abs(complete[cursor + i][0] - p[0] - pen)
+                                                    for i, p in enumerate(points))
+                                width = Size()
+                                assert extent(dc, character, 1, C.byref(width))
+                                pens.append({"char": character, "pen_native": pen,
+                                             "translation_deviation": deviation,
+                                             "measured_advance": width.x,
+                                             "design_advance": font["hmtx"].metrics[font.getBestCmap()[ord(character)]][0]})
+                                cursor += len(points)
+                            assert cursor == len(complete)
+                            rows[-1]["ssa_ink_pens"] = pens
                 finally:
                     select(dc, previous)
                     delete(hfont)

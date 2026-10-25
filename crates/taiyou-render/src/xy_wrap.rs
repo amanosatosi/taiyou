@@ -165,9 +165,7 @@ mod tests {
         assert_eq!(a * 64.0, 1011.0);
         let measured = [1300.0, 1260.0]
             .into_iter()
-            .map(|units| {
-                super::measured_advance(units * 3299.0 / 2048.0 / 64.0, 1.0).unwrap()
-            })
+            .map(|units| super::measured_advance(units * 3299.0 / 2048.0 / 64.0, 1.0).unwrap())
             .sum::<f64>();
         assert_eq!(measured * 64.0, 4124.0);
         assert_eq!(super::width_units(measured).unwrap(), 516);
