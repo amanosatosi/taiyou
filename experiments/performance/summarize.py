@@ -14,6 +14,9 @@ out = []
 for key, rows in groups.items():
     record = dict(zip(("workload", "width", "scenario", "workers", "cache"), key))
     record["samples"] = len(rows)
+    for field in ("span_rows", "expanded_candidates", "expanded_candidates_without_reuse"):
+        if field in rows[0]:
+            record[field] = sum(int(row[field]) for row in rows)
     if "cache_hits" in rows[0]:
         for field in ("cache_hits", "cache_misses", "cache_evictions"):
             record[field] = sum(int(row[field]) for row in rows)

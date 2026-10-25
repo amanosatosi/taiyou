@@ -92,7 +92,7 @@ fn main() {
         ),
     ];
     println!(
-        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns,cache_hits,cache_misses,cache_evictions,cache_entries,cache_bytes"
+        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns,cache_hits,cache_misses,cache_evictions,cache_entries,cache_bytes,span_rows,expanded_candidates,expanded_candidates_without_reuse"
     );
     let mut ingestion = TrackIngestor::new();
     for (name, text, count) in workloads {
@@ -208,7 +208,7 @@ fn main() {
                     let t = renderer.last_timings();
                     let c = renderer.cache_stats();
                     println!(
-                        "{name},{width},{height},{scenario},{sample},1,{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                        "{name},{width},{height},{scenario},{sample},1,{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                         t.evaluation.as_nanos(),
                         t.shaping.as_nanos(),
                         t.layout.as_nanos(),
@@ -230,7 +230,8 @@ fn main() {
                         c.misses,
                         c.evictions,
                         c.entries,
-                        c.retained_bytes
+                        c.retained_bytes,
+                        t.span_rows,t.expanded_candidates,t.expanded_candidates_without_reuse
                     );
                 }
             }

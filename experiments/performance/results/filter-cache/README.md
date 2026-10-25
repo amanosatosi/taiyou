@@ -43,3 +43,8 @@ and all selected work; separate retained counters are more specific to the cache
 The independent frozen-libass full comparison remains strict/red: 1 exact, 100
 pixel mismatches, 0 unsupported/crashes/infrastructure errors; two parser probes
 are separate. No reference/tolerance/accepted outcome was changed or weakened.
+
+`taiyou-frame-digests.json` records the 101 actual Taiyou raw-output digests from
+that independent full run for a before/after performance audit. Only its 327643-byte
+JSON report was read with bounded HTTP ranges; image/binary entries stayed in CI.
+These are observations, not promoted comparison references or new accepted outcomes.

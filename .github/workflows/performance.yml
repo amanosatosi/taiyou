@@ -18,7 +18,7 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: 1.99.1
       TAIYOU_FOCUSED_RENDERER: '1'
-      TAIYOU_PERF_WORKLOADS: dialogue,large-blur,combined-abuse
+      TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,combined-abuse,transforms,vector
       TAIYOU_PERF_SCENARIOS: cold,same-time,sequence,seek
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -68,7 +68,7 @@ jobs:
         run: |
           cargo test --locked -p taiyou-render --features native
           cargo test --locked -p taiyou-cli --features native --test performance_cache
-      - name: Paired mask-only and full-cache release measurements
+      - name: Paired uncached and cached span-reuse release measurements
         env:
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
           PKG_CONFIG_ALL_STATIC: '1'
@@ -84,15 +84,15 @@ jobs:
           uname -a > "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep '^TAIYOU_PERF_' > "$RUNNER_TEMP/performance/selection.txt"
-          # Baseline is already committed. Isolate this new filter layer against
-          # masks-only reuse using the same binary, runner and fixtures.
+          # The original baseline remains committed. These modes measure the
+          # current span-reuse implementation and its cache, not a new baseline.
           set +e
-          TAIYOU_PERF_CACHE=masks /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-masks.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/masks.csv"
+          TAIYOU_PERF_CACHE=off /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-off.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/off.csv"
           off_status=$?
           TAIYOU_PERF_CACHE=on TAIYOU_PERF_FAILURES="$RUNNER_TEMP/performance/failures-on.tsv" /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-on.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/on.csv"
           on_status=$?
           set -e
-          cat "$RUNNER_TEMP/performance/masks.csv" > "$RUNNER_TEMP/performance/samples.csv"
+          cat "$RUNNER_TEMP/performance/off.csv" > "$RUNNER_TEMP/performance/samples.csv"
           tail -n +2 "$RUNNER_TEMP/performance/on.csv" >> "$RUNNER_TEMP/performance/samples.csv"
           test "$off_status" = 0 && test "$on_status" = 0
       - name: Summarize available samples, including after a benchmark failure
