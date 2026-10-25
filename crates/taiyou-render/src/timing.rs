@@ -1,5 +1,7 @@
 //! Opt-in observational timings, owned by one renderer. Never used for decisions.
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(feature = "native")]
+use std::time::Instant;
 
 #[derive(Clone, Debug, Default)]
 pub struct StageTimings {
@@ -16,6 +18,7 @@ pub struct StageTimings {
     pub paint: Duration,
     pub composition: Duration,
 }
+#[cfg(feature = "native")]
 impl StageTimings {
     pub(crate) fn start(&self) -> Option<Instant> {
         self.enabled.then(Instant::now)

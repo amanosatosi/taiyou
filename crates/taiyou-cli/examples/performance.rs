@@ -1,7 +1,7 @@
 //! Actions-only performance smoke. No external renderer comparison is implied.
 #[cfg(feature = "native")]
 fn main() {
-    use std::{hint::black_box, sync::Arc, time::Instant};
+    use std::{hint::black_box, time::Instant};
     use taiyou_render::renderer::*;
     let samples: usize = std::env::var("TAIYOU_PERF_SAMPLES")
         .unwrap_or_else(|_| "31".into()).parse().unwrap();

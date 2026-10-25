@@ -25,7 +25,8 @@ jobs:
           cargo fmt --all
           git diff --binary > "$RUNNER_TEMP/performance-format.patch"
           cargo test --locked -p taiyou-render -p taiyou-types
-      - run: python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
       - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
           path: |
