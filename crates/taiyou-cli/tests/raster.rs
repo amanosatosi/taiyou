@@ -81,6 +81,7 @@ fn geometry_for(text: &str) -> Arc<GeometryEvent> {
 #[test]
 fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
     let mut rounded_layout_differs = false;
+    let mut native_differs = false;
     for size in [17.37, 20.0, 23.51] {
         let event = geometry_for(&format!("{{\\fs{size}}}A A"));
         let local = event.layout();
@@ -92,7 +93,18 @@ fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
                     .get()
             })
             .sum();
-        let expected = Q6::from_pixels(f(advance)).unwrap().ticks();
+        let native_advance: f64 = local.glyphs()[..2]
+            .iter()
+            .map(|g| {
+                let raw = local.shaped().runs()[g.run_index()].glyphs()[g.glyph_index()]
+                    .advance_x()
+                    .get();
+                let fixed = (raw * 1024.0 + 0.5).floor();
+                ((fixed + 8.0) / 16.0).floor() / 64.0
+            })
+            .sum();
+        native_differs |= native_advance != advance;
+        let expected = Q6::from_pixels(f(native_advance)).unwrap().ticks();
         let origin = |index: usize| {
             event.glyphs()[index]
                 .geometry
@@ -111,6 +123,7 @@ fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
         rounded_layout_differs,
         "fixture must expose independent word extent rounding"
     );
+    assert!(native_differs, "fixture must expose native glyph measurement");
 }
 
 #[test]

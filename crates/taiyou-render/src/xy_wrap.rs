@@ -29,8 +29,8 @@ fn add(a: i64, b: i64) -> Result<i64, RenderError> {
 }
 // GetTextExtentPoint32 sums integer glyph extents. Native glyph metrics first
 // pass through the 28.4 device grid; rounding the continuous word sum instead
-// moves an entire centred line at native half-grid thresholds. Ink advances
-// remain separate and continuous, as in TextOut's path construction.
+// moves an entire centred line at native half-grid thresholds. TextOut's glyph
+// cursor sums these integer extents too, without the per-word eighth rounding.
 pub(crate) fn measured_advance(advance: f64, grid: f64) -> Result<f64, RenderError> {
     let fixed = (advance * grid * 1024.0 + 0.5).floor();
     if !fixed.is_finite() || fixed.abs() >= i64::MAX as f64 || grid <= 0.0 {

@@ -642,11 +642,12 @@ pub fn layout(
                     y,
                     ink,
                 });
-                pen_x += glyph.advance_x().get() * sx;
-                word_measured += crate::xy_wrap::measured_advance(
+                let advance = crate::xy_wrap::measured_advance(
                     glyph.advance_x().get(),
                     constraints.metric_scale_x().get(),
                 )? * sx;
+                pen_x += advance;
+                word_measured += advance;
                 pen_y += glyph.advance_y().get() * sy;
                 // Core spacing is one contribution per cluster advance, including
                 // the final cluster. Marks in a multi-glyph cluster add no spacing.

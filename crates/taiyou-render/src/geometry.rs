@@ -620,6 +620,10 @@ pub fn geometry(
             continue;
         }
         let glyph = &run.glyphs()[positioned.glyph_index()];
+        let native_advance = crate::xy_wrap::measured_advance(
+            glyph.advance_x().get(),
+            placement.device.layout_scale()[0],
+        )?;
         let sx = state.geometry().scale_x().get() * layout.local_scale().0.get();
         let continuous = state.shaping().spacing().get() == 0.0;
         let append = continuous
@@ -637,7 +641,8 @@ pub fn geometry(
         }
         // CLine::Compact adds the rounded layout extents, but CText::CreatePath
         // extracts the concatenated string in one TextOut call. Its internal
-        // glyph cursor does not include the intermediate layout rounding.
+        // glyph cursor sums native integer glyph extents; it does not include
+        // the intermediate eighth-pixel rounding of each word's layout width.
         let ink_position = if continuous {
             ScriptPoint::new(
                 finite(ink_pen + glyph.offset_x().get() * sx)?,
@@ -646,7 +651,7 @@ pub fn geometry(
         } else {
             positioned.position()
         };
-        ink_pen += glyph.advance_x().get() * sx;
+        ink_pen += native_advance * sx;
         finite(ink_pen)?;
         let blob = catalog
             .faces()
@@ -934,7 +939,7 @@ pub fn geometry(
             (word_advance + glyph.offset_x().get()) * lx / size,
             (ascent - glyph.offset_y().get() * ly) / size,
         )?);
-        word_advance += glyph.advance_x().get();
+        word_advance += native_advance;
         finite(word_advance)?;
         let mapped = map_outline(path, mapping, limits)?;
         items.push(GeometryItem {
