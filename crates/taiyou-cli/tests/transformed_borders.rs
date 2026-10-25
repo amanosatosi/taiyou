@@ -59,6 +59,8 @@ fn transformed_text_and_drawing_borders_follow_the_surface() {
                     "render",
                     "--font-source",
                     "explicit",
+                    "--profile",
+                    "core-v1",
                     "--time-us",
                     "500000",
                     "--width",
