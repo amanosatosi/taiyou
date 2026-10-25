@@ -185,8 +185,12 @@ type Projection<'a> = dyn Fn(DevicePoint) -> Result<DevicePoint, RenderError> + 
 // Keep its existing spans until expansion is complete, project their closed
 // strips, then rasterize once. This fallback creates no intermediate mask.
 pub(crate) fn rasterize_projected_axis(
-    ops: &[PathOp<DevicePoint>], rx: Q6, ry: Q6, remaining: u64,
-    limits: &Limits, project: &Projection<'_>,
+    ops: &[PathOp<DevicePoint>],
+    rx: Q6,
+    ry: Q6,
+    remaining: u64,
+    limits: &Limits,
+    project: &Projection<'_>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     rasterize_impl(ops, rx, ry, remaining, limits, true, Some(project))
 }
@@ -361,7 +365,9 @@ fn rasterize_impl(
     if let Some(project) = projection {
         let segments = (wide.len() as u64).checked_mul(5).ok_or_else(limit)?;
         let work = count.checked_add(segments).ok_or_else(limit)?;
-        if work > remaining { return Err(limit()); }
+        if work > remaining {
+            return Err(limit());
+        }
         let live = wide.capacity() as u64 * std::mem::size_of::<Span>() as u64;
         let mut path = Vec::new();
         let point = |x: i64, y: i64| {
@@ -375,17 +381,31 @@ fn rasterize_impl(
                 PathOp::LineTo(point(span.right, span.y + 1)?),
                 PathOp::LineTo(point(span.left, span.y + 1)?),
                 PathOp::Close,
-            ] { push(&mut path, op, live, limits)?; }
+            ] {
+                push(&mut path, op, live, limits)?;
+            }
         }
         let charge = (path.capacity() as u64)
             .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
             .ok_or_else(limit)?;
         drop(wide);
-        let available = limits.transient_bytes().checked_sub(charge)
-            .filter(|n| *n > 0).ok_or_else(limit)?;
-        let limits = limits.clone().with_transient_bytes(available).map_err(|_| limit())?;
+        let available = limits
+            .transient_bytes()
+            .checked_sub(charge)
+            .filter(|n| *n > 0)
+            .ok_or_else(limit)?;
+        let limits = limits
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limit())?;
         let (mask, rendered) = rasterize_impl(
-            &path, Q6::from_ticks(0), Q6::from_ticks(0), remaining - work, &limits, true, None,
+            &path,
+            Q6::from_ticks(0),
+            Q6::from_ticks(0),
+            remaining - work,
+            &limits,
+            true,
+            None,
         )?;
         return Ok((mask, work.checked_add(rendered).ok_or_else(limit)?));
     }

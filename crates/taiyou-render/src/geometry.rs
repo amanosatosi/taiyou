@@ -191,8 +191,10 @@ impl GeometryMap {
         let dx = f64::from(content.width()) / f64::from(self.device.play_res.width());
         let dy = f64::from(content.height()) / f64::from(self.device.play_res.height());
         let [lx, ly] = self.device.layout_scale();
-        let x = ((p.x().as_pixels().get() - f64::from(content.x0())) / dx - self.origin.x().get()) * lx;
-        let y = ((p.y().as_pixels().get() - f64::from(content.y0())) / dy - self.origin.y().get()) * ly;
+        let x =
+            ((p.x().as_pixels().get() - f64::from(content.x0())) / dx - self.origin.x().get()) * lx;
+        let y =
+            ((p.y().as_pixels().get() - f64::from(content.y0())) / dy - self.origin.y().get()) * ly;
         let (sin, cos) = match self.rotation.get().rem_euclid(360.0) {
             0.0 => (0.0, 1.0),
             90.0 => (1.0, 0.0),

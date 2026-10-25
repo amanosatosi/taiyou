@@ -172,7 +172,11 @@ pub fn rasterize_expanded_axes_xy(
     remaining: u64,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
-    if let Some(first) = group.instances().first().filter(|g| g.mapping().transforms_border()) {
+    if let Some(first) = group
+        .instances()
+        .first()
+        .filter(|g| g.mapping().transforms_border())
+    {
         let limits = context.limits().clone();
         let count = group.instances().iter().try_fold(0usize, |n, g| {
             n.checked_add(g.outline().ops().len()).ok_or_else(limited)
@@ -195,26 +199,40 @@ pub fn rasterize_expanded_axes_xy(
         let project = |p| {
             let p = mapping.project_border_point(p)?;
             let add = |a: Q6, b: Q6| {
-                a.ticks().checked_add(b.ticks()).map(Q6::from_ticks).ok_or_else(limited)
+                a.ticks()
+                    .checked_add(b.ticks())
+                    .map(Q6::from_ticks)
+                    .ok_or_else(limited)
             };
             Ok(DevicePoint::new(add(p.x(), dx)?, add(p.y(), dy)?))
         };
-        let remaining_limits = limits.clone()
+        let remaining_limits = limits
+            .clone()
             .with_transient_bytes(limits.transient_bytes() - charge)
             .map_err(|_| limited())?;
         if rx.ticks() == 0 || ry.ticks() == 0 {
             return crate::axis_widen::rasterize_projected_axis(
-                &base, rx, ry, remaining, &remaining_limits, &project,
+                &base,
+                rx,
+                ry,
+                remaining,
+                &remaining_limits,
+                &project,
             );
         }
         // The existing worker-local stroker exports a bounded owned path.
         // Project it once, then generate final coverage. No pre-transform mask
         // or second screen-space expansion is constructed.
         return context.stroke_rasterize_path_axes_with_coverage(
-            &base, rx, ry, remaining,
+            &base,
+            rx,
+            ry,
+            remaining,
             |path, limits| {
                 let mut transformed = Vec::new();
-                transformed.try_reserve_exact(path.len()).map_err(|_| limited())?;
+                transformed
+                    .try_reserve_exact(path.len())
+                    .map_err(|_| limited())?;
                 for &op in path {
                     transformed.push(op.try_map(&project)?);
                 }

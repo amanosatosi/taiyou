@@ -18,7 +18,9 @@ fn support(raw: &[u8], axis: usize) -> usize {
 fn transformed_text_and_drawing_borders_follow_the_surface() {
     let root = std::env::var_os("TAIYOU_TRANSFORMED_BORDER_OUTPUT")
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join(format!("taiyou-borders-{}", std::process::id())));
+        .unwrap_or_else(|| {
+            std::env::temp_dir().join(format!("taiyou-borders-{}", std::process::id()))
+        });
     std::fs::create_dir_all(&root).unwrap();
     let font = PathBuf::from(std::env::var_os("TAIYOU_TEST_FONT").unwrap());
     for (kind, content) in [
@@ -53,14 +55,39 @@ fn transformed_text_and_drawing_borders_follow_the_surface() {
                 "[Script Info]\nPlayResX: 320\nPlayResY: 240\nScaledBorderAndShadow: yes\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Outline,Shadow,Alignment\nStyle: Default,Source Sans 3,52,&H00FFFFFF,&H00FFFFFF,&H000000FF,&H00000000,6,0,5\n[Events]\nFormat: Layer,Start,End,Style,Text\nDialogue: 0,0:00:00.00,0:00:01.00,Default,{{\\pos(160,120)\\org(160,120){tags}}}{content}\n"
             )).unwrap();
             let output = Command::new(env!("CARGO_BIN_EXE_taiyou"))
-                .args(["render", "--font-source", "explicit", "--time-us", "500000",
-                    "--width", "320", "--height", "240", "--input"])
-                .arg(&source).arg("--font").arg(&font).arg("--output").arg(&png)
-                .arg("--raw").arg(&raw).output().unwrap();
-            assert!(output.status.success(), "{name}: {}", String::from_utf8_lossy(&output.stderr));
+                .args([
+                    "render",
+                    "--font-source",
+                    "explicit",
+                    "--time-us",
+                    "500000",
+                    "--width",
+                    "320",
+                    "--height",
+                    "240",
+                    "--input",
+                ])
+                .arg(&source)
+                .arg("--font")
+                .arg(&font)
+                .arg("--output")
+                .arg(&png)
+                .arg("--raw")
+                .arg(&raw)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{name}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             let pixels = std::fs::read(&raw).unwrap();
             assert_eq!(pixels.len(), 320 * 240 * 4);
-            println!("TRANSFORMED_BORDER {name} width={} height={}", support(&pixels, 0), support(&pixels, 1));
+            println!(
+                "TRANSFORMED_BORDER {name} width={} height={}",
+                support(&pixels, 0),
+                support(&pixels, 1)
+            );
             match id {
                 "ordinary" => ordinary = pixels.clone(),
                 "zero" => {
