@@ -287,7 +287,17 @@ fn positive_cell_stroke_budget_evidence() {
             };
             PREPARATION_ATTEMPTS.with(|n| n.set(0));
             PREPARE_CALLS.with(|n| n.set(0));
-            let error = Renderer::new(Default::default())
+            // Span widening no longer exports the vector stroker's thousands
+            // of cubic points. Keep the full 500-event exhaustion workload,
+            // with an explicit tight budget rather than assuming the default
+            // must fail for every compatible geometry implementation.
+            let config = RendererConfig {
+                limits: Limits::default()
+                    .with_path_segments_per_frame(100_000)
+                    .unwrap(),
+                ..Default::default()
+            };
+            let error = Renderer::new(config)
                 .unwrap()
                 .render(input, fonts.clone(), &request(500_000))
                 .unwrap_err();
@@ -306,13 +316,17 @@ fn positive_cell_stroke_budget_evidence() {
             let prepares = event.ordinal() as usize + 3;
             assert_eq!(PREPARE_CALLS.with(Cell::get), prepares);
             if restore_em {
-                assert!(error.detail().contains("check=frame-segments"));
+                assert!(
+                    error.detail().contains("check=frame-segments")
+                        || error.detail() == "geometry coordinate/count/reservation limit"
+                        || error.detail() == "single-axis span widening budget"
+                );
             } else {
                 // Increasing only the caller's frame segment budget moves the
                 // failure forward. Coordinate/transient limits are unchanged.
                 let config = RendererConfig {
                     limits: Limits::default()
-                        .with_path_segments_per_frame(1_010_000)
+                        .with_path_segments_per_frame(110_000)
                         .unwrap(),
                     ..Default::default()
                 };
@@ -344,7 +358,13 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
     // Native word rounding changes positions and the stroker's exported count.
     for border in [0.5, 3.0] {
         let input = effects_track(border);
-        let minimal = Renderer::new(Default::default())
+        let tight = RendererConfig {
+            limits: Limits::default()
+                .with_path_segments_per_frame(100_000)
+                .unwrap(),
+            ..Default::default()
+        };
+        let minimal = Renderer::new(tight.clone())
             .unwrap()
             .render_staged(
                 input.clone(),
@@ -354,7 +374,7 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
                 &mut false,
             )
             .unwrap_err();
-        let original = Renderer::new(Default::default())
+        let original = Renderer::new(tight.clone())
             .unwrap()
             .render_staged(
                 input.clone(),
@@ -370,7 +390,7 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
         for _ in 0..2 {
             PREPARATION_ATTEMPTS.with(|n| n.set(0));
             PREPARE_CALLS.with(|n| n.set(0));
-            let error = Renderer::new(Default::default())
+            let error = Renderer::new(tight.clone())
                 .unwrap()
                 .render(input.clone(), fonts.clone(), &request(500_000))
                 .unwrap_err();
@@ -392,6 +412,7 @@ fn fixed_segment_exhaustion_never_repeats_preparation() {
             // transient-memory failure or a reason to repeat preparation.
             assert!(
                 error.detail() == "geometry coordinate/count/reservation limit"
+                    || error.detail() == "single-axis span widening budget"
                     || error.detail().starts_with(
                         "native stroke extent/count/reservation limit: check=frame-segments "
                     )

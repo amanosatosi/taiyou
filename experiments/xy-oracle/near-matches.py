@@ -118,11 +118,24 @@ def main():
     border_case = {"id": "witness/drawing-borders", "source": "authored/drawing-borders.ass", "source_external": str(border_source),
                    "reference": None, "timestamp_ms": 1000, "width": 256, "height": 512,
                    "fonts": cff["fonts"], "inventory": True, "scale": "1"}
-    report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"], border_case["id"]]
+    kernel_source = out / "ellipse-phases.ass"
+    kernel_lines = []
+    for row, (rx, ry) in enumerate([(0.125, 0.125), (0.25, 0.25), (0.5, 0.5), (1, 1), (2, 2), (3, 3), (1, 3), (3, 1)]):
+        # Eight translations of a single eighth-grid cell expose the discrete
+        # ellipse's row sums without font contours or a downsampled-kernel guess.
+        for phase in range(8):
+            kernel_lines.append(f"Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,{{\\pos({15+30*phase},{25+60*row+phase/8})\\p1\\1a&HFF&\\3c&HFFFFFF&\\xbord{rx}\\ybord{ry}}}m 0 0 l 0.125 0 0.125 0.125 0 0.125\n")
+    kernel_source.write_text(
+        blur_source.read_text(encoding="utf-8").split("[Events]")[0]
+        + "[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n" + "".join(kernel_lines), encoding="utf-8")
+    kernel_case = {"id": "witness/ellipse-phases", "source": "authored/ellipse-phases.ass", "source_external": str(kernel_source),
+                   "reference": None, "timestamp_ms": 1000, "width": 256, "height": 512,
+                   "fonts": cff["fonts"], "inventory": True, "scale": "1"}
+    report["supplemental_authored_cases"] = [paint_case["id"], blur_case["id"], border_case["id"], kernel_case["id"]]
     failed = False
     report_path = out / "report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    for case in selected + [paint_case, blur_case, border_case]:
+    for case in selected + [paint_case, blur_case, border_case, kernel_case]:
         assert case["inventory"] is True  # oracle.render_taiyou enforces explicit mode
         xy = parallel.xy_case(case, corpus, dll, release, out / "xy")
         taiyou = parallel.taiyou_case(case, corpus, binary, out / "taiyou")

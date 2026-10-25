@@ -544,3 +544,18 @@ rendering call was introduced. The remaining border-family investigation must
 account for pinterf's eighth-grid elliptical span dilation versus the current
 portable vector stroker, including bounded work and all current exact guards.
 Current exact-head Actions and remaining owner acknowledgment are in PR35.
+
+Round 3 span-widening checkpoint at 3ae5ae0: authenticated full xy measures
+25 same /13 good /61 bad /3 xy-side errors, against e2fd5ef's17/10/72/3.
+All17 exact guards survive. SSA alpha-{0000,1000,2000,3000,4000} and variable
+alpha-clipping-{2040,2560,4960} become exact. Two scaling frames and the F000
+symbol frame move BAD to GOOD. The portable core widens eighth-grid spans,
+not vector contours, retaining immutable masks and caller resource limits.
+Libass's vector outline stroker remains a useful contrasting implementation;
+pinterf ScanLineData2::CreateWidenedRegion establishes the historical stage.
+The font-free border control still differs by90 pixels, so this checkpoint
+does not claim complete ellipse equivalence. Eight phase-shifted tiny drawing
+controls measure the remaining discrete boundary choices independently.
+The CFF blur residual is concentrated on the curved paragraph glyph, mostly
+one native coverage unit lower; drawing blur controls remain exact. No filter
+arithmetic was changed on that evidence. Karaoke timing was not rewritten.

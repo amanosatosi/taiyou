@@ -97,10 +97,43 @@ def main():
             contours.append(contour)
         return {"format": format, "status": "OK", "contours": contours}
     corpus = Path(os.environ["TAIYOU_CORPUS"])
+    # Authored, unhinted conics isolate GDI's path conversion from font bytecode
+    # and from any existing corpus glyph. The font exists only on this runner.
+    from fontTools.fontBuilder import FontBuilder
+    from fontTools.pens.ttGlyphPen import TTGlyphPen
+    authored = Path(os.environ["RUNNER_TEMP"]) / "conic-probe.ttf"
+    glyphs = {}
+    bearings = {}
+    names = [".notdef"] + list("ABCDEFGH")
+    for i, name in enumerate(names):
+        pen = TTGlyphPen(None)
+        if i:
+            x, y = [(0, 0), (1, 1), (100, 100), (400, 400),
+                    (-100, -100), (-400, -400), (1000, 1000), (1001, 1001)][i - 1]
+            pen.moveTo((x, y))
+            pen.qCurveTo((x + 60 + i % 3, y + 120 + i % 5), (x + 120 + i % 7, y))
+            pen.lineTo((x, y))
+            pen.closePath()
+        glyphs[name] = pen.glyph()
+        bearings[name] = x if i else 0
+    builder = FontBuilder(1024, isTTF=True)
+    builder.setupGlyphOrder(names)
+    builder.setupCharacterMap({ord(c): c for c in names[1:]})
+    builder.setupGlyf(glyphs)
+    builder.setupHorizontalMetrics({name: (1200, bearings[name]) for name in names})
+    builder.setupHorizontalHeader(ascent=1024, descent=0)
+    builder.setupNameTable({"familyName": "Taiyou Conic Probe", "styleName": "Regular",
+                            "uniqueFontIdentifier": "TaiyouConicProbe", "fullName": "Taiyou Conic Probe",
+                            "psName": "TaiyouConicProbe"})
+    builder.setupOS2(sTypoAscender=1024, sTypoDescender=0, usWinAscent=1024, usWinDescent=0)
+    builder.setupPost()
+    builder.setupMaxp()
+    builder.save(authored)
     rows = []
     for relative, sizes, chars in [
         ("regression/blurs/Aileron-Regular.otf", [100], "+·¶"),
         ("regression/v4++/DejaVuSans.ttf", [30, 35, 42, 60], "KaraokeW"),
+        (str(authored), [16], "ABCDEFGH"),
     ]:
         filename = corpus / relative
         raw = C.create_string_buffer(filename.read_bytes())
