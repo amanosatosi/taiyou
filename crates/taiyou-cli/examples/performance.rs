@@ -79,10 +79,13 @@ fn main() {
         ),
     ];
     println!(
-        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes"
+        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns"
     );
     let mut ingestion = TrackIngestor::new();
     for (name, text, count) in workloads {
+        if std::env::var("TAIYOU_PERF_WORKLOADS").is_ok_and(|v| !v.split(',').any(|s| s == name)) {
+            continue;
+        }
         let mut source = "[Script Info]\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 2\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,48,2,2\n[Events]\nFormat: Layer,Start,End,Text\n".to_owned();
         for n in 0..count {
             source.push_str(&format!("Dialogue: {n},0:00:00.00,0:00:10.00,{text}\n"));
@@ -117,6 +120,9 @@ fn main() {
                 .unwrap();
             }
             for scenario in ["cold", "same-time", "warm-repeat", "sequence", "seek"] {
+                if std::env::var("TAIYOU_PERF_SCENARIOS").is_ok_and(|v| !v.split(',').any(|s| s == scenario)) {
+                    continue;
+                }
                 let mut renderer = Renderer::new(config.clone()).unwrap();
                 renderer.set_timing_enabled(true);
                 let mut request = RenderRequest {
@@ -184,7 +190,7 @@ fn main() {
                     black_box(frame.pixels());
                     let t = renderer.last_timings();
                     println!(
-                        "{name},{width},{height},{scenario},{sample},1,off,{total},{},{},{},{},{},{},{},{},{},{},{}",
+                        "{name},{width},{height},{scenario},{sample},1,off,{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                         t.evaluation.as_nanos(),
                         t.shaping.as_nanos(),
                         t.layout.as_nanos(),
@@ -195,7 +201,13 @@ fn main() {
                         t.effects.as_nanos(),
                         t.paint.as_nanos(),
                         t.composition.as_nanos(),
-                        frame.pixels().len()
+                        frame.pixels().len(),
+                        t.base_outlines.as_nanos(),
+                        t.scan_conversion.as_nanos(),
+                        t.border_expansion.as_nanos(),
+                        t.span_union.as_nanos(),
+                        t.mask_generation.as_nanos(),
+                        t.mask_combination.as_nanos()
                     );
                 }
             }

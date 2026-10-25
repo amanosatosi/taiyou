@@ -17,6 +17,12 @@ pub struct StageTimings {
     pub masks: Duration,
     /// Subset of masks: Gaussian/edge filtering only.
     pub effects: Duration,
+    pub base_outlines: Duration,
+    pub scan_conversion: Duration,
+    pub border_expansion: Duration,
+    pub span_union: Duration,
+    pub mask_generation: Duration,
+    pub mask_combination: Duration,
     pub paint: Duration,
     pub composition: Duration,
 }

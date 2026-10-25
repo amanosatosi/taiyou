@@ -15,6 +15,8 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: 1.99.1
       TAIYOU_FOCUSED_RENDERER: '1'
+      TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,combined-abuse
+      TAIYOU_PERF_SCENARIOS: same-time
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -56,6 +58,7 @@ jobs:
           lscpu > "$RUNNER_TEMP/performance/cpu.txt"
           uname -a > "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
+          env | sort | grep '^TAIYOU_PERF_' > "$RUNNER_TEMP/performance/selection.txt"
           /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/samples.csv"
       - name: Summarize available samples, including after a benchmark failure
         if: ${{ !cancelled() }}

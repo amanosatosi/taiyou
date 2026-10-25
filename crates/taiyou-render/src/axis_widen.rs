@@ -152,7 +152,7 @@ pub(crate) fn rasterize(
     remaining: u64,
     limits: &Limits,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, false, None)
+    rasterize_impl(ops, rx, ry, remaining, limits, false, None, None)
 }
 /// Same supplied geometry, historical scan conversion and native overlay bounds.
 /// This is not an A8-to-64 conversion of an already rasterized mask.
@@ -168,17 +168,26 @@ pub(crate) fn rasterize_body(
         limits,
         true,
         None,
+        None,
     )
     .map(|(mask, _)| mask)
 }
-pub(crate) fn rasterize_axis_xy(
+pub(crate) fn rasterize_body_timed(
+    ops: &[PathOp<DevicePoint>],
+    limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
+) -> Result<Arc<Mask>, RenderError> {
+    rasterize_impl(ops, Q6::from_ticks(0), Q6::from_ticks(0), limits.path_segments_per_frame(), limits, true, None, Some(timings)).map(|(mask, _)| mask)
+}
+pub(crate) fn rasterize_axis_xy_timed(
     ops: &[PathOp<DevicePoint>],
     rx: Q6,
     ry: Q6,
     remaining: u64,
     limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, true, None)
+    rasterize_impl(ops, rx, ry, remaining, limits, true, None, Some(timings))
 }
 type Projection<'a> = dyn Fn(DevicePoint) -> Result<DevicePoint, RenderError> + 'a;
 // A single-zero-axis border is an exact segment dilation, not an epsilon ellipse.
@@ -192,7 +201,7 @@ pub(crate) fn rasterize_projected_axis(
     limits: &Limits,
     project: &Projection<'_>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, true, Some(project))
+    rasterize_impl(ops, rx, ry, remaining, limits, true, Some(project), None)
 }
 #[allow(clippy::too_many_arguments)]
 fn rasterize_impl(
@@ -203,7 +212,9 @@ fn rasterize_impl(
     limits: &Limits,
     xy: bool,
     projection: Option<&Projection<'_>>,
+    mut timings: Option<&mut crate::timing::StageTimings>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
+    let timer = timings.as_ref().and_then(|t| t.start());
     check_path_budget(ops.len(), limits)?;
     if rx.ticks() < 0 || ry.ticks() < 0 {
         return Err(RenderError::new(
@@ -320,6 +331,10 @@ fn rasterize_impl(
         }
     }
     drop(edges);
+    if let Some(t) = timings.as_mut() {
+        t.scan_conversion += crate::timing::StageTimings::elapsed(timer);
+    }
+    let timer = timings.as_ref().and_then(|t| t.start());
     let rx = (i64::from(rx.ticks()) + 4).div_euclid(8);
     let ry = (i64::from(ry.ticks()) + 4).div_euclid(8);
     let mut arc = Vec::new();
@@ -350,6 +365,10 @@ fn rasterize_impl(
     }
     drop(spans);
     drop(arc);
+    if let Some(t) = timings.as_mut() {
+        t.border_expansion += crate::timing::StageTimings::elapsed(timer);
+    }
+    let timer = timings.as_ref().and_then(|t| t.start());
     wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
     let mut out = 0;
     for i in 0..wide.len() {
@@ -362,6 +381,10 @@ fn rasterize_impl(
         }
     }
     wide.truncate(out);
+    if let Some(t) = timings.as_mut() {
+        t.span_union += crate::timing::StageTimings::elapsed(timer);
+    }
+    let timer = timings.as_ref().and_then(|t| t.start());
     if let Some(project) = projection {
         let segments = (wide.len() as u64).checked_mul(5).ok_or_else(limit)?;
         let work = count.checked_add(segments).ok_or_else(limit)?;
@@ -406,6 +429,7 @@ fn rasterize_impl(
             &limits,
             true,
             None,
+            timings,
         )?;
         return Ok((mask, work.checked_add(rendered).ok_or_else(limit)?));
     }
@@ -495,6 +519,9 @@ fn rasterize_impl(
     } else {
         Mask::new(bounds, stride, data.into())
     }?;
+    if let Some(t) = timings.as_mut() {
+        t.mask_generation += crate::timing::StageTimings::elapsed(timer);
+    }
     Ok((Arc::new(mask), work))
 }
 
