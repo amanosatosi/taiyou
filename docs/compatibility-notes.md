@@ -567,3 +567,13 @@ GetPath rounding. Signed y-down arithmetic matters even for a flat control.
 The same rule increases matching observed DejaVu path points from887/954 to
 920/954 without changing CFF or straight segments. This is geometric evidence;
 only the subsequent direct xy renders establish a compatibility improvement.
+
+The authenticated full conic checkpoint at 9857136 measures25 same /15 good /
+59 bad /3 xy-side errors. kt-{01500,08920} move BAD to GOOD; all25 exact guards
+survive. Relative to Round 3's start, eight BAD frames are exact and five are
+GOOD, with zero exact regressions. Remaining BAD families are18 kt,15 blur,
+nine karaoke, six SSA motion, five non-Unicode, three scaled borders, two
+zero-area and one token-parsing frame. Phase tomography confirms all sampled
+ellipse rows except the half-pixel circle's diagonal transition: native
+widths[4,4,4,3,1], candidate[4,4,3,3,1]. This remaining boundary rule is explicit,
+not hidden by tolerances or a fixture exception. MUA brackets remain a guard.

@@ -819,13 +819,11 @@ pub fn geometry(
             for &op in path.ops() {
                 let converted = if metric_font == blob.id() {
                     match op {
-                        PathOp::QuadTo(control, end) => {
-                            PathOp::CubicTo(
-                                native_conic_control(previous, control, size)?,
-                                native_conic_control(end, control, size)?,
-                                end,
-                            )
-                        }
+                        PathOp::QuadTo(control, end) => PathOp::CubicTo(
+                            native_conic_control(previous, control, size)?,
+                            native_conic_control(end, control, size)?,
+                            end,
+                        ),
                         other => other,
                     }
                 } else {
