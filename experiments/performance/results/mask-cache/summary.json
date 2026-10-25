@@ -1,0 +1,5546 @@
+[
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 31,
+    "cache_hits": 0,
+    "cache_misses": 93,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 23.46057727353749,
+    "total_ms": {
+      "median": 42.622095,
+      "p95": 43.183062,
+      "p99": 43.505482
+    },
+    "evaluation_ms": {
+      "median": 0.006022,
+      "p95": 0.007905,
+      "p99": 0.008315
+    },
+    "shaping_ms": {
+      "median": 0.169399,
+      "p95": 0.208994,
+      "p99": 0.209886
+    },
+    "layout_ms": {
+      "median": 0.011401,
+      "p95": 0.012494,
+      "p99": 0.012604
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.798048,
+      "p95": 1.832072,
+      "p99": 2.09085
+    },
+    "clip_ms": {
+      "median": 0.000391,
+      "p95": 0.000541,
+      "p99": 0.000561
+    },
+    "masks_ms": {
+      "median": 36.63687,
+      "p95": 36.861121,
+      "p99": 37.437629
+    },
+    "effects_ms": {
+      "median": 0.000181,
+      "p95": 0.00037,
+      "p99": 0.00043
+    },
+    "paint_ms": {
+      "median": 0.000741,
+      "p95": 0.001052,
+      "p99": 0.001332
+    },
+    "composition_ms": {
+      "median": 3.988235,
+      "p95": 4.16114,
+      "p99": 4.260738
+    },
+    "base_outlines_ms": {
+      "median": 1.634673,
+      "p95": 1.664645,
+      "p99": 1.925944
+    },
+    "scan_conversion_ms": {
+      "median": 3.129508,
+      "p95": 3.157669,
+      "p99": 3.175333
+    },
+    "border_expansion_ms": {
+      "median": 5.867785,
+      "p95": 5.987923,
+      "p99": 6.004745
+    },
+    "span_union_ms": {
+      "median": 27.115972,
+      "p95": 27.242289,
+      "p99": 27.887465
+    },
+    "mask_generation_ms": {
+      "median": 0.47254,
+      "p95": 0.478401,
+      "p99": 0.493061
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 31,
+    "cache_hits": 0,
+    "cache_misses": 93,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 23.355543719585466,
+    "total_ms": {
+      "median": 42.772588,
+      "p95": 43.246041,
+      "p99": 43.295694
+    },
+    "evaluation_ms": {
+      "median": 0.006302,
+      "p95": 0.008195,
+      "p99": 0.008215
+    },
+    "shaping_ms": {
+      "median": 0.175821,
+      "p95": 0.202101,
+      "p99": 0.213392
+    },
+    "layout_ms": {
+      "median": 0.011843,
+      "p95": 0.013355,
+      "p99": 0.019546
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.79952,
+      "p95": 1.81478,
+      "p99": 1.829517
+    },
+    "clip_ms": {
+      "median": 0.000411,
+      "p95": 0.000681,
+      "p99": 0.000801
+    },
+    "masks_ms": {
+      "median": 36.719664,
+      "p95": 36.990144,
+      "p99": 37.122523
+    },
+    "effects_ms": {
+      "median": 0.000181,
+      "p95": 0.000241,
+      "p99": 0.000271
+    },
+    "paint_ms": {
+      "median": 0.000771,
+      "p95": 0.001202,
+      "p99": 0.001373
+    },
+    "composition_ms": {
+      "median": 4.06566,
+      "p95": 4.275465,
+      "p99": 4.619994
+    },
+    "base_outlines_ms": {
+      "median": 1.633537,
+      "p95": 1.646951,
+      "p99": 1.657942
+    },
+    "scan_conversion_ms": {
+      "median": 3.129156,
+      "p95": 3.165585,
+      "p99": 3.167498
+    },
+    "border_expansion_ms": {
+      "median": 5.887511,
+      "p95": 6.029159,
+      "p99": 6.089222
+    },
+    "span_union_ms": {
+      "median": 27.1693,
+      "p95": 27.288314,
+      "p99": 27.320545
+    },
+    "mask_generation_ms": {
+      "median": 0.473131,
+      "p95": 0.493539,
+      "p99": 0.506805
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 31,
+    "cache_hits": 0,
+    "cache_misses": 93,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 23.280529842389747,
+    "total_ms": {
+      "median": 42.992713,
+      "p95": 43.20855,
+      "p99": 43.315211
+    },
+    "evaluation_ms": {
+      "median": 0.007144,
+      "p95": 0.008877,
+      "p99": 0.014938
+    },
+    "shaping_ms": {
+      "median": 0.186872,
+      "p95": 0.216118,
+      "p99": 0.222239
+    },
+    "layout_ms": {
+      "median": 0.012704,
+      "p95": 0.037691,
+      "p99": 0.038793
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.809149,
+      "p95": 1.830359,
+      "p99": 1.856628
+    },
+    "clip_ms": {
+      "median": 0.000431,
+      "p95": 0.000622,
+      "p99": 0.000701
+    },
+    "masks_ms": {
+      "median": 36.756624,
+      "p95": 36.915333,
+      "p99": 36.999842
+    },
+    "effects_ms": {
+      "median": 0.000181,
+      "p95": 0.000471,
+      "p99": 0.000542
+    },
+    "paint_ms": {
+      "median": 0.000911,
+      "p95": 0.001353,
+      "p99": 0.001372
+    },
+    "composition_ms": {
+      "median": 4.159557,
+      "p95": 4.249737,
+      "p99": 4.317104
+    },
+    "base_outlines_ms": {
+      "median": 1.639296,
+      "p95": 1.662802,
+      "p99": 1.670177
+    },
+    "scan_conversion_ms": {
+      "median": 3.128014,
+      "p95": 3.158761,
+      "p99": 3.180412
+    },
+    "border_expansion_ms": {
+      "median": 5.915946,
+      "p95": 5.991238,
+      "p99": 6.104502
+    },
+    "span_union_ms": {
+      "median": 27.19054,
+      "p95": 27.264518,
+      "p99": 27.27043
+    },
+    "mask_generation_ms": {
+      "median": 0.465576,
+      "p95": 0.480896,
+      "p99": 0.48243
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 31,
+    "cache_hits": 0,
+    "cache_misses": 93,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 23.286450764575644,
+    "total_ms": {
+      "median": 42.844234,
+      "p95": 43.80313,
+      "p99": 43.942192
+    },
+    "evaluation_ms": {
+      "median": 0.006061,
+      "p95": 0.008566,
+      "p99": 0.009859
+    },
+    "shaping_ms": {
+      "median": 0.168447,
+      "p95": 0.197803,
+      "p99": 0.216808
+    },
+    "layout_ms": {
+      "median": 0.011552,
+      "p95": 0.012594,
+      "p99": 0.013004
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.799861,
+      "p95": 1.839846,
+      "p99": 1.863571
+    },
+    "clip_ms": {
+      "median": 0.000401,
+      "p95": 0.000671,
+      "p99": 0.000851
+    },
+    "masks_ms": {
+      "median": 36.737978,
+      "p95": 37.431174,
+      "p99": 37.709078
+    },
+    "effects_ms": {
+      "median": 0.000181,
+      "p95": 0.000352,
+      "p99": 0.000592
+    },
+    "paint_ms": {
+      "median": 0.000722,
+      "p95": 0.001082,
+      "p99": 0.001292
+    },
+    "composition_ms": {
+      "median": 4.080398,
+      "p95": 4.310521,
+      "p99": 4.570231
+    },
+    "base_outlines_ms": {
+      "median": 1.630773,
+      "p95": 1.671449,
+      "p99": 1.698879
+    },
+    "scan_conversion_ms": {
+      "median": 3.1312,
+      "p95": 3.158651,
+      "p99": 3.191103
+    },
+    "border_expansion_ms": {
+      "median": 5.879847,
+      "p95": 5.9971,
+      "p99": 6.337972
+    },
+    "span_union_ms": {
+      "median": 27.20163,
+      "p95": 27.642882,
+      "p99": 28.148626
+    },
+    "mask_generation_ms": {
+      "median": 0.465087,
+      "p95": 0.479735,
+      "p99": 0.495785
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 13,
+    "cache_hits": 0,
+    "cache_misses": 39,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 6.0843896931370915,
+    "total_ms": {
+      "median": 164.689403,
+      "p95": 165.779978,
+      "p99": 165.779978
+    },
+    "evaluation_ms": {
+      "median": 0.009347,
+      "p95": 0.023925,
+      "p99": 0.023925
+    },
+    "shaping_ms": {
+      "median": 0.199045,
+      "p95": 0.235303,
+      "p99": 0.235303
+    },
+    "layout_ms": {
+      "median": 0.013585,
+      "p95": 0.014918,
+      "p99": 0.014918
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.819308,
+      "p95": 1.877458,
+      "p99": 1.877458
+    },
+    "clip_ms": {
+      "median": 0.000712,
+      "p95": 0.001152,
+      "p99": 0.001152
+    },
+    "masks_ms": {
+      "median": 142.371974,
+      "p95": 142.795372,
+      "p99": 142.795372
+    },
+    "effects_ms": {
+      "median": 0.0006,
+      "p95": 0.000782,
+      "p99": 0.000782
+    },
+    "paint_ms": {
+      "median": 0.001543,
+      "p95": 0.001963,
+      "p99": 0.001963
+    },
+    "composition_ms": {
+      "median": 20.01996,
+      "p95": 21.3948,
+      "p99": 21.3948
+    },
+    "base_outlines_ms": {
+      "median": 1.649696,
+      "p95": 1.704183,
+      "p99": 1.704183
+    },
+    "scan_conversion_ms": {
+      "median": 6.301573,
+      "p95": 6.495298,
+      "p99": 6.495298
+    },
+    "border_expansion_ms": {
+      "median": 19.702983,
+      "p95": 19.960718,
+      "p99": 19.960718
+    },
+    "span_union_ms": {
+      "median": 114.872192,
+      "p95": 115.207494,
+      "p99": 115.207494
+    },
+    "mask_generation_ms": {
+      "median": 1.488105,
+      "p95": 1.520254,
+      "p99": 1.520254
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 12,
+    "cache_hits": 0,
+    "cache_misses": 36,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 6.036250463728026,
+    "total_ms": {
+      "median": 164.260592,
+      "p95": 175.505872,
+      "p99": 175.505872
+    },
+    "evaluation_ms": {
+      "median": 0.008776,
+      "p95": 0.01059,
+      "p99": 0.01059
+    },
+    "shaping_ms": {
+      "median": 0.193054,
+      "p95": 0.230393,
+      "p99": 0.230393
+    },
+    "layout_ms": {
+      "median": 0.012864,
+      "p95": 0.013305,
+      "p99": 0.013305
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.816189,
+      "p95": 1.856986,
+      "p99": 1.856986
+    },
+    "clip_ms": {
+      "median": 0.000521,
+      "p95": 0.000952,
+      "p99": 0.000952
+    },
+    "masks_ms": {
+      "median": 142.128622,
+      "p95": 153.802766,
+      "p99": 153.802766
+    },
+    "effects_ms": {
+      "median": 0.000681,
+      "p95": 0.000941,
+      "p99": 0.000941
+    },
+    "paint_ms": {
+      "median": 0.001573,
+      "p95": 0.001974,
+      "p99": 0.001974
+    },
+    "composition_ms": {
+      "median": 19.911674,
+      "p95": 22.193369,
+      "p99": 22.193369
+    },
+    "base_outlines_ms": {
+      "median": 1.647872,
+      "p95": 1.685412,
+      "p99": 1.685412
+    },
+    "scan_conversion_ms": {
+      "median": 6.279761,
+      "p95": 6.34762,
+      "p99": 6.34762
+    },
+    "border_expansion_ms": {
+      "median": 19.643509,
+      "p95": 21.315666,
+      "p99": 21.315666
+    },
+    "span_union_ms": {
+      "median": 114.565993,
+      "p95": 124.573511,
+      "p99": 124.573511
+    },
+    "mask_generation_ms": {
+      "median": 1.493994,
+      "p95": 1.528828,
+      "p99": 1.528828
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 13,
+    "cache_hits": 0,
+    "cache_misses": 39,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 6.085692496540997,
+    "total_ms": {
+      "median": 163.899662,
+      "p95": 168.280038,
+      "p99": 168.280038
+    },
+    "evaluation_ms": {
+      "median": 0.008777,
+      "p95": 0.010339,
+      "p99": 0.010339
+    },
+    "shaping_ms": {
+      "median": 0.19102,
+      "p95": 0.204535,
+      "p99": 0.204535
+    },
+    "layout_ms": {
+      "median": 0.012764,
+      "p95": 0.013826,
+      "p99": 0.013826
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.813444,
+      "p95": 1.882504,
+      "p99": 1.882504
+    },
+    "clip_ms": {
+      "median": 0.000561,
+      "p95": 0.000902,
+      "p99": 0.000902
+    },
+    "masks_ms": {
+      "median": 141.947478,
+      "p95": 146.186908,
+      "p99": 146.186908
+    },
+    "effects_ms": {
+      "median": 0.00053,
+      "p95": 0.000791,
+      "p99": 0.000791
+    },
+    "paint_ms": {
+      "median": 0.001643,
+      "p95": 0.002074,
+      "p99": 0.002074
+    },
+    "composition_ms": {
+      "median": 19.816555,
+      "p95": 20.089108,
+      "p99": 20.089108
+    },
+    "base_outlines_ms": {
+      "median": 1.641508,
+      "p95": 1.712715,
+      "p99": 1.712715
+    },
+    "scan_conversion_ms": {
+      "median": 6.282487,
+      "p95": 6.374269,
+      "p99": 6.374269
+    },
+    "border_expansion_ms": {
+      "median": 19.634022,
+      "p95": 19.929648,
+      "p99": 19.929648
+    },
+    "span_union_ms": {
+      "median": 114.467855,
+      "p95": 118.255447,
+      "p99": 118.255447
+    },
+    "mask_generation_ms": {
+      "median": 1.496198,
+      "p95": 1.671488,
+      "p99": 1.671488
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 13,
+    "cache_hits": 0,
+    "cache_misses": 39,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 6.097004729739225,
+    "total_ms": {
+      "median": 163.742518,
+      "p95": 166.289832,
+      "p99": 166.289832
+    },
+    "evaluation_ms": {
+      "median": 0.009037,
+      "p95": 0.011351,
+      "p99": 0.011351
+    },
+    "shaping_ms": {
+      "median": 0.193835,
+      "p95": 0.218652,
+      "p99": 0.218652
+    },
+    "layout_ms": {
+      "median": 0.012924,
+      "p95": 0.013705,
+      "p99": 0.013705
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.818053,
+      "p95": 1.920846,
+      "p99": 1.920846
+    },
+    "clip_ms": {
+      "median": 0.000561,
+      "p95": 0.000882,
+      "p99": 0.000882
+    },
+    "masks_ms": {
+      "median": 141.842721,
+      "p95": 142.616457,
+      "p99": 142.616457
+    },
+    "effects_ms": {
+      "median": 0.00059,
+      "p95": 0.000731,
+      "p99": 0.000731
+    },
+    "paint_ms": {
+      "median": 0.001784,
+      "p95": 0.001954,
+      "p99": 0.001954
+    },
+    "composition_ms": {
+      "median": 19.841552,
+      "p95": 21.651138,
+      "p99": 21.651138
+    },
+    "base_outlines_ms": {
+      "median": 1.644032,
+      "p95": 1.746514,
+      "p99": 1.746514
+    },
+    "scan_conversion_ms": {
+      "median": 6.284721,
+      "p95": 6.42213,
+      "p99": 6.42213
+    },
+    "border_expansion_ms": {
+      "median": 19.606951,
+      "p95": 19.883281,
+      "p99": 19.883281
+    },
+    "span_union_ms": {
+      "median": 114.327022,
+      "p95": 115.117118,
+      "p99": 115.117118
+    },
+    "mask_generation_ms": {
+      "median": 1.493833,
+      "p95": 1.510213,
+      "p99": 1.510213
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 27,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.3967476065267832,
+    "total_ms": {
+      "median": 715.011838,
+      "p95": 718.260345,
+      "p99": 718.260345
+    },
+    "evaluation_ms": {
+      "median": 0.015369,
+      "p95": 0.015469,
+      "p99": 0.015469
+    },
+    "shaping_ms": {
+      "median": 0.37655,
+      "p95": 0.401426,
+      "p99": 0.401426
+    },
+    "layout_ms": {
+      "median": 0.027522,
+      "p95": 0.028235,
+      "p99": 0.028235
+    },
+    "collision_ms": {
+      "median": 0.0423,
+      "p95": 0.04237,
+      "p99": 0.04237
+    },
+    "geometry_ms": {
+      "median": 5.494448,
+      "p95": 5.551916,
+      "p99": 5.551916
+    },
+    "clip_ms": {
+      "median": 0.001552,
+      "p95": 0.001713,
+      "p99": 0.001713
+    },
+    "masks_ms": {
+      "median": 702.828904,
+      "p95": 706.064838,
+      "p99": 706.064838
+    },
+    "effects_ms": {
+      "median": 0.001715,
+      "p95": 0.001764,
+      "p99": 0.001764
+    },
+    "paint_ms": {
+      "median": 0.005351,
+      "p95": 0.006121,
+      "p99": 0.006121
+    },
+    "composition_ms": {
+      "median": 6.063219,
+      "p95": 6.103725,
+      "p99": 6.103725
+    },
+    "base_outlines_ms": {
+      "median": 4.976459,
+      "p95": 4.987485,
+      "p99": 4.987485
+    },
+    "scan_conversion_ms": {
+      "median": 8.774784,
+      "p95": 8.899248,
+      "p99": 8.899248
+    },
+    "border_expansion_ms": {
+      "median": 78.71432,
+      "p95": 78.935645,
+      "p99": 78.935645
+    },
+    "span_union_ms": {
+      "median": 612.591047,
+      "p95": 616.056571,
+      "p99": 616.056571
+    },
+    "mask_generation_ms": {
+      "median": 2.191857,
+      "p95": 2.226355,
+      "p99": 2.226355
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 27,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.395916672088756,
+    "total_ms": {
+      "median": 716.251733,
+      "p95": 717.229004,
+      "p99": 717.229004
+    },
+    "evaluation_ms": {
+      "median": 0.014456,
+      "p95": 0.015389,
+      "p99": 0.015389
+    },
+    "shaping_ms": {
+      "median": 0.379205,
+      "p95": 0.395716,
+      "p99": 0.395716
+    },
+    "layout_ms": {
+      "median": 0.028012,
+      "p95": 0.028514,
+      "p99": 0.028514
+    },
+    "collision_ms": {
+      "median": 0.041938,
+      "p95": 0.042368,
+      "p99": 0.042368
+    },
+    "geometry_ms": {
+      "median": 5.47462,
+      "p95": 5.476754,
+      "p99": 5.476754
+    },
+    "clip_ms": {
+      "median": 0.001604,
+      "p95": 0.001623,
+      "p99": 0.001623
+    },
+    "masks_ms": {
+      "median": 704.130467,
+      "p95": 705.059175,
+      "p99": 705.059175
+    },
+    "effects_ms": {
+      "median": 0.002164,
+      "p95": 0.002265,
+      "p99": 0.002265
+    },
+    "paint_ms": {
+      "median": 0.005479,
+      "p95": 0.005629,
+      "p99": 0.005629
+    },
+    "composition_ms": {
+      "median": 6.086993,
+      "p95": 6.148249,
+      "p99": 6.148249
+    },
+    "base_outlines_ms": {
+      "median": 4.959744,
+      "p95": 4.962124,
+      "p99": 4.962124
+    },
+    "scan_conversion_ms": {
+      "median": 8.73385,
+      "p95": 8.887025,
+      "p99": 8.887025
+    },
+    "border_expansion_ms": {
+      "median": 78.617332,
+      "p95": 78.645648,
+      "p99": 78.645648
+    },
+    "span_union_ms": {
+      "median": 614.186613,
+      "p95": 615.24632,
+      "p99": 615.24632
+    },
+    "mask_generation_ms": {
+      "median": 2.202416,
+      "p95": 2.206597,
+      "p99": 2.206597
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 27,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.3949288941901086,
+    "total_ms": {
+      "median": 715.832304,
+      "p95": 719.797913,
+      "p99": 719.797913
+    },
+    "evaluation_ms": {
+      "median": 0.013676,
+      "p95": 0.01579,
+      "p99": 0.01579
+    },
+    "shaping_ms": {
+      "median": 0.389886,
+      "p95": 0.395168,
+      "p99": 0.395168
+    },
+    "layout_ms": {
+      "median": 0.028194,
+      "p95": 0.045916,
+      "p99": 0.045916
+    },
+    "collision_ms": {
+      "median": 0.042219,
+      "p95": 0.042309,
+      "p99": 0.042309
+    },
+    "geometry_ms": {
+      "median": 5.463853,
+      "p95": 5.50582,
+      "p99": 5.50582
+    },
+    "clip_ms": {
+      "median": 0.001603,
+      "p95": 0.001843,
+      "p99": 0.001843
+    },
+    "masks_ms": {
+      "median": 703.716097,
+      "p95": 707.631245,
+      "p99": 707.631245
+    },
+    "effects_ms": {
+      "median": 0.001615,
+      "p95": 0.001955,
+      "p99": 0.001955
+    },
+    "paint_ms": {
+      "median": 0.005461,
+      "p95": 0.005502,
+      "p99": 0.005502
+    },
+    "composition_ms": {
+      "median": 6.091987,
+      "p95": 6.134406,
+      "p99": 6.134406
+    },
+    "base_outlines_ms": {
+      "median": 4.943917,
+      "p95": 4.983826,
+      "p99": 4.983826
+    },
+    "scan_conversion_ms": {
+      "median": 8.793707,
+      "p95": 8.798145,
+      "p99": 8.798145
+    },
+    "border_expansion_ms": {
+      "median": 78.557036,
+      "p95": 78.582817,
+      "p99": 78.582817
+    },
+    "span_union_ms": {
+      "median": 613.92507,
+      "p95": 617.772601,
+      "p99": 617.772601
+    },
+    "mask_generation_ms": {
+      "median": 2.201134,
+      "p95": 2.218568,
+      "p99": 2.218568
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 27,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.3930482258394814,
+    "total_ms": {
+      "median": 716.888954,
+      "p95": 720.16792,
+      "p99": 720.16792
+    },
+    "evaluation_ms": {
+      "median": 0.014977,
+      "p95": 0.01633,
+      "p99": 0.01633
+    },
+    "shaping_ms": {
+      "median": 0.38191,
+      "p95": 0.382451,
+      "p99": 0.382451
+    },
+    "layout_ms": {
+      "median": 0.027662,
+      "p95": 0.027943,
+      "p99": 0.027943
+    },
+    "collision_ms": {
+      "median": 0.04232,
+      "p95": 0.060584,
+      "p99": 0.060584
+    },
+    "geometry_ms": {
+      "median": 5.494769,
+      "p95": 5.504247,
+      "p99": 5.504247
+    },
+    "clip_ms": {
+      "median": 0.001633,
+      "p95": 0.002143,
+      "p99": 0.002143
+    },
+    "masks_ms": {
+      "median": 704.695968,
+      "p95": 708.07853,
+      "p99": 708.07853
+    },
+    "effects_ms": {
+      "median": 0.001783,
+      "p95": 0.001783,
+      "p99": 0.001783
+    },
+    "paint_ms": {
+      "median": 0.0057,
+      "p95": 0.005801,
+      "p99": 0.005801
+    },
+    "composition_ms": {
+      "median": 6.026421,
+      "p95": 6.125427,
+      "p99": 6.125427
+    },
+    "base_outlines_ms": {
+      "median": 4.970413,
+      "p95": 4.981456,
+      "p99": 4.981456
+    },
+    "scan_conversion_ms": {
+      "median": 8.765329,
+      "p95": 8.78648,
+      "p99": 8.78648
+    },
+    "border_expansion_ms": {
+      "median": 78.575403,
+      "p95": 79.200438,
+      "p99": 79.200438
+    },
+    "span_union_ms": {
+      "median": 614.888274,
+      "p95": 617.621098,
+      "p99": 617.621098
+    },
+    "mask_generation_ms": {
+      "median": 2.232945,
+      "p95": 2.23589,
+      "p99": 2.23589
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 9,
+    "cache_hits": 0,
+    "cache_misses": 54,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 4.354832855236799,
+    "total_ms": {
+      "median": 229.592713,
+      "p95": 230.194667,
+      "p99": 230.194667
+    },
+    "evaluation_ms": {
+      "median": 0.011541,
+      "p95": 0.013074,
+      "p99": 0.013074
+    },
+    "shaping_ms": {
+      "median": 0.288414,
+      "p95": 0.304464,
+      "p99": 0.304464
+    },
+    "layout_ms": {
+      "median": 0.020328,
+      "p95": 0.02126,
+      "p99": 0.02126
+    },
+    "collision_ms": {
+      "median": 0.029196,
+      "p95": 0.030016,
+      "p99": 0.030016
+    },
+    "geometry_ms": {
+      "median": 3.632681,
+      "p95": 3.67863,
+      "p99": 3.67863
+    },
+    "clip_ms": {
+      "median": 0.001193,
+      "p95": 0.001453,
+      "p99": 0.001453
+    },
+    "masks_ms": {
+      "median": 220.30499,
+      "p95": 220.971135,
+      "p99": 220.971135
+    },
+    "effects_ms": {
+      "median": 21.847609,
+      "p95": 22.186959,
+      "p99": 22.186959
+    },
+    "paint_ms": {
+      "median": 0.003186,
+      "p95": 0.003607,
+      "p99": 0.003607
+    },
+    "composition_ms": {
+      "median": 5.154559,
+      "p95": 5.247574,
+      "p99": 5.247574
+    },
+    "base_outlines_ms": {
+      "median": 3.289849,
+      "p95": 3.331427,
+      "p99": 3.331427
+    },
+    "scan_conversion_ms": {
+      "median": 5.844657,
+      "p95": 5.866426,
+      "p99": 5.866426
+    },
+    "border_expansion_ms": {
+      "median": 23.954831,
+      "p95": 24.021913,
+      "p99": 24.021913
+    },
+    "span_union_ms": {
+      "median": 167.346094,
+      "p95": 167.752841,
+      "p99": 167.752841
+    },
+    "mask_generation_ms": {
+      "median": 1.071357,
+      "p95": 1.090634,
+      "p99": 1.090634
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 9,
+    "cache_hits": 0,
+    "cache_misses": 54,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 4.343765543320376,
+    "total_ms": {
+      "median": 229.959452,
+      "p95": 231.725166,
+      "p99": 231.725166
+    },
+    "evaluation_ms": {
+      "median": 0.012143,
+      "p95": 0.013505,
+      "p99": 0.013505
+    },
+    "shaping_ms": {
+      "median": 0.287312,
+      "p95": 0.307309,
+      "p99": 0.307309
+    },
+    "layout_ms": {
+      "median": 0.020929,
+      "p95": 0.021921,
+      "p99": 0.021921
+    },
+    "collision_ms": {
+      "median": 0.029175,
+      "p95": 0.04722,
+      "p99": 0.04722
+    },
+    "geometry_ms": {
+      "median": 3.637456,
+      "p95": 3.737605,
+      "p99": 3.737605
+    },
+    "clip_ms": {
+      "median": 0.001002,
+      "p95": 0.001062,
+      "p99": 0.001062
+    },
+    "masks_ms": {
+      "median": 220.788521,
+      "p95": 222.193164,
+      "p99": 222.193164
+    },
+    "effects_ms": {
+      "median": 21.801605,
+      "p95": 22.116938,
+      "p99": 22.116938
+    },
+    "paint_ms": {
+      "median": 0.003386,
+      "p95": 0.003697,
+      "p99": 0.003697
+    },
+    "composition_ms": {
+      "median": 5.253327,
+      "p95": 5.501606,
+      "p99": 5.501606
+    },
+    "base_outlines_ms": {
+      "median": 3.288532,
+      "p95": 3.384176,
+      "p99": 3.384176
+    },
+    "scan_conversion_ms": {
+      "median": 5.850552,
+      "p95": 5.931244,
+      "p99": 5.931244
+    },
+    "border_expansion_ms": {
+      "median": 24.033846,
+      "p95": 24.124478,
+      "p99": 24.124478
+    },
+    "span_union_ms": {
+      "median": 167.784817,
+      "p95": 169.248604,
+      "p99": 169.248604
+    },
+    "mask_generation_ms": {
+      "median": 1.070705,
+      "p95": 1.084872,
+      "p99": 1.084872
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 9,
+    "cache_hits": 0,
+    "cache_misses": 54,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 4.349070461065444,
+    "total_ms": {
+      "median": 229.640312,
+      "p95": 232.100983,
+      "p99": 232.100983
+    },
+    "evaluation_ms": {
+      "median": 0.011501,
+      "p95": 0.012212,
+      "p99": 0.012212
+    },
+    "shaping_ms": {
+      "median": 0.290106,
+      "p95": 0.307028,
+      "p99": 0.307028
+    },
+    "layout_ms": {
+      "median": 0.020679,
+      "p95": 0.02185,
+      "p99": 0.02185
+    },
+    "collision_ms": {
+      "median": 0.029156,
+      "p95": 0.029735,
+      "p99": 0.029735
+    },
+    "geometry_ms": {
+      "median": 3.64476,
+      "p95": 3.673093,
+      "p99": 3.673093
+    },
+    "clip_ms": {
+      "median": 0.001053,
+      "p95": 0.001333,
+      "p99": 0.001333
+    },
+    "masks_ms": {
+      "median": 220.638007,
+      "p95": 222.614808,
+      "p99": 222.614808
+    },
+    "effects_ms": {
+      "median": 21.997626,
+      "p95": 22.203001,
+      "p99": 22.203001
+    },
+    "paint_ms": {
+      "median": 0.003296,
+      "p95": 0.004277,
+      "p99": 0.004277
+    },
+    "composition_ms": {
+      "median": 4.972098,
+      "p95": 5.378984,
+      "p99": 5.378984
+    },
+    "base_outlines_ms": {
+      "median": 3.303302,
+      "p95": 3.335346,
+      "p99": 3.335346
+    },
+    "scan_conversion_ms": {
+      "median": 5.851653,
+      "p95": 5.872905,
+      "p99": 5.872905
+    },
+    "border_expansion_ms": {
+      "median": 24.016004,
+      "p95": 24.648083,
+      "p99": 24.648083
+    },
+    "span_union_ms": {
+      "median": 167.508393,
+      "p95": 169.020683,
+      "p99": 169.020683
+    },
+    "mask_generation_ms": {
+      "median": 1.069362,
+      "p95": 1.082398,
+      "p99": 1.082398
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 9,
+    "cache_hits": 0,
+    "cache_misses": 54,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 4.3518408240991615,
+    "total_ms": {
+      "median": 229.667463,
+      "p95": 231.163228,
+      "p99": 231.163228
+    },
+    "evaluation_ms": {
+      "median": 0.011812,
+      "p95": 0.013555,
+      "p99": 0.013555
+    },
+    "shaping_ms": {
+      "median": 0.286319,
+      "p95": 0.290487,
+      "p99": 0.290487
+    },
+    "layout_ms": {
+      "median": 0.020469,
+      "p95": 0.0209,
+      "p99": 0.0209
+    },
+    "collision_ms": {
+      "median": 0.029334,
+      "p95": 0.029546,
+      "p99": 0.029546
+    },
+    "geometry_ms": {
+      "median": 3.637205,
+      "p95": 3.750212,
+      "p99": 3.750212
+    },
+    "clip_ms": {
+      "median": 0.000952,
+      "p95": 0.001373,
+      "p99": 0.001373
+    },
+    "masks_ms": {
+      "median": 220.446887,
+      "p95": 221.758496,
+      "p99": 221.758496
+    },
+    "effects_ms": {
+      "median": 21.819467,
+      "p95": 22.00641,
+      "p99": 22.00641
+    },
+    "paint_ms": {
+      "median": 0.002946,
+      "p95": 0.003586,
+      "p99": 0.003586
+    },
+    "composition_ms": {
+      "median": 5.173878,
+      "p95": 5.358536,
+      "p99": 5.358536
+    },
+    "base_outlines_ms": {
+      "median": 3.291985,
+      "p95": 3.382569,
+      "p99": 3.382569
+    },
+    "scan_conversion_ms": {
+      "median": 5.860221,
+      "p95": 5.875569,
+      "p99": 5.875569
+    },
+    "border_expansion_ms": {
+      "median": 24.017157,
+      "p95": 24.150183,
+      "p99": 24.150183
+    },
+    "span_union_ms": {
+      "median": 167.371097,
+      "p95": 168.890405,
+      "p99": 168.890405
+    },
+    "mask_generation_ms": {
+      "median": 1.07321,
+      "p95": 1.09093,
+      "p99": 1.09093
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 18,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.04608721293045,
+    "total_ms": {
+      "median": 956.07879,
+      "p95": 956.830275,
+      "p99": 956.830275
+    },
+    "evaluation_ms": {
+      "median": 0.013887,
+      "p95": 0.014466,
+      "p99": 0.014466
+    },
+    "shaping_ms": {
+      "median": 0.28705,
+      "p95": 0.289894,
+      "p99": 0.289894
+    },
+    "layout_ms": {
+      "median": 0.020338,
+      "p95": 0.02098,
+      "p99": 0.02098
+    },
+    "collision_ms": {
+      "median": 0.029125,
+      "p95": 0.029256,
+      "p99": 0.029256
+    },
+    "geometry_ms": {
+      "median": 3.641037,
+      "p95": 3.641724,
+      "p99": 3.641724
+    },
+    "clip_ms": {
+      "median": 0.001051,
+      "p95": 0.001073,
+      "p99": 0.001073
+    },
+    "masks_ms": {
+      "median": 923.964962,
+      "p95": 924.603968,
+      "p99": 924.603968
+    },
+    "effects_ms": {
+      "median": 72.199788,
+      "p95": 72.26087,
+      "p99": 72.26087
+    },
+    "paint_ms": {
+      "median": 0.004197,
+      "p95": 0.013806,
+      "p99": 0.013806
+    },
+    "composition_ms": {
+      "median": 28.162973,
+      "p95": 28.388904,
+      "p99": 28.388904
+    },
+    "base_outlines_ms": {
+      "median": 3.279946,
+      "p95": 3.284022,
+      "p99": 3.284022
+    },
+    "scan_conversion_ms": {
+      "median": 12.114099,
+      "p95": 12.116573,
+      "p99": 12.116573
+    },
+    "border_expansion_ms": {
+      "median": 115.298934,
+      "p95": 115.406963,
+      "p99": 115.406963
+    },
+    "span_union_ms": {
+      "median": 718.504187,
+      "p95": 719.386817,
+      "p99": 719.386817
+    },
+    "mask_generation_ms": {
+      "median": 3.798775,
+      "p95": 3.832241,
+      "p99": 3.832241
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 18,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.0449537035142575,
+    "total_ms": {
+      "median": 956.102801,
+      "p95": 959.478275,
+      "p99": 959.478275
+    },
+    "evaluation_ms": {
+      "median": 0.014528,
+      "p95": 0.01559,
+      "p99": 0.01559
+    },
+    "shaping_ms": {
+      "median": 0.307447,
+      "p95": 0.316966,
+      "p99": 0.316966
+    },
+    "layout_ms": {
+      "median": 0.020438,
+      "p95": 0.021361,
+      "p99": 0.021361
+    },
+    "collision_ms": {
+      "median": 0.028744,
+      "p95": 0.029386,
+      "p99": 0.029386
+    },
+    "geometry_ms": {
+      "median": 3.636746,
+      "p95": 3.644164,
+      "p99": 3.644164
+    },
+    "clip_ms": {
+      "median": 0.000892,
+      "p95": 0.000901,
+      "p99": 0.000901
+    },
+    "masks_ms": {
+      "median": 923.903928,
+      "p95": 927.319725,
+      "p99": 927.319725
+    },
+    "effects_ms": {
+      "median": 72.335674,
+      "p95": 72.398693,
+      "p99": 72.398693
+    },
+    "paint_ms": {
+      "median": 0.003117,
+      "p95": 0.003427,
+      "p99": 0.003427
+    },
+    "composition_ms": {
+      "median": 28.113733,
+      "p95": 28.381621,
+      "p99": 28.381621
+    },
+    "base_outlines_ms": {
+      "median": 3.281418,
+      "p95": 3.306,
+      "p99": 3.306
+    },
+    "scan_conversion_ms": {
+      "median": 12.131771,
+      "p95": 12.768268,
+      "p99": 12.768268
+    },
+    "border_expansion_ms": {
+      "median": 115.234012,
+      "p95": 116.506549,
+      "p99": 116.506549
+    },
+    "span_union_ms": {
+      "median": 718.534866,
+      "p95": 719.984704,
+      "p99": 719.984704
+    },
+    "mask_generation_ms": {
+      "median": 3.813371,
+      "p95": 3.831631,
+      "p99": 3.831631
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 18,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.0436242706205203,
+    "total_ms": {
+      "median": 958.649321,
+      "p95": 960.568824,
+      "p99": 960.568824
+    },
+    "evaluation_ms": {
+      "median": 0.014848,
+      "p95": 0.015228,
+      "p99": 0.015228
+    },
+    "shaping_ms": {
+      "median": 0.310886,
+      "p95": 0.316615,
+      "p99": 0.316615
+    },
+    "layout_ms": {
+      "median": 0.020849,
+      "p95": 0.021331,
+      "p99": 0.021331
+    },
+    "collision_ms": {
+      "median": 0.029135,
+      "p95": 0.029286,
+      "p99": 0.029286
+    },
+    "geometry_ms": {
+      "median": 3.649668,
+      "p95": 3.651782,
+      "p99": 3.651782
+    },
+    "clip_ms": {
+      "median": 0.001022,
+      "p95": 0.001142,
+      "p99": 0.001142
+    },
+    "masks_ms": {
+      "median": 926.347109,
+      "p95": 928.249016,
+      "p99": 928.249016
+    },
+    "effects_ms": {
+      "median": 72.141247,
+      "p95": 72.280379,
+      "p99": 72.280379
+    },
+    "paint_ms": {
+      "median": 0.003716,
+      "p95": 0.004728,
+      "p99": 0.004728
+    },
+    "composition_ms": {
+      "median": 28.217006,
+      "p95": 28.378009,
+      "p99": 28.378009
+    },
+    "base_outlines_ms": {
+      "median": 3.289609,
+      "p95": 3.303726,
+      "p99": 3.303726
+    },
+    "scan_conversion_ms": {
+      "median": 12.155062,
+      "p95": 12.192543,
+      "p99": 12.192543
+    },
+    "border_expansion_ms": {
+      "median": 116.078894,
+      "p95": 116.220031,
+      "p99": 116.220031
+    },
+    "span_union_ms": {
+      "median": 720.173234,
+      "p95": 722.333317,
+      "p99": 722.333317
+    },
+    "mask_generation_ms": {
+      "median": 3.809376,
+      "p95": 3.818986,
+      "p99": 3.818986
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 18,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 1.0401850851805712,
+    "total_ms": {
+      "median": 961.077715,
+      "p95": 963.547423,
+      "p99": 963.547423
+    },
+    "evaluation_ms": {
+      "median": 0.014648,
+      "p95": 0.014898,
+      "p99": 0.014898
+    },
+    "shaping_ms": {
+      "median": 0.298962,
+      "p95": 0.309001,
+      "p99": 0.309001
+    },
+    "layout_ms": {
+      "median": 0.0211,
+      "p95": 0.022112,
+      "p99": 0.022112
+    },
+    "collision_ms": {
+      "median": 0.029777,
+      "p95": 0.030046,
+      "p99": 0.030046
+    },
+    "geometry_ms": {
+      "median": 3.65125,
+      "p95": 3.660049,
+      "p99": 3.660049
+    },
+    "clip_ms": {
+      "median": 0.000962,
+      "p95": 0.001453,
+      "p99": 0.001453
+    },
+    "masks_ms": {
+      "median": 928.549919,
+      "p95": 931.598896,
+      "p99": 931.598896
+    },
+    "effects_ms": {
+      "median": 72.554817,
+      "p95": 72.606306,
+      "p99": 72.606306
+    },
+    "paint_ms": {
+      "median": 0.003426,
+      "p95": 0.003776,
+      "p99": 0.003776
+    },
+    "composition_ms": {
+      "median": 28.286685,
+      "p95": 28.426549,
+      "p99": 28.426549
+    },
+    "base_outlines_ms": {
+      "median": 3.302371,
+      "p95": 3.30648,
+      "p99": 3.30648
+    },
+    "scan_conversion_ms": {
+      "median": 12.169844,
+      "p95": 12.183729,
+      "p99": 12.183729
+    },
+    "border_expansion_ms": {
+      "median": 116.198846,
+      "p95": 116.306759,
+      "p99": 116.306759
+    },
+    "span_union_ms": {
+      "median": 721.937494,
+      "p95": 725.596213,
+      "p99": 725.596213
+    },
+    "mask_generation_ms": {
+      "median": 3.808818,
+      "p95": 3.80913,
+      "p99": 3.80913
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.5354975654508177,
+    "total_ms": {
+      "median": 1863.862883,
+      "p95": 1875.04505,
+      "p99": 1875.04505
+    },
+    "evaluation_ms": {
+      "median": 0.062187,
+      "p95": 0.077336,
+      "p99": 0.077336
+    },
+    "shaping_ms": {
+      "median": 0.878744,
+      "p95": 0.922313,
+      "p99": 0.922313
+    },
+    "layout_ms": {
+      "median": 0.071014,
+      "p95": 0.072436,
+      "p99": 0.072436
+    },
+    "collision_ms": {
+      "median": 0.112703,
+      "p95": 0.131999,
+      "p99": 0.131999
+    },
+    "geometry_ms": {
+      "median": 14.764725,
+      "p95": 14.842838,
+      "p99": 14.842838
+    },
+    "clip_ms": {
+      "median": 0.006313,
+      "p95": 0.006655,
+      "p99": 0.006655
+    },
+    "masks_ms": {
+      "median": 1802.095671,
+      "p95": 1813.077345,
+      "p99": 1813.077345
+    },
+    "effects_ms": {
+      "median": 202.182287,
+      "p95": 203.239728,
+      "p99": 203.239728
+    },
+    "paint_ms": {
+      "median": 0.021039,
+      "p95": 0.030928,
+      "p99": 0.030928
+    },
+    "composition_ms": {
+      "median": 45.62235,
+      "p95": 45.637508,
+      "p99": 45.637508
+    },
+    "base_outlines_ms": {
+      "median": 13.196133,
+      "p95": 13.314697,
+      "p99": 13.314697
+    },
+    "scan_conversion_ms": {
+      "median": 25.774986,
+      "p95": 25.967303,
+      "p99": 25.967303
+    },
+    "border_expansion_ms": {
+      "median": 181.66477,
+      "p95": 182.139552,
+      "p99": 182.139552
+    },
+    "span_union_ms": {
+      "median": 1380.015244,
+      "p95": 1387.947928,
+      "p99": 1387.947928
+    },
+    "mask_generation_ms": {
+      "median": 12.694257,
+      "p95": 12.723613,
+      "p99": 12.723613
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.5362809818720446,
+    "total_ms": {
+      "median": 1863.478675,
+      "p95": 1867.887472,
+      "p99": 1867.887472
+    },
+    "evaluation_ms": {
+      "median": 0.061888,
+      "p95": 0.063287,
+      "p99": 0.063287
+    },
+    "shaping_ms": {
+      "median": 0.898738,
+      "p95": 0.916383,
+      "p99": 0.916383
+    },
+    "layout_ms": {
+      "median": 0.071705,
+      "p95": 0.072747,
+      "p99": 0.072747
+    },
+    "collision_ms": {
+      "median": 0.112972,
+      "p95": 0.130397,
+      "p99": 0.130397
+    },
+    "geometry_ms": {
+      "median": 14.698109,
+      "p95": 14.736702,
+      "p99": 14.736702
+    },
+    "clip_ms": {
+      "median": 0.005911,
+      "p95": 0.005983,
+      "p99": 0.005983
+    },
+    "masks_ms": {
+      "median": 1801.664099,
+      "p95": 1806.072755,
+      "p99": 1806.072755
+    },
+    "effects_ms": {
+      "median": 202.205792,
+      "p95": 202.508991,
+      "p99": 202.508991
+    },
+    "paint_ms": {
+      "median": 0.0213,
+      "p95": 0.022792,
+      "p99": 0.022792
+    },
+    "composition_ms": {
+      "median": 45.667539,
+      "p95": 45.697587,
+      "p99": 45.697587
+    },
+    "base_outlines_ms": {
+      "median": 13.159212,
+      "p95": 13.22317,
+      "p99": 13.22317
+    },
+    "scan_conversion_ms": {
+      "median": 25.793389,
+      "p95": 25.858728,
+      "p99": 25.858728
+    },
+    "border_expansion_ms": {
+      "median": 181.748788,
+      "p95": 185.178294,
+      "p99": 185.178294
+    },
+    "span_union_ms": {
+      "median": 1378.956866,
+      "p95": 1379.605504,
+      "p99": 1379.605504
+    },
+    "mask_generation_ms": {
+      "median": 12.683239,
+      "p95": 12.722503,
+      "p99": 12.722503
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.5351495501345847,
+    "total_ms": {
+      "median": 1869.286663,
+      "p95": 1870.38512,
+      "p99": 1870.38512
+    },
+    "evaluation_ms": {
+      "median": 0.061566,
+      "p95": 0.065353,
+      "p99": 0.065353
+    },
+    "shaping_ms": {
+      "median": 0.898962,
+      "p95": 0.906276,
+      "p99": 0.906276
+    },
+    "layout_ms": {
+      "median": 0.071254,
+      "p95": 0.071874,
+      "p99": 0.071874
+    },
+    "collision_ms": {
+      "median": 0.112962,
+      "p95": 0.113093,
+      "p99": 0.113093
+    },
+    "geometry_ms": {
+      "median": 14.755294,
+      "p95": 14.777935,
+      "p99": 14.777935
+    },
+    "clip_ms": {
+      "median": 0.006002,
+      "p95": 0.006292,
+      "p99": 0.006292
+    },
+    "masks_ms": {
+      "median": 1807.21848,
+      "p95": 1808.077247,
+      "p99": 1808.077247
+    },
+    "effects_ms": {
+      "median": 203.88127,
+      "p95": 204.922914,
+      "p99": 204.922914
+    },
+    "paint_ms": {
+      "median": 0.020751,
+      "p95": 0.022483,
+      "p99": 0.022483
+    },
+    "composition_ms": {
+      "median": 45.905232,
+      "p95": 46.103865,
+      "p99": 46.103865
+    },
+    "base_outlines_ms": {
+      "median": 13.209716,
+      "p95": 13.243285,
+      "p99": 13.243285
+    },
+    "scan_conversion_ms": {
+      "median": 25.777921,
+      "p95": 25.914016,
+      "p99": 25.914016
+    },
+    "border_expansion_ms": {
+      "median": 181.203364,
+      "p95": 181.245732,
+      "p99": 181.245732
+    },
+    "span_union_ms": {
+      "median": 1382.397568,
+      "p95": 1382.66966,
+      "p99": 1382.66966
+    },
+    "mask_generation_ms": {
+      "median": 12.666893,
+      "p95": 12.75581,
+      "p99": 12.75581
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.48433413944798914,
+    "total_ms": {
+      "median": 2136.355086,
+      "p95": 2260.752105,
+      "p99": 2260.752105
+    },
+    "evaluation_ms": {
+      "median": 0.060744,
+      "p95": 0.062756,
+      "p99": 0.062756
+    },
+    "shaping_ms": {
+      "median": 0.878404,
+      "p95": 0.889732,
+      "p99": 0.889732
+    },
+    "layout_ms": {
+      "median": 0.071496,
+      "p95": 0.087945,
+      "p99": 0.087945
+    },
+    "collision_ms": {
+      "median": 0.112181,
+      "p95": 0.112431,
+      "p99": 0.112431
+    },
+    "geometry_ms": {
+      "median": 14.843128,
+      "p95": 14.847256,
+      "p99": 14.847256
+    },
+    "clip_ms": {
+      "median": 0.006111,
+      "p95": 0.006111,
+      "p99": 0.006111
+    },
+    "masks_ms": {
+      "median": 2056.502382,
+      "p95": 2175.53722,
+      "p99": 2175.53722
+    },
+    "effects_ms": {
+      "median": 363.496527,
+      "p95": 419.478029,
+      "p99": 419.478029
+    },
+    "paint_ms": {
+      "median": 0.020778,
+      "p95": 0.024768,
+      "p99": 0.024768
+    },
+    "composition_ms": {
+      "median": 63.602496,
+      "p95": 68.972803,
+      "p99": 68.972803
+    },
+    "base_outlines_ms": {
+      "median": 13.290443,
+      "p95": 13.299004,
+      "p99": 13.299004
+    },
+    "scan_conversion_ms": {
+      "median": 26.039898,
+      "p95": 26.081286,
+      "p99": 26.081286
+    },
+    "border_expansion_ms": {
+      "median": 194.492363,
+      "p95": 213.905262,
+      "p99": 213.905262
+    },
+    "span_union_ms": {
+      "median": 1455.691093,
+      "p95": 1496.794561,
+      "p99": 1496.794561
+    },
+    "mask_generation_ms": {
+      "median": 16.370066,
+      "p95": 17.821463,
+      "p99": 17.821463
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.12754346417371612,
+    "total_ms": {
+      "median": 7838.341336,
+      "p95": 7847.121929,
+      "p99": 7847.121929
+    },
+    "evaluation_ms": {
+      "median": 0.065896,
+      "p95": 0.069693,
+      "p99": 0.069693
+    },
+    "shaping_ms": {
+      "median": 0.91623,
+      "p95": 0.938674,
+      "p99": 0.938674
+    },
+    "layout_ms": {
+      "median": 0.071995,
+      "p95": 0.072064,
+      "p99": 0.072064
+    },
+    "collision_ms": {
+      "median": 0.112801,
+      "p95": 0.113612,
+      "p99": 0.113612
+    },
+    "geometry_ms": {
+      "median": 14.828397,
+      "p95": 14.830404,
+      "p99": 14.830404
+    },
+    "clip_ms": {
+      "median": 0.006301,
+      "p95": 0.006682,
+      "p99": 0.006682
+    },
+    "masks_ms": {
+      "median": 7638.557297,
+      "p95": 7647.582039,
+      "p99": 7647.582039
+    },
+    "effects_ms": {
+      "median": 765.823289,
+      "p95": 766.332485,
+      "p99": 766.332485
+    },
+    "paint_ms": {
+      "median": 0.023436,
+      "p95": 0.031079,
+      "p99": 0.031079
+    },
+    "composition_ms": {
+      "median": 183.352474,
+      "p95": 183.470224,
+      "p99": 183.470224
+    },
+    "base_outlines_ms": {
+      "median": 13.247797,
+      "p95": 13.248988,
+      "p99": 13.248988
+    },
+    "scan_conversion_ms": {
+      "median": 51.87275,
+      "p95": 51.90979,
+      "p99": 51.90979
+    },
+    "border_expansion_ms": {
+      "median": 883.729608,
+      "p95": 884.189613,
+      "p99": 884.189613
+    },
+    "span_union_ms": {
+      "median": 5875.731085,
+      "p95": 5883.32411,
+      "p99": 5883.32411
+    },
+    "mask_generation_ms": {
+      "median": 47.742319,
+      "p95": 48.251109,
+      "p99": 48.251109
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.12750714188827286,
+    "total_ms": {
+      "median": 7838.54217,
+      "p95": 7856.291628,
+      "p99": 7856.291628
+    },
+    "evaluation_ms": {
+      "median": 0.065303,
+      "p95": 0.070673,
+      "p99": 0.070673
+    },
+    "shaping_ms": {
+      "median": 0.902607,
+      "p95": 0.981439,
+      "p99": 0.981439
+    },
+    "layout_ms": {
+      "median": 0.071216,
+      "p95": 0.072376,
+      "p99": 0.072376
+    },
+    "collision_ms": {
+      "median": 0.113082,
+      "p95": 0.113164,
+      "p99": 0.113164
+    },
+    "geometry_ms": {
+      "median": 14.850071,
+      "p95": 14.932539,
+      "p99": 14.932539
+    },
+    "clip_ms": {
+      "median": 0.006073,
+      "p95": 0.006643,
+      "p99": 0.006643
+    },
+    "masks_ms": {
+      "median": 7639.191853,
+      "p95": 7656.880239,
+      "p99": 7656.880239
+    },
+    "effects_ms": {
+      "median": 764.070685,
+      "p95": 766.322274,
+      "p99": 766.322274
+    },
+    "paint_ms": {
+      "median": 0.022082,
+      "p95": 0.024364,
+      "p99": 0.024364
+    },
+    "composition_ms": {
+      "median": 183.142627,
+      "p95": 183.552043,
+      "p99": 183.552043
+    },
+    "base_outlines_ms": {
+      "median": 13.264305,
+      "p95": 13.378997,
+      "p99": 13.378997
+    },
+    "scan_conversion_ms": {
+      "median": 51.591,
+      "p95": 51.662399,
+      "p99": 51.662399
+    },
+    "border_expansion_ms": {
+      "median": 890.024224,
+      "p95": 893.523403,
+      "p99": 893.523403
+    },
+    "span_union_ms": {
+      "median": 5881.993088,
+      "p95": 5884.9755,
+      "p99": 5884.9755
+    },
+    "mask_generation_ms": {
+      "median": 47.728508,
+      "p95": 47.84289,
+      "p99": 47.84289
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.12716123522561917,
+    "total_ms": {
+      "median": 7863.673091,
+      "p95": 7869.304612,
+      "p99": 7869.304612
+    },
+    "evaluation_ms": {
+      "median": 0.066386,
+      "p95": 0.066577,
+      "p99": 0.066577
+    },
+    "shaping_ms": {
+      "median": 0.911001,
+      "p95": 0.922287,
+      "p99": 0.922287
+    },
+    "layout_ms": {
+      "median": 0.071875,
+      "p95": 0.073018,
+      "p99": 0.073018
+    },
+    "collision_ms": {
+      "median": 0.112221,
+      "p95": 0.112294,
+      "p99": 0.112294
+    },
+    "geometry_ms": {
+      "median": 14.824505,
+      "p95": 14.869839,
+      "p99": 14.869839
+    },
+    "clip_ms": {
+      "median": 0.006382,
+      "p95": 0.006462,
+      "p99": 0.006462
+    },
+    "masks_ms": {
+      "median": 7663.791617,
+      "p95": 7669.208835,
+      "p99": 7669.208835
+    },
+    "effects_ms": {
+      "median": 769.54503,
+      "p95": 772.159597,
+      "p99": 772.159597
+    },
+    "paint_ms": {
+      "median": 0.023235,
+      "p95": 0.023904,
+      "p99": 0.023904
+    },
+    "composition_ms": {
+      "median": 183.591583,
+      "p95": 183.836376,
+      "p99": 183.836376
+    },
+    "base_outlines_ms": {
+      "median": 13.275865,
+      "p95": 13.332524,
+      "p99": 13.332524
+    },
+    "scan_conversion_ms": {
+      "median": 51.748767,
+      "p95": 51.882648,
+      "p99": 51.882648
+    },
+    "border_expansion_ms": {
+      "median": 891.7885,
+      "p95": 898.211063,
+      "p99": 898.211063
+    },
+    "span_union_ms": {
+      "median": 5885.975012,
+      "p95": 5890.82016,
+      "p99": 5890.82016
+    },
+    "mask_generation_ms": {
+      "median": 47.770061,
+      "p95": 47.856734,
+      "p99": 47.856734
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "off",
+    "samples": 3,
+    "cache_hits": 0,
+    "cache_misses": 144,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.0,
+    "cache_peak_bytes": 0,
+    "render_fps_equivalent": 0.11516140516855501,
+    "total_ms": {
+      "median": 9006.282875,
+      "p95": 9470.295686,
+      "p99": 9470.295686
+    },
+    "evaluation_ms": {
+      "median": 0.063287,
+      "p95": 0.064902,
+      "p99": 0.064902
+    },
+    "shaping_ms": {
+      "median": 0.885936,
+      "p95": 0.902017,
+      "p99": 0.902017
+    },
+    "layout_ms": {
+      "median": 0.071624,
+      "p95": 0.076623,
+      "p99": 0.076623
+    },
+    "collision_ms": {
+      "median": 0.112412,
+      "p95": 0.112731,
+      "p99": 0.112731
+    },
+    "geometry_ms": {
+      "median": 14.785328,
+      "p95": 14.819753,
+      "p99": 14.819753
+    },
+    "clip_ms": {
+      "median": 0.006322,
+      "p95": 0.006773,
+      "p99": 0.006773
+    },
+    "masks_ms": {
+      "median": 8737.512551,
+      "p95": 9177.615301,
+      "p99": 9177.615301
+    },
+    "effects_ms": {
+      "median": 1397.552527,
+      "p95": 1621.451855,
+      "p99": 1621.451855
+    },
+    "paint_ms": {
+      "median": 0.022301,
+      "p95": 0.024126,
+      "p99": 0.024126
+    },
+    "composition_ms": {
+      "median": 252.521388,
+      "p95": 276.411628,
+      "p99": 276.411628
+    },
+    "base_outlines_ms": {
+      "median": 13.255576,
+      "p95": 13.262037,
+      "p99": 13.262037
+    },
+    "scan_conversion_ms": {
+      "median": 51.753255,
+      "p95": 52.154499,
+      "p99": 52.154499
+    },
+    "border_expansion_ms": {
+      "median": 975.127854,
+      "p95": 1020.217462,
+      "p99": 1020.217462
+    },
+    "span_union_ms": {
+      "median": 6233.562034,
+      "p95": 6398.83766,
+      "p99": 6398.83766
+    },
+    "mask_generation_ms": {
+      "median": 62.607998,
+      "p95": 67.824065,
+      "p99": 67.824065
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 31,
+    "cache_misses": 62,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.3333333333333333,
+    "cache_peak_bytes": 93244,
+    "render_fps_equivalent": 37.89851450940899,
+    "total_ms": {
+      "median": 26.440446,
+      "p95": 26.78779,
+      "p99": 26.800692
+    },
+    "evaluation_ms": {
+      "median": 0.004709,
+      "p95": 0.005761,
+      "p99": 0.005851
+    },
+    "shaping_ms": {
+      "median": 0.149831,
+      "p95": 0.176282,
+      "p99": 0.179227
+    },
+    "layout_ms": {
+      "median": 0.0107,
+      "p95": 0.011762,
+      "p99": 0.035055
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.761704,
+      "p95": 1.788214,
+      "p99": 1.828059
+    },
+    "clip_ms": {
+      "median": 0.000221,
+      "p95": 0.0004,
+      "p99": 0.000461
+    },
+    "masks_ms": {
+      "median": 20.137022,
+      "p95": 20.379739,
+      "p99": 20.416869
+    },
+    "effects_ms": {
+      "median": 0.00017,
+      "p95": 0.000291,
+      "p99": 0.000601
+    },
+    "paint_ms": {
+      "median": 0.000601,
+      "p95": 0.000751,
+      "p99": 0.000751
+    },
+    "composition_ms": {
+      "median": 4.371792,
+      "p95": 4.573902,
+      "p99": 4.724526
+    },
+    "base_outlines_ms": {
+      "median": 1.599906,
+      "p95": 1.626943,
+      "p99": 1.667838
+    },
+    "scan_conversion_ms": {
+      "median": 2.05306,
+      "p95": 2.130717,
+      "p99": 2.135105
+    },
+    "border_expansion_ms": {
+      "median": 4.070776,
+      "p95": 4.267475,
+      "p99": 4.289557
+    },
+    "span_union_ms": {
+      "median": 13.560283,
+      "p95": 13.65891,
+      "p99": 13.701558
+    },
+    "mask_generation_ms": {
+      "median": 0.285667,
+      "p95": 0.297951,
+      "p99": 0.306236
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 93244,
+    "render_fps_equivalent": 148.08267755874948,
+    "total_ms": {
+      "median": 6.688599,
+      "p95": 7.182228,
+      "p99": 7.182628
+    },
+    "evaluation_ms": {
+      "median": 0.004969,
+      "p95": 0.008677,
+      "p99": 0.009197
+    },
+    "shaping_ms": {
+      "median": 0.145564,
+      "p95": 0.1809,
+      "p99": 0.190639
+    },
+    "layout_ms": {
+      "median": 0.010048,
+      "p95": 0.012433,
+      "p99": 0.012564
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.747667,
+      "p95": 1.800406,
+      "p99": 1.843237
+    },
+    "clip_ms": {
+      "median": 0.000291,
+      "p95": 0.000611,
+      "p99": 0.000631
+    },
+    "masks_ms": {
+      "median": 0.084479,
+      "p95": 0.108273,
+      "p99": 0.113714
+    },
+    "effects_ms": {
+      "median": 0.00016,
+      "p95": 0.00023,
+      "p99": 0.00024
+    },
+    "paint_ms": {
+      "median": 0.000541,
+      "p95": 0.000681,
+      "p99": 0.000692
+    },
+    "composition_ms": {
+      "median": 4.674411,
+      "p95": 5.049797,
+      "p99": 5.097016
+    },
+    "base_outlines_ms": {
+      "median": 1.588648,
+      "p95": 1.630203,
+      "p99": 1.661356
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 93244,
+    "render_fps_equivalent": 147.45834891476554,
+    "total_ms": {
+      "median": 6.696814,
+      "p95": 7.238333,
+      "p99": 7.445653
+    },
+    "evaluation_ms": {
+      "median": 0.00483,
+      "p95": 0.008967,
+      "p99": 0.01059
+    },
+    "shaping_ms": {
+      "median": 0.152858,
+      "p95": 0.191831,
+      "p99": 0.216648
+    },
+    "layout_ms": {
+      "median": 0.010119,
+      "p95": 0.013335,
+      "p99": 0.036729
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.74429,
+      "p95": 1.876749,
+      "p99": 1.913659
+    },
+    "clip_ms": {
+      "median": 0.000251,
+      "p95": 0.000581,
+      "p99": 0.000591
+    },
+    "masks_ms": {
+      "median": 0.084279,
+      "p95": 0.099186,
+      "p99": 0.106279
+    },
+    "effects_ms": {
+      "median": 0.000151,
+      "p95": 0.00019,
+      "p99": 0.000241
+    },
+    "paint_ms": {
+      "median": 0.000521,
+      "p95": 0.000671,
+      "p99": 0.000742
+    },
+    "composition_ms": {
+      "median": 4.67406,
+      "p95": 5.124417,
+      "p99": 5.25376
+    },
+    "base_outlines_ms": {
+      "median": 1.581615,
+      "p95": 1.703846,
+      "p99": 1.733021
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 93244,
+    "render_fps_equivalent": 139.9435813388954,
+    "total_ms": {
+      "median": 7.170165,
+      "p95": 7.477273,
+      "p99": 8.659556
+    },
+    "evaluation_ms": {
+      "median": 0.003958,
+      "p95": 0.004999,
+      "p99": 0.006803
+    },
+    "shaping_ms": {
+      "median": 0.125186,
+      "p95": 0.160411,
+      "p99": 0.171442
+    },
+    "layout_ms": {
+      "median": 0.009528,
+      "p95": 0.025999,
+      "p99": 0.028594
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.739943,
+      "p95": 1.768926,
+      "p99": 1.797661
+    },
+    "clip_ms": {
+      "median": 0.00021,
+      "p95": 0.000381,
+      "p99": 0.000381
+    },
+    "masks_ms": {
+      "median": 0.083146,
+      "p95": 0.099027,
+      "p99": 0.102824
+    },
+    "effects_ms": {
+      "median": 0.00016,
+      "p95": 0.00025,
+      "p99": 0.000251
+    },
+    "paint_ms": {
+      "median": 0.000511,
+      "p95": 0.000571,
+      "p99": 0.000591
+    },
+    "composition_ms": {
+      "median": 5.185713,
+      "p95": 5.45022,
+      "p99": 6.656439
+    },
+    "base_outlines_ms": {
+      "median": 1.582252,
+      "p95": 1.613173,
+      "p99": 1.635655
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 21,
+    "cache_hits": 21,
+    "cache_misses": 42,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.3333333333333333,
+    "cache_peak_bytes": 210986,
+    "render_fps_equivalent": 10.276604781096221,
+    "total_ms": {
+      "median": 97.454984,
+      "p95": 98.188273,
+      "p99": 98.8138
+    },
+    "evaluation_ms": {
+      "median": 0.007374,
+      "p95": 0.008145,
+      "p99": 0.008726
+    },
+    "shaping_ms": {
+      "median": 0.192192,
+      "p95": 0.202952,
+      "p99": 0.208432
+    },
+    "layout_ms": {
+      "median": 0.012474,
+      "p95": 0.013155,
+      "p99": 0.013225
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.792722,
+      "p95": 1.805135,
+      "p99": 1.811316
+    },
+    "clip_ms": {
+      "median": 0.000491,
+      "p95": 0.00057,
+      "p99": 0.000581
+    },
+    "masks_ms": {
+      "median": 74.494993,
+      "p95": 74.953095,
+      "p99": 75.177727
+    },
+    "effects_ms": {
+      "median": 0.00033,
+      "p95": 0.000392,
+      "p99": 0.000751
+    },
+    "paint_ms": {
+      "median": 0.001182,
+      "p95": 0.001382,
+      "p99": 0.001573
+    },
+    "composition_ms": {
+      "median": 20.832009,
+      "p95": 21.195713,
+      "p99": 22.218426
+    },
+    "base_outlines_ms": {
+      "median": 1.626134,
+      "p95": 1.632377,
+      "p99": 1.636668
+    },
+    "scan_conversion_ms": {
+      "median": 4.109277,
+      "p95": 4.138824,
+      "p99": 4.148963
+    },
+    "border_expansion_ms": {
+      "median": 12.190147,
+      "p95": 12.265227,
+      "p99": 12.278904
+    },
+    "span_union_ms": {
+      "median": 57.121679,
+      "p95": 57.58995,
+      "p99": 57.822468
+    },
+    "mask_generation_ms": {
+      "median": 0.906044,
+      "p95": 0.931362,
+      "p99": 0.937583
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 210986,
+    "render_fps_equivalent": 43.4013540354432,
+    "total_ms": {
+      "median": 23.03414,
+      "p95": 23.394989,
+      "p99": 23.423242
+    },
+    "evaluation_ms": {
+      "median": 0.008556,
+      "p95": 0.009619,
+      "p99": 0.024146
+    },
+    "shaping_ms": {
+      "median": 0.181792,
+      "p95": 0.214694,
+      "p99": 0.222298
+    },
+    "layout_ms": {
+      "median": 0.012383,
+      "p95": 0.012934,
+      "p99": 0.012974
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.789986,
+      "p95": 1.84492,
+      "p99": 1.857394
+    },
+    "clip_ms": {
+      "median": 0.000501,
+      "p95": 0.000762,
+      "p99": 0.000791
+    },
+    "masks_ms": {
+      "median": 0.135955,
+      "p95": 0.151735,
+      "p99": 0.153689
+    },
+    "effects_ms": {
+      "median": 0.000161,
+      "p95": 0.000239,
+      "p99": 0.000291
+    },
+    "paint_ms": {
+      "median": 0.000621,
+      "p95": 0.000751,
+      "p99": 0.000781
+    },
+    "composition_ms": {
+      "median": 20.85947,
+      "p95": 21.225329,
+      "p99": 21.257138
+    },
+    "base_outlines_ms": {
+      "median": 1.626041,
+      "p95": 1.675892,
+      "p99": 1.686113
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 210986,
+    "render_fps_equivalent": 42.92284800562324,
+    "total_ms": {
+      "median": 23.300401,
+      "p95": 23.625061,
+      "p99": 23.825058
+    },
+    "evaluation_ms": {
+      "median": 0.008767,
+      "p95": 0.01036,
+      "p99": 0.0106
+    },
+    "shaping_ms": {
+      "median": 0.181592,
+      "p95": 0.219633,
+      "p99": 0.226686
+    },
+    "layout_ms": {
+      "median": 0.012433,
+      "p95": 0.018134,
+      "p99": 0.019707
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.785758,
+      "p95": 1.847595,
+      "p99": 1.90335
+    },
+    "clip_ms": {
+      "median": 0.000491,
+      "p95": 0.000742,
+      "p99": 0.000752
+    },
+    "masks_ms": {
+      "median": 0.136287,
+      "p95": 0.151966,
+      "p99": 0.153419
+    },
+    "effects_ms": {
+      "median": 0.000162,
+      "p95": 0.00025,
+      "p99": 0.00031
+    },
+    "paint_ms": {
+      "median": 0.000631,
+      "p95": 0.000702,
+      "p99": 0.000912
+    },
+    "composition_ms": {
+      "median": 21.092128,
+      "p95": 21.427208,
+      "p99": 21.661439
+    },
+    "base_outlines_ms": {
+      "median": 1.616467,
+      "p95": 1.682075,
+      "p99": 1.737044
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "dialogue",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 93,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 210986,
+    "render_fps_equivalent": 43.309089249781266,
+    "total_ms": {
+      "median": 23.051252,
+      "p95": 23.445033,
+      "p99": 23.865314
+    },
+    "evaluation_ms": {
+      "median": 0.008737,
+      "p95": 0.009578,
+      "p99": 0.009909
+    },
+    "shaping_ms": {
+      "median": 0.182143,
+      "p95": 0.228619,
+      "p99": 0.235282
+    },
+    "layout_ms": {
+      "median": 0.012374,
+      "p95": 0.017242,
+      "p99": 0.043522
+    },
+    "collision_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "geometry_ms": {
+      "median": 1.781911,
+      "p95": 1.881188,
+      "p99": 2.452853
+    },
+    "clip_ms": {
+      "median": 0.000521,
+      "p95": 0.000882,
+      "p99": 0.000932
+    },
+    "masks_ms": {
+      "median": 0.135735,
+      "p95": 0.154049,
+      "p99": 0.165201
+    },
+    "effects_ms": {
+      "median": 0.00016,
+      "p95": 0.00018,
+      "p99": 0.00021
+    },
+    "paint_ms": {
+      "median": 0.000621,
+      "p95": 0.001062,
+      "p99": 0.001102
+    },
+    "composition_ms": {
+      "median": 20.89116,
+      "p95": 21.164384,
+      "p99": 21.207745
+    },
+    "base_outlines_ms": {
+      "median": 1.616025,
+      "p95": 1.71276,
+      "p99": 2.257133
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 16,
+    "cache_hits": 112,
+    "cache_misses": 32,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.7777777777777778,
+    "cache_peak_bytes": 107812,
+    "render_fps_equivalent": 7.7166900287528115,
+    "total_ms": {
+      "median": 129.386379,
+      "p95": 130.630516,
+      "p99": 130.630516
+    },
+    "evaluation_ms": {
+      "median": 0.01118,
+      "p95": 0.013805,
+      "p99": 0.013805
+    },
+    "shaping_ms": {
+      "median": 0.354295,
+      "p95": 0.432373,
+      "p99": 0.432373
+    },
+    "layout_ms": {
+      "median": 0.027552,
+      "p95": 0.035828,
+      "p99": 0.035828
+    },
+    "collision_ms": {
+      "median": 0.041256,
+      "p95": 0.048902,
+      "p99": 0.048902
+    },
+    "geometry_ms": {
+      "median": 5.257572,
+      "p95": 5.685625,
+      "p99": 5.685625
+    },
+    "clip_ms": {
+      "median": 0.000792,
+      "p95": 0.001083,
+      "p99": 0.001083
+    },
+    "masks_ms": {
+      "median": 117.610099,
+      "p95": 118.728467,
+      "p99": 118.728467
+    },
+    "effects_ms": {
+      "median": 0.00057,
+      "p95": 0.000691,
+      "p99": 0.000691
+    },
+    "paint_ms": {
+      "median": 0.002395,
+      "p95": 0.002835,
+      "p99": 0.002835
+    },
+    "composition_ms": {
+      "median": 6.040762,
+      "p95": 6.488002,
+      "p99": 6.488002
+    },
+    "base_outlines_ms": {
+      "median": 4.760393,
+      "p95": 5.171871,
+      "p99": 5.171871
+    },
+    "scan_conversion_ms": {
+      "median": 1.929502,
+      "p95": 1.950022,
+      "p99": 1.950022
+    },
+    "border_expansion_ms": {
+      "median": 13.119524,
+      "p95": 13.237095,
+      "p99": 13.237095
+    },
+    "span_union_ms": {
+      "median": 101.819189,
+      "p95": 102.869151,
+      "p99": 102.869151
+    },
+    "mask_generation_ms": {
+      "median": 0.417553,
+      "p95": 0.430259,
+      "p99": 0.430259
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 279,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 107812,
+    "render_fps_equivalent": 87.4263238275152,
+    "total_ms": {
+      "median": 11.43152,
+      "p95": 11.556986,
+      "p99": 11.701748
+    },
+    "evaluation_ms": {
+      "median": 0.008115,
+      "p95": 0.010229,
+      "p99": 0.013616
+    },
+    "shaping_ms": {
+      "median": 0.295707,
+      "p95": 0.330422,
+      "p99": 0.382789
+    },
+    "layout_ms": {
+      "median": 0.024495,
+      "p95": 0.02619,
+      "p99": 0.027563
+    },
+    "collision_ms": {
+      "median": 0.040136,
+      "p95": 0.040648,
+      "p99": 0.041648
+    },
+    "geometry_ms": {
+      "median": 5.10944,
+      "p95": 5.175725,
+      "p99": 5.190141
+    },
+    "clip_ms": {
+      "median": 0.000542,
+      "p95": 0.00069,
+      "p99": 0.000732
+    },
+    "masks_ms": {
+      "median": 0.269948,
+      "p95": 0.289024,
+      "p99": 0.309683
+    },
+    "effects_ms": {
+      "median": 0.00039,
+      "p95": 0.000462,
+      "p99": 0.0005
+    },
+    "paint_ms": {
+      "median": 0.001562,
+      "p95": 0.001804,
+      "p99": 0.001854
+    },
+    "composition_ms": {
+      "median": 5.631451,
+      "p95": 5.771385,
+      "p99": 5.795189
+    },
+    "base_outlines_ms": {
+      "median": 4.645081,
+      "p95": 4.692731,
+      "p99": 4.695409
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 279,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 107812,
+    "render_fps_equivalent": 87.55522287960096,
+    "total_ms": {
+      "median": 11.41558,
+      "p95": 11.593164,
+      "p99": 11.716486
+    },
+    "evaluation_ms": {
+      "median": 0.007936,
+      "p95": 0.009648,
+      "p99": 0.012423
+    },
+    "shaping_ms": {
+      "median": 0.301005,
+      "p95": 0.324951,
+      "p99": 0.358585
+    },
+    "layout_ms": {
+      "median": 0.024475,
+      "p95": 0.041608,
+      "p99": 0.042119
+    },
+    "collision_ms": {
+      "median": 0.040115,
+      "p95": 0.057096,
+      "p99": 0.057318
+    },
+    "geometry_ms": {
+      "median": 5.101975,
+      "p95": 5.174352,
+      "p99": 5.175213
+    },
+    "clip_ms": {
+      "median": 0.000542,
+      "p95": 0.000611,
+      "p99": 0.00068
+    },
+    "masks_ms": {
+      "median": 0.269456,
+      "p95": 0.28718,
+      "p99": 0.288403
+    },
+    "effects_ms": {
+      "median": 0.000401,
+      "p95": 0.00045,
+      "p99": 0.00045
+    },
+    "paint_ms": {
+      "median": 0.001613,
+      "p95": 0.001705,
+      "p99": 0.001763
+    },
+    "composition_ms": {
+      "median": 5.624738,
+      "p95": 5.799307,
+      "p99": 5.837729
+    },
+    "base_outlines_ms": {
+      "median": 4.638792,
+      "p95": 4.695741,
+      "p99": 4.700248
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "thick-borders",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 279,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 107812,
+    "render_fps_equivalent": 87.25591575476236,
+    "total_ms": {
+      "median": 11.43681,
+      "p95": 11.725553,
+      "p99": 11.76671
+    },
+    "evaluation_ms": {
+      "median": 0.008385,
+      "p95": 0.009718,
+      "p99": 0.013004
+    },
+    "shaping_ms": {
+      "median": 0.306477,
+      "p95": 0.336723,
+      "p99": 0.355057
+    },
+    "layout_ms": {
+      "median": 0.024827,
+      "p95": 0.025778,
+      "p99": 0.027482
+    },
+    "collision_ms": {
+      "median": 0.040186,
+      "p95": 0.041127,
+      "p99": 0.056516
+    },
+    "geometry_ms": {
+      "median": 5.116714,
+      "p95": 5.261917,
+      "p99": 5.349882
+    },
+    "clip_ms": {
+      "median": 0.00056,
+      "p95": 0.000842,
+      "p99": 0.000861
+    },
+    "masks_ms": {
+      "median": 0.270098,
+      "p95": 0.288591,
+      "p99": 0.315263
+    },
+    "effects_ms": {
+      "median": 0.000411,
+      "p95": 0.000501,
+      "p99": 0.000601
+    },
+    "paint_ms": {
+      "median": 0.001593,
+      "p95": 0.001854,
+      "p99": 0.002263
+    },
+    "composition_ms": {
+      "median": 5.623055,
+      "p95": 5.78994,
+      "p99": 5.815448
+    },
+    "base_outlines_ms": {
+      "median": 4.646019,
+      "p95": 4.797182,
+      "p99": 4.844621
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 25,
+    "cache_hits": 100,
+    "cache_misses": 50,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.6666666666666666,
+    "cache_peak_bytes": 97972,
+    "render_fps_equivalent": 12.367631980526722,
+    "total_ms": {
+      "median": 80.775218,
+      "p95": 81.274307,
+      "p99": 81.314605
+    },
+    "evaluation_ms": {
+      "median": 0.009508,
+      "p95": 0.010089,
+      "p99": 0.01033
+    },
+    "shaping_ms": {
+      "median": 0.265049,
+      "p95": 0.285216,
+      "p99": 0.290256
+    },
+    "layout_ms": {
+      "median": 0.019687,
+      "p95": 0.020368,
+      "p99": 0.020499
+    },
+    "collision_ms": {
+      "median": 0.028234,
+      "p95": 0.032741,
+      "p99": 0.045106
+    },
+    "geometry_ms": {
+      "median": 3.542342,
+      "p95": 3.563803,
+      "p99": 3.645827
+    },
+    "clip_ms": {
+      "median": 0.000742,
+      "p95": 0.000941,
+      "p99": 0.001102
+    },
+    "masks_ms": {
+      "median": 71.945914,
+      "p95": 72.218897,
+      "p99": 72.252551
+    },
+    "effects_ms": {
+      "median": 21.765714,
+      "p95": 21.83891,
+      "p99": 21.841375
+    },
+    "paint_ms": {
+      "median": 0.001993,
+      "p95": 0.002475,
+      "p99": 0.003296
+    },
+    "composition_ms": {
+      "median": 4.929121,
+      "p95": 5.207643,
+      "p99": 5.271173
+    },
+    "base_outlines_ms": {
+      "median": 3.213323,
+      "p95": 3.232673,
+      "p99": 3.31344
+    },
+    "scan_conversion_ms": {
+      "median": 1.932524,
+      "p95": 1.987778,
+      "p99": 2.062909
+    },
+    "border_expansion_ms": {
+      "median": 5.982651,
+      "p95": 6.030914,
+      "p99": 6.033216
+    },
+    "span_union_ms": {
+      "median": 41.700343,
+      "p95": 41.925317,
+      "p99": 41.948971
+    },
+    "mask_generation_ms": {
+      "median": 0.319541,
+      "p95": 0.341462,
+      "p99": 0.343256
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 186,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 97972,
+    "render_fps_equivalent": 32.532467825287,
+    "total_ms": {
+      "median": 30.716046,
+      "p95": 31.119214,
+      "p99": 31.142407
+    },
+    "evaluation_ms": {
+      "median": 0.006702,
+      "p95": 0.010039,
+      "p99": 0.011612
+    },
+    "shaping_ms": {
+      "median": 0.225184,
+      "p95": 0.274366,
+      "p99": 0.301578
+    },
+    "layout_ms": {
+      "median": 0.018003,
+      "p95": 0.024176,
+      "p99": 0.034675
+    },
+    "collision_ms": {
+      "median": 0.027311,
+      "p95": 0.033733,
+      "p99": 0.046027
+    },
+    "geometry_ms": {
+      "median": 3.444759,
+      "p95": 3.591474,
+      "p99": 3.621121
+    },
+    "clip_ms": {
+      "median": 0.0004,
+      "p95": 0.000541,
+      "p99": 0.000641
+    },
+    "masks_ms": {
+      "median": 21.97123,
+      "p95": 22.130139,
+      "p99": 22.175333
+    },
+    "effects_ms": {
+      "median": 21.798796,
+      "p95": 21.942825,
+      "p99": 21.995314
+    },
+    "paint_ms": {
+      "median": 0.001463,
+      "p95": 0.001683,
+      "p99": 0.001793
+    },
+    "composition_ms": {
+      "median": 4.978483,
+      "p95": 5.094651,
+      "p99": 5.173439
+    },
+    "base_outlines_ms": {
+      "median": 3.123846,
+      "p95": 3.266021,
+      "p99": 3.284908
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 186,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 97972,
+    "render_fps_equivalent": 32.61952472820036,
+    "total_ms": {
+      "median": 30.622059,
+      "p95": 30.944445,
+      "p99": 30.951569
+    },
+    "evaluation_ms": {
+      "median": 0.007183,
+      "p95": 0.009769,
+      "p99": 0.01053
+    },
+    "shaping_ms": {
+      "median": 0.225144,
+      "p95": 0.256673,
+      "p99": 0.275347
+    },
+    "layout_ms": {
+      "median": 0.017674,
+      "p95": 0.019697,
+      "p99": 0.019958
+    },
+    "collision_ms": {
+      "median": 0.027501,
+      "p95": 0.030236,
+      "p99": 0.043542
+    },
+    "geometry_ms": {
+      "median": 3.434489,
+      "p95": 3.515932,
+      "p99": 3.517366
+    },
+    "clip_ms": {
+      "median": 0.00039,
+      "p95": 0.000562,
+      "p99": 0.000781
+    },
+    "masks_ms": {
+      "median": 21.921486,
+      "p95": 22.027409,
+      "p99": 22.135991
+    },
+    "effects_ms": {
+      "median": 21.744372,
+      "p95": 21.847289,
+      "p99": 21.963746
+    },
+    "paint_ms": {
+      "median": 0.001482,
+      "p95": 0.010519,
+      "p99": 0.0106
+    },
+    "composition_ms": {
+      "median": 4.952945,
+      "p95": 5.188988,
+      "p99": 5.19464
+    },
+    "base_outlines_ms": {
+      "median": 3.120899,
+      "p95": 3.188664,
+      "p99": 3.193115
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 31,
+    "cache_hits": 186,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 97972,
+    "render_fps_equivalent": 32.62038799104071,
+    "total_ms": {
+      "median": 30.618442,
+      "p95": 30.963731,
+      "p99": 31.121238
+    },
+    "evaluation_ms": {
+      "median": 0.007043,
+      "p95": 0.009699,
+      "p99": 0.010851
+    },
+    "shaping_ms": {
+      "median": 0.224432,
+      "p95": 0.275068,
+      "p99": 0.290897
+    },
+    "layout_ms": {
+      "median": 0.017762,
+      "p95": 0.020278,
+      "p99": 0.022933
+    },
+    "collision_ms": {
+      "median": 0.027451,
+      "p95": 0.029084,
+      "p99": 0.037652
+    },
+    "geometry_ms": {
+      "median": 3.446482,
+      "p95": 3.568962,
+      "p99": 3.633993
+    },
+    "clip_ms": {
+      "median": 0.000391,
+      "p95": 0.000561,
+      "p99": 0.000652
+    },
+    "masks_ms": {
+      "median": 21.921497,
+      "p95": 22.00355,
+      "p99": 22.172748
+    },
+    "effects_ms": {
+      "median": 21.747957,
+      "p95": 21.826918,
+      "p99": 21.998001
+    },
+    "paint_ms": {
+      "median": 0.001463,
+      "p95": 0.001874,
+      "p99": 0.0105
+    },
+    "composition_ms": {
+      "median": 4.942395,
+      "p95": 5.12641,
+      "p99": 5.184159
+    },
+    "base_outlines_ms": {
+      "median": 3.125394,
+      "p95": 3.241255,
+      "p99": 3.310628
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 7,
+    "cache_hits": 28,
+    "cache_misses": 14,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.6666666666666666,
+    "cache_peak_bytes": 229834,
+    "render_fps_equivalent": 3.0952873501035136,
+    "total_ms": {
+      "median": 323.017247,
+      "p95": 323.856856,
+      "p99": 323.856856
+    },
+    "evaluation_ms": {
+      "median": 0.011201,
+      "p95": 0.012073,
+      "p99": 0.012073
+    },
+    "shaping_ms": {
+      "median": 0.292971,
+      "p95": 0.316235,
+      "p99": 0.316235
+    },
+    "layout_ms": {
+      "median": 0.020269,
+      "p95": 0.02103,
+      "p99": 0.02103
+    },
+    "collision_ms": {
+      "median": 0.028605,
+      "p95": 0.029446,
+      "p99": 0.029446
+    },
+    "geometry_ms": {
+      "median": 3.597165,
+      "p95": 3.638313,
+      "p99": 3.638313
+    },
+    "clip_ms": {
+      "median": 0.000841,
+      "p95": 0.000872,
+      "p99": 0.000872
+    },
+    "masks_ms": {
+      "median": 291.440583,
+      "p95": 292.393114,
+      "p99": 292.393114
+    },
+    "effects_ms": {
+      "median": 71.997711,
+      "p95": 72.395621,
+      "p99": 72.395621
+    },
+    "paint_ms": {
+      "median": 0.002394,
+      "p95": 0.002806,
+      "p99": 0.002806
+    },
+    "composition_ms": {
+      "median": 27.446777,
+      "p95": 27.756791,
+      "p99": 27.756791
+    },
+    "base_outlines_ms": {
+      "median": 3.254622,
+      "p95": 3.299113,
+      "p99": 3.299113
+    },
+    "scan_conversion_ms": {
+      "median": 4.232901,
+      "p95": 4.256054,
+      "p99": 4.256054
+    },
+    "border_expansion_ms": {
+      "median": 34.066065,
+      "p95": 34.742568,
+      "p99": 34.742568
+    },
+    "span_union_ms": {
+      "median": 178.926845,
+      "p95": 180.068844,
+      "p99": 180.068844
+    },
+    "mask_generation_ms": {
+      "median": 1.11693,
+      "p95": 1.128743,
+      "p99": 1.128743
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 20,
+    "cache_hits": 120,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 229834,
+    "render_fps_equivalent": 9.6599278010524,
+    "total_ms": {
+      "median": 103.37467,
+      "p95": 103.960511,
+      "p99": 104.331089
+    },
+    "evaluation_ms": {
+      "median": 0.013817,
+      "p95": 0.034004,
+      "p99": 0.043212
+    },
+    "shaping_ms": {
+      "median": 0.28664,
+      "p95": 0.332335,
+      "p99": 0.357211
+    },
+    "layout_ms": {
+      "median": 0.02105,
+      "p95": 0.02152,
+      "p99": 0.024095
+    },
+    "collision_ms": {
+      "median": 0.029125,
+      "p95": 0.029495,
+      "p99": 0.029595
+    },
+    "geometry_ms": {
+      "median": 3.53605,
+      "p95": 3.605771,
+      "p99": 3.642461
+    },
+    "clip_ms": {
+      "median": 0.000771,
+      "p95": 0.001042,
+      "p99": 0.001132
+    },
+    "masks_ms": {
+      "median": 72.614081,
+      "p95": 72.859672,
+      "p99": 73.216904
+    },
+    "effects_ms": {
+      "median": 72.310759,
+      "p95": 72.557204,
+      "p99": 72.899027
+    },
+    "paint_ms": {
+      "median": 0.001954,
+      "p95": 0.002485,
+      "p99": 0.002915
+    },
+    "composition_ms": {
+      "median": 26.861737,
+      "p95": 27.289662,
+      "p99": 27.686348
+    },
+    "base_outlines_ms": {
+      "median": 3.20635,
+      "p95": 3.256044,
+      "p99": 3.293484
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 20,
+    "cache_hits": 120,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 229834,
+    "render_fps_equivalent": 9.676118489665638,
+    "total_ms": {
+      "median": 103.286384,
+      "p95": 103.638025,
+      "p99": 103.760295
+    },
+    "evaluation_ms": {
+      "median": 0.013014,
+      "p95": 0.013906,
+      "p99": 0.013907
+    },
+    "shaping_ms": {
+      "median": 0.280206,
+      "p95": 0.325032,
+      "p99": 0.334229
+    },
+    "layout_ms": {
+      "median": 0.020569,
+      "p95": 0.021901,
+      "p99": 0.023023
+    },
+    "collision_ms": {
+      "median": 0.029095,
+      "p95": 0.029757,
+      "p99": 0.031928
+    },
+    "geometry_ms": {
+      "median": 3.533425,
+      "p95": 3.609989,
+      "p99": 3.633815
+    },
+    "clip_ms": {
+      "median": 0.000731,
+      "p95": 0.000901,
+      "p99": 0.000941
+    },
+    "masks_ms": {
+      "median": 72.66134,
+      "p95": 73.050982,
+      "p99": 73.151632
+    },
+    "effects_ms": {
+      "median": 72.357367,
+      "p95": 72.730921,
+      "p99": 72.850535
+    },
+    "paint_ms": {
+      "median": 0.001944,
+      "p95": 0.002305,
+      "p99": 0.002325
+    },
+    "composition_ms": {
+      "median": 26.639058,
+      "p95": 26.826712,
+      "p99": 27.075659
+    },
+    "base_outlines_ms": {
+      "median": 3.203576,
+      "p95": 3.277684,
+      "p99": 3.297178
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "large-blur",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 20,
+    "cache_hits": 120,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 229834,
+    "render_fps_equivalent": 9.674038080367874,
+    "total_ms": {
+      "median": 103.314657,
+      "p95": 103.745837,
+      "p99": 104.033678
+    },
+    "evaluation_ms": {
+      "median": 0.013125,
+      "p95": 0.017424,
+      "p99": 0.018575
+    },
+    "shaping_ms": {
+      "median": 0.281951,
+      "p95": 0.314481,
+      "p99": 0.323939
+    },
+    "layout_ms": {
+      "median": 0.020489,
+      "p95": 0.02096,
+      "p99": 0.021329
+    },
+    "collision_ms": {
+      "median": 0.028925,
+      "p95": 0.029886,
+      "p99": 0.056756
+    },
+    "geometry_ms": {
+      "median": 3.528821,
+      "p95": 3.570941,
+      "p99": 3.575099
+    },
+    "clip_ms": {
+      "median": 0.000731,
+      "p95": 0.000992,
+      "p99": 0.001163
+    },
+    "masks_ms": {
+      "median": 72.654515,
+      "p95": 73.283096,
+      "p99": 73.306129
+    },
+    "effects_ms": {
+      "median": 72.35343,
+      "p95": 72.976431,
+      "p99": 72.994224
+    },
+    "paint_ms": {
+      "median": 0.001943,
+      "p95": 0.002585,
+      "p99": 0.002595
+    },
+    "composition_ms": {
+      "median": 26.637211,
+      "p95": 26.921546,
+      "p99": 27.023538
+    },
+    "base_outlines_ms": {
+      "median": 3.201045,
+      "p95": 3.243649,
+      "p99": 3.247635
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 6,
+    "cache_hits": 264,
+    "cache_misses": 24,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.9166666666666666,
+    "cache_peak_bytes": 327968,
+    "render_fps_equivalent": 2.7458584207143395,
+    "total_ms": {
+      "median": 363.975046,
+      "p95": 364.923943,
+      "p99": 364.923943
+    },
+    "evaluation_ms": {
+      "median": 0.057338,
+      "p95": 0.073457,
+      "p99": 0.073457
+    },
+    "shaping_ms": {
+      "median": 0.86742,
+      "p95": 0.886918,
+      "p99": 0.886918
+    },
+    "layout_ms": {
+      "median": 0.070284,
+      "p95": 0.071943,
+      "p99": 0.071943
+    },
+    "collision_ms": {
+      "median": 0.111949,
+      "p95": 0.116512,
+      "p99": 0.116512
+    },
+    "geometry_ms": {
+      "median": 14.097911,
+      "p95": 14.462956,
+      "p99": 14.462956
+    },
+    "clip_ms": {
+      "median": 0.003495,
+      "p95": 0.004088,
+      "p99": 0.004088
+    },
+    "masks_ms": {
+      "median": 302.931467,
+      "p95": 303.31037,
+      "p99": 303.31037
+    },
+    "effects_ms": {
+      "median": 200.895619,
+      "p95": 201.275398,
+      "p99": 201.275398
+    },
+    "paint_ms": {
+      "median": 0.009708,
+      "p95": 0.012293,
+      "p99": 0.012293
+    },
+    "composition_ms": {
+      "median": 45.857554,
+      "p95": 45.93495,
+      "p99": 45.93495
+    },
+    "base_outlines_ms": {
+      "median": 12.658004,
+      "p95": 13.03433,
+      "p99": 13.03433
+    },
+    "scan_conversion_ms": {
+      "median": 2.111689,
+      "p95": 2.129314,
+      "p99": 2.129314
+    },
+    "border_expansion_ms": {
+      "median": 11.339674,
+      "p95": 11.470227,
+      "p99": 11.470227
+    },
+    "span_union_ms": {
+      "median": 86.085668,
+      "p95": 86.196722,
+      "p99": 86.196722
+    },
+    "mask_generation_ms": {
+      "median": 0.974223,
+      "p95": 0.983289,
+      "p99": 0.983289
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 8,
+    "cache_hits": 384,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 327968,
+    "render_fps_equivalent": 3.793018617250995,
+    "total_ms": {
+      "median": 263.314777,
+      "p95": 265.042846,
+      "p99": 265.042846
+    },
+    "evaluation_ms": {
+      "median": 0.057547,
+      "p95": 0.063359,
+      "p99": 0.063359
+    },
+    "shaping_ms": {
+      "median": 0.852604,
+      "p95": 0.916984,
+      "p99": 0.916984
+    },
+    "layout_ms": {
+      "median": 0.071162,
+      "p95": 0.088065,
+      "p99": 0.088065
+    },
+    "collision_ms": {
+      "median": 0.11185,
+      "p95": 0.130036,
+      "p99": 0.130036
+    },
+    "geometry_ms": {
+      "median": 14.012651,
+      "p95": 14.080036,
+      "p99": 14.080036
+    },
+    "clip_ms": {
+      "median": 0.003078,
+      "p95": 0.003896,
+      "p99": 0.003896
+    },
+    "masks_ms": {
+      "median": 202.289702,
+      "p95": 203.718821,
+      "p99": 203.718821
+    },
+    "effects_ms": {
+      "median": 200.756288,
+      "p95": 202.230812,
+      "p99": 202.230812
+    },
+    "paint_ms": {
+      "median": 0.008957,
+      "p95": 0.012443,
+      "p99": 0.012443
+    },
+    "composition_ms": {
+      "median": 45.811946,
+      "p95": 46.079139,
+      "p99": 46.079139
+    },
+    "base_outlines_ms": {
+      "median": 12.610192,
+      "p95": 12.674287,
+      "p99": 12.674287
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 6,
+    "cache_hits": 268,
+    "cache_misses": 20,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.9305555555555556,
+    "cache_peak_bytes": 1864650,
+    "render_fps_equivalent": 2.859076081339706,
+    "total_ms": {
+      "median": 365.726295,
+      "p95": 368.104187,
+      "p99": 368.104187
+    },
+    "evaluation_ms": {
+      "median": 0.061725,
+      "p95": 0.074549,
+      "p99": 0.074549
+    },
+    "shaping_ms": {
+      "median": 0.880716,
+      "p95": 0.899513,
+      "p99": 0.899513
+    },
+    "layout_ms": {
+      "median": 0.070404,
+      "p95": 0.077174,
+      "p99": 0.077174
+    },
+    "collision_ms": {
+      "median": 0.111871,
+      "p95": 0.118523,
+      "p99": 0.118523
+    },
+    "geometry_ms": {
+      "median": 14.04966,
+      "p95": 14.198948,
+      "p99": 14.198948
+    },
+    "clip_ms": {
+      "median": 0.003246,
+      "p95": 0.003594,
+      "p99": 0.003594
+    },
+    "masks_ms": {
+      "median": 303.948785,
+      "p95": 306.492096,
+      "p99": 306.492096
+    },
+    "effects_ms": {
+      "median": 201.999579,
+      "p95": 204.434335,
+      "p99": 204.434335
+    },
+    "paint_ms": {
+      "median": 0.010629,
+      "p95": 0.011613,
+      "p99": 0.011613
+    },
+    "composition_ms": {
+      "median": 46.27671,
+      "p95": 46.475454,
+      "p99": 46.475454
+    },
+    "base_outlines_ms": {
+      "median": 12.641759,
+      "p95": 12.767717,
+      "p99": 12.767717
+    },
+    "scan_conversion_ms": {
+      "median": 2.11124,
+      "p95": 2.173146,
+      "p99": 2.173146
+    },
+    "border_expansion_ms": {
+      "median": 11.356268,
+      "p95": 11.392994,
+      "p99": 11.392994
+    },
+    "span_union_ms": {
+      "median": 85.890322,
+      "p95": 86.068617,
+      "p99": 86.068617
+    },
+    "mask_generation_ms": {
+      "median": 0.96689,
+      "p95": 1.058482,
+      "p99": 1.058482
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "1920",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 5,
+    "cache_hits": 228,
+    "cache_misses": 12,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.95,
+    "cache_peak_bytes": 1762992,
+    "render_fps_equivalent": 2.2245445250979903,
+    "total_ms": {
+      "median": 505.785414,
+      "p95": 613.420111,
+      "p99": 613.420111
+    },
+    "evaluation_ms": {
+      "median": 0.05952,
+      "p95": 0.061715,
+      "p99": 0.061715
+    },
+    "shaping_ms": {
+      "median": 0.861499,
+      "p95": 0.920069,
+      "p99": 0.920069
+    },
+    "layout_ms": {
+      "median": 0.071322,
+      "p95": 0.090118,
+      "p99": 0.090118
+    },
+    "collision_ms": {
+      "median": 0.111801,
+      "p95": 0.130396,
+      "p99": 0.130396
+    },
+    "geometry_ms": {
+      "median": 14.200995,
+      "p95": 15.11141,
+      "p99": 15.11141
+    },
+    "clip_ms": {
+      "median": 0.003868,
+      "p95": 0.004629,
+      "p99": 0.004629
+    },
+    "masks_ms": {
+      "median": 420.428425,
+      "p95": 529.06765,
+      "p99": 529.06765
+    },
+    "effects_ms": {
+      "median": 359.891661,
+      "p95": 417.905076,
+      "p99": 417.905076
+    },
+    "paint_ms": {
+      "median": 0.011895,
+      "p95": 0.012914,
+      "p99": 0.012914
+    },
+    "composition_ms": {
+      "median": 63.92477,
+      "p95": 68.935144,
+      "p99": 68.935144
+    },
+    "base_outlines_ms": {
+      "median": 12.742004,
+      "p95": 13.568767,
+      "p99": 13.568767
+    },
+    "scan_conversion_ms": {
+      "median": 2.10249,
+      "p95": 2.176801,
+      "p99": 2.176801
+    },
+    "border_expansion_ms": {
+      "median": 11.209532,
+      "p95": 12.399507,
+      "p99": 12.399507
+    },
+    "span_union_ms": {
+      "median": 84.903066,
+      "p95": 93.215034,
+      "p99": 93.215034
+    },
+    "mask_generation_ms": {
+      "median": 0.901554,
+      "p95": 1.420187,
+      "p99": 1.420187
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "cold",
+    "workers": "1",
+    "cache": "on",
+    "samples": 3,
+    "cache_hits": 132,
+    "cache_misses": 12,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.9166666666666666,
+    "cache_peak_bytes": 1141362,
+    "render_fps_equivalent": 0.7145922573500161,
+    "total_ms": {
+      "median": 1399.122024,
+      "p95": 1399.982467,
+      "p99": 1399.982467
+    },
+    "evaluation_ms": {
+      "median": 0.063179,
+      "p95": 0.064862,
+      "p99": 0.064862
+    },
+    "shaping_ms": {
+      "median": 0.890935,
+      "p95": 0.912725,
+      "p99": 0.912725
+    },
+    "layout_ms": {
+      "median": 0.072485,
+      "p95": 0.072797,
+      "p99": 0.072797
+    },
+    "collision_ms": {
+      "median": 0.112162,
+      "p95": 0.112892,
+      "p99": 0.112892
+    },
+    "geometry_ms": {
+      "median": 14.397057,
+      "p95": 14.54992,
+      "p99": 14.54992
+    },
+    "clip_ms": {
+      "median": 0.004418,
+      "p95": 0.004949,
+      "p99": 0.004949
+    },
+    "masks_ms": {
+      "median": 1197.973847,
+      "p95": 1198.575694,
+      "p99": 1198.575694
+    },
+    "effects_ms": {
+      "median": 758.93134,
+      "p95": 759.711021,
+      "p99": 759.711021
+    },
+    "paint_ms": {
+      "median": 0.014997,
+      "p95": 0.01627,
+      "p99": 0.01627
+    },
+    "composition_ms": {
+      "median": 185.467033,
+      "p95": 185.572555,
+      "p99": 185.572555
+    },
+    "base_outlines_ms": {
+      "median": 12.89021,
+      "p95": 13.023646,
+      "p99": 13.023646
+    },
+    "scan_conversion_ms": {
+      "median": 4.286799,
+      "p95": 4.309744,
+      "p99": 4.309744
+    },
+    "border_expansion_ms": {
+      "median": 59.3476,
+      "p95": 59.468037,
+      "p99": 59.468037
+    },
+    "span_union_ms": {
+      "median": 366.754988,
+      "p95": 366.93765,
+      "p99": 366.93765
+    },
+    "mask_generation_ms": {
+      "median": 3.641957,
+      "p95": 3.667805,
+      "p99": 3.667805
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "same-time",
+    "workers": "1",
+    "cache": "on",
+    "samples": 3,
+    "cache_hits": 144,
+    "cache_misses": 0,
+    "cache_evictions": 0,
+    "cache_hit_rate": 1.0,
+    "cache_peak_bytes": 1141362,
+    "render_fps_equivalent": 1.0334408133022117,
+    "total_ms": {
+      "median": 967.630703,
+      "p95": 967.873308,
+      "p99": 967.873308
+    },
+    "evaluation_ms": {
+      "median": 0.061707,
+      "p95": 0.067647,
+      "p99": 0.067647
+    },
+    "shaping_ms": {
+      "median": 0.903137,
+      "p95": 0.951026,
+      "p99": 0.951026
+    },
+    "layout_ms": {
+      "median": 0.073107,
+      "p95": 0.079709,
+      "p99": 0.079709
+    },
+    "collision_ms": {
+      "median": 0.118391,
+      "p95": 0.130796,
+      "p99": 0.130796
+    },
+    "geometry_ms": {
+      "median": 14.247873,
+      "p95": 14.462418,
+      "p99": 14.462418
+    },
+    "clip_ms": {
+      "median": 0.004158,
+      "p95": 0.005198,
+      "p99": 0.005198
+    },
+    "masks_ms": {
+      "median": 768.315896,
+      "p95": 768.322513,
+      "p99": 768.322513
+    },
+    "effects_ms": {
+      "median": 764.216608,
+      "p95": 764.227982,
+      "p99": 764.227982
+    },
+    "paint_ms": {
+      "median": 0.014498,
+      "p95": 0.016671,
+      "p99": 0.016671
+    },
+    "composition_ms": {
+      "median": 183.721323,
+      "p95": 183.762631,
+      "p99": 183.762631
+    },
+    "base_outlines_ms": {
+      "median": 12.781397,
+      "p95": 12.977175,
+      "p99": 12.977175
+    },
+    "scan_conversion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "border_expansion_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "span_union_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_generation_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "sequence",
+    "workers": "1",
+    "cache": "on",
+    "samples": 3,
+    "cache_hits": 136,
+    "cache_misses": 8,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.9444444444444444,
+    "cache_peak_bytes": 3390740,
+    "render_fps_equivalent": 0.7948864633736888,
+    "total_ms": {
+      "median": 1402.778593,
+      "p95": 1404.561313,
+      "p99": 1404.561313
+    },
+    "evaluation_ms": {
+      "median": 0.068578,
+      "p95": 0.06944,
+      "p99": 0.06944
+    },
+    "shaping_ms": {
+      "median": 0.886184,
+      "p95": 0.901914,
+      "p99": 0.901914
+    },
+    "layout_ms": {
+      "median": 0.071927,
+      "p95": 0.072036,
+      "p99": 0.072036
+    },
+    "collision_ms": {
+      "median": 0.112238,
+      "p95": 0.131448,
+      "p99": 0.131448
+    },
+    "geometry_ms": {
+      "median": 14.385408,
+      "p95": 14.454045,
+      "p99": 14.454045
+    },
+    "clip_ms": {
+      "median": 0.004678,
+      "p95": 0.005098,
+      "p99": 0.005098
+    },
+    "masks_ms": {
+      "median": 1200.235113,
+      "p95": 1203.417232,
+      "p99": 1203.417232
+    },
+    "effects_ms": {
+      "median": 763.497431,
+      "p95": 763.515782,
+      "p99": 763.515782
+    },
+    "paint_ms": {
+      "median": 0.016799,
+      "p95": 0.019065,
+      "p99": 0.019065
+    },
+    "composition_ms": {
+      "median": 185.327494,
+      "p95": 186.753342,
+      "p99": 186.753342
+    },
+    "base_outlines_ms": {
+      "median": 12.898461,
+      "p95": 12.955588,
+      "p99": 12.955588
+    },
+    "scan_conversion_ms": {
+      "median": 4.277137,
+      "p95": 4.314938,
+      "p99": 4.314938
+    },
+    "border_expansion_ms": {
+      "median": 59.620394,
+      "p95": 60.101529,
+      "p99": 60.101529
+    },
+    "span_union_ms": {
+      "median": 364.28049,
+      "p95": 366.461658,
+      "p99": 366.461658
+    },
+    "mask_generation_ms": {
+      "median": 3.647623,
+      "p95": 3.689874,
+      "p99": 3.689874
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  },
+  {
+    "workload": "combined-abuse",
+    "width": "3840",
+    "scenario": "seek",
+    "workers": "1",
+    "cache": "on",
+    "samples": 3,
+    "cache_hits": 132,
+    "cache_misses": 12,
+    "cache_evictions": 0,
+    "cache_hit_rate": 0.9166666666666666,
+    "cache_peak_bytes": 6584478,
+    "render_fps_equivalent": 0.5228818991921691,
+    "total_ms": {
+      "median": 2125.734561,
+      "p95": 2396.783288,
+      "p99": 2396.783288
+    },
+    "evaluation_ms": {
+      "median": 0.065855,
+      "p95": 0.079088,
+      "p99": 0.079088
+    },
+    "shaping_ms": {
+      "median": 0.887247,
+      "p95": 0.892148,
+      "p99": 0.892148
+    },
+    "layout_ms": {
+      "median": 0.071662,
+      "p95": 0.072607,
+      "p99": 0.072607
+    },
+    "collision_ms": {
+      "median": 0.113053,
+      "p95": 0.113056,
+      "p99": 0.113056
+    },
+    "geometry_ms": {
+      "median": 14.556231,
+      "p95": 14.611148,
+      "p99": 14.611148
+    },
+    "clip_ms": {
+      "median": 0.005891,
+      "p95": 0.006391,
+      "p99": 0.006391
+    },
+    "masks_ms": {
+      "median": 1854.885841,
+      "p95": 2103.573528,
+      "p99": 2103.573528
+    },
+    "effects_ms": {
+      "median": 1384.754904,
+      "p95": 1615.621854,
+      "p99": 1615.621854
+    },
+    "paint_ms": {
+      "median": 0.022101,
+      "p95": 0.024296,
+      "p99": 0.024296
+    },
+    "composition_ms": {
+      "median": 254.853566,
+      "p95": 277.157142,
+      "p99": 277.157142
+    },
+    "base_outlines_ms": {
+      "median": 13.048158,
+      "p95": 13.076397,
+      "p99": 13.076397
+    },
+    "scan_conversion_ms": {
+      "median": 4.263161,
+      "p95": 4.368458,
+      "p99": 4.368458
+    },
+    "border_expansion_ms": {
+      "median": 64.409816,
+      "p95": 67.675247,
+      "p99": 67.675247
+    },
+    "span_union_ms": {
+      "median": 387.615123,
+      "p95": 401.11387,
+      "p99": 401.11387
+    },
+    "mask_generation_ms": {
+      "median": 4.827981,
+      "p95": 5.28427,
+      "p99": 5.28427
+    },
+    "mask_combination_ms": {
+      "median": 0.0,
+      "p95": 0.0,
+      "p99": 0.0
+    }
+  }
+]
