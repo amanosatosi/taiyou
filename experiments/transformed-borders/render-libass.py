@@ -99,7 +99,12 @@ for kind in ("drawing", "text"):
         boxes = [next(c for c in report["cases"] if c["id"] == f"{kind}-{name}")["libass_bbox"]
                  for name in ("zero", axis + "45", axis + "80", axis + "89", axis + "90")]
         widths = [0 if b is None else b[coordinate] - b[coordinate - 2] for b in boxes]
-        assert all(b < a for a, b in zip(widths, widths[1:])), (kind, axis, widths)
+        # Near edge-on, distinct angles can quantize to the same raster extent
+        # (for example 89° and 90° can both be two pixels wide). Require
+        # monotonic non-increase plus real overall collapse instead of a strict
+        # decrease at every sampled angle.
+        assert all(b <= a for a, b in zip(widths, widths[1:])), (kind, axis, widths)
+        assert widths[-1] < widths[0], (kind, axis, widths)
 api("ass_renderer_done", None, ptr)(renderer)
 api("ass_library_done", None, ptr)(library)
 print(json.dumps(report))
