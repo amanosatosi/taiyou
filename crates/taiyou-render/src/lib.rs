@@ -19,6 +19,7 @@ pub mod layout;
 mod paint;
 pub mod raster;
 pub mod renderer;
+pub mod timing;
 pub mod stroke;
 mod xy_wrap;
 pub use compose::compose;

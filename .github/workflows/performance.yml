@@ -1,0 +1,66 @@
+name: Performance phase measurements
+on:
+  push:
+    branches: [perf/cache-multithread]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
+      TAIYOU_FOCUSED_RENDERER: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+      - name: Format evidence and safe workspace checks
+        run: |
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/performance-format.patch"
+          cargo test --locked -p taiyou-render -p taiyou-types
+      - run: python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            target
+            ${{ runner.temp }}/taiyou-native-sources
+            ${{ runner.temp }}/taiyou-native-install
+          key: performance-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-${{ github.sha }}
+          restore-keys: performance-linux-${{ hashFiles('Cargo.lock', 'build-support/sources.lock.json') }}-
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Existing stage tests and release benchmark
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: |
+          cargo test --locked -p taiyou-render --features native
+          cargo build --release --locked -p taiyou-cli --features native --example performance
+          mkdir -p "$RUNNER_TEMP/performance"
+          git rev-parse HEAD > "$RUNNER_TEMP/performance/commit.txt"
+          rustc -Vv > "$RUNNER_TEMP/performance/rustc.txt"
+          lscpu > "$RUNNER_TEMP/performance/cpu.txt"
+          uname -a > "$RUNNER_TEMP/performance/platform.txt"
+          env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
+          /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/samples.csv"
+          python experiments/performance/summarize.py "$RUNNER_TEMP/performance/samples.csv" "$RUNNER_TEMP/performance/summary.json"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: performance-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/performance/
+            ${{ runner.temp }}/performance-format.patch
+          retention-days: 7

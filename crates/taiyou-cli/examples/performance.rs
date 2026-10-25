@@ -1,0 +1,75 @@
+//! Actions-only performance smoke. No external renderer comparison is implied.
+#[cfg(feature = "native")]
+fn main() {
+    use std::{hint::black_box, sync::Arc, time::Instant};
+    use taiyou_render::renderer::*;
+    let samples: usize = std::env::var("TAIYOU_PERF_SAMPLES")
+        .unwrap_or_else(|_| "31".into()).parse().unwrap();
+    assert!(samples > 0);
+    // Explicit experiment allowance; production defaults are unchanged.
+    let limits = Limits::default().with_transient_bytes(512 * 1024 * 1024).unwrap();
+    let config = RendererConfig { limits: limits.clone().with_cache_bytes(0), ..Default::default() };
+    let mut context = FontContext::with_limits(limits.clone()).unwrap();
+    let mut builder = FontCatalogBuilder::new(limits.clone());
+    builder.register(&mut context, &std::fs::read(std::env::var("TAIYOU_TEST_FONT").unwrap()).unwrap(), 0).unwrap();
+    let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
+    drop(context);
+    let dialogue = "Reusable work, deterministic pixels.";
+    let vector = r"{\p1}m 0 0 b 40 -50 80 90 120 0 b 160 -60 200 80 240 0 l 240 70 0 70{\p0}";
+    let workloads = [
+        ("dialogue", dialogue.to_owned(), 1),
+        ("simultaneous", dialogue.to_owned(), 12),
+        ("vector", vector.repeat(8), 1),
+        ("thick-borders", format!(r"{{\bord14\shad6}}{dialogue}"), 3),
+        ("large-blur", format!(r"{{\bord6\blur12\be1.5}}{dialogue}"), 2),
+        ("karaoke", r"{\kf40}Reusable {\kf60}geometry {\kf80}through time".into(), 1),
+        ("transforms", format!(r"{{\t(0,5000,\frz24\fscx140\blur4)}}{dialogue}"), 2),
+        ("clips", format!(r"{{\clip(m 100 100 l 1800 180 1700 1000 100 900)\bord5}}{dialogue}"), 3),
+        ("paint-animation", format!(r"{{\t(0,5000,\1c&H0040FF&\alpha&H80&)}}{dialogue}"), 3),
+        ("movement", format!(r"{{\move(300,300,1500,800,0,5000)}}{dialogue}"), 2),
+        ("combined-abuse", format!(r"{{\bord10\shad7\blur6\be1.5\frz8\clip(0,0,1900,1050)\t(0,5000,\frz30\fscx130\1c&HFF0080&)}}{vector}{dialogue}"), 8),
+    ];
+    println!("workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,paint_ns,composition_ns,output_bytes");
+    let mut ingestion = TrackIngestor::new();
+    for (name, text, count) in workloads {
+        let mut source = "[Script Info]\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 2\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,48,2,2\n[Events]\nFormat: Layer,Start,End,Text\n".to_owned();
+        for n in 0..count {
+            source.push_str(&format!("Dialogue: {n},0:00:00.00,0:00:10.00,{text}\n"));
+        }
+        let parsed = taiyou_ass::parse_ass(source.as_bytes(), &ParseOptions::new(InputEncoding::Utf8, Profile::CoreV1, limits.clone(), SyntaxPolicy::Strict), &mut ingestion).unwrap();
+        for (width, height) in [(1920,1080), (3840,2160)] {
+            for scenario in ["cold", "same-time", "warm-repeat", "sequence", "seek"] {
+                let mut renderer = Renderer::new(config.clone()).unwrap();
+                renderer.set_timing_enabled(true);
+                let mut request = RenderRequest { now: TimeUs::from_micros(1_000_000), viewport: Viewport::full(Size::new(width,height)).unwrap(), unsupported: UnsupportedPolicy::Strict };
+                // Correctness is strict and outside the timed region.
+                let expected = Renderer::new(config.clone()).unwrap().render(parsed.track().clone(), fonts.clone(), &request).unwrap();
+                let actual = renderer.render(parsed.track().clone(), fonts.clone(), &request).unwrap();
+                assert_eq!(expected.pixels(), actual.pixels(), "profiling changed pixels");
+                assert_eq!(expected.diagnostics(), actual.diagnostics());
+                drop((actual,expected));
+                for sample in 0..samples {
+                    if scenario == "cold" {
+                        renderer = Renderer::new(config.clone()).unwrap();
+                        renderer.set_timing_enabled(true);
+                    }
+                    let now = match scenario {
+                        "sequence" => 1_000_000 + sample as i64 * 16_667,
+                        "seek" => [7_500_000, 100_000, 4_000_000, 1_000_000][sample % 4],
+                        "warm-repeat" => 2_000_000,
+                        _ => 1_000_000,
+                    };
+                    request.now = TimeUs::from_micros(now);
+                    let start = Instant::now();
+                    let frame = renderer.render(parsed.track().clone(), fonts.clone(), &request).unwrap_or_else(|e| panic!("{name} {width} {scenario}: {e:?}"));
+                    let total = start.elapsed().as_nanos();
+                    black_box(frame.pixels());
+                    let t = renderer.last_timings();
+                    println!("{name},{width},{height},{scenario},{sample},1,off,{total},{},{},{},{},{},{},{},{},{},{}", t.evaluation.as_nanos(),t.shaping.as_nanos(),t.layout.as_nanos(),t.collision.as_nanos(),t.geometry.as_nanos(),t.clip.as_nanos(),t.masks.as_nanos(),t.paint.as_nanos(),t.composition.as_nanos(),frame.pixels().len());
+                }
+            }
+        }
+    }
+}
+#[cfg(not(feature = "native"))]
+fn main() { eprintln!("performance requires --features native"); std::process::exit(1); }

@@ -184,6 +184,7 @@ fn prepare_local(
     preparation: &Preparation<'_>,
     held: u64,
     diagnostics: &mut DiagnosticBuffer,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<LocalLayout>, u64), RenderError> {
     #[cfg(test)]
     PREPARE_CALLS.with(|n| n.set(n.get() + 1));
@@ -195,6 +196,7 @@ fn prepare_local(
     } = *preparation;
     let limits = &config.limits;
     let profile = config.profile;
+    let timer = timings.start();
     let eval_charge = crate::evaluate::preflight(event)?;
     let (evaluated, report) = crate::evaluate::evaluate_event_with_policy(
         track,
@@ -206,6 +208,8 @@ fn prepare_local(
     )?;
     diagnostics.extend_finished(&report).map_err(convert)?;
     let stage_held = add(held, eval_charge)?;
+    timings.evaluation += crate::timing::StageTimings::elapsed(timer);
+    let timer = timings.start();
     let shaped = taiyou_font::shape_event(
         ctx,
         fonts,
@@ -233,6 +237,8 @@ fn prepare_local(
         )?,
     )?;
     let stage_held = add(stage_held, shape_charge)?;
+    timings.shaping += crate::timing::StageTimings::elapsed(timer);
+    let timer = timings.start();
     let mut constraints = LayoutConstraints::new(shaped.placement().alignment())
         .with_wrap(evaluated.wrap_mode())
         .with_metric_scale_x(
@@ -255,6 +261,7 @@ fn prepare_local(
     )?;
     let stage_held = add(stage_held, layout_charge)?;
     available(limits, stage_held)?;
+    timings.layout += crate::timing::StageTimings::elapsed(timer);
     Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
 }
 #[cfg(feature = "native")]
@@ -386,6 +393,7 @@ fn transition_placement(
 /// faces migrate with it. Completed frames retain the C7 origin-budget lease.
 pub struct Renderer {
     config: RendererConfig,
+    timings: crate::timing::StageTimings,
     output: OutputBudget,
     #[cfg(feature = "native")]
     attachment_catalogs: CatalogIngestor,
@@ -406,6 +414,7 @@ impl Renderer {
         let output = OutputBudget::new(&config.limits);
         Ok(Self {
             config,
+            timings: Default::default(),
             output,
             #[cfg(feature = "native")]
             attachment_catalogs: CatalogIngestor::new(),
@@ -416,6 +425,13 @@ impl Renderer {
     }
     pub fn config(&self) -> &RendererConfig {
         &self.config
+    }
+    /// Enable observational timing. Disabled by default; no scheduling uses it.
+    pub fn set_timing_enabled(&mut self, enabled: bool) {
+        self.timings.enabled = enabled;
+    }
+    pub fn last_timings(&self) -> &crate::timing::StageTimings {
+        &self.timings
     }
     pub fn retained_output_bytes(&self) -> u64 {
         self.output.retained_bytes()
@@ -517,6 +533,11 @@ impl Renderer {
         fonts: Arc<ValidatedFontCatalog>,
         request: &RenderRequest,
     ) -> Result<Frame, RenderError> {
+        self.timings = crate::timing::StageTimings {
+            enabled: self.timings.enabled,
+            ..Default::default()
+        };
+        let timer = self.timings.start();
         let mut optional_used = false;
         let result = self.render_staged(
             track.clone(),
@@ -534,8 +555,11 @@ impl Renderer {
                 .as_ref()
                 .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
         {
-            return self.render_staged(track, fonts, request, false, &mut false);
+            let result = self.render_staged(track, fonts, request, false, &mut false);
+            self.timings.total = crate::timing::StageTimings::elapsed(timer);
+            return result;
         }
+        self.timings.total = crate::timing::StageTimings::elapsed(timer);
         result
     }
 
@@ -674,7 +698,7 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report);
+                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report, &mut self.timings);
                 if result
                     .as_ref()
                     .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
@@ -695,7 +719,7 @@ impl Renderer {
                         report = DiagnosticBuffer::new();
                         // If freeing optional state cannot help, preserve the
                         // original typed error for the existing minimal fallback.
-                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report)
+                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report, &mut self.timings)
                             .or(result);
                     }
                 }
@@ -705,6 +729,7 @@ impl Renderer {
                     e.with_context(id, span)
                 })?;
                 let placement = local.shaped().placement();
+                let timer = self.timings.start();
                 inputs.push(CollisionInput {
                     id: event.id(),
                     layer: event.layer(),
@@ -720,6 +745,7 @@ impl Renderer {
                     )?,
                     eligible: true,
                 });
+                self.timings.collision += crate::timing::StageTimings::elapsed(timer);
                 if admitting {
                     let report = report.finish().map_err(convert)?;
                     let report_charge =
@@ -756,8 +782,10 @@ impl Renderer {
                     }
                 }
             }
+            let timer = self.timings.start();
             let placed =
                 resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
+            self.timings.collision += crate::timing::StageTimings::elapsed(timer);
             held = add(held, bytes::<PlacedEvent>(collision_count)?)?;
             drop(inputs);
             held = held.checked_sub(input_charge).ok_or_else(limited)?;
@@ -799,7 +827,7 @@ impl Renderer {
                     // diagnostic reservation owns the merged records now.
                     (saved.local, saved.local_charge)
                 } else {
-                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics, &mut self.timings)?
                 };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
@@ -850,6 +878,7 @@ impl Renderer {
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
                 let origin = state.ass_origin(sx, sy)?;
+                let timer = self.timings.start();
                 let placed = Arc::new(geometry(
                     &mut ctx,
                     &fonts,
@@ -861,6 +890,7 @@ impl Renderer {
                     },
                     &geom_limits,
                 )?);
+                self.timings.geometry += crate::timing::StageTimings::elapsed(timer);
                 let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?
                     .checked_add(bytes::<crate::geometry::GeometryItem>(
                         placed.items().len(),
@@ -885,6 +915,7 @@ impl Renderer {
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
+                let timer = self.timings.start();
                 let (mut event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
                     placed.layout().shaped().evaluated().ass_clip(),
                     device,
@@ -908,6 +939,8 @@ impl Renderer {
                 if let Some(mask) = clip_mask {
                     charge_mask(&mask, &mut held, event_charge, limits)?;
                 }
+                self.timings.clip += crate::timing::StageTimings::elapsed(timer);
+                let timer = self.timings.start();
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -1332,6 +1365,8 @@ impl Renderer {
                         shadow_paint: state.paint().shadow(),
                     });
                 }
+                self.timings.masks += crate::timing::StageTimings::elapsed(timer);
+                let timer = self.timings.start();
                 // C5 keeps pass order across every compatible group in this
                 // event; per-group shadow/border/fill triplets are forbidden.
                 for selector in [0_u16, 1, 2] {
@@ -1409,6 +1444,7 @@ impl Renderer {
                         )?;
                     }
                 }
+                self.timings.paint += crate::timing::StageTimings::elapsed(timer);
                 held = held.checked_sub(local_charge).ok_or_else(limited)?;
                 Ok(())
             })();
@@ -1422,13 +1458,16 @@ impl Renderer {
         *optional_used = false;
         held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
         available(limits, held)?;
-        compose(
+        let timer = self.timings.start();
+        let frame = compose(
             request.viewport.size(),
             &operations,
             limits,
             &mut self.output,
         )?
-        .with_diagnostics(diagnostics)
+        .with_diagnostics(diagnostics);
+        self.timings.composition += crate::timing::StageTimings::elapsed(timer);
+        frame
     }
 }
 
