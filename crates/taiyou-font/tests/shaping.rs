@@ -148,7 +148,8 @@ fn reference(id: &str) -> Expected {
     panic!("missing independently produced provisional reference {id}")
 }
 fn assert_reference(run: &ShapedRun, id: &str, size: f64) {
-    let ass_id = if run.script() == u32::from_be_bytes(*b"Latn") && id != "ff-spacing" {
+    let latin = run.script() == u32::from_be_bytes(*b"Latn");
+    let ass_id = if latin && !matches!(id, "ff-spacing" | "spacing") {
         format!("{id}-xy")
     } else {
         id.to_owned()
@@ -375,6 +376,13 @@ fn shaping_noncontiguous_ligature_and_combining_paint_provenance() {
                     .original_ranges(&limits())
                     .unwrap(),
                 [b]
+            );
+            assert_eq!(
+                result
+                    .paint_for(result.runs()[0].glyphs()[1].cluster())
+                    .unwrap()
+                    .primary(),
+                Rgba8::new(255, 0, 0, 255)
             );
         } else {
             assert_eq!(glyph.cluster().original_ranges(&limits()).unwrap(), [a, b]);

@@ -151,6 +151,7 @@ def main():
     for relative, sizes, chars in [
         ("regression/blurs/Aileron-Regular.otf", [100], "+·¶"),
         ("regression/v4++/DejaVuSans.ttf", [30, 35, 42, 60], "KaraokeW"),
+        ("regression/karaoke/Arimo-Bold.ttf", [95], "Sowecanfidury"),
         (str(authored), [16], "ABCDEFGH"),
     ]:
         filename = corpus / relative
@@ -165,7 +166,8 @@ def main():
         assert dc and background(dc, 1) and align(dc, 24) != 0xFFFFFFFF
         try:
             for size in sizes:
-                hfont = create(size * 64, 0, 0, 0, 400, 0, 0, 0, 1, 4, 0, 4, 0, family)
+                weight = font["OS/2"].usWeightClass
+                hfont = create(size * 64, 0, 0, 0, weight, 0, 0, 0, 1, 4, 0, 4, 0, family)
                 assert hfont
                 previous = select(dc, hfont)
                 try:

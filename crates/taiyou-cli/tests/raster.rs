@@ -221,8 +221,14 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
                     .len(),
                 1
             );
-            let left = event.glyphs()[0].cluster.original_ranges(&limits()).unwrap();
-            let right = event.glyphs()[1].cluster.original_ranges(&limits()).unwrap();
+            let left = event.glyphs()[0]
+                .cluster
+                .original_ranges(&limits())
+                .unwrap();
+            let right = event.glyphs()[1]
+                .cluster
+                .original_ranges(&limits())
+                .unwrap();
             assert_eq!(right.len(), 1);
             assert!(left[0].end() < right[0].start());
         }

@@ -184,6 +184,34 @@ fn explicit_layout(
                 line.baseline()
             );
         }
+        if let Some(glyph) = shaped.runs().first().and_then(|run| run.glyphs().first()) {
+            let state = evaluated.runs()[0].shaping();
+            let cell = FiniteF64::new(state.font_size().get() * scale[1])?;
+            let native_scale = catalog.admitted_outline_scale(
+                glyph.font(),
+                glyph.font(),
+                glyph.cluster().text(),
+                cell,
+                state.font(),
+                false,
+            )?;
+            let outline = catalog.ass_outline(
+                &mut context,
+                glyph.font(),
+                glyph.glyph(),
+                native_scale,
+                &limits,
+            )?;
+            println!(
+                "EXPLICIT_NATIVE_GLYPH text={:?} glyph={} scale={}",
+                glyph.cluster().text(),
+                glyph.glyph(),
+                native_scale.get()
+            );
+            for op in outline.outline().ops() {
+                println!("EXPLICIT_NATIVE_OP {op:?}");
+            }
+        }
     }
     Ok(())
 }

@@ -5,10 +5,8 @@ use taiyou_render::{
 };
 #[test]
 fn layout_pipeline_scale_boundaries_preserve_context_and_paint_boundaries_coalesce() {
-    for (text, run_count, second_scale) in [
-        ("f{\\fscx200}f", 2, 2.0),
-        ("f{\\c&HFF0000&}f", 1, 1.0),
-    ] {
+    for (text, run_count, second_scale) in [("f{\\fscx200}f", 2, 2.0), ("f{\\c&HFF0000&}f", 1, 1.0)]
+    {
         let input = format!(
             "[Script Info]\nWrapStyle: 2\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Alignment\nStyle: Default,Source Sans 3,20,7\n[Events]\nFormat: Start,End,Text\nDialogue: 0:00:00.00,0:00:01.00,{text}"
         );

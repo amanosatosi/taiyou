@@ -577,3 +577,32 @@ zero-area and one token-parsing frame. Phase tomography confirms all sampled
 ellipse rows except the half-pixel circle's diagonal transition: native
 widths[4,4,4,3,1], candidate[4,4,3,3,1]. This remaining boundary rule is explicit,
 not hidden by tolerances or a fixture exception. MUA brackets remain a guard.
+
+The next SSA motion investigation isolates motion from text with six authored
+font-free banner/scroll controls at600/1600/2600/3960/4960/5960 ms. All six
+match actual xy exactly; delay, direction, visibility and interpolation need
+no correction on this evidence. Native GDI measurements instead expose two
+text rules: glyph extents first round to28.4 device units and then native
+integer units; TextOut's glyph cursor sums those integer extents, while xy's
+layout retains separately rounded eighth-pixel word widths. The portable core
+now reproduces these conversions without mutating HarfBuzz's owned advances.
+At43f95c4 the full oracle measures25 same /17 good /57 bad /3 xy-side errors,
+preserving all25 exact guards. Banner residuals fall2081 to60 and1049 to37;
+scroll frames fall roughly15900–16200 to3294–3541. Only384 differing pixels in
+the1600-ms frame belong to moving text; most remaining error belongs to the
+static label, whose spelling contains ff rather than the banner's single f.
+
+GDI TextOut/GetTextExtent observations of DejaVu Sans at30/60 cell pixels
+distinguish optional Latin ligatures from complex-script shaping. The label's
+unligated extents and separate-character native paths explain the next
+correction: disable optional Latin liga/clig, retaining required GSUB, marks,
+cluster fallback and non-Latin shaping. Libass ass_shaper.c:set_run_features
+enables these optional features with zero spacing; this is a measured xy/libass
+behavioral difference. The independent C/HarfBuzz helper retains every original
+native GSUB observation and frozen check, and adds unligated Latin observations
+separately. Helper changes alone do not establish a direct-xy improvement.
+The authenticated full run at5282236 retains25/17/57/3 and all25 exact guards;
+the four scroll residuals become432/432/427/431. Their large alternating error
+was text realization, not a delay or motion-state defect. The three desync
+karaoke frames improve6040/6040/6059 to2273/2273/2313 after integer ink advances;
+their remaining edge/coverage differences require separate native-path evidence.
