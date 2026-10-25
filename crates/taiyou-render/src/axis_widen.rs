@@ -34,32 +34,61 @@ fn vertical_bands(
     arc_bytes: u64,
     limits: &Limits,
 ) -> Option<(Vec<VerticalBand>, u64)> {
-    if spans.len()<2 || arc.len()<2 || !arc.windows(2).all(|w|w[0]>=w[1]) { return None; }
-    let planned=(spans.len() as u64).checked_mul(3*std::mem::size_of::<VerticalBand>() as u64)?.checked_add(source_bytes)?;
-    if planned>limits.transient_bytes() { return None; }
-    let mut bands:Vec<VerticalBand>=Vec::new();
+    if spans.len() < 2 || arc.len() < 2 || !arc.windows(2).all(|w| w[0] >= w[1]) {
+        return None;
+    }
+    let planned = (spans.len() as u64)
+        .checked_mul(3 * std::mem::size_of::<VerticalBand>() as u64)?
+        .checked_add(source_bytes)?;
+    if planned > limits.transient_bytes() {
+        return None;
+    }
+    let mut bands: Vec<VerticalBand> = Vec::new();
     bands.try_reserve_exact(spans.len()).ok()?;
-    let band_bytes=(bands.capacity() as u64).checked_mul(std::mem::size_of::<VerticalBand>() as u64)?;
-    let build_peak=band_bytes.checked_mul(3)?.checked_add(source_bytes)?;
-    if build_peak>limits.transient_bytes() { return None; }
-    spans.sort_unstable_by_key(|s|(s.left,s.right,s.y));
+    let band_bytes =
+        (bands.capacity() as u64).checked_mul(std::mem::size_of::<VerticalBand>() as u64)?;
+    let build_peak = band_bytes.checked_mul(3)?.checked_add(source_bytes)?;
+    if build_peak > limits.transient_bytes() {
+        return None;
+    }
+    spans.sort_unstable_by_key(|s| (s.left, s.right, s.y));
     for s in spans.iter() {
-        if let Some(last)=bands.last_mut().filter(|b|b.left==s.left && b.right==s.right && s.y<=b.last_y+1) {
-            last.last_y=last.last_y.max(s.y);
+        if let Some(last) = bands
+            .last_mut()
+            .filter(|b| b.left == s.left && b.right == s.right && s.y <= b.last_y + 1)
+        {
+            last.last_y = last.last_y.max(s.y);
         } else {
-            bands.push(VerticalBand { first_y:s.y,last_y:s.y,left:s.left,right:s.right });
+            bands.push(VerticalBand {
+                first_y: s.y,
+                last_y: s.y,
+                left: s.left,
+                right: s.right,
+            });
         }
     }
-    if bands.len()==spans.len() { return None; }
-    let ry=(arc.len()-1) as u64;
-    let generated=bands.iter().try_fold(0_u64,|n,b|n.checked_add((b.last_y-b.first_y+1) as u64)?.checked_add(2*ry))?;
-    let original=(spans.len() as u64).checked_mul(2*ry+1)?;
+    if bands.len() == spans.len() {
+        return None;
+    }
+    let ry = (arc.len() - 1) as u64;
+    let generated = bands.iter().try_fold(0_u64, |n, b| {
+        n.checked_add((b.last_y - b.first_y + 1) as u64)?
+            .checked_add(2 * ry)
+    })?;
+    let original = (spans.len() as u64).checked_mul(2 * ry + 1)?;
     // Never make an originally successful widening fail by choosing larger
     // optional scratch. Final mask size is unchanged and wide capacity shrinks.
-    let new_peak=generated.checked_mul(3*std::mem::size_of::<Span>() as u64)?.checked_add(band_bytes)?.checked_add(arc_bytes)?;
-    let old_peak=original.checked_mul(3*std::mem::size_of::<Span>() as u64)?.checked_add(source_bytes)?;
-    if new_peak>old_peak { return None; }
-    Some((bands,build_peak))
+    let new_peak = generated
+        .checked_mul(3 * std::mem::size_of::<Span>() as u64)?
+        .checked_add(band_bytes)?
+        .checked_add(arc_bytes)?;
+    let old_peak = original
+        .checked_mul(3 * std::mem::size_of::<Span>() as u64)?
+        .checked_add(source_bytes)?;
+    if new_peak > old_peak {
+        return None;
+    }
+    Some((bands, build_peak))
 }
 fn limit() -> RenderError {
     RenderError::new(ErrorCode::LimitExceeded, "single-axis span widening budget")
@@ -431,22 +460,48 @@ fn rasterize_impl(
     let span_bytes = span_bytes
         .checked_add(arc.capacity() as u64 * std::mem::size_of::<i64>() as u64)
         .ok_or_else(limit)?;
-    if let Some(t)=timings.as_mut() {
-        t.span_rows=t.span_rows.saturating_add(spans.len() as u64);
-        t.expanded_candidates_without_reuse=t.expanded_candidates_without_reuse.saturating_add((spans.len() as u64).saturating_mul((2*ry+1) as u64));
+    if let Some(t) = timings.as_mut() {
+        t.span_rows = t.span_rows.saturating_add(spans.len() as u64);
+        t.expanded_candidates_without_reuse = t
+            .expanded_candidates_without_reuse
+            .saturating_add((spans.len() as u64).saturating_mul((2 * ry + 1) as u64));
     }
-    let bands=vertical_bands(&mut spans,&arc,span_bytes,arc.capacity() as u64*std::mem::size_of::<i64>() as u64,limits);
-    let mut producer_bytes=span_bytes;
-    if let Some((bands,build_peak))=bands {
-        if let Some(t)=timings.as_mut() { t.raster_peak(build_peak,count); }
-        producer_bytes=bands.capacity() as u64*std::mem::size_of::<VerticalBand>() as u64+arc.capacity() as u64*std::mem::size_of::<i64>() as u64;
+    let bands = vertical_bands(
+        &mut spans,
+        &arc,
+        span_bytes,
+        arc.capacity() as u64 * std::mem::size_of::<i64>() as u64,
+        limits,
+    );
+    let mut producer_bytes = span_bytes;
+    if let Some((bands, build_peak)) = bands {
+        if let Some(t) = timings.as_mut() {
+            t.raster_peak(build_peak, count);
+        }
+        producer_bytes = bands.capacity() as u64 * std::mem::size_of::<VerticalBand>() as u64
+            + arc.capacity() as u64 * std::mem::size_of::<i64>() as u64;
         drop(spans);
         for band in &bands {
-            for y in band.first_y-ry..=band.last_y+ry {
-                if wide.len() as u64>=remaining { return Err(limit()); }
-                let distance=if y<band.first_y { band.first_y-y } else { (y-band.last_y).max(0) };
-                let width=arc[distance as usize];
-                push(&mut wide,Span { y,left:band.left-width,right:band.right+width },producer_bytes,limits)?;
+            for y in band.first_y - ry..=band.last_y + ry {
+                if wide.len() as u64 >= remaining {
+                    return Err(limit());
+                }
+                let distance = if y < band.first_y {
+                    band.first_y - y
+                } else {
+                    (y - band.last_y).max(0)
+                };
+                let width = arc[distance as usize];
+                push(
+                    &mut wide,
+                    Span {
+                        y,
+                        left: band.left - width,
+                        right: band.right + width,
+                    },
+                    producer_bytes,
+                    limits,
+                )?;
             }
         }
     } else {
@@ -470,7 +525,7 @@ fn rasterize_impl(
         drop(spans);
     }
     if let Some(t) = timings.as_mut() {
-        t.expanded_candidates=t.expanded_candidates.saturating_add(wide.len() as u64);
+        t.expanded_candidates = t.expanded_candidates.saturating_add(wide.len() as u64);
         t.raster_peak(
             producer_bytes.saturating_add(
                 (wide.len() as u64).saturating_mul(3 * std::mem::size_of::<Span>() as u64),
@@ -648,52 +703,104 @@ mod tests {
     #[test]
     fn repeated_row_reuse_preserves_original_discrete_union() {
         use std::collections::BTreeSet;
-        fn cells(spans:&[Span])->BTreeSet<(i64,i64)> {
-            spans.iter().flat_map(|s|(s.left..s.right).map(move|x|(s.y,x))).collect()
+        fn cells(spans: &[Span]) -> BTreeSet<(i64, i64)> {
+            spans
+                .iter()
+                .flat_map(|s| (s.left..s.right).map(move |x| (s.y, x)))
+                .collect()
         }
-        let mut reused=0;
+        let mut reused = 0;
         for seed in 0..8_i64 {
-            for (rx,ry) in [(0,0),(0,4),(4,0),(1,1),(3,4),(8,4),(4,8)] {
-                let mut source=Vec::new();
+            for (rx, ry) in [(0, 0), (0, 4), (4, 0), (1, 1), (3, 4), (8, 4), (4, 8)] {
+                let mut source = Vec::new();
                 for y in -24_i64..32 {
                     for part in 0..3 {
-                        let left=part*12+(y+seed).div_euclid(1+seed%5).rem_euclid(3);
-                        source.push(Span { y,left,right:left+5+y.div_euclid(10).rem_euclid(2) });
+                        let left = part * 12 + (y + seed).div_euclid(1 + seed % 5).rem_euclid(3);
+                        source.push(Span {
+                            y,
+                            left,
+                            right: left + 5 + y.div_euclid(10).rem_euclid(2),
+                        });
                     }
                 }
-                let arc:Vec<_>=(0..=ry).map(|y|ellipse_width(rx,ry,y)).collect();
+                let arc: Vec<_> = (0..=ry).map(|y| ellipse_width(rx, ry, y)).collect();
                 // Original producer: one ellipse expansion for every input row.
-                let mut reference=Vec::new();
+                let mut reference = Vec::new();
                 for s in &source {
-                    for y in s.y-ry..=s.y+ry {
-                        let w=arc[(y-s.y).unsigned_abs() as usize];
-                        reference.push(Span { y,left:s.left-w,right:s.right+w });
+                    for y in s.y - ry..=s.y + ry {
+                        let w = arc[(y - s.y).unsigned_abs() as usize];
+                        reference.push(Span {
+                            y,
+                            left: s.left - w,
+                            right: s.right + w,
+                        });
                     }
                 }
-                let source_bytes=source.capacity() as u64*std::mem::size_of::<Span>() as u64+arc.capacity() as u64*8;
-                let bands=vertical_bands(&mut source,&arc,source_bytes,arc.capacity() as u64*8,&Limits::default());
-                if let Some((bands,_))=bands {
-                    reused+=1;
-                    let mut actual=Vec::new();
+                let source_bytes = source.capacity() as u64 * std::mem::size_of::<Span>() as u64
+                    + arc.capacity() as u64 * 8;
+                let bands = vertical_bands(
+                    &mut source,
+                    &arc,
+                    source_bytes,
+                    arc.capacity() as u64 * 8,
+                    &Limits::default(),
+                );
+                if let Some((bands, _)) = bands {
+                    reused += 1;
+                    let mut actual = Vec::new();
                     for b in bands {
-                        for y in b.first_y-ry..=b.last_y+ry {
-                            let distance=if y<b.first_y { b.first_y-y } else if y>b.last_y { y-b.last_y } else { 0 };
-                            let w=arc[distance as usize];
-                            actual.push(Span { y,left:b.left-w,right:b.right+w });
+                        for y in b.first_y - ry..=b.last_y + ry {
+                            let distance = if y < b.first_y {
+                                b.first_y - y
+                            } else if y > b.last_y {
+                                y - b.last_y
+                            } else {
+                                0
+                            };
+                            let w = arc[distance as usize];
+                            actual.push(Span {
+                                y,
+                                left: b.left - w,
+                                right: b.right + w,
+                            });
                         }
                     }
-                    assert!(actual.len()<reference.len());
-                    assert_eq!(cells(&reference),cells(&actual),"seed={seed}, radius={rx}/{ry}");
+                    assert!(actual.len() < reference.len());
+                    assert_eq!(
+                        cells(&reference),
+                        cells(&actual),
+                        "seed={seed}, radius={rx}/{ry}"
+                    );
                 }
             }
         }
-        assert!(reused>0);
+        assert!(reused > 0);
     }
     #[test]
     fn optional_band_scratch_and_nonmonotone_kernel_bypass() {
-        let mut spans=vec![Span { y:0,left:0,right:3 },Span { y:1,left:0,right:3 }];
-        assert!(vertical_bands(&mut spans,&[3,2,1],128,24,&Limits::default().with_transient_bytes(1).unwrap()).is_none());
-        assert!(vertical_bands(&mut spans,&[3,1,2],128,24,&Limits::default()).is_none());
+        let mut spans = vec![
+            Span {
+                y: 0,
+                left: 0,
+                right: 3,
+            },
+            Span {
+                y: 1,
+                left: 0,
+                right: 3,
+            },
+        ];
+        assert!(
+            vertical_bands(
+                &mut spans,
+                &[3, 2, 1],
+                128,
+                24,
+                &Limits::default().with_transient_bytes(1).unwrap()
+            )
+            .is_none()
+        );
+        assert!(vertical_bands(&mut spans, &[3, 1, 2], 128, 24, &Limits::default()).is_none());
     }
     #[test]
     fn discrete_ellipse_retains_dominant_axis_boundary_cells() {

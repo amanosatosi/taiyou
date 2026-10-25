@@ -231,7 +231,9 @@ fn main() {
                         c.evictions,
                         c.entries,
                         c.retained_bytes,
-                        t.span_rows,t.expanded_candidates,t.expanded_candidates_without_reuse
+                        t.span_rows,
+                        t.expanded_candidates,
+                        t.expanded_candidates_without_reuse
                     );
                 }
             }

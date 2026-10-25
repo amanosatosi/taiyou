@@ -51,9 +51,13 @@ impl StageTimings {
         self.border_expansion += other.border_expansion;
         self.span_union += other.span_union;
         self.mask_generation += other.mask_generation;
-        self.span_rows=self.span_rows.saturating_add(other.span_rows);
-        self.expanded_candidates=self.expanded_candidates.saturating_add(other.expanded_candidates);
-        self.expanded_candidates_without_reuse=self.expanded_candidates_without_reuse.saturating_add(other.expanded_candidates_without_reuse);
+        self.span_rows = self.span_rows.saturating_add(other.span_rows);
+        self.expanded_candidates = self
+            .expanded_candidates
+            .saturating_add(other.expanded_candidates);
+        self.expanded_candidates_without_reuse = self
+            .expanded_candidates_without_reuse
+            .saturating_add(other.expanded_candidates_without_reuse);
         self.raster_peak(other.raster_peak_bytes, other.raster_required_work);
     }
 }

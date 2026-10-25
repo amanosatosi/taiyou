@@ -32,6 +32,15 @@ input bytes, units, positions and parameters and retain low-memory failure check
 Cross-platform exact-head validation remains pending formatting application; this
 is the tested Linux cached single-worker reference, not a merge acceptance claim.
 
+Checkpoint update: formatting-only successor `9cce24c9c07cfcc499b74af07339717c836d82da`
+passes the complete [Windows/Linux/macOS platform run](https://github.com/amanosatosi/taiyou/actions/runs/40243299366)
+and Platform gate, including the existing Linux MSRV and native ASan/UBSan lane.
+Its [full external comparison](https://github.com/amanosatosi/taiyou/actions/runs/40243299388)
+has exactly the same 101 actual Taiyou raw digests as `9fc4b57`: zero changed
+outputs. That independent oracle still reports one exact visual match and 100
+pixel mismatches, with zero visual unsupported/crash/infrastructure cases; two
+successful parser probes and one upstream-disabled source remain separate.
+
 Combined 4K warm composition is 163.12 ms out of 186.97 ms; changing-frame span
 union is still 385.90 ms, expansion 64.98 ms. A narrow duplicate-span work reduction
 is justified before parallel execution. No production budget is increased. The
