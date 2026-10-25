@@ -1,5 +1,5 @@
-//! Degenerate xy ellipse: union nonzero-winding eighth-pixel spans along one
-//! axis, before coverage accumulation. No A8 maximum filter or epsilon radius.
+//! Union nonzero-winding eighth-pixel spans with a discrete ellipse before
+//! coverage accumulation. No A8 maximum filter or vector contour offset.
 //! Behavioural reference: Rasterizer.cpp ScanLineData and CreateWidenedRegion;
 //! xy_widen_region.cpp gen_left_arc's rx==0 branch.
 use std::sync::Arc;
@@ -111,6 +111,39 @@ fn curve(
     // endpoint, as for every other path segment. pinterf's _EvaluateLine also
     // reconnects its last emitted point to the next segment's exact start.
     line(prev, p[3], edges, limits)
+}
+
+// A grid ellipse includes the nearest boundary cells in both dominant-axis
+// directions. Solve the two half-cell squared-distance inequalities directly,
+// rather than accumulating a floating-point angle or translating a native
+// contour-walking implementation. The quarter-cell term resolves the diagonal
+// transition; simply rounding sqrt(a*a*(1-y*y/(b*b))) loses those cells.
+fn ellipse_width(rx: i64, ry: i64, y: i64) -> i64 {
+    if ry == 0 || rx == 0 {
+        return rx;
+    }
+    let (a, b, y) = (i128::from(rx), i128::from(ry), i128::from(y));
+    let (aa, bb) = (a * a, b * b);
+    let largest = |vertical: bool| {
+        let fits = |x: i128| {
+            if vertical {
+                4 * x * x * bb + (4 * y * y - 4 * y + 2) * aa <= 4 * aa * bb
+            } else {
+                ((2 * x - 1).pow(2) + 1) * bb + 4 * y * y * aa <= 4 * aa * bb
+            }
+        };
+        let (mut lo, mut hi) = (0, a + 1);
+        while lo + 1 < hi {
+            let mid = (lo + hi) / 2;
+            if fits(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        lo as i64
+    };
+    largest(false).max(largest(true))
 }
 pub(crate) fn rasterize(
     ops: &[PathOp<DevicePoint>],
@@ -272,8 +305,15 @@ fn rasterize_impl(
     drop(edges);
     let rx = (i64::from(rx.ticks()) + 4).div_euclid(8);
     let ry = (i64::from(ry.ticks()) + 4).div_euclid(8);
-    let mut wide = Vec::new();
+    let mut arc = Vec::new();
     let span_bytes = spans.capacity() as u64 * std::mem::size_of::<Span>() as u64;
+    for y in 0..=ry {
+        push(&mut arc, ellipse_width(rx, ry, y), span_bytes, limits)?;
+    }
+    let mut wide = Vec::new();
+    let span_bytes = span_bytes
+        .checked_add(arc.capacity() as u64 * std::mem::size_of::<i64>() as u64)
+        .ok_or_else(limit)?;
     for s in &spans {
         for y in s.y - ry..=s.y + ry {
             if wide.len() as u64 >= remaining {
@@ -283,8 +323,8 @@ fn rasterize_impl(
                 &mut wide,
                 Span {
                     y,
-                    left: s.left - rx,
-                    right: s.right + rx,
+                    left: s.left - arc[(y - s.y).unsigned_abs() as usize],
+                    right: s.right + arc[(y - s.y).unsigned_abs() as usize],
                 },
                 span_bytes,
                 limits,
@@ -292,6 +332,7 @@ fn rasterize_impl(
         }
     }
     drop(spans);
+    drop(arc);
     wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
     let mut out = 0;
     for i in 0..wide.len() {
@@ -396,6 +437,24 @@ fn rasterize_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn discrete_ellipse_retains_dominant_axis_boundary_cells() {
+        assert_eq!(
+            (0..=2).map(|y| ellipse_width(2, 2, y)).collect::<Vec<_>>(),
+            [2, 2, 1]
+        );
+        assert_eq!(
+            (0..=4).map(|y| ellipse_width(4, 4, y)).collect::<Vec<_>>(),
+            [4, 4, 3, 3, 1]
+        );
+        for rx in 0..=32 {
+            for ry in 0..=32 {
+                let widths: Vec<_> = (0..=ry).map(|y| ellipse_width(rx, ry, y)).collect();
+                assert!(widths.iter().all(|&x| (0..=rx).contains(&x)));
+                assert!(widths.windows(2).all(|pair| pair[0] >= pair[1]));
+            }
+        }
+    }
     #[test]
     fn xy_cubic_flattening_is_independent_of_integral_viewport_translation() {
         let limits = Limits::default();

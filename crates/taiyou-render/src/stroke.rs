@@ -158,8 +158,8 @@ pub fn rasterize_expanded_axes(
     }
     context.stroke_rasterize_path_axes(&ops, rx, ry, remaining)
 }
-/// Use the same round-stroker contours, with historical scan coverage instead
-/// of analytically rasterizing them into A8 before integer filtering.
+/// Widen the common scan-converted spans before coverage accumulation, retaining
+/// the discrete ellipse's grid decisions and intersections between contours.
 #[cfg(feature = "native")]
 #[allow(clippy::too_many_arguments)]
 pub fn rasterize_expanded_axes_xy(
@@ -173,32 +173,23 @@ pub fn rasterize_expanded_axes_xy(
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
     let ops = coverage_path(group, dx, dy, context.limits())?;
-    if rx != ry && (rx.ticks() == 0 || ry.ticks() == 0) {
-        let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
-        let available = context
-            .limits()
-            .transient_bytes()
-            .checked_sub(charge)
-            .filter(|&n| n > 0)
-            .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-        return crate::axis_widen::rasterize_axis_xy(
-            &ops,
-            rx,
-            ry,
-            remaining,
-            &context
-                .limits()
-                .clone()
-                .with_transient_bytes(available)
-                .map_err(|_| limited())?,
-        );
-    }
-    context.stroke_rasterize_path_axes_with_coverage(
+    let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
+    let available = context
+        .limits()
+        .transient_bytes()
+        .checked_sub(charge)
+        .filter(|&n| n > 0)
+        .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
+    crate::axis_widen::rasterize_axis_xy(
         &ops,
         rx,
         ry,
         remaining,
-        crate::axis_widen::rasterize_body,
+        &context
+            .limits()
+            .clone()
+            .with_transient_bytes(available)
+            .map_err(|_| limited())?,
     )
 }
 
