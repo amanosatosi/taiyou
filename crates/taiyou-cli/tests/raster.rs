@@ -123,7 +123,10 @@ fn compacted_text_keeps_continuous_ink_and_separate_layout_extents() {
         rounded_layout_differs,
         "fixture must expose independent word extent rounding"
     );
-    assert!(native_differs, "fixture must expose native glyph measurement");
+    assert!(
+        native_differs,
+        "fixture must expose native glyph measurement"
+    );
 }
 
 #[test]

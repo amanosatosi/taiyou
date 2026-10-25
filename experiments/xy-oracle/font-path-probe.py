@@ -233,6 +233,10 @@ def main():
                                 cursor += len(points)
                             assert cursor == len(complete)
                             rows[-1]["ssa_ink_pens"] = pens
+                            rows[-1]["latin_ligature_paths"] = [
+                                {"text": value, "textout_points": len(fine_path(value)),
+                                 "separate_points": sum(len(fine_path(c)) for c in value)}
+                                for value in ("Effect:", "office", "ff", "fi", "fl")]
                 finally:
                     select(dc, previous)
                     delete(hfont)
