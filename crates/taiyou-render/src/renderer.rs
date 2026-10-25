@@ -67,9 +67,12 @@ fn filter_mask(
     held: &mut u64,
     event_charge: u64,
     limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<Arc<Mask>, RenderError> {
+    let timer = timings.start();
     let filtered =
         crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+    timings.effects += crate::timing::StageTimings::elapsed(timer);
     if !Arc::ptr_eq(&mask, &filtered) {
         charge_mask(&filtered, held, event_charge, limits)?;
         let old = (mask.data().len() as u64)
@@ -698,7 +701,14 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report, &mut self.timings);
+                let mut result = prepare_local(
+                    &mut ctx,
+                    event,
+                    &preparation,
+                    held,
+                    &mut report,
+                    &mut self.timings,
+                );
                 if result
                     .as_ref()
                     .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
@@ -719,8 +729,15 @@ impl Renderer {
                         report = DiagnosticBuffer::new();
                         // If freeing optional state cannot help, preserve the
                         // original typed error for the existing minimal fallback.
-                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report, &mut self.timings)
-                            .or(result);
+                        result = prepare_local(
+                            &mut ctx,
+                            event,
+                            &preparation,
+                            held,
+                            &mut report,
+                            &mut self.timings,
+                        )
+                        .or(result);
                     }
                 }
                 let (local, local_charge) = result.map_err(|e| {
@@ -827,7 +844,14 @@ impl Renderer {
                     // diagnostic reservation owns the merged records now.
                     (saved.local, saved.local_charge)
                 } else {
-                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics, &mut self.timings)?
+                    prepare_local(
+                        &mut ctx,
+                        event,
+                        &preparation,
+                        held,
+                        &mut diagnostics,
+                        &mut self.timings,
+                    )?
                 };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
@@ -1051,7 +1075,7 @@ impl Renderer {
                         None
                     };
                     if opaque || !border_exists {
-                        fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
+                        fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
                     let mut border = if let Some(boxes) = box_group.as_ref() {
@@ -1062,7 +1086,7 @@ impl Renderer {
                         let mask = rasterize_xy(&mut raster, boxes)?;
                         drop(raster);
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
                         expanded = Some(mask.clone());
                         if box_outline && state.paint().outline().a() != 0 {
                             Some(mask)
@@ -1090,7 +1114,7 @@ impl Renderer {
                         drop(stroke_context);
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?;
                         // RTS.cpp's outline fBody flag and libass's
                         // FILTER_FILL_IN_BORDER retain E under opaque primary
                         // AND secondary paint. Subtracting F in that case
@@ -1145,7 +1169,7 @@ impl Renderer {
                                 crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -1167,7 +1191,7 @@ impl Renderer {
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
@@ -1181,7 +1205,7 @@ impl Renderer {
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits, &mut self.timings)?
                         };
                         if !opaque && border_exists && !state.shadow_has_fill() {
                             // Both references subtract the unfiltered body

@@ -25,7 +25,10 @@ checked before sampling. Refine a dominant aggregate before selecting a cache.
 blur, karaoke, transforms, clips, paint animation, movement and a deliberately
 combined heavy case. Multiple borders are not implemented: thick overlapping
 border events are a workload proxy. No Mangetsu tags are ported. The experiment
-explicitly uses a 512 MiB transient allowance; production defaults are unchanged.
+explicitly uses a 512 MiB transient allowance and 32 million span/path work units;
+production defaults are unchanged. Separate production-default preflights record
+resource rejections in `failures.tsv`. Measurement-configuration failures also
+remain visible and make the measurement job fail; available samples still upload.
 Output bytes are recorded per frame; process peak RSS comes from `/usr/bin/time`
 and includes setup and all workloads, not per-stage retained memory.
 

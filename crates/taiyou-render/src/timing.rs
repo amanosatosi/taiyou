@@ -15,6 +15,8 @@ pub struct StageTimings {
     pub clip: Duration,
     /// Raster, stroke and effects, including coverage grouping.
     pub masks: Duration,
+    /// Subset of masks: Gaussian/edge filtering only.
+    pub effects: Duration,
     pub paint: Duration,
     pub composition: Duration,
 }

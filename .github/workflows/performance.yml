@@ -46,6 +46,7 @@ jobs:
           TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
           TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+          TAIYOU_PERF_FAILURES: ${{ runner.temp }}/performance/failures.tsv
         run: |
           cargo test --locked -p taiyou-render --features native
           cargo build --release --locked -p taiyou-cli --features native --example performance
@@ -56,7 +57,11 @@ jobs:
           uname -a > "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
           /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/samples.csv"
+      - name: Summarize available samples, including after a benchmark failure
+        if: ${{ !cancelled() }}
+        run: |
           python experiments/performance/summarize.py "$RUNNER_TEMP/performance/samples.csv" "$RUNNER_TEMP/performance/summary.json"
+          cat "$RUNNER_TEMP/performance/failures.tsv"
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
