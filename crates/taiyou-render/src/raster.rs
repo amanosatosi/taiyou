@@ -128,16 +128,11 @@ pub fn coverage_groups(
         {
             line_index += 1;
         }
-        let opaque = state(start).effects().border_style() == BorderStyle::OpaqueBox;
-        let line_end = if opaque || state(start).karaoke().is_some() {
-            event
-                .layout()
-                .lines()
-                .get(line_index)
-                .map_or(event.items().len(), |l| l.glyph_range().end)
-        } else {
-            event.items().len()
-        };
+        let line_end = event
+            .layout()
+            .lines()
+            .get(line_index)
+            .map_or(event.items().len(), |l| l.glyph_range().end);
         let mut end = start + 1;
         while end < line_end {
             let (a, b) = (state(start), state(end));
@@ -148,7 +143,7 @@ pub fn coverage_groups(
                 || a.geometry() != b.geometry()
                 || a.effects() != b.effects()
                 || a.paint() != b.paint()
-                || !karaoke_append(a.karaoke(), b.karaoke())
+                || !crate::evaluate::appendable_text_words(a, b)
                 || a.outline_has_fill() != b.outline_has_fill()
                 || a.shadow_has_fill() != b.shadow_has_fill()
                 // Drawing words are independent overlays, even with identical
@@ -191,13 +186,6 @@ pub fn coverage_groups(
     Ok(groups)
 }
 
-fn karaoke_append(left: Option<Karaoke>, right: Option<Karaoke>) -> bool {
-    // CLine::Compact/CWord::Append retain the left clock when the right
-    // word has zero duration and the same karaoke kind. Layout has already
-    // measured both words independently; only their overlay/paint is joined.
-    left == right || matches!((left, right), (Some(a), Some(b))
-        if a.kind == b.kind && b.start_ms == b.end_ms)
-}
 /// Conservative full source support, independent of any output viewport.
 pub fn coverage_bounds(group: &CoverageGroup) -> Result<PixelRect, RenderError> {
     let mut bounds: Option<(i32, i32, i32, i32)> = None;

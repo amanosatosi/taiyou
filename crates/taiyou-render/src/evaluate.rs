@@ -2,6 +2,21 @@
 use std::sync::Arc;
 use taiyou_types::*;
 
+pub(crate) fn appendable_text_words(left: &EvaluatedRun, right: &EvaluatedRun) -> bool {
+    let karaoke = left.karaoke() == right.karaoke()
+        || matches!((left.karaoke(), right.karaoke()), (Some(a), Some(b))
+            if a.kind == b.kind && b.start_ms == b.end_ms);
+    left.shaping() == right.shaping()
+        && left.geometry() == right.geometry()
+        && left.effects() == right.effects()
+        && left.paint() == right.paint()
+        && left.outline_has_fill() == right.outline_has_fill()
+        && left.shadow_has_fill() == right.shadow_has_fill()
+        && left.drawing().is_none()
+        && right.drawing().is_none()
+        && karaoke
+}
+
 fn error(code: ErrorCode, detail: &str) -> RenderError {
     RenderError::new(code, detail)
 }

@@ -156,6 +156,7 @@ fn raster_grouping_obeys_retained_evaluated_identities_and_source_clusters() {
         ("{\\kf100}A{\\kf100}V", 2),
         ("{\\kf100}A{\\kt0\\c&HFF0000&}V", 2),
         ("{\\kf100}A\\N{\\kt0}V", 2),
+        ("A\\NV", 2),
     ] {
         let groups = coverage_groups(geometry_for(text), &limits()).unwrap();
         assert_eq!(groups.len(), count, "{text}");

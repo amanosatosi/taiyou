@@ -63,7 +63,7 @@ def main():
     rows = []
     for relative, sizes, chars in [
         ("regression/blurs/Aileron-Regular.otf", [100], "+·¶"),
-        ("regression/v4++/DejaVuSans.ttf", [30, 60], "Karaoke"),
+        ("regression/v4++/DejaVuSans.ttf", [30, 35, 42, 60], "KaraokeW"),
     ]:
         filename = corpus / relative
         raw = C.create_string_buffer(filename.read_bytes())

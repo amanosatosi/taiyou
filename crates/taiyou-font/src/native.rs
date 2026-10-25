@@ -1035,6 +1035,13 @@ struct Os2Prefix {
     weight: u16,
 }
 unsafe extern "C" {
+    #[cfg(test)]
+    fn FT_Property_Set(
+        library: ft::FT_Library,
+        module: *const std::ffi::c_char,
+        property: *const std::ffi::c_char,
+        value: *const std::ffi::c_void,
+    ) -> ft::FT_Error;
     fn FT_Library_Version(
         library: ft::FT_Library,
         major: *mut ft::FT_Int,
@@ -2704,13 +2711,27 @@ mod tests {
             ),
             (
                 "regression/v4++/DejaVuSans.ttf",
-                &[30_u32, 60][..],
-                "Karaoke",
+                &[30_u32, 35, 42, 60][..],
+                "KaraokeW",
             ),
         ] {
             let bytes: Arc<[u8]> = std::fs::read(corpus.join(relative)).unwrap().into();
             for &size in sizes {
-                for flags in [ft::FT_LOAD_NO_HINTING, 0, ft::FT_LOAD_TARGET_MONO] {
+                for (interpreter, samples, flags) in [
+                    (40_u32, 1_u32, ft::FT_LOAD_NO_HINTING),
+                    (40, 1, 0),
+                    (40, 1, ft::FT_LOAD_TARGET_MONO),
+                    (35, 1, 0),
+                    (35, 1, ft::FT_LOAD_TARGET_MONO),
+                    (35, 16, 0),
+                ] {
+                    // SAFETY: the property copies this local integer into the
+                    // diagnostic context's exclusively owned library; all
+                    // earlier probe faces have been dropped before changing it.
+                    let code = unsafe { FT_Property_Set(context.library.0,
+                        c"truetype".as_ptr(), c"interpreter-version".as_ptr(),
+                        (&interpreter as *const u32).cast()) };
+                    assert_eq!(code, 0);
                     context.with_face(bytes.clone(), 0, |face| {
                         // SAFETY: request-local diagnostic face and pinned bytes
                         // live through all native reads. No pointers escape.
@@ -2718,7 +2739,7 @@ mod tests {
                             let precise = f64::from((*face.raw).units_per_EM) * f64::from(size) * 64.0
                                 / if relative.ends_with(".otf") {1200.0} else {2384.0};
                             let em = if relative.ends_with(".otf") {precise} else {precise.round()};
-                            let code = ft::FT_Set_Char_Size(face.raw, 0, (em * 64.0).round() as ft::FT_F26Dot6, 72, 72);
+                            let code = ft::FT_Set_Char_Size(face.raw, 0, (em * 64.0 * f64::from(samples)).round() as ft::FT_F26Dot6, 72, 72);
                             if code != 0 { return Err(native_error(code, "probe size failed")); }
                             for ch in chars.chars() {
                                 let glyph = ft::FT_Get_Char_Index(face.raw, ch as ft::FT_ULong);
@@ -2729,7 +2750,7 @@ mod tests {
                                 let code = FT_Outline_Decompose(outline, &outline_funcs(), (&mut state as *mut OutlineCopy).cast());
                                 if code != 0 || state.failed { return Err(native_error(code, "probe decomposition failed")); }
                                 if state.open {state.ops.push(PathOp::Close);}
-                                println!("FONT_PATH_PROBE font={relative} size={size} em={em} flags={flags} char={ch} ops={:?}", state.ops);
+                                println!("FONT_PATH_PROBE font={relative} size={size} em={em} interpreter={interpreter} samples={samples} flags={flags} char={ch} ops={:?}", state.ops);
                             }
                             Ok(())
                         }

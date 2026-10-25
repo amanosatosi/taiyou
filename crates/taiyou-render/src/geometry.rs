@@ -502,7 +502,9 @@ pub fn geometry(
     }
     let mut glyphs = Vec::new();
     let mut items = Vec::new();
-    let mut word_key = None;
+    let mut compacted: Option<(usize, usize)> = None;
+    let mut line_index = 0;
+    let mut ink_pen = 0.0;
     let mut word_advance = 0.0;
     items.try_reserve_exact(count).map_err(|_| {
         RenderError::new(
@@ -517,10 +519,14 @@ pub fn geometry(
         )
     })?;
     let mut total = 0usize;
-    for positioned in layout.glyphs() {
+    for (ordinal, positioned) in layout.glyphs().iter().enumerate() {
+        while layout.lines().get(line_index).is_some_and(|line| line.glyph_range().end <= ordinal) {
+            line_index += 1;
+        }
         let run = &layout.shaped().runs()[positioned.run_index()];
         let state = &layout.shaped().evaluated().runs()[positioned.association_index()];
         if let Some(drawing) = run.drawing() {
+            compacted = None;
             total = total
                 .checked_add(drawing.outline.ops().len())
                 .ok_or_else(geometry_limit)?;
@@ -562,15 +568,25 @@ pub fn geometry(
             continue;
         }
         let glyph = &run.glyphs()[positioned.glyph_index()];
-        let start = positioned.cluster().start() as usize;
-        let word_start = layout.shaped().source_map().text()[..start]
-            .rfind([' ', '\n'])
-            .map_or(0, |i| i + 1);
-        let key = (positioned.association_index(), word_start);
-        if word_key != Some(key) {
-            word_key = Some(key);
+        let sx = state.geometry().scale_x().get() * layout.local_scale().0.get();
+        let continuous = state.shaping().spacing().get() == 0.0;
+        let append = continuous && compacted.is_some_and(|(line, association)| {
+            line == line_index && crate::evaluate::appendable_text_words(
+                &layout.shaped().evaluated().runs()[association], state)
+        });
+        if !append {
+            compacted = Some((line_index, positioned.association_index()));
+            ink_pen = positioned.position().x().get() - glyph.offset_x().get() * sx;
             word_advance = 0.0;
         }
+        // CLine::Compact adds the rounded layout extents, but CText::CreatePath
+        // extracts the concatenated string in one TextOut call. Its internal
+        // glyph cursor does not include the intermediate layout rounding.
+        let ink_position = if continuous {
+            ScriptPoint::new(finite(ink_pen + glyph.offset_x().get() * sx)?, positioned.position().y())
+        } else { positioned.position() };
+        ink_pen += glyph.advance_x().get() * sx;
+        finite(ink_pen)?;
         let blob = catalog
             .faces()
             .iter()
@@ -664,7 +680,7 @@ pub fn geometry(
                 finite(size / lx * state.geometry().scale_x().get() * additional.0.get())?,
                 finite(size / ly * state.geometry().scale_y().get() * additional.1.get())?,
             ),
-            positioned.position(),
+            ink_position,
             placement.anchor,
             placement.origin.or(layout.shaped().placement().origin()),
             state.geometry().rotation_z(),
