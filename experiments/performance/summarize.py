@@ -14,6 +14,14 @@ out = []
 for key, rows in groups.items():
     record = dict(zip(("workload", "width", "scenario", "workers", "cache"), key))
     record["samples"] = len(rows)
+    if "cache_hits" in rows[0]:
+        for field in ("cache_hits", "cache_misses", "cache_evictions"):
+            record[field] = sum(int(row[field]) for row in rows)
+        requests = record["cache_hits"] + record["cache_misses"]
+        record["cache_hit_rate"] = record["cache_hits"] / requests if requests else None
+        record["cache_peak_bytes"] = max(int(row["cache_bytes"]) for row in rows)
+    render_ns = sum(int(row["total_ns"]) for row in rows)
+    record["render_fps_equivalent"] = len(rows) * 1e9 / render_ns if render_ns else None
     for field in rows[0]:
         if not field.endswith("_ns"):
             continue

@@ -182,7 +182,16 @@ pub fn rasterize_expanded_axes_xy(
     dy: Q6,
     remaining: u64,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_expanded_axes_xy_timed(context, group, rx, ry, dx, dy, remaining, &mut Default::default())
+    rasterize_expanded_axes_xy_timed(
+        context,
+        group,
+        rx,
+        ry,
+        dx,
+        dy,
+        remaining,
+        &mut Default::default(),
+    )
 }
 #[cfg(feature = "native")]
 #[allow(clippy::too_many_arguments)]

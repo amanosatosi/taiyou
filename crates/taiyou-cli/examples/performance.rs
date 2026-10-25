@@ -18,8 +18,11 @@ fn main() {
         std::fs::File::create(std::env::var("TAIYOU_PERF_FAILURES").unwrap()).unwrap();
     writeln!(failures, "workload\twidth\tscenario\tresult").unwrap();
     let mut failed = false;
+    let cached = std::env::var("TAIYOU_PERF_CACHE").is_ok_and(|v|v=="on");
+    let cache_label = if cached { "on" } else { "off" };
     let config = RendererConfig {
-        limits: limits.clone().with_cache_bytes(0),
+        limits: limits.clone().with_cache_bytes(if cached { 128 * 1024 * 1024 } else { 0 }),
+        cache: if cached { CacheConfig::Bounded } else { CacheConfig::Disabled },
         ..Default::default()
     };
     let mut context = FontContext::with_limits(limits.clone()).unwrap();
@@ -79,7 +82,7 @@ fn main() {
         ),
     ];
     println!(
-        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns"
+        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns,cache_hits,cache_misses,cache_evictions,cache_entries,cache_bytes"
     );
     let mut ingestion = TrackIngestor::new();
     for (name, text, count) in workloads {
@@ -120,7 +123,9 @@ fn main() {
                 .unwrap();
             }
             for scenario in ["cold", "same-time", "warm-repeat", "sequence", "seek"] {
-                if std::env::var("TAIYOU_PERF_SCENARIOS").is_ok_and(|v| !v.split(',').any(|s| s == scenario)) {
+                if std::env::var("TAIYOU_PERF_SCENARIOS")
+                    .is_ok_and(|v| !v.split(',').any(|s| s == scenario))
+                {
                     continue;
                 }
                 let mut renderer = Renderer::new(config.clone()).unwrap();
@@ -131,7 +136,9 @@ fn main() {
                     unsupported: UnsupportedPolicy::Strict,
                 };
                 // Correctness is strict and outside the timed region.
-                let expected = Renderer::new(config.clone()).unwrap().render(
+                let mut uncached_config=config.clone();
+                uncached_config.cache=CacheConfig::Disabled;
+                let expected = Renderer::new(uncached_config).unwrap().render(
                     parsed.track().clone(),
                     fonts.clone(),
                     &request,
@@ -189,8 +196,9 @@ fn main() {
                     let total = start.elapsed().as_nanos();
                     black_box(frame.pixels());
                     let t = renderer.last_timings();
+                    let c = renderer.cache_stats();
                     println!(
-                        "{name},{width},{height},{scenario},{sample},1,off,{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                        "{name},{width},{height},{scenario},{sample},1,{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
                         t.evaluation.as_nanos(),
                         t.shaping.as_nanos(),
                         t.layout.as_nanos(),
@@ -207,7 +215,8 @@ fn main() {
                         t.border_expansion.as_nanos(),
                         t.span_union.as_nanos(),
                         t.mask_generation.as_nanos(),
-                        t.mask_combination.as_nanos()
+                        t.mask_combination.as_nanos(),
+                        c.hits,c.misses,c.evictions,c.entries,c.retained_bytes
                     );
                 }
             }

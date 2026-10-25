@@ -177,7 +177,17 @@ pub(crate) fn rasterize_body_timed(
     limits: &Limits,
     timings: &mut crate::timing::StageTimings,
 ) -> Result<Arc<Mask>, RenderError> {
-    rasterize_impl(ops, Q6::from_ticks(0), Q6::from_ticks(0), limits.path_segments_per_frame(), limits, true, None, Some(timings)).map(|(mask, _)| mask)
+    rasterize_impl(
+        ops,
+        Q6::from_ticks(0),
+        Q6::from_ticks(0),
+        limits.path_segments_per_frame(),
+        limits,
+        true,
+        None,
+        Some(timings),
+    )
+    .map(|(mask, _)| mask)
 }
 pub(crate) fn rasterize_axis_xy_timed(
     ops: &[PathOp<DevicePoint>],
@@ -216,6 +226,10 @@ fn rasterize_impl(
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     let timer = timings.as_ref().and_then(|t| t.start());
     check_path_budget(ops.len(), limits)?;
+    if let Some(t) = timings.as_mut() {
+        let bytes = (ops.len() as u64).saturating_mul(4 * (std::mem::size_of::<PathOp<FontPoint>>() + std::mem::size_of::<PathOp<DevicePoint>>()) as u64).saturating_add(4096);
+        t.raster_peak(bytes, ops.len() as u64);
+    }
     if rx.ticks() < 0 || ry.ticks() < 0 {
         return Err(RenderError::new(
             ErrorCode::InvalidArgument,
@@ -304,6 +318,9 @@ fn rasterize_impl(
     }
     edges.sort_unstable_by_key(|e| (e.y, e.x, e.w));
     let edge_bytes = edges.capacity() as u64 * std::mem::size_of::<Edge>() as u64;
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak((edges.len() as u64).saturating_mul(3 * std::mem::size_of::<Edge>() as u64), count);
+    }
     let mut spans = Vec::new();
     let mut row = None;
     let mut winding = 0_i64;
@@ -330,6 +347,9 @@ fn rasterize_impl(
             )?;
         }
     }
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak(edge_bytes.saturating_add((spans.len() as u64).saturating_mul(3 * std::mem::size_of::<Span>() as u64)), count);
+    }
     drop(edges);
     if let Some(t) = timings.as_mut() {
         t.scan_conversion += crate::timing::StageTimings::elapsed(timer);
@@ -341,6 +361,9 @@ fn rasterize_impl(
     let span_bytes = spans.capacity() as u64 * std::mem::size_of::<Span>() as u64;
     for y in 0..=ry {
         push(&mut arc, ellipse_width(rx, ry, y), span_bytes, limits)?;
+    }
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak(span_bytes.saturating_add((arc.len() as u64).saturating_mul(3 * std::mem::size_of::<i64>() as u64)), count);
     }
     let mut wide = Vec::new();
     let span_bytes = span_bytes
@@ -362,6 +385,9 @@ fn rasterize_impl(
                 limits,
             )?;
         }
+    }
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak(span_bytes.saturating_add((wide.len() as u64).saturating_mul(3 * std::mem::size_of::<Span>() as u64)), wide.len() as u64);
     }
     drop(spans);
     drop(arc);
@@ -489,6 +515,9 @@ fn rasterize_impl(
         .ok_or_else(limit)?;
     if charge > limits.transient_bytes() {
         return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
+    }
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak(charge, count.saturating_add(wide.len() as u64));
     }
     let mut data = Vec::new();
     data.try_reserve_exact(length)

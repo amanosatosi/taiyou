@@ -25,6 +25,11 @@ pub struct StageTimings {
     pub mask_combination: Duration,
     pub paint: Duration,
     pub composition: Duration,
+    // Deterministic producer resource witness, not timing-driven policy.
+    #[cfg(feature = "native")]
+    pub(crate) raster_peak_bytes: u64,
+    #[cfg(feature = "native")]
+    pub(crate) raster_required_work: u64,
 }
 #[cfg(feature = "native")]
 impl StageTimings {
@@ -33,5 +38,16 @@ impl StageTimings {
     }
     pub(crate) fn elapsed(start: Option<Instant>) -> Duration {
         start.map_or(Duration::ZERO, |t| t.elapsed())
+    }
+    pub(crate) fn raster_peak(&mut self, bytes: u64, work: u64) {
+        self.raster_peak_bytes = self.raster_peak_bytes.max(bytes);
+        self.raster_required_work = self.raster_required_work.max(work);
+    }
+    pub(crate) fn merge_raster(&mut self, other: &Self) {
+        self.scan_conversion += other.scan_conversion;
+        self.border_expansion += other.border_expansion;
+        self.span_union += other.span_union;
+        self.mask_generation += other.mask_generation;
+        self.raster_peak(other.raster_peak_bytes, other.raster_required_work);
     }
 }

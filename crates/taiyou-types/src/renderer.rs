@@ -5,6 +5,8 @@ use std::num::NonZeroUsize;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CacheConfig {
     Disabled,
+    /// Bounded intermediate retention within Limits::cache_bytes().
+    Bounded,
 }
 #[derive(Clone, Debug)]
 pub struct RendererConfig {

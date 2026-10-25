@@ -396,6 +396,8 @@ fn transition_placement(
 /// faces migrate with it. Completed frames retain the C7 origin-budget lease.
 pub struct Renderer {
     config: RendererConfig,
+    #[cfg(feature = "native")]
+    masks: crate::cache::MaskCache,
     timings: crate::timing::StageTimings,
     output: OutputBudget,
     #[cfg(feature = "native")]
@@ -415,8 +417,12 @@ impl Renderer {
             ));
         }
         let output = OutputBudget::new(&config.limits);
+        #[cfg(feature = "native")]
+        let masks = crate::cache::MaskCache::new(if config.cache == CacheConfig::Bounded { config.limits.cache_bytes() } else { 0 });
         Ok(Self {
             config,
+            #[cfg(feature = "native")]
+            masks,
             timings: Default::default(),
             output,
             #[cfg(feature = "native")]
@@ -435,6 +441,10 @@ impl Renderer {
     }
     pub fn last_timings(&self) -> &crate::timing::StageTimings {
         &self.timings
+    }
+    #[cfg(feature = "native")]
+    pub fn cache_stats(&self) -> crate::cache::CacheStats {
+        self.masks.stats()
     }
     pub fn retained_output_bytes(&self) -> u64 {
         self.output.retained_bytes()
@@ -541,6 +551,7 @@ impl Renderer {
             ..Default::default()
         };
         let timer = self.timings.start();
+        self.masks.begin_frame();
         let mut optional_used = false;
         let result = self.render_staged(
             track.clone(),
@@ -985,7 +996,7 @@ impl Renderer {
                         [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let mut fill = rasterize_xy_timed(&mut fill_context, group, &mut self.timings)?;
+                    let mut fill = self.masks.fill(&mut fill_context, group, &mut self.timings)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
@@ -1091,7 +1102,7 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let mask = rasterize_xy_timed(&mut raster, boxes, &mut self.timings)?;
+                        let mask = self.masks.fill(&mut raster, boxes, &mut self.timings)?;
                         drop(raster);
                         charge_mask(&mask, &mut held, event_charge, limits)?;
                         let mask = filter_mask(
@@ -1117,7 +1128,7 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy_timed(
+                        let (mask, segments) = self.masks.border(
                             &mut stroke_context,
                             group,
                             border_radius,
@@ -1152,7 +1163,8 @@ impl Renderer {
                                 &fill,
                                 &subtraction_limits,
                             )?;
-                            self.timings.mask_combination += crate::timing::StageTimings::elapsed(timer);
+                            self.timings.mask_combination +=
+                                crate::timing::StageTimings::elapsed(timer);
                             charge_mask(&border_mask, &mut held, event_charge, limits)?;
                             border_mask
                         };
@@ -1190,8 +1202,13 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask =
-                                crate::stroke::rasterize_translated_xy_timed(&mut raster, boxes, dx, dy, &mut self.timings)?;
+                            let mask = self.masks.translated(
+                                &mut raster,
+                                boxes,
+                                dx,
+                                dy,
+                                &mut self.timings,
+                            )?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
                             filter_mask(
@@ -1211,7 +1228,7 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy_timed(
+                            let (mask, segments) = self.masks.border(
                                 &mut stroke_context,
                                 group,
                                 border_radius,
@@ -1237,7 +1254,7 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask = crate::stroke::rasterize_translated_xy_timed(
+                            let mask = self.masks.translated(
                                 &mut shadow_context,
                                 group,
                                 dx,
@@ -1267,7 +1284,7 @@ impl Renderer {
                                     limits,
                                     add(held, event_charge)?,
                                 )?)?;
-                                let body = crate::stroke::rasterize_translated_xy_timed(
+                                let body = self.masks.translated(
                                     &mut raster,
                                     group,
                                     dx,
@@ -1285,7 +1302,8 @@ impl Renderer {
                                 &body,
                                 &subtraction_limits,
                             )?;
-                            self.timings.mask_combination += crate::timing::StageTimings::elapsed(timer);
+                            self.timings.mask_combination +=
+                                crate::timing::StageTimings::elapsed(timer);
                             charge_mask(&ring, &mut held, event_charge, limits)?;
                             for old in [&mask, &body] {
                                 if !Arc::ptr_eq(old, &fill)

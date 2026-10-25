@@ -16,7 +16,7 @@ jobs:
       RUSTUP_TOOLCHAIN: 1.99.1
       TAIYOU_FOCUSED_RENDERER: '1'
       TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,combined-abuse
-      TAIYOU_PERF_SCENARIOS: same-time
+      TAIYOU_PERF_SCENARIOS: cold,same-time,sequence,seek
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -51,6 +51,7 @@ jobs:
           TAIYOU_PERF_FAILURES: ${{ runner.temp }}/performance/failures.tsv
         run: |
           cargo test --locked -p taiyou-render --features native
+          cargo test --locked -p taiyou-cli --features native --test performance_cache
           cargo build --release --locked -p taiyou-cli --features native --example performance
           mkdir -p "$RUNNER_TEMP/performance"
           git rev-parse HEAD > "$RUNNER_TEMP/performance/commit.txt"
@@ -59,12 +60,22 @@ jobs:
           uname -a > "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance/platform.txt"
           env | sort | grep '^TAIYOU_PERF_' > "$RUNNER_TEMP/performance/selection.txt"
-          /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/samples.csv"
+          # Paired off/on observations use the same binary, runner and fixtures.
+          set +e
+          TAIYOU_PERF_CACHE=off /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-off.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/off.csv"
+          off_status=$?
+          TAIYOU_PERF_CACHE=on TAIYOU_PERF_FAILURES="$RUNNER_TEMP/performance/failures-on.tsv" /usr/bin/time -v -o "$RUNNER_TEMP/performance/process-memory-on.txt" target/release/examples/performance > "$RUNNER_TEMP/performance/on.csv"
+          on_status=$?
+          set -e
+          cat "$RUNNER_TEMP/performance/off.csv" > "$RUNNER_TEMP/performance/samples.csv"
+          tail -n +2 "$RUNNER_TEMP/performance/on.csv" >> "$RUNNER_TEMP/performance/samples.csv"
+          test "$off_status" = 0 && test "$on_status" = 0
       - name: Summarize available samples, including after a benchmark failure
         if: ${{ !cancelled() }}
         run: |
           python experiments/performance/summarize.py "$RUNNER_TEMP/performance/samples.csv" "$RUNNER_TEMP/performance/summary.json"
           cat "$RUNNER_TEMP/performance/failures.tsv"
+          cat "$RUNNER_TEMP/performance/failures-on.tsv"
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

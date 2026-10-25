@@ -579,7 +579,14 @@ pub fn geometry(
     placement: GeometryPlacement,
     limits: &Limits,
 ) -> Result<GeometryEvent, RenderError> {
-    geometry_timed(context, catalog, layout, placement, limits, &mut Default::default())
+    geometry_timed(
+        context,
+        catalog,
+        layout,
+        placement,
+        limits,
+        &mut Default::default(),
+    )
 }
 #[cfg(feature = "native")]
 pub(crate) fn geometry_timed(
