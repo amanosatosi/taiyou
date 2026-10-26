@@ -1,0 +1,51 @@
+diff --git a/crates/taiyou-types/src/scene.rs b/crates/taiyou-types/src/scene.rs
+index 210d40f..59db3ab 100644
+--- a/crates/taiyou-types/src/scene.rs
++++ b/crates/taiyou-types/src/scene.rs
+@@ -428,7 +428,9 @@ impl Frame {
+ 
+ fn premultiplied_pixels(pixels: &[u8]) -> bool {
+     let invalid = |bytes: &[u8]| {
+-        bytes.chunks_exact(4).any(|pixel| pixel[..3].iter().any(|c| *c > pixel[3]))
++        bytes
++            .chunks_exact(4)
++            .any(|pixel| pixel[..3].iter().any(|c| *c > pixel[3]))
+     };
+     let mut blocks = pixels.chunks_exact(64);
+     for block in &mut blocks {
+@@ -436,7 +438,9 @@ fn premultiplied_pixels(pixels: &[u8]) -> bool {
+         // native words; endian cannot affect zero/nonzero. Nonzero blocks use
+         // the original exact validator, including colored transparent pixels.
+         let nonzero = block.chunks_exact(8).fold(0_u64, |bits, word| {
+-            bits | u64::from_ne_bytes([word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]])
++            bits | u64::from_ne_bytes([
++                word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7],
++            ])
+         });
+         if nonzero != 0 && invalid(block) {
+             return false;
+@@ -635,8 +639,11 @@ mod publication_tests {
+                         let mut pixels = [0; 132];
+                         pixels[position * 4 + 3] = alpha;
+                         pixels[position * 4 + channel] = color;
+-                        assert_eq!(premultiplied_pixels(&pixels), color <= alpha,
+-                            "alpha={alpha}, color={color}, channel={channel}, position={position}");
++                        assert_eq!(
++                            premultiplied_pixels(&pixels),
++                            color <= alpha,
++                            "alpha={alpha}, color={color}, channel={channel}, position={position}"
++                        );
+                     }
+                 }
+             }
+@@ -646,7 +653,9 @@ mod publication_tests {
+             for (n, value) in pixels.iter_mut().enumerate() {
+                 *value = (n * 137 + seed * 31 + n / 7) as u8;
+             }
+-            let expected = !pixels.chunks_exact(4).any(|p| p[0] > p[3] || p[1] > p[3] || p[2] > p[3]);
++            let expected = !pixels
++                .chunks_exact(4)
++                .any(|p| p[0] > p[3] || p[1] > p[3] || p[2] > p[3]);
+             assert_eq!(premultiplied_pixels(&pixels), expected);
+         }
+     }
