@@ -104,7 +104,9 @@ fn main() {
         let renderer = renderer.as_mut().unwrap();
         renderer.set_timing_enabled(true);
         let observation_time = times.last().unwrap() + if args[6] == "sequence" { 16 } else { 0 };
-        let frame = renderer.render_parsed(&parsed, fonts.clone(), &request(observation_time)).unwrap();
+        let frame = renderer
+            .render_parsed(&parsed, fonts.clone(), &request(observation_time))
+            .unwrap();
         eprintln!("POST_SAMPLE_STAGES={:?}", renderer.last_timings());
         let limits = renderer.config().limits.clone();
         let mut budget = OutputBudget::new(&limits);
@@ -114,7 +116,8 @@ fn main() {
             let pixels = frame.pixels().to_vec();
             let reservation = budget.reserve(pixels.len() as u64).unwrap();
             let start = Instant::now();
-            let published = Frame::from_owned_pixels(frame.size(), pixels, &limits, reservation).unwrap();
+            let published =
+                Frame::from_owned_pixels(frame.size(), pixels, &limits, reservation).unwrap();
             let elapsed = start.elapsed().as_nanos();
             assert_eq!(published.pixels(), frame.pixels());
             eprintln!("POST_SAMPLE_PUBLICATION_NS={sample},{elapsed}");

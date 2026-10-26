@@ -28,17 +28,31 @@ fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits)
     }
     let first = spans.iter().map(|s| s.y).min().unwrap_or(0);
     let last = spans.iter().map(|s| s.y).max().unwrap_or(0);
-    let Some(rows) = last.checked_sub(first).and_then(|n| n.checked_add(1))
-        .and_then(|n| usize::try_from(n).ok()).filter(|&n| n <= spans.len()) else {
+    let Some(rows) = last
+        .checked_sub(first)
+        .and_then(|n| n.checked_add(1))
+        .and_then(|n| usize::try_from(n).ok())
+        .filter(|&n| n <= spans.len())
+    else {
         return false;
     };
-    let Some(peak) = (spans.len() as u64).checked_mul(3 * std::mem::size_of::<Span>() as u64)
-        .and_then(|n| n.checked_add(producer_bytes)) else { return false; };
-    let Some(live) = (spans.capacity() as u64).checked_mul(std::mem::size_of::<Span>() as u64)
-        .and_then(|n| n.checked_add(producer_bytes)) else { return false; };
-    let Some(scratch) = (rows as u64).checked_mul(2 * std::mem::size_of::<usize>() as u64) else { return false; };
+    let Some(peak) = (spans.len() as u64)
+        .checked_mul(3 * std::mem::size_of::<Span>() as u64)
+        .and_then(|n| n.checked_add(producer_bytes))
+    else {
+        return false;
+    };
+    let Some(live) = (spans.capacity() as u64)
+        .checked_mul(std::mem::size_of::<Span>() as u64)
+        .and_then(|n| n.checked_add(producer_bytes))
+    else {
+        return false;
+    };
+    let Some(scratch) = (rows as u64).checked_mul(2 * std::mem::size_of::<usize>() as u64) else {
+        return false;
+    };
     let allowed = peak.min(limits.transient_bytes());
-    if live.checked_add(scratch).map_or(true, |n| n > allowed) {
+    if live.checked_add(scratch).is_none_or(|n| n > allowed) {
         return false;
     }
     let mut ends = Vec::<usize>::new();
@@ -46,9 +60,14 @@ fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits)
     if ends.try_reserve_exact(rows).is_err() || next.try_reserve_exact(rows).is_err() {
         return false;
     }
-    let Some(actual) = ends.capacity().checked_add(next.capacity())
+    let Some(actual) = ends
+        .capacity()
+        .checked_add(next.capacity())
         .and_then(|n| n.checked_mul(std::mem::size_of::<usize>()))
-        .and_then(|n| live.checked_add(n as u64)) else { return false; };
+        .and_then(|n| live.checked_add(n as u64))
+    else {
+        return false;
+    };
     if actual > allowed {
         return false;
     }
@@ -795,7 +814,18 @@ mod tests {
             }
         }
         for extremes in [(i64::MIN, i64::MAX), (-1_000_000, 1_000_000)] {
-            let mut input = vec![Span { y: extremes.1, left: 0, right: 3 }, Span { y: extremes.0, left: -4, right: 0 }];
+            let mut input = vec![
+                Span {
+                    y: extremes.1,
+                    left: 0,
+                    right: 3,
+                },
+                Span {
+                    y: extremes.0,
+                    left: -4,
+                    right: 0,
+                },
+            ];
             let before = input.clone();
             assert!(!sort_by_scan_row(&mut input, 0, &limits));
             assert_eq!(input, before);
