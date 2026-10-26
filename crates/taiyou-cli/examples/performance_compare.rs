@@ -98,6 +98,28 @@ fn main() {
             stats.hits, stats.misses, stats.evictions, stats.retained_bytes
         );
     }
+    // Supplemental observations after ALL primary samples. These never enter
+    // primary distributions, warmup state or digest comparisons above.
+    if std::env::var("SERIAL_PROBE").as_deref() == Ok("1") {
+        let renderer = renderer.as_mut().unwrap();
+        renderer.set_timing_enabled(true);
+        let observation_time = times.last().unwrap() + if args[6] == "sequence" { 16 } else { 0 };
+        let frame = renderer.render_parsed(&parsed, fonts.clone(), &request(observation_time)).unwrap();
+        eprintln!("POST_SAMPLE_STAGES={:?}", renderer.last_timings());
+        let limits = renderer.config().limits.clone();
+        let mut budget = OutputBudget::new(&limits);
+        for sample in 0..31 {
+            // Copy source bytes and reserve BEFORE timing. Measure the public
+            // publication checks/conversion alone, retaining their full work.
+            let pixels = frame.pixels().to_vec();
+            let reservation = budget.reserve(pixels.len() as u64).unwrap();
+            let start = Instant::now();
+            let published = Frame::from_owned_pixels(frame.size(), pixels, &limits, reservation).unwrap();
+            let elapsed = start.elapsed().as_nanos();
+            assert_eq!(published.pixels(), frame.pixels());
+            eprintln!("POST_SAMPLE_PUBLICATION_NS={sample},{elapsed}");
+        }
+    }
 }
 #[cfg(not(feature = "native"))]
 fn main() {

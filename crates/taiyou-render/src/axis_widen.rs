@@ -17,6 +17,74 @@ struct Span {
     left: i64,
     right: i64,
 }
+
+// Partition by integer scan row, then sort only intervals that can intersect.
+// The resulting order is exactly (y,left,right), as in the original full sort.
+// Scratch is optional and fits inside the producer's existing peak witness;
+// allocation/range failures retain the original in-place sort and its limits.
+fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits) -> bool {
+    if spans.len() < 2 {
+        return false;
+    }
+    let first = spans.iter().map(|s| s.y).min().unwrap_or(0);
+    let last = spans.iter().map(|s| s.y).max().unwrap_or(0);
+    let Some(rows) = last.checked_sub(first).and_then(|n| n.checked_add(1))
+        .and_then(|n| usize::try_from(n).ok()).filter(|&n| n <= spans.len()) else {
+        return false;
+    };
+    let Some(peak) = (spans.len() as u64).checked_mul(3 * std::mem::size_of::<Span>() as u64)
+        .and_then(|n| n.checked_add(producer_bytes)) else { return false; };
+    let Some(live) = (spans.capacity() as u64).checked_mul(std::mem::size_of::<Span>() as u64)
+        .and_then(|n| n.checked_add(producer_bytes)) else { return false; };
+    let Some(scratch) = (rows as u64).checked_mul(2 * std::mem::size_of::<usize>() as u64) else { return false; };
+    let allowed = peak.min(limits.transient_bytes());
+    if live.checked_add(scratch).map_or(true, |n| n > allowed) {
+        return false;
+    }
+    let mut ends = Vec::<usize>::new();
+    let mut next = Vec::<usize>::new();
+    if ends.try_reserve_exact(rows).is_err() || next.try_reserve_exact(rows).is_err() {
+        return false;
+    }
+    let Some(actual) = ends.capacity().checked_add(next.capacity())
+        .and_then(|n| n.checked_mul(std::mem::size_of::<usize>()))
+        .and_then(|n| live.checked_add(n as u64)) else { return false; };
+    if actual > allowed {
+        return false;
+    }
+    ends.resize(rows, 0);
+    next.resize(rows, 0);
+    // min/max and the checked row count prove these indices fit. Counts and
+    // cumulative ends are bounded by the input slice length.
+    for span in spans.iter() {
+        ends[(span.y - first) as usize] += 1;
+    }
+    let mut end = 0;
+    for (cursor, count) in next.iter_mut().zip(ends.iter_mut()) {
+        *cursor = end;
+        end += *count;
+        *count = end;
+    }
+    for row in 0..rows {
+        while next[row] < ends[row] {
+            let index = next[row];
+            let destination_row = (spans[index].y - first) as usize;
+            if destination_row == row {
+                next[row] += 1;
+            } else {
+                let destination = next[destination_row];
+                spans.swap(index, destination);
+                next[destination_row] += 1;
+            }
+        }
+    }
+    let mut start = 0;
+    for end in ends {
+        spans[start..end].sort_unstable_by_key(|s| (s.left, s.right));
+        start = end;
+    }
+    true
+}
 #[derive(Clone, Copy)]
 struct VerticalBand {
     first_y: i64,
@@ -538,7 +606,9 @@ fn rasterize_impl(
         t.border_expansion += crate::timing::StageTimings::elapsed(timer);
     }
     let timer = timings.as_ref().and_then(|t| t.start());
-    wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
+    if !sort_by_scan_row(&mut wide, producer_bytes, limits) {
+        wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
+    }
     let mut out = 0;
     for i in 0..wide.len() {
         let s = wide[i];
@@ -700,6 +770,37 @@ fn rasterize_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn row_partition_matches_full_lexicographic_sort_and_declines_extra_budget() {
+        let limits = Limits::default();
+        for seed in 0..100_i64 {
+            for rows in [1, 3, 17, 127] {
+                let mut input = Vec::new();
+                for n in 0..2048_i64 {
+                    let left = (n * 119 + seed * 37) % 479 - 239;
+                    input.push(Span {
+                        y: (n * 17 + seed * 19 + n / 7) % rows - 80,
+                        left,
+                        right: left + (n * 13 + seed) % 37,
+                    });
+                }
+                let mut expected = input.clone();
+                expected.sort_unstable_by_key(|s| (s.y, s.left, s.right));
+                assert!(sort_by_scan_row(&mut input, 0, &limits));
+                assert_eq!(input, expected, "seed={seed}, rows={rows}");
+                let before = input.clone();
+                let tiny = limits.clone().with_transient_bytes(1).unwrap();
+                assert!(!sort_by_scan_row(&mut input, 0, &tiny));
+                assert_eq!(input, before);
+            }
+        }
+        for extremes in [(i64::MIN, i64::MAX), (-1_000_000, 1_000_000)] {
+            let mut input = vec![Span { y: extremes.1, left: 0, right: 3 }, Span { y: extremes.0, left: -4, right: 0 }];
+            let before = input.clone();
+            assert!(!sort_by_scan_row(&mut input, 0, &limits));
+            assert_eq!(input, before);
+        }
+    }
     #[test]
     fn repeated_row_reuse_preserves_original_discrete_union() {
         use std::collections::BTreeSet;

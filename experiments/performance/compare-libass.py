@@ -202,7 +202,7 @@ def run(output):
                for r in rows if r["engine"] in ("taiyou-1", "taiyou-4")}
     prior_changes = [key for key in prior.keys() | current.keys() if prior.get(key) != current.get(key)]
     report = {"schema": 1, "libass_api_version": sorted(versions), "groups": summaries,
-              "engines": ENGINES, "same_runner_frozen_1t_reference": bool(REFERENCE),
+              "engines": ENGINES, "same_runner_1t_reference": os.environ.get("SERIAL_REFERENCE") if REFERENCE else None,
               "failures": failures, "taiyou_digest_differences": digest_differences,
               "sparse_style_taiyou_rgba_differences": prior_changes,
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
@@ -216,7 +216,7 @@ def run(output):
         writer = csv.DictWriter(stream, fields)
         writer.writeheader()
         writer.writerows(rows)
-    peer_title = "frozen1T" if REFERENCE else "Taiyou4T"
+    peer_title = "reference1T" if REFERENCE else "Taiyou4T"
     ratio_title = "1T/libass" if REFERENCE else "MT/libass"
     table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass+RGBA ms | {ratio_title} |", "|---|---:|---:|---:|---:|"]
     for case in manifest["cases"]:

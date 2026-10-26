@@ -57,5 +57,17 @@ FPS equivalents are reported, with no noisy performance pass/fail threshold.
 
 Existing frozen checkpoint stage measurements identify Taiyou's remaining span
 union and composition costs. This comparison does not add internal libass stage
-instrumentation or infer its bottleneck from an API total. No gap will be fixed
-as part of the comparison; stop after reporting measurements and their limits.
+instrumentation or infer its bottleneck from an API total. The completed controlled
+comparison is frozen in results/libass-style-selected. Subsequent owner-directed
+work targets Taiyou1T first; MT code/policy remains frozen.
+
+The separately authorized draft-only [perf-1t-probe] path leaves full required
+gates explicitly failing. Supplemental comparison uses candidate1T/frozen1T/libass
+on the same runner, replacing the MT measurement only in this exploratory mode.
+Workloads, fonts, timestamps, samples, output contract and pixel/diagnostic checks
+remain strict. Only compose.rs may differ from the frozen production tree in the
+initial probe. The runner compiles a frozen-source binary and the candidate with
+identical flags/dependencies, restoring the candidate source after the frozen build.
+Post-sample observational stage and publication measurements never enter primary
+timings/distributions or warmup. Existing full tests remain required at a kept
+checkpoint; an exploratory run is never a mergeable checkpoint.

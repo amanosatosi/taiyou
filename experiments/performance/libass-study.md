@@ -68,3 +68,22 @@ composes a fresh RGBA output even for changed=0. Taiyou must not claim its frame
 API is equivalent to returning an unchanged image list without that output work.
 No renderer semantics, cache topology or scheduler change is justified merely
 by these observations; measure the narrow traversal first.
+
+The row traversal probe is retained in results/serial-row-traversal: warm stress
+157.38->60.09ms, changing stress452.14->350.32ms, exact output/diagnostics preserved.
+Remaining changing-frame cost is consistent with the already measured large
+span sorting/union stage. ass_rasterizer.c:630..716 partitions bounded regions
+before local raster work rather than globally sorting expanded border spans.
+Its analytic coverage and outline-border semantics cannot replace Taiyou's xy
+eighth-grid algorithm without changing pixels. Adapt the locality principle
+narrowly: partition the existing exact spans by integer y in place, then sort
+left/right within each row. Keep the original union and raster accumulation.
+Optional two-array row scratch fits within the existing producer peak witness;
+decline to the old sort on insufficient budget, sparse/extreme range or failed
+reservation. Candidate counts, required work and resource witness stay unchanged.
+No libass source code is copied; this is ordinary counting partition/sorting.
+
+Additional inspected file SHA-256:
+
+- test/test.c: 3babcee23a5d8fa8a796f4e2ae49e68faa2b1ba892f20b6637d386b680401fbf
+- libass/ass_rasterizer.c: dc3c3049b1322b63795055144d2b7e7c66aa86e2da50316dde39a6ee39fc590f
