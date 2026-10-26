@@ -4,6 +4,12 @@ fn main() {
     use sha2::{Digest, Sha256};
     use std::{hint::black_box, io::Write, time::Instant};
     use taiyou_render::renderer::*;
+    let digest_hex = |bytes: &[u8]| {
+        Sha256::digest(bytes)
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    };
     let workers: usize = std::env::var("TAIYOU_PERF_WORKERS")
         .unwrap_or_else(|_| "1".into())
         .parse()
@@ -236,11 +242,9 @@ fn main() {
                     let total = start.elapsed().as_nanos();
                     black_box(frame.pixels());
                     // Verification intentionally happens after the render timer.
-                    let rgba_sha256 = format!("{:x}", Sha256::digest(frame.pixels()));
-                    let diagnostic_sha256 = format!(
-                        "{:x}",
-                        Sha256::digest(format!("{:?}", frame.diagnostics()).as_bytes())
-                    );
+                    let rgba_sha256 = digest_hex(frame.pixels());
+                    let diagnostic_sha256 =
+                        digest_hex(format!("{:?}", frame.diagnostics()).as_bytes());
                     let t = renderer.last_timings();
                     let c = renderer.cache_stats();
                     println!(
