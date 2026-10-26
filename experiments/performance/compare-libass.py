@@ -156,7 +156,7 @@ def run(output):
                                       "exit_code": process.returncode, "process_elapsed_ns": elapsed,
                                       "command": command})
                     assert process.returncode == 0, f"process exit {process.returncode}"
-                    if REFERENCE and engine != "libass":
+                    if REFERENCE and engine.startswith("taiyou-"):
                         observed = re.findall(r"^POST_SAMPLE_DEFAULT_RESOURCE_(.+)$", process.stderr.decode(), re.M)
                         assert len(observed) == 2, "missing normal-limit cache OFF/ON observations"
                         resources[(case["id"], scenario, engine)] = observed

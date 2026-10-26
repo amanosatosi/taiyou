@@ -1,4 +1,4 @@
-name: Frozen Taiyou versus libass performance
+name: Taiyou versus libass and Mangetsu performance
 on:
   push:
     branches: [perf/cache-multithread]
