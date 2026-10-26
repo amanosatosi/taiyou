@@ -1,0 +1,485 @@
+diff --git a/crates/taiyou-render/src/lib.rs b/crates/taiyou-render/src/lib.rs
+index 77454e1..caee31f 100644
+--- a/crates/taiyou-render/src/lib.rs
++++ b/crates/taiyou-render/src/lib.rs
+@@ -21,9 +21,9 @@ mod paint;
+ pub mod raster;
+ pub mod renderer;
+ pub mod stroke;
+-pub mod timing;
+ #[cfg(all(test, feature = "native"))]
+ mod tile_fill;
++pub mod timing;
+ mod xy_wrap;
+ pub use compose::compose;
+ pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy, requires_font};
+diff --git a/crates/taiyou-render/src/tile_fill.rs b/crates/taiyou-render/src/tile_fill.rs
+index 611cc00..be785b0 100644
+--- a/crates/taiyou-render/src/tile_fill.rs
++++ b/crates/taiyou-render/src/tile_fill.rs
+@@ -17,15 +17,29 @@ pub(crate) struct Segment {
+ }
+ impl Segment {
+     pub(crate) fn new(mut a: [i64; 2], mut b: [i64; 2]) -> Option<Self> {
+-        if a[1] == b[1] { return None; }
++        if a[1] == b[1] {
++            return None;
++        }
+         let winding = if a[1] < b[1] { 1 } else { -1 };
+-        if a[1] > b[1] { std::mem::swap(&mut a, &mut b); }
++        if a[1] > b[1] {
++            std::mem::swap(&mut a, &mut b);
++        }
+         let first = (a[1] + 3).div_euclid(8);
+         let last = (b[1] - 5).div_euclid(8);
+-        if first > last { return None; }
+-        Some(Self { a, slope: (i128::from(b[0] - a[0]) * 65536) / i128::from(b[1] - a[1]), first, last, winding })
++        if first > last {
++            return None;
++        }
++        Some(Self {
++            a,
++            slope: (i128::from(b[0] - a[0]) * 65536) / i128::from(b[1] - a[1]),
++            first,
++            last,
++            winding,
++        })
++    }
++    pub(crate) fn rows(self) -> u64 {
++        (self.last - self.first + 1) as u64
+     }
+-    pub(crate) fn rows(self) -> u64 { (self.last - self.first + 1) as u64 }
+     fn crossing(self, y: i64) -> Option<i64> {
+         let sample = y * 8 + 4;
+         let x16 = i128::from(self.a[0]) * 8192
+@@ -35,7 +49,9 @@ impl Segment {
+     fn intersects(self, r: [i64; 4]) -> Option<bool> {
+         let first = self.first.max(r[1]);
+         let last = self.last.min(r[3] - 1);
+-        if first > last { return Some(false); }
++        if first > last {
++            return Some(false);
++        }
+         let a = self.crossing(first)?;
+         let b = self.crossing(last)?;
+         Some(a.max(b) >= r[0] && a.min(b) < r[2])
+@@ -50,7 +66,10 @@ struct Row {
+     has_interval: bool,
+ }
+ #[derive(Clone, Copy)]
+-struct Crossing { x: i64, winding: i32 }
++struct Crossing {
++    x: i64,
++    winding: i32,
++}
+ 
+ #[derive(Clone, Copy, Debug, Default)]
+ pub(crate) struct TileStats {
+@@ -74,10 +93,14 @@ impl TileImage {
+         let height = self.bounds.height() as usize;
+         let length = width.checked_mul(height)?;
+         let live = (self.tiles.capacity() as u64).checked_mul(TILE_BYTES as u64)?;
+-        if live.checked_add(length as u64)? > allowance { return None; }
++        if live.checked_add(length as u64)? > allowance {
++            return None;
++        }
+         let mut pixels = Vec::new();
+         pixels.try_reserve_exact(length).ok()?;
+-        if live.checked_add(pixels.capacity() as u64)? > allowance { return None; }
++        if live.checked_add(pixels.capacity() as u64)? > allowance {
++            return None;
++        }
+         pixels.resize(length, 0);
+         for y in 0..height {
+             for x in (0..width).step_by(TILE) {
+@@ -103,15 +126,25 @@ struct Raster<'a> {
+ }
+ impl Raster<'_> {
+     fn bytes(&self) -> Option<u64> {
+-        self.held.checked_add(STACK_ALLOWANCE)?
++        self.held
++            .checked_add(STACK_ALLOWANCE)?
+             .checked_add((self.image.tiles.capacity() as u64).checked_mul(TILE_BYTES as u64)?)?
+-            .checked_add((self.rows.capacity() as u64).checked_mul(std::mem::size_of::<Row>() as u64)?)?
+-            .checked_add((self.indices.capacity() as u64).checked_mul(std::mem::size_of::<usize>() as u64)?)?
+-            .checked_add((self.crossings.capacity() as u64).checked_mul(std::mem::size_of::<Crossing>() as u64)?)
++            .checked_add(
++                (self.rows.capacity() as u64).checked_mul(std::mem::size_of::<Row>() as u64)?,
++            )?
++            .checked_add(
++                (self.indices.capacity() as u64).checked_mul(std::mem::size_of::<usize>() as u64)?,
++            )?
++            .checked_add(
++                (self.crossings.capacity() as u64)
++                    .checked_mul(std::mem::size_of::<Crossing>() as u64)?,
++            )
+     }
+     fn observe(&mut self) -> Option<()> {
+         let bytes = self.bytes()?;
+-        if bytes > self.allowance { return None; }
++        if bytes > self.allowance {
++            return None;
++        }
+         self.image.stats.scratch_peak = self.image.stats.scratch_peak.max(bytes);
+         Some(())
+     }
+@@ -120,7 +153,9 @@ impl Raster<'_> {
+             // Explicit exact growth keeps optional arena allocations bounded.
+             let additional = self.segments.len().max(1);
+             let extra = (additional as u64).checked_mul(std::mem::size_of::<usize>() as u64)?;
+-            if self.bytes()?.checked_add(extra)? > self.allowance { return None; }
++            if self.bytes()?.checked_add(extra)? > self.allowance {
++                return None;
++            }
+             self.indices.try_reserve_exact(additional).ok()?;
+             self.observe()?;
+         }
+@@ -128,30 +163,39 @@ impl Raster<'_> {
+         Some(())
+     }
+     fn native_rect(&self, r: [usize; 4]) -> [i64; 4] {
+-        [i64::from(self.image.bounds.x0()) * 8 + r[0] as i64 * 8,
+-         i64::from(self.image.bounds.y0()) * 8 + r[1] as i64 * 8,
+-         i64::from(self.image.bounds.x0()) * 8 + r[2] as i64 * 8,
+-         i64::from(self.image.bounds.y0()) * 8 + r[3] as i64 * 8]
++        [
++            i64::from(self.image.bounds.x0()) * 8 + r[0] as i64 * 8,
++            i64::from(self.image.bounds.y0()) * 8 + r[1] as i64 * 8,
++            i64::from(self.image.bounds.x0()) * 8 + r[2] as i64 * 8,
++            i64::from(self.image.bounds.y0()) * 8 + r[3] as i64 * 8,
++        ]
+     }
+     fn children(&mut self, ids: Range<usize>, r: [usize; 4]) -> Option<Range<usize>> {
+         let native = self.native_rect(r);
+         let start = self.indices.len();
+         for at in ids {
+             let index = *self.indices.get(at)?;
+-            if self.segments.get(index)?.intersects(native)? { self.append(index)?; }
++            if self.segments.get(index)?.intersects(native)? {
++                self.append(index)?;
++            }
+         }
+         Some(start..self.indices.len())
+     }
+     fn fill_solid(&mut self, r: [usize; 4]) -> Option<()> {
+         for y in (r[1] / TILE)..r[3].div_ceil(TILE) {
+             for x in (r[0] / TILE)..r[2].div_ceil(TILE) {
+-                self.image.tiles.get_mut(y * self.image.columns + x)?.fill(64);
++                self.image
++                    .tiles
++                    .get_mut(y * self.image.columns + x)?
++                    .fill(64);
+             }
+         }
+         Some(())
+     }
+     fn node(&mut self, r: [usize; 4], ids: Range<usize>, depth: usize) -> Option<()> {
+-        if depth > 32 { return None; }
++        if depth > 32 {
++            return None;
++        }
+         if ids.is_empty() {
+             let rows = self.rows.get(r[1] * 8..r[3] * 8)?;
+             if rows.iter().all(|row| row.winding == 0) {
+@@ -165,17 +209,21 @@ impl Raster<'_> {
+         }
+         let width = r[2] - r[0];
+         let height = r[3] - r[1];
+-        if width <= TILE && height <= TILE { return self.leaf(r, ids); }
++        if width <= TILE && height <= TILE {
++            return self.leaf(r, ids);
++        }
+         let mut a = r;
+         let mut b = r;
+         if width >= height && width > TILE {
+             let tiles = width.div_ceil(TILE);
+             let middle = r[0] + (tiles / 2) * TILE;
+-            a[2] = middle; b[0] = middle;
++            a[2] = middle;
++            b[0] = middle;
+         } else {
+             let tiles = height.div_ceil(TILE);
+             let middle = r[1] + (tiles / 2) * TILE;
+-            a[3] = middle; b[1] = middle;
++            a[3] = middle;
++            b[1] = middle;
+         }
+         let mark = self.indices.len();
+         let left = self.children(ids.clone(), a)?;
+@@ -187,7 +235,9 @@ impl Raster<'_> {
+         Some(())
+     }
+     fn write(&mut self, r: [usize; 4], native_y: i64, left: i64, right: i64) -> Option<()> {
+-        if left >= right { return Some(()); }
++        if left >= right {
++            return Some(());
++        }
+         let origin_x = i64::from(self.image.bounds.x0()) * 8;
+         let origin_y = i64::from(self.image.bounds.y0()) * 8;
+         let y = usize::try_from((native_y - origin_y).div_euclid(8)).ok()?;
+@@ -202,39 +252,59 @@ impl Raster<'_> {
+         Some(())
+     }
+     fn leaf(&mut self, r: [usize; 4], ids: Range<usize>) -> Option<()> {
+-        if ids.len() == 1 { self.image.stats.halfplane_tiles += 1; }
+-        else if !ids.is_empty() { self.image.stats.complex_tiles += 1; }
++        if ids.len() == 1 {
++            self.image.stats.halfplane_tiles += 1;
++        } else if !ids.is_empty() {
++            self.image.stats.complex_tiles += 1;
++        }
+         let native = self.native_rect(r);
+         for y in native[1]..native[3] {
+             self.crossings.clear();
+             for at in ids.clone() {
+                 let segment = *self.segments.get(*self.indices.get(at)?)?;
+-                if y < segment.first || y > segment.last { continue; }
++                if y < segment.first || y > segment.last {
++                    continue;
++                }
+                 let x = segment.crossing(y)?;
+                 if x >= native[0] && x < native[2] {
+-                    self.crossings.push(Crossing { x, winding: segment.winding });
++                    self.crossings.push(Crossing {
++                        x,
++                        winding: segment.winding,
++                    });
+                 }
+             }
+-            if self.crossings.len() > 1 { self.crossings.sort_unstable_by_key(|e| (e.x, e.winding)); }
++            if self.crossings.len() > 1 {
++                self.crossings.sort_unstable_by_key(|e| (e.x, e.winding));
++            }
+             let row_index = usize::try_from(y - i64::from(self.image.bounds.y0()) * 8).ok()?;
+             let mut row = *self.rows.get(row_index)?;
+             let mut left = native[0];
+             for n in 0..self.crossings.len() {
+                 let crossing = self.crossings[n];
+-                if row.winding != 0 { self.write(r, y, left, crossing.x)?; }
+-                if row.winding == 0 { row.start = crossing.x; }
++                if row.winding != 0 {
++                    self.write(r, y, left, crossing.x)?;
++                }
++                if row.winding == 0 {
++                    row.start = crossing.x;
++                }
+                 row.winding += i64::from(crossing.winding);
+                 if row.winding == 0 && row.start < crossing.x {
+                     self.image.source_intervals = self.image.source_intervals.checked_add(1)?;
+                     if !row.has_interval || row.last_end < row.start {
+                         self.image.union_intervals = self.image.union_intervals.checked_add(1)?;
+                     }
+-                    row.last_end = if row.has_interval { row.last_end.max(crossing.x) } else { crossing.x };
++                    row.last_end = if row.has_interval {
++                        row.last_end.max(crossing.x)
++                    } else {
++                        crossing.x
++                    };
+                     row.has_interval = true;
+                 }
+                 left = crossing.x;
+             }
+-            if row.winding != 0 { self.write(r, y, left, native[2])?; }
++            if row.winding != 0 {
++                self.write(r, y, left, native[2])?;
++            }
+             self.rows[row_index] = row;
+         }
+         Some(())
+@@ -243,39 +313,82 @@ impl Raster<'_> {
+ 
+ /// None means optional tiled scratch/preconditions could not be proved; callers
+ /// retain the legacy producer. Nothing points into the request-local arenas.
+-pub(crate) fn rasterize(segments: &[Segment], bounds: PixelRect, allowance: u64, held: u64) -> Option<TileImage> {
++pub(crate) fn rasterize(
++    segments: &[Segment],
++    bounds: PixelRect,
++    allowance: u64,
++    held: u64,
++) -> Option<TileImage> {
+     let width = bounds.width() as usize;
+     let height = bounds.height() as usize;
+-    if width == 0 || height == 0 { return None; }
+-    let native = [i64::from(bounds.x0()) * 8, i64::from(bounds.y0()) * 8,
+-        i64::from(bounds.x1()) * 8, i64::from(bounds.y1()) * 8];
++    if width == 0 || height == 0 {
++        return None;
++    }
++    let native = [
++        i64::from(bounds.x0()) * 8,
++        i64::from(bounds.y0()) * 8,
++        i64::from(bounds.x1()) * 8,
++        i64::from(bounds.y1()) * 8,
++    ];
+     // Required for exact legacy interval/resource counts, including contours
+     // outside the final viewport: no crossing may be cropped by this producer.
+     for segment in segments {
+         let a = segment.crossing(segment.first)?;
+         let b = segment.crossing(segment.last)?;
+-        if segment.first < native[1] || segment.last >= native[3]
+-            || a.min(b) < native[0] || a.max(b) >= native[2] { return None; }
++        if segment.first < native[1]
++            || segment.last >= native[3]
++            || a.min(b) < native[0]
++            || a.max(b) >= native[2]
++        {
++            return None;
++        }
+     }
+     let columns = width.div_ceil(TILE);
+     let count = columns.checked_mul(height.div_ceil(TILE))?;
+     let row_count = height.checked_mul(8)?;
+-    let planned = (count as u64).checked_mul(TILE_BYTES as u64)?
++    let planned = (count as u64)
++        .checked_mul(TILE_BYTES as u64)?
+         .checked_add((row_count as u64).checked_mul(std::mem::size_of::<Row>() as u64)?)?
+-        .checked_add((segments.len() as u64).checked_mul((std::mem::size_of::<usize>() + std::mem::size_of::<Crossing>()) as u64)?)?
+-        .checked_add(held)?.checked_add(STACK_ALLOWANCE)?;
+-    if planned > allowance { return None; }
+-    let mut tiles = Vec::new(); tiles.try_reserve_exact(count).ok()?;
+-    let mut rows = Vec::new(); rows.try_reserve_exact(row_count).ok()?;
+-    let mut indices = Vec::new(); indices.try_reserve_exact(segments.len()).ok()?;
+-    let mut crossings = Vec::new(); crossings.try_reserve_exact(segments.len()).ok()?;
+-    let mut raster = Raster { segments, image: TileImage { bounds, columns, tiles, source_intervals: 0, union_intervals: 0, stats: Default::default() }, rows, indices, crossings, allowance, held };
++        .checked_add((segments.len() as u64).checked_mul(
++            (std::mem::size_of::<usize>() + std::mem::size_of::<Crossing>()) as u64,
++        )?)?
++        .checked_add(held)?
++        .checked_add(STACK_ALLOWANCE)?;
++    if planned > allowance {
++        return None;
++    }
++    let mut tiles = Vec::new();
++    tiles.try_reserve_exact(count).ok()?;
++    let mut rows = Vec::new();
++    rows.try_reserve_exact(row_count).ok()?;
++    let mut indices = Vec::new();
++    indices.try_reserve_exact(segments.len()).ok()?;
++    let mut crossings = Vec::new();
++    crossings.try_reserve_exact(segments.len()).ok()?;
++    let mut raster = Raster {
++        segments,
++        image: TileImage {
++            bounds,
++            columns,
++            tiles,
++            source_intervals: 0,
++            union_intervals: 0,
++            stats: Default::default(),
++        },
++        rows,
++        indices,
++        crossings,
++        allowance,
++        held,
++    };
+     raster.observe()?;
+     raster.image.tiles.resize(count, [0; TILE_BYTES]);
+     raster.rows.resize(row_count, Row::default());
+     raster.indices.extend(0..segments.len());
+     raster.node([0, 0, width, height], 0..segments.len(), 0)?;
+-    if raster.rows.iter().any(|row| row.winding != 0) { return None; }
++    if raster.rows.iter().any(|row| row.winding != 0) {
++        return None;
++    }
+     Some(raster.image)
+ }
+ 
+@@ -295,21 +408,32 @@ mod tests {
+             ops.push(PathOp::MoveTo(point(first)));
+             for pair in contour.windows(2) {
+                 ops.push(PathOp::LineTo(point(pair[1])));
+-                if let Some(segment) = Segment::new(pair[0], pair[1]) { segments.push(segment); }
++                if let Some(segment) = Segment::new(pair[0], pair[1]) {
++                    segments.push(segment);
++                }
+             }
+             ops.push(PathOp::Close);
+-            if let Some(segment) = Segment::new(*contour.last().unwrap(), first) { segments.push(segment); }
++            if let Some(segment) = Segment::new(*contour.last().unwrap(), first) {
++                segments.push(segment);
++            }
+         }
+-        let limits = Limits::default().with_transient_bytes(512 * 1024 * 1024).unwrap()
+-            .with_path_segments_per_frame(32_000_000).unwrap();
+-        let expected = crate::axis_widen::rasterize_body_timed(&ops, &limits, &mut Default::default()).unwrap();
++        let limits = Limits::default()
++            .with_transient_bytes(512 * 1024 * 1024)
++            .unwrap()
++            .with_path_segments_per_frame(32_000_000)
++            .unwrap();
++        let expected =
++            crate::axis_widen::rasterize_body_timed(&ops, &limits, &mut Default::default())
++                .unwrap();
+         assert!(segments.iter().map(|s| s.rows()).sum::<u64>() > 0);
+         let image = rasterize(&segments, expected.bounds(), limits.transient_bytes(), 0).unwrap();
+         let stats = image.stats;
+         // Independent full-row reference for the legacy source/union work counts.
+         let mut edges = Vec::new();
+         for segment in &segments {
+-            for y in segment.first..=segment.last { edges.push((y, segment.crossing(y).unwrap(), segment.winding)); }
++            for y in segment.first..=segment.last {
++                edges.push((y, segment.crossing(y).unwrap(), segment.winding));
++            }
+         }
+         edges.sort_unstable();
+         let mut row = None;
+@@ -319,12 +443,20 @@ mod tests {
+         let mut union = 0;
+         let mut last_end = None;
+         for (y, x, w) in edges {
+-            if row != Some(y) { row = Some(y); winding = 0; last_end = None; }
+-            if winding == 0 { start = x; }
++            if row != Some(y) {
++                row = Some(y);
++                winding = 0;
++                last_end = None;
++            }
++            if winding == 0 {
++                start = x;
++            }
+             winding += w;
+             if winding == 0 && start < x {
+                 source += 1;
+-                if last_end.is_none_or(|end| end < start) { union += 1; }
++                if last_end.is_none_or(|end| end < start) {
++                    union += 1;
++                }
+                 last_end = Some(last_end.map_or(x, |end: i64| end.max(x)));
+             }
+         }
+@@ -344,14 +476,28 @@ mod tests {
+                 for shape in 0..4 {
+                     let mut contours = match shape {
+                         0 => vec![vec![[0, 0], [24576, 0], [24576, 18432], [0, 18432]]],
+-                        1 => vec![vec![[0, 0], [16384, 123], [16311, 16384], [17, 16311]],
+-                            vec![[4000, 4000], [4000, 12000], [12000, 12000], [12000, 4000]]],
+-                        2 => vec![vec![[0, 0], [16000, 15000], [64, 14000], [15000, 51]],
+-                            vec![[2000, 1000], [18000, 1000], [18000, 13000], [2000, 13000]]],
+-                        _ => vec![vec![[0, 0], [8000, 1000], [3000, 14000], [16000, 7000], [1000, 5000], [17000, 16000]]],
++                        1 => vec![
++                            vec![[0, 0], [16384, 123], [16311, 16384], [17, 16311]],
++                            vec![[4000, 4000], [4000, 12000], [12000, 12000], [12000, 4000]],
++                        ],
++                        2 => vec![
++                            vec![[0, 0], [16000, 15000], [64, 14000], [15000, 51]],
++                            vec![[2000, 1000], [18000, 1000], [18000, 13000], [2000, 13000]],
++                        ],
++                        _ => vec![vec![
++                            [0, 0],
++                            [8000, 1000],
++                            [3000, 14000],
++                            [16000, 7000],
++                            [1000, 5000],
++                            [17000, 16000],
++                        ]],
+                     };
+                     for contour in &mut contours {
+-                        for p in contour { p[0] += offset[0] + phase; p[1] += offset[1] + phase; }
++                        for p in contour {
++                            p[0] += offset[0] + phase;
++                            p[1] += offset[1] + phase;
++                        }
+                     }
+                     let stats = check(&contours);
+                     kinds.empty_regions += stats.empty_regions;

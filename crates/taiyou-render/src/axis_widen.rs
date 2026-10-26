@@ -196,6 +196,75 @@ fn vertical_bands(
 fn limit() -> RenderError {
     RenderError::new(ErrorCode::LimitExceeded, "single-axis span widening budget")
 }
+
+// The tiled slice must retain the old deterministic rejection and cache witness,
+// even though it no longer needs the legacy Edge/Span allocations. Keep this
+// proof test-only until its equivalence and the tiled coverage are validated.
+#[cfg(test)]
+pub(crate) struct FillWitness {
+    pub peak: u64,
+    pub required_work: u64,
+}
+#[cfg(test)]
+fn legacy_capacity<T>(length: u64) -> Option<u64> {
+    if length == 0 { return Some(0); }
+    let length = usize::try_from(length).ok()?;
+    let minimum = if std::mem::size_of::<T>() == 1 { 8 } else { 4 };
+    let capacity = length.max(minimum).checked_next_power_of_two()?;
+    let bytes = capacity.checked_mul(std::mem::size_of::<T>())?;
+    if bytes > isize::MAX as usize { return None; }
+    Some(bytes as u64)
+}
+#[cfg(test)]
+fn legacy_push_check<T>(length: u64, used: u64, limits: &Limits) -> Result<(), RenderError> {
+    if length == 0 { return Ok(()); }
+    let each = 3 * std::mem::size_of::<T>() as u64;
+    let overflow = (u64::MAX - used) / each;
+    let memory = limits.transient_bytes().saturating_sub(used) / each;
+    let work = limits.path_segments_per_frame();
+    if length <= overflow.min(memory).min(work) { return Ok(()); }
+    // The original push checks arithmetic, then transient bytes, then work.
+    // Preserve the first failing push, not merely the final aggregate failure.
+    if overflow <= memory && overflow <= work && length > overflow { return Err(limit()); }
+    if memory <= work && length > memory {
+        return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
+    }
+    Err(limit())
+}
+#[cfg(test)]
+pub(crate) fn legacy_fill_witness(
+    ops: usize, count: u64, edges: u64, intervals: u64, union: u64,
+    bounds: PixelRect, limits: &Limits,
+) -> Result<Option<FillWitness>, RenderError> {
+    check_path_budget(ops, limits)?;
+    let mut peak = (ops as u64).saturating_mul(4 * (std::mem::size_of::<PathOp<FontPoint>>()
+        + std::mem::size_of::<PathOp<DevicePoint>>()) as u64).saturating_add(4096);
+    let mut required = (ops as u64).max(count);
+    legacy_push_check::<Edge>(edges, 0, limits)?;
+    if count > limits.path_segments_per_frame() { return Err(limit()); }
+    let Some(edge_bytes) = legacy_capacity::<Edge>(edges) else { return Ok(None); };
+    let Some(span_bytes) = legacy_capacity::<Span>(intervals) else { return Ok(None); };
+    peak = peak.max(edges.checked_mul(3 * std::mem::size_of::<Edge>() as u64).ok_or_else(limit)?);
+    legacy_push_check::<Span>(intervals, edge_bytes, limits)?;
+    peak = peak.max(edge_bytes.checked_add(intervals.checked_mul(3 * std::mem::size_of::<Span>() as u64).ok_or_else(limit)?).ok_or_else(limit)?);
+    legacy_push_check::<i64>(1, span_bytes, limits)?;
+    peak = peak.max(span_bytes.checked_add(3 * std::mem::size_of::<i64>() as u64).ok_or_else(limit)?);
+    let producer = span_bytes.checked_add(legacy_capacity::<i64>(1).ok_or_else(limit)?).ok_or_else(limit)?;
+    legacy_push_check::<Span>(intervals, producer, limits)?;
+    peak = peak.max(producer.checked_add(intervals.checked_mul(3 * std::mem::size_of::<Span>() as u64).ok_or_else(limit)?).ok_or_else(limit)?);
+    required = required.max(intervals);
+    if intervals == 0 { return Ok(Some(FillWitness { peak, required_work: required })); }
+    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension() { return Err(limit()); }
+    let length = (bounds.width() as usize).checked_mul(bounds.height() as usize).ok_or_else(limit)? as u64;
+    if length > limits.output_pixels() || length > limits.output_bytes() { return Err(limit()); }
+    let charge = length.checked_mul(3).and_then(|n| n.checked_add(span_bytes)).ok_or_else(limit)?;
+    if charge > limits.transient_bytes() { return Err(limit().with_resource_failure(ResourceFailure::TransientMemory)); }
+    let work = count.checked_add(union).ok_or_else(limit)?;
+    peak = peak.max(charge);
+    required = required.max(work);
+    if work > limits.path_segments_per_frame() { return Err(limit()); }
+    Ok(Some(FillWitness { peak, required_work: required }))
+}
 fn reserve_observed<T>(
     v: &mut Vec<T>,
     additional: usize,
@@ -905,6 +974,20 @@ fn rasterize_impl(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_capacity_witness_matches_actual_growth_for_all_retained_element_types() {
+        fn prove<T: Copy>(value: T) {
+            let mut actual = Vec::new();
+            for length in 0..8193 {
+                assert_eq!(legacy_capacity::<T>(length), Some((actual.capacity() * std::mem::size_of::<T>()) as u64));
+                actual.try_reserve(1).unwrap();
+                actual.push(value);
+            }
+        }
+        prove(Edge { y: 0, x: 0, w: 0 });
+        prove(Span { y: 0, left: 0, right: 0 });
+        prove(0_i64);
+    }
     #[test]
     fn row_partition_matches_full_lexicographic_sort_and_declines_extra_budget() {
         let limits = Limits::default();
