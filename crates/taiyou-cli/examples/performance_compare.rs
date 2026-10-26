@@ -108,6 +108,15 @@ fn main() {
             .render_parsed(&parsed, fonts.clone(), &request(observation_time))
             .unwrap();
         eprintln!("POST_SAMPLE_STAGES={:?}", renderer.last_timings());
+        if std::env::var("TAIYOU_RASTER_PROFILE").as_deref() == Ok("1") {
+            for sample in 0..31_i64 {
+                let timestamp = observation_time + (sample + 1) * 16;
+                let frame = renderer.render_parsed(&parsed, fonts.clone(), &request(timestamp)).unwrap();
+                let rgba = hex(frame.pixels());
+                let diagnostics = hex(format!("{:?}", frame.diagnostics()).as_bytes());
+                eprintln!("RASTER_PROFILE_SAMPLE={sample},{timestamp},{rgba},{diagnostics},{:?}", renderer.last_timings());
+            }
+        }
         let limits = renderer.config().limits.clone();
         let mut budget = OutputBudget::new(&limits);
         for sample in 0..31 {

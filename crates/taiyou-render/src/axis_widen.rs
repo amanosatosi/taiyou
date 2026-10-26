@@ -22,7 +22,7 @@ struct Span {
 // The resulting order is exactly (y,left,right), as in the original full sort.
 // Scratch is optional and fits inside the producer's existing peak witness;
 // allocation/range failures retain the original in-place sort and its limits.
-fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits) -> bool {
+fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits, mut timings: Option<&mut crate::timing::StageTimings>) -> bool {
     if spans.len() < 2 {
         return false;
     }
@@ -57,7 +57,8 @@ fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits)
     }
     let mut ends = Vec::<usize>::new();
     let mut next = Vec::<usize>::new();
-    if ends.try_reserve_exact(rows).is_err() || next.try_reserve_exact(rows).is_err() {
+    if reserve_observed(&mut ends, rows, true, timings.as_deref_mut()).is_err()
+        || reserve_observed(&mut next, rows, true, timings.as_deref_mut()).is_err() {
         return false;
     }
     let Some(actual) = ends
@@ -98,9 +99,13 @@ fn sort_by_scan_row(spans: &mut Vec<Span>, producer_bytes: u64, limits: &Limits)
         }
     }
     let mut start = 0;
+    let timer = timings.as_ref().and_then(|t| t.start());
     for end in ends {
         spans[start..end].sort_unstable_by_key(|s| (s.left, s.right));
         start = end;
+    }
+    if let Some(t) = timings.as_mut() {
+        t.span_sorting += crate::timing::StageTimings::elapsed(timer);
     }
     true
 }
@@ -120,6 +125,7 @@ fn vertical_bands(
     source_bytes: u64,
     arc_bytes: u64,
     limits: &Limits,
+    mut timings: Option<&mut crate::timing::StageTimings>,
 ) -> Option<(Vec<VerticalBand>, u64)> {
     if spans.len() < 2 || arc.len() < 2 || !arc.windows(2).all(|w| w[0] >= w[1]) {
         return None;
@@ -131,14 +137,18 @@ fn vertical_bands(
         return None;
     }
     let mut bands: Vec<VerticalBand> = Vec::new();
-    bands.try_reserve_exact(spans.len()).ok()?;
+    reserve_observed(&mut bands, spans.len(), true, timings.as_deref_mut()).ok()?;
     let band_bytes =
         (bands.capacity() as u64).checked_mul(std::mem::size_of::<VerticalBand>() as u64)?;
     let build_peak = band_bytes.checked_mul(3)?.checked_add(source_bytes)?;
     if build_peak > limits.transient_bytes() {
         return None;
     }
+    let sort_timer = timings.as_ref().and_then(|t| t.start());
     spans.sort_unstable_by_key(|s| (s.left, s.right, s.y));
+    if let Some(t) = timings.as_mut() {
+        t.span_sorting += crate::timing::StageTimings::elapsed(sort_timer);
+    }
     for s in spans.iter() {
         if let Some(last) = bands
             .last_mut()
@@ -180,7 +190,21 @@ fn vertical_bands(
 fn limit() -> RenderError {
     RenderError::new(ErrorCode::LimitExceeded, "single-axis span widening budget")
 }
-fn push<T>(v: &mut Vec<T>, item: T, used: u64, limits: &Limits) -> Result<(), RenderError> {
+fn reserve_observed<T>(v: &mut Vec<T>, additional: usize, exact: bool, mut timings: Option<&mut crate::timing::StageTimings>) -> Result<(), std::collections::TryReserveError> {
+    let capacity = v.capacity();
+    let growth = v.capacity() - v.len() < additional;
+    let timer = if growth { timings.as_ref().and_then(|t| t.start()) } else { None };
+    let result = if exact { v.try_reserve_exact(additional) } else { v.try_reserve(additional) };
+    if let Some(t) = timings.as_mut().filter(|t| t.enabled && growth) {
+        t.raster_allocation += crate::timing::StageTimings::elapsed(timer);
+        t.raster_allocations = t.raster_allocations.saturating_add(1);
+        t.raster_reallocations = t.raster_reallocations.saturating_add(u64::from(capacity != 0));
+        t.raster_capacity_growth_bytes = t.raster_capacity_growth_bytes.saturating_add(
+            (v.capacity().saturating_sub(capacity) as u64).saturating_mul(std::mem::size_of::<T>() as u64));
+    }
+    result
+}
+fn push<T>(v: &mut Vec<T>, item: T, used: u64, limits: &Limits, timings: Option<&mut crate::timing::StageTimings>) -> Result<(), RenderError> {
     let bytes = (v.len() as u64 + 1)
         .checked_mul(3 * std::mem::size_of::<T>() as u64)
         .and_then(|n| n.checked_add(used))
@@ -191,12 +215,12 @@ fn push<T>(v: &mut Vec<T>, item: T, used: u64, limits: &Limits) -> Result<(), Re
     if v.len() as u64 >= limits.path_segments_per_frame() {
         return Err(limit());
     }
-    v.try_reserve(1)
+    reserve_observed(v, 1, false, timings)
         .map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "span widening allocation"))?;
     v.push(item);
     Ok(())
 }
-fn line(a: Point, b: Point, edges: &mut Vec<Edge>, limits: &Limits) -> Result<(), RenderError> {
+fn line(a: Point, b: Point, edges: &mut Vec<Edge>, limits: &Limits, mut timings: Option<&mut crate::timing::StageTimings>) -> Result<(), RenderError> {
     let (mut a, mut b) = ((a.0 as i64, a.1 as i64), (b.0 as i64, b.1 as i64));
     if a.1 == b.1 {
         return Ok(());
@@ -214,7 +238,7 @@ fn line(a: Point, b: Point, edges: &mut Vec<Edge>, limits: &Limits) -> Result<()
         let sample = y * 8 + 4;
         let x16 = i128::from(a.0) * 8192 + (slope * i128::from(sample - a.1)).div_euclid(8);
         let x = i64::try_from((x16 + 32768).div_euclid(65536)).map_err(|_| limit())?;
-        push(edges, Edge { y, x, w }, 0, limits)?;
+        push(edges, Edge { y, x, w }, 0, limits, timings.as_deref_mut())?;
     }
     Ok(())
 }
@@ -223,6 +247,7 @@ fn curve(
     edges: &mut Vec<Edge>,
     limits: &Limits,
     count: &mut u64,
+    mut timings: Option<&mut crate::timing::StageTimings>,
 ) -> Result<(), RenderError> {
     let coefficients = |axis: usize| {
         let [a, b, c, d] = p.map(|p| if axis == 0 { p.0 } else { p.1 });
@@ -256,7 +281,7 @@ fn curve(
         if *count > limits.path_segments_per_frame() {
             return Err(limit());
         }
-        line(prev, next, edges, limits)?;
+        line(prev, next, edges, limits, timings.as_deref_mut())?;
         prev = next;
         let next_t = t + step;
         if next_t <= t {
@@ -270,7 +295,7 @@ fn curve(
     // and can paint a span across the gap to another glyph. Use the supplied
     // endpoint, as for every other path segment. pinterf's _EvaluateLine also
     // reconnects its last emitted point to the next segment's exact start.
-    line(prev, p[3], edges, limits)
+    line(prev, p[3], edges, limits, timings)
 }
 
 // A grid ellipse includes the nearest boundary cells in both dominant-axis
@@ -444,12 +469,12 @@ fn rasterize_impl(
                 first = prev;
             }
             PathOp::LineTo(p) => {
-                line(prev, point(p), &mut edges, limits)?;
+                line(prev, point(p), &mut edges, limits, timings.as_deref_mut())?;
                 prev = point(p);
                 count = count.checked_add(1).ok_or_else(limit)?;
             }
             PathOp::Close => {
-                line(prev, first, &mut edges, limits)?;
+                line(prev, first, &mut edges, limits, timings.as_deref_mut())?;
                 prev = first;
             }
             PathOp::QuadTo(a, b) => {
@@ -459,7 +484,7 @@ fn rasterize_impl(
                     prev.1 + (a.1 - prev.1) * 2.0 / 3.0,
                 );
                 let p2 = (b.0 + (a.0 - b.0) * 2.0 / 3.0, b.1 + (a.1 - b.1) * 2.0 / 3.0);
-                curve([prev, p1, p2, b], &mut edges, limits, &mut count)?;
+                curve([prev, p1, p2, b], &mut edges, limits, &mut count, timings.as_deref_mut())?;
                 prev = b;
             }
             PathOp::CubicTo(a, b, c) => {
@@ -469,6 +494,7 @@ fn rasterize_impl(
                     &mut edges,
                     limits,
                     &mut count,
+                    timings.as_deref_mut(),
                 )?;
                 prev = c;
             }
@@ -481,7 +507,10 @@ fn rasterize_impl(
         edge.x += ox / 8;
         edge.y += oy / 8;
     }
+    if let Some(t) = timings.as_mut() { t.edge_generation += crate::timing::StageTimings::elapsed(timer); }
+    let sort_timer = timings.as_ref().and_then(|t| t.start());
     edges.sort_unstable_by_key(|e| (e.y, e.x, e.w));
+    if let Some(t) = timings.as_mut() { t.edge_sorting += crate::timing::StageTimings::elapsed(sort_timer); }
     let edge_bytes = edges.capacity() as u64 * std::mem::size_of::<Edge>() as u64;
     if let Some(t) = timings.as_mut() {
         t.raster_peak(
@@ -493,6 +522,7 @@ fn rasterize_impl(
     let mut row = None;
     let mut winding = 0_i64;
     let mut left = 0;
+    let generation_timer = timings.as_ref().and_then(|t| t.start());
     for e in &edges {
         if row != Some(e.y) {
             row = Some(e.y);
@@ -512,10 +542,12 @@ fn rasterize_impl(
                 },
                 edge_bytes,
                 limits,
+                timings.as_deref_mut(),
             )?;
         }
     }
     if let Some(t) = timings.as_mut() {
+        t.span_generation += crate::timing::StageTimings::elapsed(generation_timer);
         t.raster_peak(
             edge_bytes.saturating_add(
                 (spans.len() as u64).saturating_mul(3 * std::mem::size_of::<Span>() as u64),
@@ -533,7 +565,7 @@ fn rasterize_impl(
     let mut arc = Vec::new();
     let span_bytes = spans.capacity() as u64 * std::mem::size_of::<Span>() as u64;
     for y in 0..=ry {
-        push(&mut arc, ellipse_width(rx, ry, y), span_bytes, limits)?;
+        push(&mut arc, ellipse_width(rx, ry, y), span_bytes, limits, timings.as_deref_mut())?;
     }
     if let Some(t) = timings.as_mut() {
         t.raster_peak(
@@ -559,6 +591,7 @@ fn rasterize_impl(
         span_bytes,
         arc.capacity() as u64 * std::mem::size_of::<i64>() as u64,
         limits,
+        timings.as_deref_mut(),
     );
     let mut producer_bytes = span_bytes;
     if let Some((bands, build_peak)) = bands {
@@ -588,6 +621,7 @@ fn rasterize_impl(
                     },
                     producer_bytes,
                     limits,
+                    timings.as_deref_mut(),
                 )?;
             }
         }
@@ -606,6 +640,7 @@ fn rasterize_impl(
                     },
                     span_bytes,
                     limits,
+                    timings.as_deref_mut(),
                 )?;
             }
         }
@@ -625,9 +660,19 @@ fn rasterize_impl(
         t.border_expansion += crate::timing::StageTimings::elapsed(timer);
     }
     let timer = timings.as_ref().and_then(|t| t.start());
-    if !sort_by_scan_row(&mut wide, producer_bytes, limits) {
-        wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
+    let sorting_before = timings.as_ref().map_or(std::time::Duration::ZERO, |t| t.span_sorting);
+    let bucket_timer = timings.as_ref().and_then(|t| t.start());
+    let bucketed = sort_by_scan_row(&mut wide, producer_bytes, limits, timings.as_deref_mut());
+    if let Some(t) = timings.as_mut() {
+        t.row_bucketing += crate::timing::StageTimings::elapsed(bucket_timer)
+            .saturating_sub(t.span_sorting.saturating_sub(sorting_before));
     }
+    if !bucketed {
+        let sort_timer = timings.as_ref().and_then(|t| t.start());
+        wide.sort_unstable_by_key(|s| (s.y, s.left, s.right));
+        if let Some(t) = timings.as_mut() { t.span_sorting += crate::timing::StageTimings::elapsed(sort_timer); }
+    }
+    let merge_timer = timings.as_ref().and_then(|t| t.start());
     let mut out = 0;
     for i in 0..wide.len() {
         let s = wide[i];
@@ -640,6 +685,7 @@ fn rasterize_impl(
     }
     wide.truncate(out);
     if let Some(t) = timings.as_mut() {
+        t.interval_merging += crate::timing::StageTimings::elapsed(merge_timer);
         t.span_union += crate::timing::StageTimings::elapsed(timer);
     }
     let timer = timings.as_ref().and_then(|t| t.start());
@@ -663,7 +709,7 @@ fn rasterize_impl(
                 PathOp::LineTo(point(span.left, span.y + 1)?),
                 PathOp::Close,
             ] {
-                push(&mut path, op, live, limits)?;
+                push(&mut path, op, live, limits, timings.as_deref_mut())?;
             }
         }
         let charge = (path.capacity() as u64)
@@ -752,11 +798,18 @@ fn rasterize_impl(
         t.raster_peak(charge, count.saturating_add(wide.len() as u64));
     }
     let mut data = Vec::new();
-    data.try_reserve_exact(length)
+    reserve_observed(&mut data, length, true, timings.as_deref_mut())
         .map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "axis coverage allocation"))?;
+    let clear_timer = timings.as_ref().and_then(|t| t.start());
     data.resize(length, 0_u8);
+    if let Some(t) = timings.as_mut() { t.bitmap_clear += crate::timing::StageTimings::elapsed(clear_timer); }
+    let coverage_timer = timings.as_ref().and_then(|t| t.start());
     for s in &wide {
         let y = (s.y.div_euclid(8) - y0) as usize;
+        if let Some(t) = timings.as_mut().filter(|t| t.enabled) {
+            t.coverage_write_samples = t.coverage_write_samples.saturating_add(
+                (-(-s.right).div_euclid(8) - s.left.div_euclid(8)) as u64);
+        }
         for x in s.left.div_euclid(8)..=-(-(s.right)).div_euclid(8) - 1 {
             let n = (s.right.min((x + 1) * 8) - s.left.max(x * 8)) as u8;
             let index = y * stride + (x - x0) as usize;
@@ -771,16 +824,19 @@ fn rasterize_impl(
             *v = ((u16::from(*v) * 255 + 32) / 64) as u8;
         }
     }
+    if let Some(t) = timings.as_mut() { t.coverage_writes += crate::timing::StageTimings::elapsed(coverage_timer); }
     let work = count.checked_add(wide.len() as u64).ok_or_else(limit)?;
     if work > remaining {
         return Err(limit());
     }
+    let publication_timer = timings.as_ref().and_then(|t| t.start());
     let mask = if xy {
         Mask::new_xy(bounds, stride, data.into())
     } else {
         Mask::new(bounds, stride, data.into())
     }?;
     if let Some(t) = timings.as_mut() {
+        t.bitmap_publication += crate::timing::StageTimings::elapsed(publication_timer);
         t.mask_generation += crate::timing::StageTimings::elapsed(timer);
     }
     Ok((Arc::new(mask), work))
@@ -805,11 +861,11 @@ mod tests {
                 }
                 let mut expected = input.clone();
                 expected.sort_unstable_by_key(|s| (s.y, s.left, s.right));
-                assert!(sort_by_scan_row(&mut input, 0, &limits));
+                assert!(sort_by_scan_row(&mut input, 0, &limits, None));
                 assert_eq!(input, expected, "seed={seed}, rows={rows}");
                 let before = input.clone();
                 let tiny = limits.clone().with_transient_bytes(1).unwrap();
-                assert!(!sort_by_scan_row(&mut input, 0, &tiny));
+                assert!(!sort_by_scan_row(&mut input, 0, &tiny, None));
                 assert_eq!(input, before);
             }
         }
@@ -827,7 +883,7 @@ mod tests {
                 },
             ];
             let before = input.clone();
-            assert!(!sort_by_scan_row(&mut input, 0, &limits));
+            assert!(!sort_by_scan_row(&mut input, 0, &limits, None));
             assert_eq!(input, before);
         }
     }
@@ -875,6 +931,7 @@ mod tests {
                     source_bytes,
                     arc.capacity() as u64 * 8,
                     &Limits::default(),
+                    None,
                 );
                 if let Some((bands, _)) = bands {
                     reused += 1;
@@ -927,11 +984,12 @@ mod tests {
                 &[3, 2, 1],
                 128,
                 24,
-                &Limits::default().with_transient_bytes(1).unwrap()
+                &Limits::default().with_transient_bytes(1).unwrap(),
+                None,
             )
             .is_none()
         );
-        assert!(vertical_bands(&mut spans, &[3, 1, 2], 128, 24, &Limits::default()).is_none());
+        assert!(vertical_bands(&mut spans, &[3, 1, 2], 128, 24, &Limits::default(), None).is_none());
     }
     #[test]
     fn discrete_ellipse_retains_dominant_axis_boundary_cells() {
@@ -1012,8 +1070,8 @@ mod tests {
                     b.1 + (control.1 - b.1) * 2.0 / 3.0,
                 );
                 let mut edges = Vec::new();
-                curve([a, p1, p2, b], &mut edges, &Limits::default(), &mut 0).unwrap();
-                line(b, a, &mut edges, &Limits::default()).unwrap();
+                curve([a, p1, p2, b], &mut edges, &Limits::default(), &mut 0, None).unwrap();
+                line(b, a, &mut edges, &Limits::default(), None).unwrap();
                 let mut winding = std::collections::BTreeMap::new();
                 for edge in edges {
                     *winding.entry(edge.y).or_insert(0) += edge.w;

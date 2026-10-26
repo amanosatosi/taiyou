@@ -123,6 +123,7 @@ def run(output):
     fonts = [f["path"] for f in manifest["fonts"]]
     rows, failures, processes, versions = [], [], [], {}
     resources = {}
+    raster_profiles = {}
     resource_differences = []
     for case_index, case in enumerate(manifest["cases"]):
         for scenario_index, scenario in enumerate(SCENARIOS):
@@ -148,7 +149,10 @@ def run(output):
                 command = ["/usr/bin/time", "-v", "-o", str(directory / (engine + "-resources.txt")), *arguments]
                 start = time.perf_counter_ns()
                 try:
-                    process = subprocess.run(command, capture_output=True, timeout=240)
+                    environment = dict(os.environ)
+                    profile = REFERENCE and scenario == "sequence" and case["width"] == 3840 and case["workload"] in ("dialogue", "transforms", "combined-abuse")
+                    environment["TAIYOU_RASTER_PROFILE"] = "1" if profile else "0"
+                    process = subprocess.run(command, capture_output=True, timeout=240, env=environment)
                     elapsed = time.perf_counter_ns() - start
                     (directory / (engine + ".stderr.txt")).write_bytes(process.stderr)
                     (directory / (engine + ".csv")).write_bytes(process.stdout)
@@ -160,6 +164,10 @@ def run(output):
                         observed = re.findall(r"^POST_SAMPLE_DEFAULT_RESOURCE_(.+)$", process.stderr.decode(), re.M)
                         assert len(observed) == 2, "missing normal-limit cache OFF/ON observations"
                         resources[(case["id"], scenario, engine)] = observed
+                        if profile:
+                            observed_profiles = re.findall(r"^RASTER_PROFILE_SAMPLE=(.+)$", process.stderr.decode(), re.M)
+                            assert len(observed_profiles) == 31
+                            raster_profiles[(case["id"], scenario, engine)] = [value.split(",", 4)[:4] for value in observed_profiles]
                     measured = list(csv.DictReader(io.StringIO(process.stdout.decode())))
                     assert len(measured) == 31
                     assert [int(r["sample"]) for r in measured] == list(range(31))
@@ -206,6 +214,8 @@ def run(output):
             many = [r for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, peer)]
             if len(one) == len(many) == 31:
                 if REFERENCE:
+                    if (case["id"], scenario, "taiyou-1") in raster_profiles:
+                        assert raster_profiles[(case["id"], scenario, "taiyou-1")] == raster_profiles[(case["id"], scenario, peer)], "post-sample profile RGBA/diagnostic difference"
                     if resources[(case["id"], scenario, "taiyou-1")] != resources[(case["id"], scenario, peer)]:
                         resource_differences.append({"case": case["id"], "scenario": scenario,
                                                      "candidate": resources[(case["id"], scenario, "taiyou-1")],

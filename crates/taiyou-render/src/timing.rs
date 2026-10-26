@@ -21,6 +21,22 @@ pub struct StageTimings {
     pub scan_conversion: Duration,
     pub border_expansion: Duration,
     pub span_union: Duration,
+    /// Subsets of scan/union work. Allocation overlaps its owning stage.
+    pub edge_generation: Duration,
+    pub edge_sorting: Duration,
+    pub span_generation: Duration,
+    pub row_bucketing: Duration,
+    pub span_sorting: Duration,
+    pub interval_merging: Duration,
+    pub raster_allocation: Duration,
+    pub bitmap_clear: Duration,
+    /// Coverage arithmetic and its destination writes are one fused loop.
+    pub coverage_writes: Duration,
+    pub bitmap_publication: Duration,
+    pub raster_allocations: u64,
+    pub raster_reallocations: u64,
+    pub raster_capacity_growth_bytes: u64,
+    pub coverage_write_samples: u64,
     pub mask_generation: Duration,
     pub mask_combination: Duration,
     pub span_rows: u64,
@@ -50,6 +66,20 @@ impl StageTimings {
         self.scan_conversion += other.scan_conversion;
         self.border_expansion += other.border_expansion;
         self.span_union += other.span_union;
+        self.edge_generation += other.edge_generation;
+        self.edge_sorting += other.edge_sorting;
+        self.span_generation += other.span_generation;
+        self.row_bucketing += other.row_bucketing;
+        self.span_sorting += other.span_sorting;
+        self.interval_merging += other.interval_merging;
+        self.raster_allocation += other.raster_allocation;
+        self.bitmap_clear += other.bitmap_clear;
+        self.coverage_writes += other.coverage_writes;
+        self.bitmap_publication += other.bitmap_publication;
+        self.raster_allocations = self.raster_allocations.saturating_add(other.raster_allocations);
+        self.raster_reallocations = self.raster_reallocations.saturating_add(other.raster_reallocations);
+        self.raster_capacity_growth_bytes = self.raster_capacity_growth_bytes.saturating_add(other.raster_capacity_growth_bytes);
+        self.coverage_write_samples = self.coverage_write_samples.saturating_add(other.coverage_write_samples);
         self.mask_generation += other.mask_generation;
         self.span_rows = self.span_rows.saturating_add(other.span_rows);
         self.expanded_candidates = self
