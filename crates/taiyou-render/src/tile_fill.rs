@@ -91,7 +91,6 @@ pub(crate) struct TileStats {
     pub solid_regions: u64,
     pub halfplane_tiles: u64,
     pub complex_tiles: u64,
-    #[cfg(test)]
     pub simple_border_tiles: u64,
     pub scratch_peak: u64,
 }
@@ -109,12 +108,13 @@ impl TileImage {
         let height = self.bounds.height() as usize;
         let length = width.checked_mul(height)?;
         let live = (self.tiles.capacity() as u64).checked_mul(TILE_BYTES as u64)?;
-        if live.checked_add(length as u64)? > allowance {
+        // Callers publish Vec storage through Arc; include its temporary copy.
+        if live.checked_add((length as u64).checked_mul(2)?)? > allowance {
             return None;
         }
         let mut pixels = Vec::new();
         pixels.try_reserve_exact(length).ok()?;
-        if live.checked_add(pixels.capacity() as u64)? > allowance {
+        if live.checked_add(pixels.capacity() as u64)?.checked_add(length as u64)? > allowance {
             return None;
         }
         pixels.resize(length, 0);

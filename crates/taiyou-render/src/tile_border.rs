@@ -472,7 +472,7 @@ mod tests {
                             .unwrap();
                         let mut old = crate::timing::StageTimings::default();
                         let mut new = crate::timing::StageTimings::default();
-                        let a = crate::axis_widen::rasterize_axis_xy_timed(
+                        let a = crate::axis_widen::rasterize_legacy_axis_timed(
                             &ops,
                             Q6::from_ticks(rx),
                             Q6::from_ticks(ry),
@@ -480,7 +480,7 @@ mod tests {
                             &limits,
                             &mut old,
                         );
-                        let b = crate::axis_widen::rasterize_tiled_axis_proof(
+                        let b = crate::axis_widen::rasterize_axis_xy_timed(
                             &ops,
                             Q6::from_ticks(rx),
                             Q6::from_ticks(ry),

@@ -792,10 +792,10 @@ pub(crate) fn rasterize_axis_xy_timed(
     limits: &Limits,
     timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_impl(ops, rx, ry, remaining, limits, true, None, Some(timings))
+    rasterize_selected(ops, rx, ry, remaining, limits, true, None, Some(timings), true)
 }
 #[cfg(test)]
-pub(crate) fn rasterize_tiled_axis_proof(
+pub(crate) fn rasterize_legacy_axis_timed(
     ops: &[PathOp<DevicePoint>],
     rx: Q6,
     ry: Q6,
@@ -812,14 +812,13 @@ pub(crate) fn rasterize_tiled_axis_proof(
         true,
         None,
         Some(timings),
-        true,
+        false,
     )
 }
 
 // The source scan conversion, ellipse and optional coalescing have already
 // executed with their original checks. Reproduce only the removed expanded
 // producer's checks, including its remaining-work check before each push.
-#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 fn try_tiled_border(
     spans: &mut [Span],
@@ -829,6 +828,7 @@ fn try_tiled_border(
     count: u64,
     remaining: u64,
     source_bytes: u64,
+    pad: i64,
     limits: &Limits,
     timings: &mut Option<&mut crate::timing::StageTimings>,
 ) -> Result<Option<(Arc<Mask>, u64)>, RenderError> {
@@ -882,7 +882,6 @@ fn try_tiled_border(
     let Some(capacity) = legacy_capacity::<Span>(expanded) else {
         return Ok(None);
     };
-    let pad = (arc[0].max(ry as i64) + 7).div_euclid(8);
     let end = |n: i64| {
         let eighth = -(-n).div_euclid(8);
         -(-(eighth + 1)).div_euclid(8) + 1
@@ -932,9 +931,13 @@ fn try_tiled_border(
         return Err(limit());
     }
     // Include source storage, tile storage and the Vec-to-Arc publication copy.
-    let publication = held.checked_add(image.tiles.capacity() as u64 * 256)
-        .and_then(|n| n.checked_add(2 * length)).ok_or_else(limit)?;
-    if publication > limits.transient_bytes() { return Ok(None); }
+    let publication = held
+        .checked_add(image.tiles.capacity() as u64 * 256)
+        .and_then(|n| n.checked_add(2 * length))
+        .ok_or_else(limit)?;
+    if publication > limits.transient_bytes() {
+        return Ok(None);
+    }
     let stats = image.stats;
     let Some(pixels) = image.into_pixels(limits.transient_bytes().saturating_sub(held)) else {
         return Ok(None);
@@ -948,6 +951,11 @@ fn try_tiled_border(
         t.raster_peak(charge, work);
         t.tiled_borders += 1;
         t.tile_simple_borders += stats.simple_border_tiles;
+        t.tile_empty_regions += stats.empty_regions;
+        t.tile_solid_regions += stats.solid_regions;
+        t.tile_complex += stats.complex_tiles;
+        t.tile_scratch_peak_bytes = t.tile_scratch_peak_bytes.max(stats.scratch_peak);
+        t.expanded_intervals_avoided += expanded;
     }
     Ok(Some((Arc::new(mask), work)))
 }
@@ -1154,20 +1162,21 @@ fn rasterize_selected(
         limits,
         timings.as_deref_mut(),
     );
-    #[cfg(test)]
     if allow_tiles && xy && projection.is_none() {
         if let Some(hull) = hull {
-            if let Some(result) = try_tiled_border(
-                &mut spans,
-                bands.as_ref(),
-                &arc,
-                hull,
-                count,
-                remaining,
-                span_bytes,
-                limits,
-                &mut timings,
-            )? {
+            let tile_timer = timings.as_ref().and_then(|t| t.start());
+            let result = try_tiled_border(
+                &mut spans, bands.as_ref(), &arc, hull, count, remaining,
+                span_bytes, (rx.max(ry) + 7).div_euclid(8), limits, &mut timings,
+            );
+            if let Some(t) = timings.as_mut() {
+                t.tiled_border += crate::timing::StageTimings::elapsed(tile_timer);
+                if matches!(&result, Ok(None)) { t.tile_fallbacks += 1; }
+            }
+            if let Some(result) = result? {
+                if let Some(t) = timings.as_mut() {
+                    t.border_expansion += crate::timing::StageTimings::elapsed(timer);
+                }
                 return Ok(result);
             }
         }

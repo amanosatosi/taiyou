@@ -35,7 +35,7 @@ jobs:
           git diff --binary > "$RUNNER_TEMP/performance-comparison/format.patch"
           if test "$SERIAL_PROBE" = 1; then
             # Only the measured serial traversal/sort may differ in this probe.
-            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs' ':!crates/taiyou-render/src/axis_widen.rs' ':!crates/taiyou-render/src/timing.rs' ':!crates/taiyou-render/src/lib.rs' ':!crates/taiyou-render/src/tile_fill.rs' ':!crates/taiyou-types/src/scene.rs'
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs' ':!crates/taiyou-render/src/axis_widen.rs' ':!crates/taiyou-render/src/timing.rs' ':!crates/taiyou-render/src/lib.rs' ':!crates/taiyou-render/src/tile_fill.rs' ':!crates/taiyou-render/src/tile_border.rs' ':!crates/taiyou-types/src/scene.rs'
           else
             git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json
           fi

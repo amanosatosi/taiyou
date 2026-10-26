@@ -82,3 +82,26 @@ These observations do not instrument libass/Mangetsu internals or change fixture
 Every kept slice needs same-runner before/after Taiyou1T and pinned direct stock,
 Mangetsu legacy and RGBA API times, cache OFF/ON, default-resource equality and the
 full historical digest audit at a promising checkpoint. Probe gates stay failing.
+
+## Border slice under proof
+
+The closed-fill slice preserved sampled pixels but removed little whole-frame
+time. The measured border path still constructs about4.24M expanded intervals.
+The next test-only slice keeps the existing base scan conversion and discrete
+ellipse exactly, including cap-dependent vertical coalescing. Compact support
+regions are spatially partitioned; empty and wholly covered regions are cheap,
+single-support tiles evaluate one interval per native row, and complex leaves
+union intervals in two64-bit native-row bitsets. Saturation is an exact positive
+union early-out. This adapts libass's recursive locality and kernel selection,
+not its analytic coverage or outline-stroke semantics. No expanded-span vector,
+global expanded-row bucket or expanded-interval sort is constructed.
+
+Native coverage is still the population of the same eight-by-eight sample grid.
+Row continuity across tiles also counts exactly the legacy merged intervals for
+work accounting. The original source/ellipse/coalescing checks execute normally;
+removed producer checks are replayed arithmetically, with remaining-work checked
+before each logical push and arithmetic/transient/global-work failure ordering
+preserved. Original capacity and peak witnesses remain conservative. Additional
+tile/source/publication storage must fit the unchanged available transient cap,
+otherwise the existing path remains the fallback. Borders are not enabled in
+production until the independent retained producer proves pixels and failures.
