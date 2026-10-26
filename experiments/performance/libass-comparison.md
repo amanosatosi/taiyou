@@ -24,7 +24,11 @@ are recorded instead of inferring an archive identity.
 Seven cases cover1080p dialogue/borders,4K dialogue/stress/blur/changing geometry,
 and the existing pinned upstream large-font karaoke/kf witness. It is not a
 Mangetsu KFX port or a claim to contain the entire future feature load. Authored
-workloads retain the existing performance harness's values. The upstream script
+workloads retain the existing performance harness's text, tags, font sizes and
+event counts. The first sparse-style run is retained separately; final authored
+styles explicitly state all frozen Taiyou defaults to avoid unintended differences
+in omitted-field interpretation. Every Taiyou RGBA digest must equal that prior
+run. This is input specification, not a rendering-semantics correction. The upstream script
 and font bytes are fetched/verified on CI from the existing immutable inventory,
 never edited or uploaded as promoted references. All fonts, source hashes, sizes
 and31 timestamps per group are shared by the callers and verified before/after.

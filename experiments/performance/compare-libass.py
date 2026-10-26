@@ -61,12 +61,12 @@ def prepare(output):
     }
     sources = {}
     for name, (text, count) in workloads.items():
-        source = "[Script Info]\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 2\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,Outline,Shadow\nStyle: Default,Source Sans 3,48,2,2\n[Events]\nFormat: Layer,Start,End,Text\n"
+        source = "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 2\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Default,Source Sans 3,48,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1\n[Events]\nFormat: Layer,Start,End,Text\n"
         source += "".join(f"Dialogue: {n},0:00:00.00,0:00:10.00,{text}\n" for n in range(count))
         path = inputs / (name + ".ass")
         path.write_bytes(source.encode())
         sources[name] = {"path": str(path), "sha256": sha(path.read_bytes()), "events": count,
-                         "origin": "existing performance.rs workload, unchanged values"}
+                         "origin": "existing text/tags/font size/event count; explicit frozen Taiyou Core style defaults"}
     path = inputs / "upstream-karaoke.ass"
     sources["upstream-karaoke"] = download_asset(
         "regression/karaoke/357-k-and-kf-desynced.ass", path, assets)
@@ -91,6 +91,7 @@ def prepare(output):
                 "benchmark_transient_limit": 512 * 1024 * 1024,
                 "benchmark_work_limit": 32_000_000,
                 "libass_cache_policy": "normal library defaults; no cache limit overrides",
+                "style_policy": "all authored style fields explicit; Taiyou RGBA must equal the retained sparse-style run",
                 "timestamp_policy": "integer milliseconds for both APIs; 16ms sequence step"}
     (output / "inputs.json").write_text(json.dumps(manifest, indent=2) + "\n")
     for path in inputs.iterdir():
@@ -187,8 +188,16 @@ def run(output):
                     assert len(a["rgba_digest"]) == len(a["diagnostic_digest"]) == 64
                     if (a["rgba_digest"], a["diagnostic_digest"]) != (b["rgba_digest"], b["diagnostic_digest"]):
                         digest_differences.append([case["id"], scenario, a["sample"]])
+    prior_file = ROOT / "experiments/performance/results/libass-comparison/samples.csv"
+    with prior_file.open() as stream:
+        prior = {(r["case"], r["scenario"], r["engine"], r["sample"]): r["rgba_digest"]
+                 for r in csv.DictReader(stream) if r["engine"].startswith("taiyou-")}
+    current = {(r["case"], r["scenario"], r["engine"], r["sample"]): r["rgba_digest"]
+               for r in rows if r["engine"].startswith("taiyou-")}
+    prior_changes = [key for key in prior.keys() | current.keys() if prior.get(key) != current.get(key)]
     report = {"schema": 1, "libass_api_version": sorted(versions), "groups": summaries,
               "failures": failures, "taiyou_digest_differences": digest_differences,
+              "sparse_style_taiyou_rgba_differences": prior_changes,
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
               "primary_taiyou_timing": "production stage timers disabled; frame/diagnostic SHA-256 outside timing",
               "primary_libass_timing": "normal ass_render_frame plus scalar CPU full-RGBA allocation/clear/composition",
@@ -211,6 +220,7 @@ def run(output):
     (output / "table.md").write_text("\n".join(table) + "\n")
     assert len(rows) == len(manifest["cases"]) * len(SCENARIOS) * 31 * len(ENGINES), "incomplete comparison inventory"
     assert not failures and not digest_differences, "process/sample/determinism failures remain failures"
+    assert not prior_changes, "explicit style fields changed Taiyou output"
 
 
 if __name__ == "__main__":
