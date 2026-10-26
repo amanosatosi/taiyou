@@ -48,6 +48,7 @@ jobs:
         run: cargo build --release --locked -p taiyou-cli --features native --example performance_compare
       - name: Normal pinned libass build with the same FreeType and HarfBuzz
         env:
+          PKG_CONFIG: /usr/bin/pkg-config
           PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
         run: |
           sudo apt-get update -qq
@@ -66,12 +67,15 @@ jobs:
           git diff --exit-code -- libass/
       - name: Build the full-RGBA libass client and record exact provenance
         env:
+          PKG_CONFIG: /usr/bin/pkg-config
           PKG_CONFIG_PATH: ${{ runner.temp }}/performance-libass-install/lib/pkgconfig:${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
         run: |
-          test "$(pkg-config --variable=prefix libass)" = "$RUNNER_TEMP/performance-libass-install"
-          cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $(pkg-config --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/libass-performance"
-          pkg-config --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/library-versions.txt"
-          pkg-config --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/libass-link-flags.txt"
+          test "$("$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-libass-install"
+          test "$("$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$("$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
+          cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $("$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/libass-performance"
+          "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/library-versions.txt"
+          "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/libass-link-flags.txt"
           cc --version > "$RUNNER_TEMP/performance-comparison/cc.txt"
           dpkg-query -W libfribidi-dev libfribidi0 nasm > "$RUNNER_TEMP/performance-comparison/packages.txt"
           cp "$RUNNER_TEMP/performance-libass-source/RELEASEVERSION" "$RUNNER_TEMP/performance-comparison/libass-release.txt"
