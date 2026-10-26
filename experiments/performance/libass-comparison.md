@@ -26,8 +26,9 @@ and the existing pinned upstream large-font karaoke/kf witness. It is not a
 Mangetsu KFX port or a claim to contain the entire future feature load. Authored
 workloads retain the existing performance harness's text, tags, font sizes and
 event counts. The first sparse-style run is retained separately; final authored
-styles explicitly state all frozen Taiyou defaults to avoid unintended differences
-in omitted-field interpretation. Every Taiyou RGBA digest must equal that prior
+styles explicitly state all frozen Taiyou defaults, and authored events explicitly
+select that named Default style. The intermediate style-only run is also retained:
+its missing event Style field still selected libass's built-in style zero. Every Taiyou RGBA digest must equal that prior
 run. This is input specification, not a rendering-semantics correction. The upstream script
 and font bytes are fetched/verified on CI from the existing immutable inventory,
 never edited or uploaded as promoted references. All fonts, source hashes, sizes

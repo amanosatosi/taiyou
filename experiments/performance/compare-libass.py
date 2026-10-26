@@ -62,7 +62,8 @@ def prepare(output):
     sources = {}
     for name, (text, count) in workloads.items():
         source = "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 2\nScaledBorderAndShadow: yes\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Default,Source Sans 3,48,&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1\n[Events]\nFormat: Layer,Start,End,Text\n"
-        source += "".join(f"Dialogue: {n},0:00:00.00,0:00:10.00,{text}\n" for n in range(count))
+        source = source.replace("Format: Layer,Start,End,Text", "Format: Layer,Start,End,Style,Text")
+        source += "".join(f"Dialogue: {n},0:00:00.00,0:00:10.00,Default,{text}\n" for n in range(count))
         path = inputs / (name + ".ass")
         path.write_bytes(source.encode())
         sources[name] = {"path": str(path), "sha256": sha(path.read_bytes()), "events": count,
@@ -91,7 +92,7 @@ def prepare(output):
                 "benchmark_transient_limit": 512 * 1024 * 1024,
                 "benchmark_work_limit": 32_000_000,
                 "libass_cache_policy": "normal library defaults; no cache limit overrides",
-                "style_policy": "all authored style fields explicit; Taiyou RGBA must equal the retained sparse-style run",
+                "style_policy": "all authored style fields and event Style=Default explicit; Taiyou RGBA must equal the retained sparse-style run",
                 "timestamp_policy": "integer milliseconds for both APIs; 16ms sequence step"}
     (output / "inputs.json").write_text(json.dumps(manifest, indent=2) + "\n")
     for path in inputs.iterdir():
