@@ -91,6 +91,7 @@ pub(crate) struct TileStats {
     pub solid_regions: u64,
     pub halfplane_tiles: u64,
     pub complex_tiles: u64,
+    #[cfg(test)]
     pub simple_border_tiles: u64,
     pub scratch_peak: u64,
 }

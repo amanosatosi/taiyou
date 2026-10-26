@@ -2,8 +2,8 @@
 //! coverage accumulation. No A8 maximum filter or vector contour offset.
 //! Behavioural reference: Rasterizer.cpp ScanLineData and CreateWidenedRegion;
 //! xy_widen_region.cpp gen_left_arc's rx==0 branch.
-use std::sync::Arc;
 use crate::tile_fill::{ScanSpan as Span, VerticalBand};
+use std::sync::Arc;
 use taiyou_types::*;
 type Point = (f64, f64);
 #[derive(Clone, Copy)]
@@ -796,10 +796,24 @@ pub(crate) fn rasterize_axis_xy_timed(
 }
 #[cfg(test)]
 pub(crate) fn rasterize_tiled_axis_proof(
-    ops: &[PathOp<DevicePoint>], rx: Q6, ry: Q6, remaining: u64,
-    limits: &Limits, timings: &mut crate::timing::StageTimings,
+    ops: &[PathOp<DevicePoint>],
+    rx: Q6,
+    ry: Q6,
+    remaining: u64,
+    limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_selected(ops, rx, ry, remaining, limits, true, None, Some(timings), true)
+    rasterize_selected(
+        ops,
+        rx,
+        ry,
+        remaining,
+        limits,
+        true,
+        None,
+        Some(timings),
+        true,
+    )
 }
 
 // The source scan conversion, ellipse and optional coalescing have already
@@ -808,23 +822,45 @@ pub(crate) fn rasterize_tiled_axis_proof(
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 fn try_tiled_border(
-    spans: &mut [Span], bands: Option<&(Vec<VerticalBand>, u64)>, arc: &[i64],
-    hull: (i64, i64, i64, i64), count: u64, remaining: u64, source_bytes: u64,
-    limits: &Limits, timings: &mut Option<&mut crate::timing::StageTimings>,
+    spans: &mut [Span],
+    bands: Option<&(Vec<VerticalBand>, u64)>,
+    arc: &[i64],
+    hull: (i64, i64, i64, i64),
+    count: u64,
+    remaining: u64,
+    source_bytes: u64,
+    limits: &Limits,
+    timings: &mut Option<&mut crate::timing::StageTimings>,
 ) -> Result<Option<(Arc<Mask>, u64)>, RenderError> {
-    if spans.is_empty() { return Ok(None); }
+    if spans.is_empty() {
+        return Ok(None);
+    }
     let ry = arc.len() as u64 - 1;
-    let arc_bytes = arc.len().max(4).checked_next_power_of_two()
-        .and_then(|n| n.checked_mul(std::mem::size_of::<i64>())).ok_or_else(limit)? as u64;
+    let arc_bytes = arc
+        .len()
+        .max(4)
+        .checked_next_power_of_two()
+        .and_then(|n| n.checked_mul(std::mem::size_of::<i64>()))
+        .ok_or_else(limit)? as u64;
     let (expanded, producer) = if let Some((bands, _)) = bands {
         let mut total = 0_u64;
         for b in bands {
-            total = total.checked_add((b.last_y - b.first_y + 1) as u64)
-                .and_then(|n| n.checked_add(2 * ry)).ok_or_else(limit)?;
+            total = total
+                .checked_add((b.last_y - b.first_y + 1) as u64)
+                .and_then(|n| n.checked_add(2 * ry))
+                .ok_or_else(limit)?;
         }
-        (total, bands.capacity() as u64 * std::mem::size_of::<VerticalBand>() as u64 + arc_bytes)
+        (
+            total,
+            bands.capacity() as u64 * std::mem::size_of::<VerticalBand>() as u64 + arc_bytes,
+        )
     } else {
-        ((spans.len() as u64).checked_mul(2 * ry + 1).ok_or_else(limit)?, source_bytes)
+        (
+            (spans.len() as u64)
+                .checked_mul(2 * ry + 1)
+                .ok_or_else(limit)?,
+            source_bytes,
+        )
     };
     let each = 3 * std::mem::size_of::<Span>() as u64;
     let overflow = (u64::MAX - producer) / each;
@@ -832,42 +868,86 @@ fn try_tiled_border(
     let global = limits.path_segments_per_frame();
     let admitted = remaining.min(overflow).min(memory).min(global);
     if expanded > admitted {
-        if remaining <= overflow.min(memory).min(global) { return Err(limit()); }
-        if overflow <= memory.min(global) { return Err(limit()); }
-        if memory <= global { return Err(limit().with_resource_failure(ResourceFailure::TransientMemory)); }
+        if remaining <= overflow.min(memory).min(global) {
+            return Err(limit());
+        }
+        if overflow <= memory.min(global) {
+            return Err(limit());
+        }
+        if memory <= global {
+            return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
+        }
         return Err(limit());
     }
-    let Some(capacity) = legacy_capacity::<Span>(expanded) else { return Ok(None); };
+    let Some(capacity) = legacy_capacity::<Span>(expanded) else {
+        return Ok(None);
+    };
     let pad = (arc[0].max(ry as i64) + 7).div_euclid(8);
-    let end = |n: i64| { let eighth = -(-n).div_euclid(8); -(-(eighth + 1)).div_euclid(8) + 1 };
+    let end = |n: i64| {
+        let eighth = -(-n).div_euclid(8);
+        -(-(eighth + 1)).div_euclid(8) + 1
+    };
     let (a, b, c, d) = hull;
     let bounds = PixelRect::new(
         i32::try_from(a.div_euclid(64) - pad).map_err(|_| limit())?,
         i32::try_from(b.div_euclid(64) - pad).map_err(|_| limit())?,
         i32::try_from(end(c) + pad).map_err(|_| limit())?,
         i32::try_from(end(d) + pad).map_err(|_| limit())?,
-    ).map_err(|_| limit())?;
-    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension() { return Err(limit()); }
-    let length = u64::from(bounds.width()).checked_mul(u64::from(bounds.height())).ok_or_else(limit)?;
-    if length > limits.output_pixels() || length > limits.output_bytes() { return Err(limit()); }
-    let charge = length.checked_mul(3).and_then(|n| n.checked_add(capacity)).ok_or_else(limit)?;
-    if charge > limits.transient_bytes() { return Err(limit().with_resource_failure(ResourceFailure::TransientMemory)); }
+    )
+    .map_err(|_| limit())?;
+    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension() {
+        return Err(limit());
+    }
+    let length = u64::from(bounds.width())
+        .checked_mul(u64::from(bounds.height()))
+        .ok_or_else(limit)?;
+    if length > limits.output_pixels() || length > limits.output_bytes() {
+        return Err(limit());
+    }
+    let charge = length
+        .checked_mul(3)
+        .and_then(|n| n.checked_add(capacity))
+        .ok_or_else(limit)?;
+    if charge > limits.transient_bytes() {
+        return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
+    }
     // Coalescing sorted by interval identity. Row queries require the original
     // scan order, but neither the geometry nor the coalesced regions changes.
     spans.sort_unstable_by_key(|s| (s.y, s.left, s.right));
-    let held = source_bytes.checked_add(bands.map_or(0, |(b, _)|
-        b.capacity() as u64 * std::mem::size_of::<VerticalBand>() as u64)).ok_or_else(limit)?;
-    let regions = bands.map_or(crate::tile_border::Regions::Rows(spans), |(b, _)| crate::tile_border::Regions::Bands(b));
-    let Some(image) = crate::tile_border::rasterize(spans, regions, arc, bounds, limits.transient_bytes(), held) else { return Ok(None); };
+    let held = source_bytes
+        .checked_add(bands.map_or(0, |(b, _)| {
+            b.capacity() as u64 * std::mem::size_of::<VerticalBand>() as u64
+        }))
+        .ok_or_else(limit)?;
+    let regions = bands.map_or(crate::tile_border::Regions::Rows(spans), |(b, _)| {
+        crate::tile_border::Regions::Bands(b)
+    });
+    let Some(image) =
+        crate::tile_border::rasterize(spans, regions, arc, bounds, limits.transient_bytes(), held)
+    else {
+        return Ok(None);
+    };
     let work = count.checked_add(image.union_intervals).ok_or_else(limit)?;
-    if work > remaining { return Err(limit()); }
-    let Some(pixels) = image.into_pixels(limits.transient_bytes().saturating_sub(held)) else { return Ok(None); };
+    if work > remaining {
+        return Err(limit());
+    }
+    // Include source storage, tile storage and the Vec-to-Arc publication copy.
+    let publication = held.checked_add(image.tiles.capacity() as u64 * 256)
+        .and_then(|n| n.checked_add(2 * length)).ok_or_else(limit)?;
+    if publication > limits.transient_bytes() { return Ok(None); }
+    let stats = image.stats;
+    let Some(pixels) = image.into_pixels(limits.transient_bytes().saturating_sub(held)) else {
+        return Ok(None);
+    };
     let mask = Mask::new_xy(bounds, bounds.width() as usize, pixels.into())?;
     if let Some(t) = timings.as_mut() {
-        if let Some((_, peak)) = bands { t.raster_peak(*peak, count); }
+        if let Some((_, peak)) = bands {
+            t.raster_peak(*peak, count);
+        }
         t.raster_peak(producer + expanded * each, expanded);
         t.raster_peak(charge, work);
         t.tiled_borders += 1;
+        t.tile_simple_borders += stats.simple_border_tiles;
     }
     Ok(Some((Arc::new(mask), work)))
 }
@@ -1077,8 +1157,19 @@ fn rasterize_selected(
     #[cfg(test)]
     if allow_tiles && xy && projection.is_none() {
         if let Some(hull) = hull {
-            if let Some(result) = try_tiled_border(&mut spans, bands.as_ref(), &arc, hull,
-                count, remaining, span_bytes, limits, &mut timings)? { return Ok(result); }
+            if let Some(result) = try_tiled_border(
+                &mut spans,
+                bands.as_ref(),
+                &arc,
+                hull,
+                count,
+                remaining,
+                span_bytes,
+                limits,
+                &mut timings,
+            )? {
+                return Ok(result);
+            }
         }
     }
     let mut producer_bytes = span_bytes;

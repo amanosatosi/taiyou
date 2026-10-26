@@ -21,10 +21,10 @@ mod paint;
 pub mod raster;
 pub mod renderer;
 pub mod stroke;
-#[cfg(feature = "native")]
-mod tile_fill;
 #[cfg(all(test, feature = "native"))]
 mod tile_border;
+#[cfg(feature = "native")]
+mod tile_fill;
 pub mod timing;
 mod xy_wrap;
 pub use compose::compose;

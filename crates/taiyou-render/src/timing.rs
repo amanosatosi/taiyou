@@ -40,6 +40,7 @@ pub struct StageTimings {
     pub tiled_fill: Duration,
     pub tiled_fills: u64,
     pub tiled_borders: u64,
+    pub tile_simple_borders: u64,
     pub tile_fallbacks: u64,
     pub tile_empty_regions: u64,
     pub tile_solid_regions: u64,
@@ -100,6 +101,7 @@ impl StageTimings {
         self.tiled_fill += other.tiled_fill;
         self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
         self.tiled_borders = self.tiled_borders.saturating_add(other.tiled_borders);
+        self.tile_simple_borders = self.tile_simple_borders.saturating_add(other.tile_simple_borders);
         self.tile_fallbacks = self.tile_fallbacks.saturating_add(other.tile_fallbacks);
         self.tile_empty_regions = self
             .tile_empty_regions
