@@ -28,6 +28,12 @@ the created pool; no global pool or automatic worker policy. Tests compare all
 batch sizes and 1/2/4/8 workers, seek/resource/font changes, clips and coverage
 units. No automatic serial threshold is selected before measurements.
 
+After the proven cache checkpoint, the final candidate enables bounded retention
+by default within the already documented 128 MiB cache limit. Explicit Disabled
+and zero-budget bypass remain available. Default worker count stays one. This
+policy change is covered by final exact-output and full external runs; the
+original default-disabled benchmark/reference commits remain immutable.
+
 The first implementation intentionally leaves raster misses and blur producers
 serial: duplicating native state or adding a dependency scheduler without evidence
 would expand the safety boundary. Further parallel work must follow the measured

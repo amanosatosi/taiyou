@@ -63,11 +63,18 @@ pub(crate) fn compose_inner(
         use rayon::prelude::*;
         // Safe, disjoint output slices. Each pixel sees the entire canonical
         // operation order; complete masks/effect halos are immutable inputs.
-        let chunk = stride.checked_mul(band_rows).unwrap_or(length).min(length).max(1);
+        let chunk = stride
+            .checked_mul(band_rows)
+            .unwrap_or(length)
+            .min(length)
+            .max(1);
         pool.install(|| {
-            pixels.par_chunks_mut(chunk).enumerate().try_for_each(|(band, pixels)| {
-                paint_rows(size, operations, stride, band * (chunk / stride), pixels)
-            })
+            pixels
+                .par_chunks_mut(chunk)
+                .enumerate()
+                .try_for_each(|(band, pixels)| {
+                    paint_rows(size, operations, stride, band * (chunk / stride), pixels)
+                })
         })?;
     } else {
         paint_rows(size, operations, stride, 0, &mut pixels)?;
@@ -144,32 +151,84 @@ mod parallel_tests {
     fn disjoint_bands_match_scalar_order_clips_units_and_budget_failures() {
         let limits = Limits::default();
         let size = Size::new(137, 131);
-        for workers in [2,4,8] {
-            let pool = rayon::ThreadPoolBuilder::new().num_threads(workers).build().unwrap();
-            assert_eq!(pool.current_num_threads(),workers);
+        for workers in [2, 4, 8] {
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(workers)
+                .build()
+                .unwrap();
+            assert_eq!(pool.current_num_threads(), workers);
             for seed in 0..20_u32 {
-                let mut operations=Vec::new();
+                let mut operations = Vec::new();
                 for n in 0..9_u32 {
-                    let bounds=PixelRect::new(-7+n as i32, -5+n as i32, 113+n as i32, 120+n as i32).unwrap();
-                    let data:Arc<[u8]>=(0..bounds.width()*bounds.height()).map(|i|((i*13+n*19+seed*23)%65) as u8).collect::<Vec<_>>().into();
-                    let mask=if n%2==0 { Mask::new_xy(bounds,bounds.width() as usize,data) } else { Mask::new(bounds,bounds.width() as usize,data) }.unwrap();
-                    let mask=Arc::new(mask);
-                    let clip=if n%3==0 { ResolvedClip::MaskCoverage { mask:mask.clone(),offset:PixelOffset::new(7,-3),inverse:n%2==0 } } else { ResolvedClip::None };
+                    let bounds = PixelRect::new(
+                        -7 + n as i32,
+                        -5 + n as i32,
+                        113 + n as i32,
+                        120 + n as i32,
+                    )
+                    .unwrap();
+                    let data: Arc<[u8]> = (0..bounds.width() * bounds.height())
+                        .map(|i| ((i * 13 + n * 19 + seed * 23) % 65) as u8)
+                        .collect::<Vec<_>>()
+                        .into();
+                    let mask = if n % 2 == 0 {
+                        Mask::new_xy(bounds, bounds.width() as usize, data)
+                    } else {
+                        Mask::new(bounds, bounds.width() as usize, data)
+                    }
+                    .unwrap();
+                    let mask = Arc::new(mask);
+                    let clip = if n % 3 == 0 {
+                        ResolvedClip::MaskCoverage {
+                            mask: mask.clone(),
+                            offset: PixelOffset::new(7, -3),
+                            inverse: n % 2 == 0,
+                        }
+                    } else {
+                        ResolvedClip::None
+                    };
                     operations.push(DrawOp::new(
-                        DrawOrder::new(0,EventId::new(0),2,n),mask,PixelOffset::new(n as i32-3,5-n as i32),
-                        Paint::Solid(Rgba8::new((seed*11) as u8,70,(n*23) as u8,128)),PaintSpace::Device,PaintMap::Identity,
-                        Arc::new(clip)));
+                        DrawOrder::new(0, EventId::new(0), 2, n),
+                        mask,
+                        PixelOffset::new(n as i32 - 3, 5 - n as i32),
+                        Paint::Solid(Rgba8::new((seed * 11) as u8, 70, (n * 23) as u8, 128)),
+                        PaintSpace::Device,
+                        PaintMap::Identity,
+                        Arc::new(clip),
+                    ));
                 }
-                let expected=compose(size,&operations,&limits,&mut OutputBudget::new(&limits)).unwrap();
-                for rows in [1,16,32,64,128,usize::MAX] {
-                    let actual=compose_inner(size,&operations,&limits,&mut OutputBudget::new(&limits),Some(&pool),rows).unwrap();
-                    assert_eq!(expected.pixels(),actual.pixels(),"workers={workers}, rows={rows}, seed={seed}");
+                let expected =
+                    compose(size, &operations, &limits, &mut OutputBudget::new(&limits)).unwrap();
+                for rows in [1, 16, 32, 64, 128, usize::MAX] {
+                    let actual = compose_inner(
+                        size,
+                        &operations,
+                        &limits,
+                        &mut OutputBudget::new(&limits),
+                        Some(&pool),
+                        rows,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        expected.pixels(),
+                        actual.pixels(),
+                        "workers={workers}, rows={rows}, seed={seed}"
+                    );
                 }
-                let small=limits.clone().with_transient_bytes(1).unwrap();
-                let a=compose(size,&operations,&small,&mut OutputBudget::new(&small)).unwrap_err();
-                let b=compose_inner(size,&operations,&small,&mut OutputBudget::new(&small),Some(&pool),16).unwrap_err();
-                assert_eq!(a.code(),b.code());
-                assert_eq!(a.resource_failure(),b.resource_failure());
+                let small = limits.clone().with_transient_bytes(1).unwrap();
+                let a =
+                    compose(size, &operations, &small, &mut OutputBudget::new(&small)).unwrap_err();
+                let b = compose_inner(
+                    size,
+                    &operations,
+                    &small,
+                    &mut OutputBudget::new(&small),
+                    Some(&pool),
+                    16,
+                )
+                .unwrap_err();
+                assert_eq!(a.code(), b.code());
+                assert_eq!(a.resource_failure(), b.resource_failure());
             }
         }
     }

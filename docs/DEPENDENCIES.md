@@ -11,6 +11,11 @@ audit. No optional WebAssembly spin-lock feature is enabled. Alternatives:
 per-frame std scoped threads impose repeated startup costs; a handwritten pool
 adds an unnecessary synchronization/lifetime framework. This is a candidate
 dependency/concurrency review surface, not a licensing or merge acceptance claim.
+The performance example also directly uses the already pinned workspace
+`sha2 =0.11.0` (MIT OR Apache-2.0) under the CLI native feature to audit frame and
+diagnostic digests outside render timing. It is not a cache identity or renderer
+dependency. Full image retention and noncryptographic fingerprints were rejected
+as higher storage cost and weaker audit evidence, respectively.
 
 PR #35 host-font provider proposal adds OS services, not a different shaping
 engine or Cargo dependency: Windows DirectWrite IDWriteFactory2/FontFallback

@@ -1,11 +1,18 @@
 //! Actions-only performance smoke. No external renderer comparison is implied.
 #[cfg(feature = "native")]
 fn main() {
+    use sha2::{Digest, Sha256};
     use std::{hint::black_box, io::Write, time::Instant};
     use taiyou_render::renderer::*;
-    let workers:usize=std::env::var("TAIYOU_PERF_WORKERS").unwrap_or_else(|_|"1".into()).parse().unwrap();
-    let band_rows:usize=std::env::var("TAIYOU_PERF_BAND_ROWS").unwrap_or_else(|_|"64".into()).parse().unwrap();
-    let fixed=std::env::var("TAIYOU_PERF_FIXED_SAMPLES").as_deref()==Ok("1");
+    let workers: usize = std::env::var("TAIYOU_PERF_WORKERS")
+        .unwrap_or_else(|_| "1".into())
+        .parse()
+        .unwrap();
+    let band_rows: usize = std::env::var("TAIYOU_PERF_BAND_ROWS")
+        .unwrap_or_else(|_| "64".into())
+        .parse()
+        .unwrap();
+    let fixed = std::env::var("TAIYOU_PERF_FIXED_SAMPLES").as_deref() == Ok("1");
     let samples: usize = std::env::var("TAIYOU_PERF_SAMPLES")
         .unwrap_or_else(|_| "31".into())
         .parse()
@@ -39,6 +46,7 @@ fn main() {
         },
         ..Default::default()
     };
+    let font_setup_start = Instant::now();
     let mut context = FontContext::with_limits(limits.clone()).unwrap();
     let mut builder = FontCatalogBuilder::new(limits.clone());
     builder
@@ -50,6 +58,7 @@ fn main() {
         .unwrap();
     let fonts = builder.snapshot(&mut CatalogIngestor::new()).unwrap();
     drop(context);
+    let font_setup_ns = font_setup_start.elapsed().as_nanos();
     let dialogue = "Reusable work, deterministic pixels.";
     let vector = r"{\p1}m 0 0 b 40 -50 80 90 120 0 b 160 -60 200 80 240 0 l 240 70 0 70{\p0}";
     let workloads = [
@@ -96,10 +105,11 @@ fn main() {
         ),
     ];
     println!(
-        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns,cache_hits,cache_misses,cache_evictions,cache_entries,cache_bytes,span_rows,expanded_candidates,expanded_candidates_without_reuse"
+        "workload,width,height,scenario,sample,workers,cache,total_ns,evaluation_ns,shaping_ns,layout_ns,collision_ns,geometry_ns,clip_ns,masks_ns,effects_ns,paint_ns,composition_ns,output_bytes,base_outlines_ns,scan_conversion_ns,border_expansion_ns,span_union_ns,mask_generation_ns,mask_combination_ns,cache_hits,cache_misses,cache_evictions,cache_entries,cache_bytes,span_rows,expanded_candidates,expanded_candidates_without_reuse,band_rows,rgba_sha256,diagnostic_sha256,font_setup_ns,source_setup_ns,renderer_setup_ns"
     );
     let mut ingestion = TrackIngestor::new();
     for (name, text, count) in workloads {
+        let source_setup_start = Instant::now();
         if std::env::var("TAIYOU_PERF_WORKLOADS").is_ok_and(|v| !v.split(',').any(|s| s == name)) {
             continue;
         }
@@ -118,6 +128,7 @@ fn main() {
             &mut ingestion,
         )
         .unwrap();
+        let source_setup_ns = source_setup_start.elapsed().as_nanos();
         for (width, height) in [(1920, 1080), (3840, 2160)] {
             let default_request = RenderRequest {
                 now: TimeUs::from_micros(1_000_000),
@@ -142,7 +153,9 @@ fn main() {
                 {
                     continue;
                 }
+                let renderer_start = Instant::now();
                 let mut renderer = Renderer::new(config.clone()).unwrap();
+                let initial_renderer_setup_ns = renderer_start.elapsed().as_nanos();
                 renderer.set_composition_band_rows(std::num::NonZeroUsize::new(band_rows).unwrap());
                 renderer.set_timing_enabled(true);
                 let mut request = RenderRequest {
@@ -153,7 +166,7 @@ fn main() {
                 // Correctness is strict and outside the timed region.
                 let mut uncached_config = config.clone();
                 uncached_config.cache = CacheConfig::Disabled;
-                uncached_config.workers=std::num::NonZeroUsize::MIN;
+                uncached_config.workers = std::num::NonZeroUsize::MIN;
                 let expected = Renderer::new(uncached_config).unwrap().render(
                     parsed.track().clone(),
                     fonts.clone(),
@@ -179,14 +192,24 @@ fn main() {
                 drop((actual, expected));
                 let scenario_start = Instant::now();
                 for sample in 0..samples {
+                    let mut renderer_setup_ns = if sample == 0 {
+                        initial_renderer_setup_ns
+                    } else {
+                        0
+                    };
                     // Bound hosted-runner smoke cost; publish the actual count.
                     // This timer affects sampling only, never render decisions.
                     if !fixed && sample >= 3 && scenario_start.elapsed().as_secs() >= 2 {
                         break;
                     }
                     if scenario == "cold" {
+                        drop(renderer);
+                        let renderer_start = Instant::now();
                         renderer = Renderer::new(config.clone()).unwrap();
-                        renderer.set_composition_band_rows(std::num::NonZeroUsize::new(band_rows).unwrap());
+                        renderer_setup_ns = renderer_start.elapsed().as_nanos();
+                        renderer.set_composition_band_rows(
+                            std::num::NonZeroUsize::new(band_rows).unwrap(),
+                        );
                         renderer.set_timing_enabled(true);
                     }
                     let now = match scenario {
@@ -212,10 +235,16 @@ fn main() {
                         };
                     let total = start.elapsed().as_nanos();
                     black_box(frame.pixels());
+                    // Verification intentionally happens after the render timer.
+                    let rgba_sha256 = format!("{:x}", Sha256::digest(frame.pixels()));
+                    let diagnostic_sha256 = format!(
+                        "{:x}",
+                        Sha256::digest(format!("{:?}", frame.diagnostics()).as_bytes())
+                    );
                     let t = renderer.last_timings();
                     let c = renderer.cache_stats();
                     println!(
-                        "{name},{width},{height},{scenario},{sample},{workers},{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
+                        "{name},{width},{height},{scenario},{sample},{workers},{cache_label},{total},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{band_rows},{rgba_sha256},{diagnostic_sha256},{font_setup_ns},{source_setup_ns},{renderer_setup_ns}",
                         t.evaluation.as_nanos(),
                         t.shaping.as_nanos(),
                         t.layout.as_nanos(),

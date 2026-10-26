@@ -22,8 +22,8 @@ impl Default for RendererConfig {
         Self {
             workers: NonZeroUsize::MIN,
             profile: Profile::CoreV1,
-            limits: Limits::default().with_cache_bytes(0),
-            cache: CacheConfig::Disabled,
+            limits: Limits::default(),
+            cache: CacheConfig::Bounded,
         }
     }
 }

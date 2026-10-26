@@ -7,12 +7,13 @@ from pathlib import Path
 import sys
 
 groups = defaultdict(list)
+group_fields = ("workload", "width", "scenario", "workers", "cache", "band_rows")
 with Path(sys.argv[1]).open() as stream:
     for row in csv.DictReader(stream):
-        groups[tuple(row[k] for k in ("workload", "width", "scenario", "workers", "cache"))].append(row)
+        groups[tuple(row.get(k, "64") for k in group_fields)].append(row)
 out = []
 for key, rows in groups.items():
-    record = dict(zip(("workload", "width", "scenario", "workers", "cache"), key))
+    record = dict(zip(group_fields, key))
     record["samples"] = len(rows)
     for field in ("span_rows", "expanded_candidates", "expanded_candidates_without_reuse"):
         if field in rows[0]:

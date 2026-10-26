@@ -425,15 +425,28 @@ impl Renderer {
         let pool = if config.workers.get() == 1 {
             None
         } else {
-            Some(rayon::ThreadPoolBuilder::new()
-                .num_threads(config.workers.get())
-                .thread_name(|n| format!("taiyou-compose-{n}"))
-                .build()
-                .map_err(|_| RenderError::new(ErrorCode::AllocationFailed, "renderer worker pool creation failed"))?)
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(config.workers.get())
+                    .thread_name(|n| format!("taiyou-compose-{n}"))
+                    .build()
+                    .map_err(|_| {
+                        RenderError::new(
+                            ErrorCode::AllocationFailed,
+                            "renderer worker pool creation failed",
+                        )
+                    })?,
+            )
         };
         #[cfg(feature = "native")]
-        if pool.as_ref().is_some_and(|pool|pool.current_num_threads()!=config.workers.get()) {
-            return Err(RenderError::new(ErrorCode::InvalidArgument,"worker count exceeds pool support"));
+        if pool
+            .as_ref()
+            .is_some_and(|pool| pool.current_num_threads() != config.workers.get())
+        {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "worker count exceeds pool support",
+            ));
         }
         #[cfg(feature = "native")]
         let masks = crate::cache::MaskCache::new(if config.cache != CacheConfig::Disabled {

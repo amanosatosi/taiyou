@@ -18,8 +18,10 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: 1.99.1
       TAIYOU_FOCUSED_RENDERER: '1'
-      TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,combined-abuse,transforms,vector
+      TAIYOU_PERF_WORKLOADS: dialogue,thick-borders,large-blur,karaoke,transforms,combined-abuse
       TAIYOU_PERF_SCENARIOS: cold,same-time,sequence,seek
+      TAIYOU_PERF_SAMPLES: '31'
+      TAIYOU_PERF_FIXED_SAMPLES: '1'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -27,9 +29,6 @@ jobs:
       - run: rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
       - name: Format evidence and safe workspace checks
         run: |
-          # Resolve the new pinned pool dependency on Actions only. The returned
-          # lock is reviewed/committed before final exact-head validation.
-          cargo update -p taiyou-render
           mkdir -p "$RUNNER_TEMP/performance"
           cp Cargo.lock "$RUNNER_TEMP/performance/Cargo.lock"
           cargo metadata --locked --format-version 1 > "$RUNNER_TEMP/performance/dependencies.json"
@@ -103,6 +102,10 @@ jobs:
             tail -n +2 "$RUNNER_TEMP/performance/on-$workers.csv" >> "$RUNNER_TEMP/performance/samples.csv"
           done
           test "$off_status" = 0 && test "$on_status" = 0
+      - name: Exact output digests for every fixed benchmark sample
+        if: ${{ !cancelled() }}
+        run: |
+          python experiments/performance/validate-samples.py "$RUNNER_TEMP/performance/samples.csv" > "$RUNNER_TEMP/performance/exact-sample-audit.json"
       - name: Summarize available samples, including after a benchmark failure
         if: ${{ !cancelled() }}
         run: |

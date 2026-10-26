@@ -44,3 +44,20 @@ The optional performance workflow now runs on explicitly marked `[perf]` commits
 or manual dispatches. Formatting/documentation follow-ups do not rerun expensive
 measurements. Existing mandatory correctness, platform and full external comparison
 workflows are unchanged. Skipped measurement jobs are never reported as passes.
+
+Completed evidence: [uncached baseline](results/uncached/README.md),
+[dominant mask split](results/mask-split/README.md),
+[mask retention](results/mask-cache/README.md),
+[filter retention and cached checkpoint](results/filter-cache/README.md), and
+[duplicate-row reduction](results/span-reuse/README.md). These records remain
+immutable observations of their named candidates, including resource failures.
+
+Final matrix runs use fixed sample counts at identical timestamp sequences. They
+record workers and band rows, separate font/source/renderer setup costs from
+render time, and hash RGBA plus diagnostics after stopping the render timer.
+The supplemental digest gate requires identical sample inventories and digests
+in OFF/1 and ON/1/2/4/8 modes. Separate native tests
+compare the actual RGBA bytes directly. SHA-256 verification and CSV writing
+overhead are excluded from render-only FPS equivalents; process CPU/RSS metrics
+include setup and audit overhead. Cold resets both caches and the renderer-owned
+pool; pool creation is recorded separately. No local benchmark execution.
