@@ -37,6 +37,14 @@ pub struct StageTimings {
     pub raster_reallocations: u64,
     pub raster_capacity_growth_bytes: u64,
     pub coverage_write_samples: u64,
+    pub tiled_fill: Duration,
+    pub tiled_fills: u64,
+    pub tile_fallbacks: u64,
+    pub tile_empty_regions: u64,
+    pub tile_solid_regions: u64,
+    pub tile_halfplanes: u64,
+    pub tile_complex: u64,
+    pub tile_scratch_peak_bytes: u64,
     pub mask_generation: Duration,
     pub mask_combination: Duration,
     pub span_rows: u64,
@@ -88,6 +96,14 @@ impl StageTimings {
         self.coverage_write_samples = self
             .coverage_write_samples
             .saturating_add(other.coverage_write_samples);
+        self.tiled_fill += other.tiled_fill;
+        self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
+        self.tile_fallbacks = self.tile_fallbacks.saturating_add(other.tile_fallbacks);
+        self.tile_empty_regions = self.tile_empty_regions.saturating_add(other.tile_empty_regions);
+        self.tile_solid_regions = self.tile_solid_regions.saturating_add(other.tile_solid_regions);
+        self.tile_halfplanes = self.tile_halfplanes.saturating_add(other.tile_halfplanes);
+        self.tile_complex = self.tile_complex.saturating_add(other.tile_complex);
+        self.tile_scratch_peak_bytes = self.tile_scratch_peak_bytes.max(other.tile_scratch_peak_bytes);
         self.mask_generation += other.mask_generation;
         self.span_rows = self.span_rows.saturating_add(other.span_rows);
         self.expanded_candidates = self

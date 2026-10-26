@@ -42,8 +42,13 @@ eighth-grid samples with the existing crossing rule for half-plane/complex leave
 Local leaf sorting is permitted; the giant global edge/span/expanded-span sort is
 the work to remove. Do not call the old full producer on every successful tiled
 render and call that an optimization. Open/unsupported geometry and borders keep
-the exact original producer until individually proved. Expand only after measured
-benefit and exact output; this note does not claim that slice already exists.
+the exact original producer until individually proved. The first test-only tile
+slice and its resource witness proof pass (results/tile-fill-proof and
+results/tile-resource-proof). The next candidate integrates it only at the native
+body-fill entry. Curves share the unchanged relative-coordinate polynomial and
+endpoint emission with the retained producer. The legacy body remains a direct
+test oracle. Expand only after exact output and same-runner measurements; no
+production speed claim follows from the test-only proofs.
 
 The output remains the existing immutable native0..64 Mask with the same bounds,
 padding and coverage units. Paint/clip/filter/composition/cache keys stay outside

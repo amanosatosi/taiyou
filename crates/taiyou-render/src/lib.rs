@@ -21,7 +21,7 @@ mod paint;
 pub mod raster;
 pub mod renderer;
 pub mod stroke;
-#[cfg(all(test, feature = "native"))]
+#[cfg(feature = "native")]
 mod tile_fill;
 pub mod timing;
 mod xy_wrap;

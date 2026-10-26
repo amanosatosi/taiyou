@@ -199,71 +199,139 @@ fn limit() -> RenderError {
 
 // The tiled slice must retain the old deterministic rejection and cache witness,
 // even though it no longer needs the legacy Edge/Span allocations. Keep this
-// proof test-only until its equivalence and the tiled coverage are validated.
-#[cfg(test)]
+// witness equivalent to the retained producer, as checked by focused native tests.
 pub(crate) struct FillWitness {
     pub peak: u64,
     pub required_work: u64,
 }
-#[cfg(test)]
 fn legacy_capacity<T>(length: u64) -> Option<u64> {
-    if length == 0 { return Some(0); }
+    if length == 0 {
+        return Some(0);
+    }
     let length = usize::try_from(length).ok()?;
     let minimum = if std::mem::size_of::<T>() == 1 { 8 } else { 4 };
     let capacity = length.max(minimum).checked_next_power_of_two()?;
     let bytes = capacity.checked_mul(std::mem::size_of::<T>())?;
-    if bytes > isize::MAX as usize { return None; }
+    if bytes > isize::MAX as usize {
+        return None;
+    }
     Some(bytes as u64)
 }
-#[cfg(test)]
 fn legacy_push_check<T>(length: u64, used: u64, limits: &Limits) -> Result<(), RenderError> {
-    if length == 0 { return Ok(()); }
+    if length == 0 {
+        return Ok(());
+    }
     let each = 3 * std::mem::size_of::<T>() as u64;
     let overflow = (u64::MAX - used) / each;
     let memory = limits.transient_bytes().saturating_sub(used) / each;
     let work = limits.path_segments_per_frame();
-    if length <= overflow.min(memory).min(work) { return Ok(()); }
+    if length <= overflow.min(memory).min(work) {
+        return Ok(());
+    }
     // The original push checks arithmetic, then transient bytes, then work.
     // Preserve the first failing push, not merely the final aggregate failure.
-    if overflow <= memory && overflow <= work && length > overflow { return Err(limit()); }
+    if overflow <= memory && overflow <= work && length > overflow {
+        return Err(limit());
+    }
     if memory <= work && length > memory {
         return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
     }
     Err(limit())
 }
-#[cfg(test)]
 pub(crate) fn legacy_fill_witness(
-    ops: usize, count: u64, edges: u64, intervals: u64, union: u64,
-    bounds: PixelRect, limits: &Limits,
+    ops: usize,
+    count: u64,
+    edges: u64,
+    intervals: u64,
+    union: u64,
+    bounds: PixelRect,
+    limits: &Limits,
 ) -> Result<Option<FillWitness>, RenderError> {
     check_path_budget(ops, limits)?;
-    let mut peak = (ops as u64).saturating_mul(4 * (std::mem::size_of::<PathOp<FontPoint>>()
-        + std::mem::size_of::<PathOp<DevicePoint>>()) as u64).saturating_add(4096);
+    let mut peak = (ops as u64)
+        .saturating_mul(
+            4 * (std::mem::size_of::<PathOp<FontPoint>>()
+                + std::mem::size_of::<PathOp<DevicePoint>>()) as u64,
+        )
+        .saturating_add(4096);
     let mut required = (ops as u64).max(count);
     legacy_push_check::<Edge>(edges, 0, limits)?;
-    if count > limits.path_segments_per_frame() { return Err(limit()); }
-    let Some(edge_bytes) = legacy_capacity::<Edge>(edges) else { return Ok(None); };
-    let Some(span_bytes) = legacy_capacity::<Span>(intervals) else { return Ok(None); };
-    peak = peak.max(edges.checked_mul(3 * std::mem::size_of::<Edge>() as u64).ok_or_else(limit)?);
+    if count > limits.path_segments_per_frame() {
+        return Err(limit());
+    }
+    let Some(edge_bytes) = legacy_capacity::<Edge>(edges) else {
+        return Ok(None);
+    };
+    let Some(span_bytes) = legacy_capacity::<Span>(intervals) else {
+        return Ok(None);
+    };
+    peak = peak.max(
+        edges
+            .checked_mul(3 * std::mem::size_of::<Edge>() as u64)
+            .ok_or_else(limit)?,
+    );
     legacy_push_check::<Span>(intervals, edge_bytes, limits)?;
-    peak = peak.max(edge_bytes.checked_add(intervals.checked_mul(3 * std::mem::size_of::<Span>() as u64).ok_or_else(limit)?).ok_or_else(limit)?);
+    peak = peak.max(
+        edge_bytes
+            .checked_add(
+                intervals
+                    .checked_mul(3 * std::mem::size_of::<Span>() as u64)
+                    .ok_or_else(limit)?,
+            )
+            .ok_or_else(limit)?,
+    );
     legacy_push_check::<i64>(1, span_bytes, limits)?;
-    peak = peak.max(span_bytes.checked_add(3 * std::mem::size_of::<i64>() as u64).ok_or_else(limit)?);
-    let producer = span_bytes.checked_add(legacy_capacity::<i64>(1).ok_or_else(limit)?).ok_or_else(limit)?;
+    peak = peak.max(
+        span_bytes
+            .checked_add(3 * std::mem::size_of::<i64>() as u64)
+            .ok_or_else(limit)?,
+    );
+    let producer = span_bytes
+        .checked_add(legacy_capacity::<i64>(1).ok_or_else(limit)?)
+        .ok_or_else(limit)?;
     legacy_push_check::<Span>(intervals, producer, limits)?;
-    peak = peak.max(producer.checked_add(intervals.checked_mul(3 * std::mem::size_of::<Span>() as u64).ok_or_else(limit)?).ok_or_else(limit)?);
+    peak = peak.max(
+        producer
+            .checked_add(
+                intervals
+                    .checked_mul(3 * std::mem::size_of::<Span>() as u64)
+                    .ok_or_else(limit)?,
+            )
+            .ok_or_else(limit)?,
+    );
     required = required.max(intervals);
-    if intervals == 0 { return Ok(Some(FillWitness { peak, required_work: required })); }
-    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension() { return Err(limit()); }
-    let length = (bounds.width() as usize).checked_mul(bounds.height() as usize).ok_or_else(limit)? as u64;
-    if length > limits.output_pixels() || length > limits.output_bytes() { return Err(limit()); }
-    let charge = length.checked_mul(3).and_then(|n| n.checked_add(span_bytes)).ok_or_else(limit)?;
-    if charge > limits.transient_bytes() { return Err(limit().with_resource_failure(ResourceFailure::TransientMemory)); }
+    if intervals == 0 {
+        return Ok(Some(FillWitness {
+            peak,
+            required_work: required,
+        }));
+    }
+    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension() {
+        return Err(limit());
+    }
+    let length = (bounds.width() as usize)
+        .checked_mul(bounds.height() as usize)
+        .ok_or_else(limit)? as u64;
+    if length > limits.output_pixels() || length > limits.output_bytes() {
+        return Err(limit());
+    }
+    let charge = length
+        .checked_mul(3)
+        .and_then(|n| n.checked_add(span_bytes))
+        .ok_or_else(limit)?;
+    if charge > limits.transient_bytes() {
+        return Err(limit().with_resource_failure(ResourceFailure::TransientMemory));
+    }
     let work = count.checked_add(union).ok_or_else(limit)?;
     peak = peak.max(charge);
     required = required.max(work);
-    if work > limits.path_segments_per_frame() { return Err(limit()); }
-    Ok(Some(FillWitness { peak, required_work: required }))
+    if work > limits.path_segments_per_frame() {
+        return Err(limit());
+    }
+    Ok(Some(FillWitness {
+        peak,
+        required_work: required,
+    }))
 }
 fn reserve_observed<T>(
     v: &mut Vec<T>,
@@ -346,12 +414,21 @@ fn line(
     }
     Ok(())
 }
+#[cfg(test)]
 fn curve(
     p: [Point; 4],
     edges: &mut Vec<Edge>,
     limits: &Limits,
     count: &mut u64,
     mut timings: Option<&mut crate::timing::StageTimings>,
+) -> Result<(), RenderError> {
+    walk_curve(p, limits, count, &mut |a, b| {
+        line(a, b, edges, limits, timings.as_deref_mut())
+    })
+}
+fn walk_curve(
+    p: [Point; 4], limits: &Limits, count: &mut u64,
+    emit: &mut impl FnMut(Point, Point) -> Result<(), RenderError>,
 ) -> Result<(), RenderError> {
     let coefficients = |axis: usize| {
         let [a, b, c, d] = p.map(|p| if axis == 0 { p.0 } else { p.1 });
@@ -385,7 +462,7 @@ fn curve(
         if *count > limits.path_segments_per_frame() {
             return Err(limit());
         }
-        line(prev, next, edges, limits, timings.as_deref_mut())?;
+        emit(prev, next)?;
         prev = next;
         let next_t = t + step;
         if next_t <= t {
@@ -399,7 +476,124 @@ fn curve(
     // and can paint a span across the gap to another glyph. Use the supplied
     // endpoint, as for every other path segment. pinterf's _EvaluateLine also
     // reconnects its last emitted point to the next segment's exact start.
-    line(prev, p[3], edges, limits, timings)
+    emit(prev, p[3])
+}
+
+fn walk_outline(
+    ops: &[PathOp<DevicePoint>], origin: (i64, i64), remaining: u64, limits: &Limits,
+    emit: &mut impl FnMut(Point, Point) -> Result<(), RenderError>,
+) -> Result<u64, RenderError> {
+    let point = |p: DevicePoint| ((i64::from(p.x().ticks()) - origin.0) as f64,
+        (i64::from(p.y().ticks()) - origin.1) as f64);
+    let mut prev = (0.0, 0.0);
+    let mut first = prev;
+    let mut count = 0_u64;
+    for &op in ops {
+        match op {
+            PathOp::MoveTo(p) => { prev = point(p); first = prev; }
+            PathOp::LineTo(p) => {
+                emit(prev, point(p))?; prev = point(p);
+                count = count.checked_add(1).ok_or_else(limit)?;
+            }
+            PathOp::Close => { emit(prev, first)?; prev = first; }
+            PathOp::QuadTo(a, b) => {
+                let (a, b) = (point(a), point(b));
+                let p1 = (prev.0 + (a.0 - prev.0) * 2.0 / 3.0,
+                    prev.1 + (a.1 - prev.1) * 2.0 / 3.0);
+                let p2 = (b.0 + (a.0 - b.0) * 2.0 / 3.0,
+                    b.1 + (a.1 - b.1) * 2.0 / 3.0);
+                walk_curve([prev, p1, p2, b], limits, &mut count, emit)?; prev = b;
+            }
+            PathOp::CubicTo(a, b, c) => {
+                let c = point(c);
+                walk_curve([prev, point(a), point(b), c], limits, &mut count, emit)?; prev = c;
+            }
+        }
+        if count > remaining { return Err(limit()); }
+    }
+    Ok(count)
+}
+
+fn try_tiled_body(
+    ops: &[PathOp<DevicePoint>], hull: (i64, i64, i64, i64), origin: (i64, i64),
+    limits: &Limits, timings: &mut Option<&mut crate::timing::StageTimings>,
+) -> Result<Option<(Arc<Mask>, u64)>, RenderError> {
+    // Never reinterpret open or implicit contours as closed filled geometry.
+    let mut open = false;
+    for op in ops {
+        match op {
+            PathOp::MoveTo(_) if open => return Ok(None),
+            PathOp::MoveTo(_) => open = true,
+            PathOp::Close => open = false,
+            _ if !open => return Ok(None),
+            _ => (),
+        }
+    }
+    if open || ops.is_empty() { return Ok(None); }
+    let end = |n: i64| {
+        let eighth = -(-n).div_euclid(8);
+        -(-(eighth + 1)).div_euclid(8) + 1
+    };
+    let candidate_bounds = || PixelRect::new(
+        i32::try_from(hull.0.div_euclid(64)).ok()?, i32::try_from(hull.1.div_euclid(64)).ok()?,
+        i32::try_from(end(hull.2)).ok()?, i32::try_from(end(hull.3)).ok()?).ok();
+    let Some(bounds) = candidate_bounds() else { return Ok(None); };
+    let length = u64::from(bounds.width()).checked_mul(u64::from(bounds.height()));
+    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension()
+        || length.is_none_or(|n| n > limits.output_pixels() || n > limits.output_bytes()) { return Ok(None); }
+    let mut segments = Vec::new();
+    let mut edges = 0_u64;
+    let mut fallback = false;
+    let count = walk_outline(ops, origin, limits.path_segments_per_frame(), limits, &mut |a, b| {
+        if fallback { return Ok(()); }
+        let global = |p: Point| Some([(p.0 as i64).checked_add(origin.0)?, (p.1 as i64).checked_add(origin.1)?]);
+        let (Some(a), Some(b)) = (global(a), global(b)) else { fallback = true; return Ok(()); };
+        let Some(segment) = crate::tile_fill::Segment::new(a, b) else { return Ok(()); };
+        let Some(next) = edges.checked_add(segment.rows()) else { fallback = true; return Ok(()); };
+        if legacy_capacity::<Edge>(next).is_none() { fallback = true; return Ok(()); }
+        legacy_push_check::<Edge>(next, 0, limits)?;
+        edges = next;
+        if segments.len() == segments.capacity() {
+            let additional = segments.capacity().max(4);
+            let planned = segments.capacity().checked_add(additional)
+                .and_then(|n| n.checked_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>()))
+                .and_then(|n| (n as u64).checked_add(4096));
+            if planned.is_none_or(|n| n > limits.transient_bytes()) || segments.try_reserve_exact(additional).is_err() {
+                fallback = true; return Ok(());
+            }
+            if (segments.capacity() as u64).saturating_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>() as u64)
+                .saturating_add(4096) > limits.transient_bytes() { fallback = true; return Ok(()); }
+        }
+        segments.push(segment);
+        Ok(())
+    });
+    if fallback { return Ok(None); }
+    let count = count?;
+    let held = (segments.capacity() as u64).checked_mul(std::mem::size_of::<crate::tile_fill::Segment>() as u64).ok_or_else(limit)?;
+    let Some(image) = crate::tile_fill::rasterize(&segments, bounds, limits.transient_bytes(), held) else { return Ok(None); };
+    let intervals = image.source_intervals;
+    let union = image.union_intervals;
+    let stats = image.stats;
+    drop(segments);
+    let Some(witness) = legacy_fill_witness(ops.len(), count, edges, intervals, union, bounds, limits)? else { return Ok(None); };
+    let (mask, work) = if intervals == 0 {
+        (Arc::new(Mask::new(PixelRect::new(0, 0, 0, 0).map_err(|_| limit())?, 0, Arc::from([]))?), count)
+    } else {
+        let Some(pixels) = image.into_pixels(limits.transient_bytes()) else { return Ok(None); };
+        (Arc::new(Mask::new_xy(bounds, bounds.width() as usize, pixels.into())?), count.checked_add(union).ok_or_else(limit)?)
+    };
+    if let Some(t) = timings.as_mut() {
+        t.raster_peak(witness.peak, witness.required_work);
+        t.span_rows = t.span_rows.saturating_add(intervals);
+        t.expanded_candidates_without_reuse = t.expanded_candidates_without_reuse.saturating_add(intervals);
+        t.tiled_fills = t.tiled_fills.saturating_add(1);
+        t.tile_empty_regions = t.tile_empty_regions.saturating_add(stats.empty_regions);
+        t.tile_solid_regions = t.tile_solid_regions.saturating_add(stats.solid_regions);
+        t.tile_halfplanes = t.tile_halfplanes.saturating_add(stats.halfplane_tiles);
+        t.tile_complex = t.tile_complex.saturating_add(stats.complex_tiles);
+        t.tile_scratch_peak_bytes = t.tile_scratch_peak_bytes.max(stats.scratch_peak);
+    }
+    Ok(Some((mask, work)))
 }
 
 // A grid ellipse includes the nearest boundary cells in both dominant-axis
@@ -466,7 +660,7 @@ pub(crate) fn rasterize_body_timed(
     limits: &Limits,
     timings: &mut crate::timing::StageTimings,
 ) -> Result<Arc<Mask>, RenderError> {
-    rasterize_impl(
+    rasterize_selected(
         ops,
         Q6::from_ticks(0),
         Q6::from_ticks(0),
@@ -475,8 +669,16 @@ pub(crate) fn rasterize_body_timed(
         true,
         None,
         Some(timings),
+        true,
     )
     .map(|(mask, _)| mask)
+}
+#[cfg(test)]
+pub(crate) fn rasterize_legacy_body_timed(
+    ops: &[PathOp<DevicePoint>], limits: &Limits, timings: &mut crate::timing::StageTimings,
+) -> Result<Arc<Mask>, RenderError> {
+    rasterize_impl(ops, Q6::from_ticks(0), Q6::from_ticks(0), limits.path_segments_per_frame(), limits, true, None, Some(timings))
+        .map(|(mask, _)| mask)
 }
 pub(crate) fn rasterize_axis_xy_timed(
     ops: &[PathOp<DevicePoint>],
@@ -511,7 +713,15 @@ fn rasterize_impl(
     limits: &Limits,
     xy: bool,
     projection: Option<&Projection<'_>>,
-    mut timings: Option<&mut crate::timing::StageTimings>,
+    timings: Option<&mut crate::timing::StageTimings>,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    rasterize_selected(ops, rx, ry, remaining, limits, xy, projection, timings, false)
+}
+#[allow(clippy::too_many_arguments)]
+fn rasterize_selected(
+    ops: &[PathOp<DevicePoint>], rx: Q6, ry: Q6, remaining: u64, limits: &Limits,
+    xy: bool, projection: Option<&Projection<'_>>, mut timings: Option<&mut crate::timing::StageTimings>,
+    allow_tiles: bool,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     let timer = timings.as_ref().and_then(|t| t.start());
     check_path_budget(ops.len(), limits)?;
@@ -547,9 +757,6 @@ fn rasterize_impl(
         return Err(limit());
     }
     let mut edges = Vec::new();
-    let mut prev = (0.0, 0.0);
-    let mut first = prev;
-    let mut count = 0_u64;
     // PathData::AlignLeftTop runs before xy flattens curves. Evaluating the
     // same polynomial in absolute viewport coordinates can truncate a sample
     // one Q6 tick differently after an otherwise integral translation.
@@ -560,59 +767,20 @@ fn rasterize_impl(
     } else {
         (0, 0)
     };
-    let point = |p: DevicePoint| {
-        (
-            (i64::from(p.x().ticks()) - ox) as f64,
-            (i64::from(p.y().ticks()) - oy) as f64,
-        )
-    };
-    for &op in ops {
-        match op {
-            PathOp::MoveTo(p) => {
-                prev = point(p);
-                first = prev;
+    if allow_tiles && xy && rx.ticks() == 0 && ry.ticks() == 0 && projection.is_none() {
+        if let Some(hull) = hull {
+            let tile_timer = timings.as_ref().and_then(|t| t.start());
+            let result = try_tiled_body(ops, hull, (ox, oy), limits, &mut timings);
+            if let Some(t) = timings.as_mut() {
+                t.tiled_fill += crate::timing::StageTimings::elapsed(tile_timer);
+                if matches!(&result, Ok(None)) { t.tile_fallbacks = t.tile_fallbacks.saturating_add(1); }
             }
-            PathOp::LineTo(p) => {
-                line(prev, point(p), &mut edges, limits, timings.as_deref_mut())?;
-                prev = point(p);
-                count = count.checked_add(1).ok_or_else(limit)?;
-            }
-            PathOp::Close => {
-                line(prev, first, &mut edges, limits, timings.as_deref_mut())?;
-                prev = first;
-            }
-            PathOp::QuadTo(a, b) => {
-                let (a, b) = (point(a), point(b));
-                let p1 = (
-                    prev.0 + (a.0 - prev.0) * 2.0 / 3.0,
-                    prev.1 + (a.1 - prev.1) * 2.0 / 3.0,
-                );
-                let p2 = (b.0 + (a.0 - b.0) * 2.0 / 3.0, b.1 + (a.1 - b.1) * 2.0 / 3.0);
-                curve(
-                    [prev, p1, p2, b],
-                    &mut edges,
-                    limits,
-                    &mut count,
-                    timings.as_deref_mut(),
-                )?;
-                prev = b;
-            }
-            PathOp::CubicTo(a, b, c) => {
-                let c = point(c);
-                curve(
-                    [prev, point(a), point(b), c],
-                    &mut edges,
-                    limits,
-                    &mut count,
-                    timings.as_deref_mut(),
-                )?;
-                prev = c;
-            }
-        }
-        if count > remaining {
-            return Err(limit());
+            if let Some(result) = result? { return Ok(result); }
         }
     }
+    let count = walk_outline(ops, (ox, oy), remaining, limits, &mut |a, b| {
+        line(a, b, &mut edges, limits, timings.as_deref_mut())
+    })?;
     for edge in &mut edges {
         edge.x += ox / 8;
         edge.y += oy / 8;
@@ -979,13 +1147,20 @@ mod tests {
         fn prove<T: Copy>(value: T) {
             let mut actual = Vec::new();
             for length in 0..8193 {
-                assert_eq!(legacy_capacity::<T>(length), Some((actual.capacity() * std::mem::size_of::<T>()) as u64));
+                assert_eq!(
+                    legacy_capacity::<T>(length),
+                    Some((actual.capacity() * std::mem::size_of::<T>()) as u64)
+                );
                 actual.try_reserve(1).unwrap();
                 actual.push(value);
             }
         }
         prove(Edge { y: 0, x: 0, w: 0 });
-        prove(Span { y: 0, left: 0, right: 0 });
+        prove(Span {
+            y: 0,
+            left: 0,
+            right: 0,
+        });
         prove(0_i64);
     }
     #[test]
