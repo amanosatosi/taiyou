@@ -125,11 +125,20 @@ fn main() {
         for cache in [CacheConfig::Disabled, CacheConfig::Bounded] {
             // Preserve normal production resource results separately from the
             // explicitly expanded benchmark allowance used in primary samples.
-            let mut normal = Renderer::new(RendererConfig { cache, ..Default::default() }).unwrap();
-            let result = match normal.render_parsed(&parsed, fonts.clone(), &request(observation_time)) {
-                Ok(frame) => format!("RGBA:{};DIAGNOSTICS:{}", hex(frame.pixels()), hex(format!("{:?}", frame.diagnostics()).as_bytes())),
-                Err(error) => format!("ERROR:{error:?}"),
-            };
+            let mut normal = Renderer::new(RendererConfig {
+                cache,
+                ..Default::default()
+            })
+            .unwrap();
+            let result =
+                match normal.render_parsed(&parsed, fonts.clone(), &request(observation_time)) {
+                    Ok(frame) => format!(
+                        "RGBA:{};DIAGNOSTICS:{}",
+                        hex(frame.pixels()),
+                        hex(format!("{:?}", frame.diagnostics()).as_bytes())
+                    ),
+                    Err(error) => format!("ERROR:{error:?}"),
+                };
             eprintln!("POST_SAMPLE_DEFAULT_RESOURCE_{cache:?}={result}");
         }
     }

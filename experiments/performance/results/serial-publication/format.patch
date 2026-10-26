@@ -1,0 +1,92 @@
+diff --git a/crates/taiyou-cli/examples/performance_compare.rs b/crates/taiyou-cli/examples/performance_compare.rs
+index 3d40411..1e2654e 100644
+--- a/crates/taiyou-cli/examples/performance_compare.rs
++++ b/crates/taiyou-cli/examples/performance_compare.rs
+@@ -125,11 +125,20 @@ fn main() {
+         for cache in [CacheConfig::Disabled, CacheConfig::Bounded] {
+             // Preserve normal production resource results separately from the
+             // explicitly expanded benchmark allowance used in primary samples.
+-            let mut normal = Renderer::new(RendererConfig { cache, ..Default::default() }).unwrap();
+-            let result = match normal.render_parsed(&parsed, fonts.clone(), &request(observation_time)) {
+-                Ok(frame) => format!("RGBA:{};DIAGNOSTICS:{}", hex(frame.pixels()), hex(format!("{:?}", frame.diagnostics()).as_bytes())),
+-                Err(error) => format!("ERROR:{error:?}"),
+-            };
++            let mut normal = Renderer::new(RendererConfig {
++                cache,
++                ..Default::default()
++            })
++            .unwrap();
++            let result =
++                match normal.render_parsed(&parsed, fonts.clone(), &request(observation_time)) {
++                    Ok(frame) => format!(
++                        "RGBA:{};DIAGNOSTICS:{}",
++                        hex(frame.pixels()),
++                        hex(format!("{:?}", frame.diagnostics()).as_bytes())
++                    ),
++                    Err(error) => format!("ERROR:{error:?}"),
++                };
+             eprintln!("POST_SAMPLE_DEFAULT_RESOURCE_{cache:?}={result}");
+         }
+     }
+diff --git a/crates/taiyou-types/src/scene.rs b/crates/taiyou-types/src/scene.rs
+index ebd8141..3c28b2a 100644
+--- a/crates/taiyou-types/src/scene.rs
++++ b/crates/taiyou-types/src/scene.rs
+@@ -390,8 +390,10 @@ impl Frame {
+         // compiler to batch comparisons on every supported target; no unsafe
+         // SIMD or trusted-producer bypass is introduced.
+         let invalid = pixels.chunks_exact(4).fold(0_u8, |invalid, pixel| {
+-            invalid | u8::from(pixel[0] > pixel[3])
+-                | u8::from(pixel[1] > pixel[3]) | u8::from(pixel[2] > pixel[3])
++            invalid
++                | u8::from(pixel[0] > pixel[3])
++                | u8::from(pixel[1] > pixel[3])
++                | u8::from(pixel[2] > pixel[3])
+         });
+         if invalid != 0 {
+             return Err(render_invalid("frame RGB must be premultiplied by alpha"));
+@@ -623,7 +625,12 @@ mod publication_tests {
+                 for channel in 0..3 {
+                     let mut pixels = vec![alpha; 4];
+                     pixels[channel] = color;
+-                    let result = Frame::from_owned_pixels(Size::new(1, 1), pixels.clone(), &limits, budget.reserve(4).unwrap());
++                    let result = Frame::from_owned_pixels(
++                        Size::new(1, 1),
++                        pixels.clone(),
++                        &limits,
++                        budget.reserve(4).unwrap(),
++                    );
+                     if color <= alpha {
+                         let frame = result.unwrap();
+                         assert_eq!(frame.pixels(), pixels);
+@@ -644,14 +651,27 @@ mod publication_tests {
+         let mut spare = Vec::with_capacity(64);
+         spare.resize(4, 0);
+         let tiny = limits.clone().with_transient_bytes(4).unwrap();
+-        let error = Frame::from_owned_pixels(Size::new(1, 1), spare, &tiny, budget.reserve(4).unwrap()).unwrap_err();
+-        assert_eq!(error.resource_failure(), crate::ResourceFailure::TransientMemory);
++        let error =
++            Frame::from_owned_pixels(Size::new(1, 1), spare, &tiny, budget.reserve(4).unwrap())
++                .unwrap_err();
++        assert_eq!(
++            error.resource_failure(),
++            crate::ResourceFailure::TransientMemory
++        );
+         assert_eq!(budget.retained_bytes(), 0);
+         for position in [0, 7, 15] {
+             let mut pixels = vec![0; 64];
+             pixels[position * 4 + 2] = 1;
+             let mut larger = OutputBudget::new(&Limits::default());
+-            assert!(Frame::from_owned_pixels(Size::new(4, 4), pixels, &Limits::default(), larger.reserve(64).unwrap()).is_err());
++            assert!(
++                Frame::from_owned_pixels(
++                    Size::new(4, 4),
++                    pixels,
++                    &Limits::default(),
++                    larger.reserve(64).unwrap()
++                )
++                .is_err()
++            );
+             assert_eq!(larger.retained_bytes(), 0);
+         }
+     }
