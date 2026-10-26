@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compare:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libass-perf]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libass-perf]') || contains(github.event.head_commit.message, '[perf-1t-probe]')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -18,6 +18,7 @@ jobs:
       TAIYOU_FOCUSED_RENDERER: '1'
       FROZEN_CHECKPOINT: 2b80565e4998e22032d6bb4a446013886df7c62c
       LIBASS_PIN: f61db567e6593df3470e91594bcd4ad2d0473aff
+      SERIAL_PROBE: ${{ contains(github.event.head_commit.message, '[perf-1t-probe]') && '1' || '0' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -29,7 +30,12 @@ jobs:
           cargo fmt --all
           mkdir -p "$RUNNER_TEMP/performance-comparison"
           git diff --binary > "$RUNNER_TEMP/performance-comparison/format.patch"
-          git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json
+          if test "$SERIAL_PROBE" = 1; then
+            # Only the measured serial pixel traversal may differ in this probe.
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs'
+          else
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json
+          fi
           git rev-parse HEAD > "$RUNNER_TEMP/performance-comparison/commit.txt"
           git rev-parse HEAD:crates/taiyou-render > "$RUNNER_TEMP/performance-comparison/renderer-tree.txt"
           rustc -Vv > "$RUNNER_TEMP/performance-comparison/rustc.txt"
@@ -46,6 +52,28 @@ jobs:
           PKG_CONFIG_ALL_STATIC: '1'
           LIBZ_SYS_STATIC: '1'
         run: cargo build --release --locked -p taiyou-cli --features native --example performance_compare
+      - name: Supplemental serial-candidate correctness and same-runner frozen binary
+        if: env.SERIAL_PROBE == '1'
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: |
+          cargo test --locked -p taiyou-render --features native
+          cargo test --locked -p taiyou-cli --features native --test performance_cache
+          cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-candidate"
+          cp crates/taiyou-render/src/compose.rs "$RUNNER_TEMP/candidate-compose.rs"
+          trap 'cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs' EXIT
+          git show "$FROZEN_CHECKPOINT:crates/taiyou-render/src/compose.rs" > crates/taiyou-render/src/compose.rs
+          cargo build --release --locked -p taiyou-cli --features native --example performance_compare
+          cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-reference"
+          cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs
+          cp "$RUNNER_TEMP/taiyou-candidate" target/release/examples/performance_compare
+          echo "TAIYOU_REFERENCE_BINARY=$RUNNER_TEMP/taiyou-reference" >> "$GITHUB_ENV"
       - name: Normal pinned libass build with the same FreeType and HarfBuzz
         env:
           PKG_CONFIG: /usr/bin/pkg-config

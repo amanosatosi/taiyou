@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[2]
 CORPUS = "a5073319af8117271d8ac13ef5c088197ff2d59b"
 SCENARIOS = ("cold", "same-time", "sequence", "seek")
 ENGINES = ("taiyou-1", "taiyou-4", "libass")
+REFERENCE = os.environ.get("TAIYOU_REFERENCE_BINARY")
+if REFERENCE:
+    ENGINES = ("taiyou-1", "taiyou-reference", "libass")
 
 
 def sha(data):
@@ -126,7 +129,8 @@ def run(output):
             for engine in order:
                 directory = output / case["id"] / scenario
                 directory.mkdir(parents=True, exist_ok=True)
-                binary = os.environ["TAIYOU_COMPARE_BINARY"] if engine != "libass" else os.environ["LIBASS_COMPARE_BINARY"]
+                binary = (REFERENCE if engine == "taiyou-reference" else
+                          os.environ["TAIYOU_COMPARE_BINARY"] if engine != "libass" else os.environ["LIBASS_COMPARE_BINARY"])
                 workers = "4" if engine == "taiyou-4" else "1"
                 arguments = [binary, case["source"]["path"], str(case["width"]), str(case["height"]), workers,
                              case["timestamps"][scenario]["path"], scenario, *fonts]
@@ -183,7 +187,8 @@ def run(output):
                     record["peak_cache_bytes"] = max(int(r["cache_bytes"]) for r in selected)
                 summaries.append(record)
             one = [r for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, "taiyou-1")]
-            many = [r for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, "taiyou-4")]
+            peer = "taiyou-reference" if REFERENCE else "taiyou-4"
+            many = [r for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, peer)]
             if len(one) == len(many) == 31:
                 for a, b in zip(one, many):
                     assert len(a["rgba_digest"]) == len(a["diagnostic_digest"]) == 64
@@ -192,11 +197,12 @@ def run(output):
     prior_file = ROOT / "experiments/performance/results/libass-comparison/samples.csv"
     with prior_file.open() as stream:
         prior = {(r["case"], r["scenario"], r["engine"], r["sample"]): r["rgba_digest"]
-                 for r in csv.DictReader(stream) if r["engine"].startswith("taiyou-")}
+                 for r in csv.DictReader(stream) if r["engine"] in ENGINES and r["engine"].startswith("taiyou-")}
     current = {(r["case"], r["scenario"], r["engine"], r["sample"]): r["rgba_digest"]
-               for r in rows if r["engine"].startswith("taiyou-")}
+               for r in rows if r["engine"] in ("taiyou-1", "taiyou-4")}
     prior_changes = [key for key in prior.keys() | current.keys() if prior.get(key) != current.get(key)]
     report = {"schema": 1, "libass_api_version": sorted(versions), "groups": summaries,
+              "engines": ENGINES, "same_runner_frozen_1t_reference": bool(REFERENCE),
               "failures": failures, "taiyou_digest_differences": digest_differences,
               "sparse_style_taiyou_rgba_differences": prior_changes,
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
@@ -210,14 +216,17 @@ def run(output):
         writer = csv.DictWriter(stream, fields)
         writer.writeheader()
         writer.writerows(rows)
-    table = ["| Workload / state | Taiyou1T ms | Taiyou4T ms | libass+RGBA ms | MT/libass |", "|---|---:|---:|---:|---:|"]
+    peer_title = "frozen1T" if REFERENCE else "Taiyou4T"
+    ratio_title = "1T/libass" if REFERENCE else "MT/libass"
+    table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass+RGBA ms | {ratio_title} |", "|---|---:|---:|---:|---:|"]
     for case in manifest["cases"]:
         for scenario in ("same-time", "sequence", "cold"):
             group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
             if len(group) == 3:
                 field = "cold_session_ms" if scenario == "cold" else "total_ms"
                 a, b, c = (group[e][field]["median"] for e in ENGINES)
-                table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {b/c:.2f}x |")
+                ratio = a / c if REFERENCE else b / c
+                table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {ratio:.2f}x |")
     (output / "table.md").write_text("\n".join(table) + "\n")
     assert len(rows) == len(manifest["cases"]) * len(SCENARIOS) * 31 * len(ENGINES), "incomplete comparison inventory"
     assert not failures and not digest_differences, "process/sample/determinism failures remain failures"

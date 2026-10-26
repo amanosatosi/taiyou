@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       native: ${{ steps.select.outputs.native }}
+      probe: ${{ steps.probe.outputs.probe }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -40,9 +41,22 @@ jobs:
           else
             python scripts/select-platforms.py "$BASE_SHA" "$HEAD_SHA"
           fi
+      - name: Identify explicitly deferred draft performance probe
+        id: probe
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          probe=false
+          if [[ "$EVENT_NAME" == pull_request && "$PR_NUMBER" == 36 && "$PR_DRAFT" == true && "$HEAD_REF" == perf/cache-multithread ]] && git log -1 --format=%B | grep -Fq '[perf-1t-probe]'; then
+            probe=true
+          fi
+          echo "probe=$probe" >> "$GITHUB_OUTPUT"
   native:
     needs: select
-    if: needs.select.outputs.native == 'true'
+    if: needs.select.outputs.native == 'true' && needs.select.outputs.probe != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -97,7 +111,12 @@ jobs:
           SELECT_RESULT: ${{ needs.select.result }}
           RUN_NATIVE: ${{ needs.select.outputs.native }}
           NATIVE_RESULT: ${{ needs.native.result }}
+          DEFERRED_PROBE: ${{ needs.select.outputs.probe }}
         run: |
+          if [[ "$DEFERRED_PROBE" == true ]]; then
+            echo '::error::Full Windows/Linux/macOS validation deferred for draft 1T probe; this gate remains failing until an unmarked full checkpoint.'
+            exit 1
+          fi
           [[ "$SELECT_RESULT" == success ]] || exit 1
           if [[ "$RUN_NATIVE" == true ]]; then
             [[ "$NATIVE_RESULT" == success ]] || exit 1
