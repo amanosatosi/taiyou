@@ -51,3 +51,20 @@ Additional inspected file hashes (SHA-256):
 These are file fingerprints, not a full-tree or commit authentication. The local
 source is ISC-licensed. This note records studied techniques; no libass code has
 been copied into Taiyou.
+
+## Serial composition investigation after the controlled baseline
+
+The final same-runner controlled dataset is results/libass-style-selected. Warm
+composition dominates Taiyou's prior stage profile; changing geometry retains a
+large span sorting/union cost. Local test/test.c:139..164 traverses each bitmap
+and destination row with invariant strides, rather than revalidating a full
+coordinate lookup per pixel. This simple proven traversal is the first candidate;
+Taiyou retains its own xy native-coverage and A8 integer blend arithmetic.
+
+ass_render.c:2447..2757 combines reusable glyph bitmaps and caches filter/composite
+results before final output. Its final ASS_Image list is not a whole RGBA frame.
+ass_detect_change at3310 compares retained image lists; the paired benchmark still
+composes a fresh RGBA output even for changed=0. Taiyou must not claim its frame
+API is equivalent to returning an unchanged image list without that output work.
+No renderer semantics, cache topology or scheduler change is justified merely
+by these observations; measure the narrow traversal first.
