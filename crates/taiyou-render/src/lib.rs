@@ -23,6 +23,8 @@ pub mod renderer;
 pub mod stroke;
 #[cfg(feature = "native")]
 mod tile_fill;
+#[cfg(all(test, feature = "native"))]
+mod tile_border;
 pub mod timing;
 mod xy_wrap;
 pub use compose::compose;

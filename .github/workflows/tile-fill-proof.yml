@@ -38,6 +38,7 @@ jobs:
           set -o pipefail
           cargo test --locked -p taiyou-render --features native tile_fill::tests -- --nocapture 2>&1 | tee "$RUNNER_TEMP/tile-proof/tests.txt"
           cargo test --locked -p taiyou-render --features native --lib legacy_capacity_witness -- --nocapture 2>&1 | tee -a "$RUNNER_TEMP/tile-proof/tests.txt"
+          cargo test --locked -p taiyou-render --features native tile_border::tests -- --nocapture 2>&1 | tee -a "$RUNNER_TEMP/tile-proof/tests.txt"
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

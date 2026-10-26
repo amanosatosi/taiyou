@@ -7,6 +7,20 @@ const TILE: usize = 16;
 const TILE_BYTES: usize = TILE * TILE;
 const STACK_ALLOWANCE: u64 = 16 * 1024;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ScanSpan {
+    pub y: i64,
+    pub left: i64,
+    pub right: i64,
+}
+#[derive(Clone, Copy)]
+pub(crate) struct VerticalBand {
+    pub first_y: i64,
+    pub last_y: i64,
+    pub left: i64,
+    pub right: i64,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Segment {
     a: [i64; 2],
@@ -77,12 +91,13 @@ pub(crate) struct TileStats {
     pub solid_regions: u64,
     pub halfplane_tiles: u64,
     pub complex_tiles: u64,
+    pub simple_border_tiles: u64,
     pub scratch_peak: u64,
 }
 pub(crate) struct TileImage {
-    bounds: PixelRect,
-    columns: usize,
-    tiles: Vec<[u8; TILE_BYTES]>,
+    pub bounds: PixelRect,
+    pub columns: usize,
+    pub tiles: Vec<[u8; TILE_BYTES]>,
     pub source_intervals: u64,
     pub union_intervals: u64,
     pub stats: TileStats,
