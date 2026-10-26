@@ -99,11 +99,17 @@ impl StageTimings {
         self.tiled_fill += other.tiled_fill;
         self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
         self.tile_fallbacks = self.tile_fallbacks.saturating_add(other.tile_fallbacks);
-        self.tile_empty_regions = self.tile_empty_regions.saturating_add(other.tile_empty_regions);
-        self.tile_solid_regions = self.tile_solid_regions.saturating_add(other.tile_solid_regions);
+        self.tile_empty_regions = self
+            .tile_empty_regions
+            .saturating_add(other.tile_empty_regions);
+        self.tile_solid_regions = self
+            .tile_solid_regions
+            .saturating_add(other.tile_solid_regions);
         self.tile_halfplanes = self.tile_halfplanes.saturating_add(other.tile_halfplanes);
         self.tile_complex = self.tile_complex.saturating_add(other.tile_complex);
-        self.tile_scratch_peak_bytes = self.tile_scratch_peak_bytes.max(other.tile_scratch_peak_bytes);
+        self.tile_scratch_peak_bytes = self
+            .tile_scratch_peak_bytes
+            .max(other.tile_scratch_peak_bytes);
         self.mask_generation += other.mask_generation;
         self.span_rows = self.span_rows.saturating_add(other.span_rows);
         self.expanded_candidates = self

@@ -427,7 +427,9 @@ fn curve(
     })
 }
 fn walk_curve(
-    p: [Point; 4], limits: &Limits, count: &mut u64,
+    p: [Point; 4],
+    limits: &Limits,
+    count: &mut u64,
     emit: &mut impl FnMut(Point, Point) -> Result<(), RenderError>,
 ) -> Result<(), RenderError> {
     let coefficients = |axis: usize| {
@@ -480,43 +482,65 @@ fn walk_curve(
 }
 
 fn walk_outline(
-    ops: &[PathOp<DevicePoint>], origin: (i64, i64), remaining: u64, limits: &Limits,
+    ops: &[PathOp<DevicePoint>],
+    origin: (i64, i64),
+    remaining: u64,
+    limits: &Limits,
     emit: &mut impl FnMut(Point, Point) -> Result<(), RenderError>,
 ) -> Result<u64, RenderError> {
-    let point = |p: DevicePoint| ((i64::from(p.x().ticks()) - origin.0) as f64,
-        (i64::from(p.y().ticks()) - origin.1) as f64);
+    let point = |p: DevicePoint| {
+        (
+            (i64::from(p.x().ticks()) - origin.0) as f64,
+            (i64::from(p.y().ticks()) - origin.1) as f64,
+        )
+    };
     let mut prev = (0.0, 0.0);
     let mut first = prev;
     let mut count = 0_u64;
     for &op in ops {
         match op {
-            PathOp::MoveTo(p) => { prev = point(p); first = prev; }
+            PathOp::MoveTo(p) => {
+                prev = point(p);
+                first = prev;
+            }
             PathOp::LineTo(p) => {
-                emit(prev, point(p))?; prev = point(p);
+                emit(prev, point(p))?;
+                prev = point(p);
                 count = count.checked_add(1).ok_or_else(limit)?;
             }
-            PathOp::Close => { emit(prev, first)?; prev = first; }
+            PathOp::Close => {
+                emit(prev, first)?;
+                prev = first;
+            }
             PathOp::QuadTo(a, b) => {
                 let (a, b) = (point(a), point(b));
-                let p1 = (prev.0 + (a.0 - prev.0) * 2.0 / 3.0,
-                    prev.1 + (a.1 - prev.1) * 2.0 / 3.0);
-                let p2 = (b.0 + (a.0 - b.0) * 2.0 / 3.0,
-                    b.1 + (a.1 - b.1) * 2.0 / 3.0);
-                walk_curve([prev, p1, p2, b], limits, &mut count, emit)?; prev = b;
+                let p1 = (
+                    prev.0 + (a.0 - prev.0) * 2.0 / 3.0,
+                    prev.1 + (a.1 - prev.1) * 2.0 / 3.0,
+                );
+                let p2 = (b.0 + (a.0 - b.0) * 2.0 / 3.0, b.1 + (a.1 - b.1) * 2.0 / 3.0);
+                walk_curve([prev, p1, p2, b], limits, &mut count, emit)?;
+                prev = b;
             }
             PathOp::CubicTo(a, b, c) => {
                 let c = point(c);
-                walk_curve([prev, point(a), point(b), c], limits, &mut count, emit)?; prev = c;
+                walk_curve([prev, point(a), point(b), c], limits, &mut count, emit)?;
+                prev = c;
             }
         }
-        if count > remaining { return Err(limit()); }
+        if count > remaining {
+            return Err(limit());
+        }
     }
     Ok(count)
 }
 
 fn try_tiled_body(
-    ops: &[PathOp<DevicePoint>], hull: (i64, i64, i64, i64), origin: (i64, i64),
-    limits: &Limits, timings: &mut Option<&mut crate::timing::StageTimings>,
+    ops: &[PathOp<DevicePoint>],
+    hull: (i64, i64, i64, i64),
+    origin: (i64, i64),
+    limits: &Limits,
+    timings: &mut Option<&mut crate::timing::StageTimings>,
 ) -> Result<Option<(Arc<Mask>, u64)>, RenderError> {
     // Never reinterpret open or implicit contours as closed filled geometry.
     let mut open = false;
@@ -529,63 +553,144 @@ fn try_tiled_body(
             _ => (),
         }
     }
-    if open || ops.is_empty() { return Ok(None); }
+    if open || ops.is_empty() {
+        return Ok(None);
+    }
     let end = |n: i64| {
         let eighth = -(-n).div_euclid(8);
         -(-(eighth + 1)).div_euclid(8) + 1
     };
-    let candidate_bounds = || PixelRect::new(
-        i32::try_from(hull.0.div_euclid(64)).ok()?, i32::try_from(hull.1.div_euclid(64)).ok()?,
-        i32::try_from(end(hull.2)).ok()?, i32::try_from(end(hull.3)).ok()?).ok();
-    let Some(bounds) = candidate_bounds() else { return Ok(None); };
+    let candidate_bounds = || {
+        PixelRect::new(
+            i32::try_from(hull.0.div_euclid(64)).ok()?,
+            i32::try_from(hull.1.div_euclid(64)).ok()?,
+            i32::try_from(end(hull.2)).ok()?,
+            i32::try_from(end(hull.3)).ok()?,
+        )
+        .ok()
+    };
+    let Some(bounds) = candidate_bounds() else {
+        return Ok(None);
+    };
     let length = u64::from(bounds.width()).checked_mul(u64::from(bounds.height()));
-    if bounds.width() > limits.max_dimension() || bounds.height() > limits.max_dimension()
-        || length.is_none_or(|n| n > limits.output_pixels() || n > limits.output_bytes()) { return Ok(None); }
+    if bounds.width() > limits.max_dimension()
+        || bounds.height() > limits.max_dimension()
+        || length.is_none_or(|n| n > limits.output_pixels() || n > limits.output_bytes())
+    {
+        return Ok(None);
+    }
     let mut segments = Vec::new();
     let mut edges = 0_u64;
     let mut fallback = false;
-    let count = walk_outline(ops, origin, limits.path_segments_per_frame(), limits, &mut |a, b| {
-        if fallback { return Ok(()); }
-        let global = |p: Point| Some([(p.0 as i64).checked_add(origin.0)?, (p.1 as i64).checked_add(origin.1)?]);
-        let (Some(a), Some(b)) = (global(a), global(b)) else { fallback = true; return Ok(()); };
-        let Some(segment) = crate::tile_fill::Segment::new(a, b) else { return Ok(()); };
-        let Some(next) = edges.checked_add(segment.rows()) else { fallback = true; return Ok(()); };
-        if legacy_capacity::<Edge>(next).is_none() { fallback = true; return Ok(()); }
-        legacy_push_check::<Edge>(next, 0, limits)?;
-        edges = next;
-        if segments.len() == segments.capacity() {
-            let additional = segments.capacity().max(4);
-            let planned = segments.capacity().checked_add(additional)
-                .and_then(|n| n.checked_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>()))
-                .and_then(|n| (n as u64).checked_add(4096));
-            if planned.is_none_or(|n| n > limits.transient_bytes()) || segments.try_reserve_exact(additional).is_err() {
-                fallback = true; return Ok(());
+    let count = walk_outline(
+        ops,
+        origin,
+        limits.path_segments_per_frame(),
+        limits,
+        &mut |a, b| {
+            if fallback {
+                return Ok(());
             }
-            if (segments.capacity() as u64).saturating_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>() as u64)
-                .saturating_add(4096) > limits.transient_bytes() { fallback = true; return Ok(()); }
-        }
-        segments.push(segment);
-        Ok(())
-    });
-    if fallback { return Ok(None); }
+            let global = |p: Point| {
+                Some([
+                    (p.0 as i64).checked_add(origin.0)?,
+                    (p.1 as i64).checked_add(origin.1)?,
+                ])
+            };
+            let (Some(a), Some(b)) = (global(a), global(b)) else {
+                fallback = true;
+                return Ok(());
+            };
+            let Some(segment) = crate::tile_fill::Segment::new(a, b) else {
+                return Ok(());
+            };
+            let Some(next) = edges.checked_add(segment.rows()) else {
+                fallback = true;
+                return Ok(());
+            };
+            if legacy_capacity::<Edge>(next).is_none() {
+                fallback = true;
+                return Ok(());
+            }
+            legacy_push_check::<Edge>(next, 0, limits)?;
+            edges = next;
+            if segments.len() == segments.capacity() {
+                let additional = segments.capacity().max(4);
+                let planned = segments
+                    .capacity()
+                    .checked_add(additional)
+                    .and_then(|n| {
+                        n.checked_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>())
+                    })
+                    .and_then(|n| (n as u64).checked_add(4096));
+                if planned.is_none_or(|n| n > limits.transient_bytes())
+                    || segments.try_reserve_exact(additional).is_err()
+                {
+                    fallback = true;
+                    return Ok(());
+                }
+                if (segments.capacity() as u64)
+                    .saturating_mul(3 * std::mem::size_of::<crate::tile_fill::Segment>() as u64)
+                    .saturating_add(4096)
+                    > limits.transient_bytes()
+                {
+                    fallback = true;
+                    return Ok(());
+                }
+            }
+            segments.push(segment);
+            Ok(())
+        },
+    );
+    if fallback {
+        return Ok(None);
+    }
     let count = count?;
-    let held = (segments.capacity() as u64).checked_mul(std::mem::size_of::<crate::tile_fill::Segment>() as u64).ok_or_else(limit)?;
-    let Some(image) = crate::tile_fill::rasterize(&segments, bounds, limits.transient_bytes(), held) else { return Ok(None); };
+    let held = (segments.capacity() as u64)
+        .checked_mul(std::mem::size_of::<crate::tile_fill::Segment>() as u64)
+        .ok_or_else(limit)?;
+    let Some(image) =
+        crate::tile_fill::rasterize(&segments, bounds, limits.transient_bytes(), held)
+    else {
+        return Ok(None);
+    };
     let intervals = image.source_intervals;
     let union = image.union_intervals;
     let stats = image.stats;
     drop(segments);
-    let Some(witness) = legacy_fill_witness(ops.len(), count, edges, intervals, union, bounds, limits)? else { return Ok(None); };
+    let Some(witness) =
+        legacy_fill_witness(ops.len(), count, edges, intervals, union, bounds, limits)?
+    else {
+        return Ok(None);
+    };
     let (mask, work) = if intervals == 0 {
-        (Arc::new(Mask::new(PixelRect::new(0, 0, 0, 0).map_err(|_| limit())?, 0, Arc::from([]))?), count)
+        (
+            Arc::new(Mask::new(
+                PixelRect::new(0, 0, 0, 0).map_err(|_| limit())?,
+                0,
+                Arc::from([]),
+            )?),
+            count,
+        )
     } else {
-        let Some(pixels) = image.into_pixels(limits.transient_bytes()) else { return Ok(None); };
-        (Arc::new(Mask::new_xy(bounds, bounds.width() as usize, pixels.into())?), count.checked_add(union).ok_or_else(limit)?)
+        let Some(pixels) = image.into_pixels(limits.transient_bytes()) else {
+            return Ok(None);
+        };
+        (
+            Arc::new(Mask::new_xy(
+                bounds,
+                bounds.width() as usize,
+                pixels.into(),
+            )?),
+            count.checked_add(union).ok_or_else(limit)?,
+        )
     };
     if let Some(t) = timings.as_mut() {
         t.raster_peak(witness.peak, witness.required_work);
         t.span_rows = t.span_rows.saturating_add(intervals);
-        t.expanded_candidates_without_reuse = t.expanded_candidates_without_reuse.saturating_add(intervals);
+        t.expanded_candidates_without_reuse = t
+            .expanded_candidates_without_reuse
+            .saturating_add(intervals);
         t.tiled_fills = t.tiled_fills.saturating_add(1);
         t.tile_empty_regions = t.tile_empty_regions.saturating_add(stats.empty_regions);
         t.tile_solid_regions = t.tile_solid_regions.saturating_add(stats.solid_regions);
@@ -675,10 +780,21 @@ pub(crate) fn rasterize_body_timed(
 }
 #[cfg(test)]
 pub(crate) fn rasterize_legacy_body_timed(
-    ops: &[PathOp<DevicePoint>], limits: &Limits, timings: &mut crate::timing::StageTimings,
+    ops: &[PathOp<DevicePoint>],
+    limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<Arc<Mask>, RenderError> {
-    rasterize_impl(ops, Q6::from_ticks(0), Q6::from_ticks(0), limits.path_segments_per_frame(), limits, true, None, Some(timings))
-        .map(|(mask, _)| mask)
+    rasterize_impl(
+        ops,
+        Q6::from_ticks(0),
+        Q6::from_ticks(0),
+        limits.path_segments_per_frame(),
+        limits,
+        true,
+        None,
+        Some(timings),
+    )
+    .map(|(mask, _)| mask)
 }
 pub(crate) fn rasterize_axis_xy_timed(
     ops: &[PathOp<DevicePoint>],
@@ -715,12 +831,20 @@ fn rasterize_impl(
     projection: Option<&Projection<'_>>,
     timings: Option<&mut crate::timing::StageTimings>,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_selected(ops, rx, ry, remaining, limits, xy, projection, timings, false)
+    rasterize_selected(
+        ops, rx, ry, remaining, limits, xy, projection, timings, false,
+    )
 }
 #[allow(clippy::too_many_arguments)]
 fn rasterize_selected(
-    ops: &[PathOp<DevicePoint>], rx: Q6, ry: Q6, remaining: u64, limits: &Limits,
-    xy: bool, projection: Option<&Projection<'_>>, mut timings: Option<&mut crate::timing::StageTimings>,
+    ops: &[PathOp<DevicePoint>],
+    rx: Q6,
+    ry: Q6,
+    remaining: u64,
+    limits: &Limits,
+    xy: bool,
+    projection: Option<&Projection<'_>>,
+    mut timings: Option<&mut crate::timing::StageTimings>,
     allow_tiles: bool,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     let timer = timings.as_ref().and_then(|t| t.start());
@@ -773,9 +897,13 @@ fn rasterize_selected(
             let result = try_tiled_body(ops, hull, (ox, oy), limits, &mut timings);
             if let Some(t) = timings.as_mut() {
                 t.tiled_fill += crate::timing::StageTimings::elapsed(tile_timer);
-                if matches!(&result, Ok(None)) { t.tile_fallbacks = t.tile_fallbacks.saturating_add(1); }
+                if matches!(&result, Ok(None)) {
+                    t.tile_fallbacks = t.tile_fallbacks.saturating_add(1);
+                }
             }
-            if let Some(result) = result? { return Ok(result); }
+            if let Some(result) = result? {
+                return Ok(result);
+            }
         }
     }
     let count = walk_outline(ops, (ox, oy), remaining, limits, &mut |a, b| {

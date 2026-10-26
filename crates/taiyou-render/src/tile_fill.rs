@@ -496,8 +496,11 @@ mod tests {
                 .with_path_segments_per_frame(work)
                 .unwrap();
             let mut actual_witness = crate::timing::StageTimings::default();
-            let actual =
-                crate::axis_widen::rasterize_legacy_body_timed(&ops, &restricted, &mut actual_witness);
+            let actual = crate::axis_widen::rasterize_legacy_body_timed(
+                &ops,
+                &restricted,
+                &mut actual_witness,
+            );
             let planned = crate::axis_widen::legacy_fill_witness(
                 ops.len(),
                 count,
@@ -576,26 +579,49 @@ mod tests {
         for phase in [0, 1, 7, 31, 63] {
             for offset in [[0, 0], [-7777, -3151], [19001, 7123]] {
                 let p = |x: i64, y: i64| point([x + offset[0] + phase, y + offset[1] + phase]);
-                let ops = [PathOp::MoveTo(p(0, 0)),
+                let ops = [
+                    PathOp::MoveTo(p(0, 0)),
                     PathOp::CubicTo(p(3000, -2000), p(13000, 16000), p(16000, 7000)),
                     PathOp::QuadTo(p(21000, 20000), p(2000, 16000)),
-                    PathOp::LineTo(p(9000, 7000)), PathOp::Close];
-                for (memory, work) in [(512 * 1024 * 1024, 32_000_000), (4096, 1_000_000),
-                    (16384, 1_000_000), (131072, 1_000_000), (1048576, 64), (1048576, 1024)] {
-                    let limits = Limits::default().with_transient_bytes(memory).unwrap()
-                        .with_path_segments_per_frame(work).unwrap();
+                    PathOp::LineTo(p(9000, 7000)),
+                    PathOp::Close,
+                ];
+                for (memory, work) in [
+                    (512 * 1024 * 1024, 32_000_000),
+                    (4096, 1_000_000),
+                    (16384, 1_000_000),
+                    (131072, 1_000_000),
+                    (1048576, 64),
+                    (1048576, 1024),
+                ] {
+                    let limits = Limits::default()
+                        .with_transient_bytes(memory)
+                        .unwrap()
+                        .with_path_segments_per_frame(work)
+                        .unwrap();
                     let mut old = crate::timing::StageTimings::default();
                     let mut new = crate::timing::StageTimings::default();
                     let a = crate::axis_widen::rasterize_legacy_body_timed(&ops, &limits, &mut old);
                     let b = crate::axis_widen::rasterize_body_timed(&ops, &limits, &mut new);
                     match (a, b) {
                         (Ok(a), Ok(b)) => {
-                            assert_eq!((a.bounds(), a.stride(), a.is_xy_coverage()), (b.bounds(), b.stride(), b.is_xy_coverage()));
+                            assert_eq!(
+                                (a.bounds(), a.stride(), a.is_xy_coverage()),
+                                (b.bounds(), b.stride(), b.is_xy_coverage())
+                            );
                             assert_eq!(a.data(), b.data());
-                            assert_eq!((old.raster_peak_bytes, old.raster_required_work), (new.raster_peak_bytes, new.raster_required_work));
-                            if memory == 512 * 1024 * 1024 { assert_eq!(new.tiled_fills, 1); }
+                            assert_eq!(
+                                (old.raster_peak_bytes, old.raster_required_work),
+                                (new.raster_peak_bytes, new.raster_required_work)
+                            );
+                            if memory == 512 * 1024 * 1024 {
+                                assert_eq!(new.tiled_fills, 1);
+                            }
                         }
-                        (Err(a), Err(b)) => assert_eq!((a.code(), a.resource_failure(), a.detail()), (b.code(), b.resource_failure(), b.detail())),
+                        (Err(a), Err(b)) => assert_eq!(
+                            (a.code(), a.resource_failure(), a.detail()),
+                            (b.code(), b.resource_failure(), b.detail())
+                        ),
                         _ => panic!("tiled/legacy curve result differs"),
                     }
                 }
