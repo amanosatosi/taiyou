@@ -1,0 +1,1 @@
+{"samples_per_mode": 1488, "modes": [["off", "1"], ["on", "1"], ["on", "2"], ["on", "4"], ["on", "8"]], "different_rgba_or_diagnostic_digests": 0, "note": "SHA-256 frame audit; supplemental tests compare bytes directly"}

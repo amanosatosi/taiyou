@@ -1,0 +1,29 @@
+{
+  "candidate": "dccd0fded86fbc24acd1ebbfaedafa8e5234db6c",
+  "source_run": "https://github.com/amanosatosi/taiyou/actions/runs/40303684818",
+  "compared_to": "9fc4b5719682a5e278c85a059ef56e2192242a26",
+  "visual_frames": 101,
+  "changed_frames": [],
+  "independent_visual": {
+    "total": 101,
+    "counts": {
+      "PASS_EXACT": 1,
+      "PASS_APPROVED_TOLERANCE": 0,
+      "EXPECTED_DIFFERENCE": 0,
+      "UNSUPPORTED": 0,
+      "REGRESSION": 100,
+      "CRASH": 0,
+      "INFRA_ERROR": 0
+    },
+    "exact_matches": 1,
+    "observed": {
+      "PASS_EXACT": 1,
+      "PIXEL_MISMATCH": 100,
+      "BLOCKED_BY_UNSUPPORTED_FEATURE": 0,
+      "EXECUTION_FAILED": 0,
+      "INFRA_ERROR": 0,
+      "CRASH": 0
+    }
+  },
+  "scope": "Supplemental Taiyou output preservation audit; independent oracle mismatches remain failures"
+}
