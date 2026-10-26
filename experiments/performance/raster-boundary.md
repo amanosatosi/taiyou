@@ -83,7 +83,7 @@ Every kept slice needs same-runner before/after Taiyou1T and pinned direct stock
 Mangetsu legacy and RGBA API times, cache OFF/ON, default-resource equality and the
 full historical digest audit at a promising checkpoint. Probe gates stay failing.
 
-## Border slice under proof
+## Border slice and measured decision
 
 The closed-fill slice preserved sampled pixels but removed little whole-frame
 time. The measured border path still constructs about4.24M expanded intervals.
@@ -103,5 +103,13 @@ removed producer checks are replayed arithmetically, with remaining-work checked
 before each logical push and arithmetic/transient/global-work failure ordering
 preserved. Original capacity and peak witnesses remain conservative. Additional
 tile/source/publication storage must fit the unchanged available transient cap,
-otherwise the existing path remains the fallback. Borders are not enabled in
-production until the independent retained producer proves pixels and failures.
+otherwise the existing path remains the fallback. The retained producer proves
+pixels, work witnesses and failures in results/tile-border-proof. The first
+integrated tile kernel preserved output but repeated global source-row searches
+and regressed ordinary cases (results/tile-border-integrated). The revised local
+primitive kernel removes those searches and their offset table. Paired results
+in results/tile-border-local show stress377.12->139.50ms, dialogue4K cold38.46->22.08ms
+and transforms51.73->32.69ms, with exact samples/diagnostics/resource outcomes.
+This justifies a full checkpoint; historical101-frame and platform success still
+require those runs. Remaining filter/composition costs are larger than border tile
+work. MT remains frozen.

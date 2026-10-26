@@ -222,17 +222,23 @@ impl Raster<'_> {
             let last = (native[3] - 1).min(band.last_y + radius_y);
             for y in first..=last {
                 let bits = rows.get_mut((y - native[1]) as usize)?;
-                if *bits == full { continue; }
+                if *bits == full {
+                    continue;
+                }
                 let width = *self.arc.get(distance(y, band))?;
                 let left = (band.left - width).max(native[0]) - native[0];
                 let right = (band.right + width).min(native[2]) - native[0];
                 if left < right {
                     set_range(bits, left as usize, right as usize);
-                    if *bits == full { saturated += 1; }
+                    if *bits == full {
+                        saturated += 1;
+                    }
                 }
             }
             // Further positive union cannot change a fully covered tile.
-            if saturated == row_count { break; }
+            if saturated == row_count {
+                break;
+            }
         }
         for y in native[1]..native[3] {
             let bits = rows[(y - native[1]) as usize];

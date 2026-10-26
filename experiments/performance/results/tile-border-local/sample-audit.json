@@ -1,0 +1,9 @@
+{
+  "candidate": "e405f8930c8a0e5058c12d672808a6e44804aa28",
+  "reference": "e1316cdd8f2eaea4d83b7a1ac3d08a4d0efd1762",
+  "run": 40365717076,
+  "primary_frames": 4340,
+  "candidate_reference_frame_pairs": 868,
+  "changed": [],
+  "scope": "Supplemental exact Taiyou RGBA/diagnostic/area audit; external visual differences remain valid performance samples"
+}
