@@ -37,20 +37,21 @@ Integer-ms timestamps avoid comparing Taiyou microsecond transforms with rounded
 libass timestamps. Four playback scenarios and deterministic engine-order rotation
 are recorded. No correctness test is reduced or replaced by this experiment.
 
-The primary table compares a complete owned transparent premultiplied RGBA frame
-every call. libass returns ASS_Image coverage, so a straightforward scalar C client
-allocates/clears/composes those images each time, including unchanged frames.
-Both modes include that output work; the client never reuses a finished frame.
-libass native API time and client composition time are separately available.
-This client is a measured adapter, not a claim to be every video host's compositor.
+The primary table compares Taiyou's one-worker render call directly against
+libass's `ass_render_frame()` API time. libass host-side RGBA work is not part of
+the primary ratio. The scalar C client still allocates/clears/composes the returned
+ASS_Image list so host RGBA time and the combined end-to-end total remain available
+as separate secondary columns. The client never reuses a finished frame. This
+adapter is measured evidence, not a claim to represent every video host compositor.
 Different native mask/clip/metric semantics can produce different painted work;
 nonzero-alpha counts are recorded and visual mismatches never invalidate a sample.
 
 Warm scenarios have one full warmup frame. Cold means a fresh renderer with the
-same admitted fonts/parsed track; cold-session values include renderer creation
-(font selection/pool setup) plus first render. Font/source admission and process
-elapsed/CPU/RSS are separate, not hidden inside a warm-render ratio. Checksums,
-diagnostic SHA-256, scans and CSV writing are outside frame timing. Taiyou1/4
+same admitted fonts/parsed track. The primary core-render table still times only
+Taiyou's render call and libass's direct `ass_render_frame()` call; renderer
+creation is recorded separately in renderer-setup/cold-session metrics. Font/source
+admission and process elapsed/CPU/RSS are also separate. Checksums, diagnostic
+SHA-256, scans and CSV writing are outside frame timing. Taiyou1/4
 digests must match for every sampled frame; libass FNV is anti-elision only and
 there is no cross-engine visual equality gate. Median/p95/p99/sample counts and
 FPS equivalents are reported, with no noisy performance pass/fail threshold.

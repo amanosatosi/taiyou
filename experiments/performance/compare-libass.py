@@ -218,8 +218,9 @@ def run(output):
               "failures": failures, "taiyou_digest_differences": digest_differences,
               "sparse_style_taiyou_rgba_differences": prior_changes,
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
-              "primary_taiyou_timing": "production stage timers disabled; frame/diagnostic SHA-256 outside timing",
-              "primary_libass_timing": "normal ass_render_frame plus scalar CPU full-RGBA allocation/clear/composition",
+              "primary_taiyou_timing": "render_parsed call only; renderer/font/source setup, stage timers and frame/diagnostic SHA-256 outside timing",
+              "primary_libass_timing": "direct ass_render_frame call only (library_render_ns); renderer setup and host composition outside primary timing",
+              "secondary_libass_timing": "client_compose_ns retains scalar CPU RGBA allocation/clear/composition; total_ns retains ass_render_frame plus that host work",
               "libass_digest": "FNV anti-elision only; not a cryptographic visual oracle",
               "processes": processes}
     (output / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -229,32 +230,39 @@ def run(output):
         writer.writeheader()
         writer.writerows(rows)
     peer_title = "reference1T" if REFERENCE else "Taiyou4T"
+    peer_engine = "taiyou-reference" if REFERENCE else "taiyou-4"
     ratio_title = "1T/libass" if REFERENCE else "MT/libass"
-    table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass+RGBA ms | {ratio_title} |", "|---|---:|---:|---:|---:|"]
+    table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass ass_render_frame ms | {ratio_title} | libass host RGBA ms | libass total ms |",
+             "|---|---:|---:|---:|---:|---:|---:|"]
     for case in manifest["cases"]:
         for scenario in ("same-time", "sequence", "cold"):
             group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
             if len(group) == 3:
-                field = "cold_session_ms" if scenario == "cold" else "total_ms"
-                a, b, c = (group[e][field]["median"] for e in ENGINES)
+                a = group["taiyou-1"]["total_ms"]["median"]
+                b = group[peer_engine]["total_ms"]["median"]
+                c = group["libass"]["library_render_ms"]["median"]
+                host = group["libass"]["client_compose_ms"]["median"]
+                total = group["libass"]["total_ms"]["median"]
                 ratio = a / c if REFERENCE else b / c
-                table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {ratio:.2f}x |")
+                table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {ratio:.2f}x | {host:.3f} | {total:.3f} |")
     (output / "table.md").write_text("\n".join(table) + "\n")
-    serial = ["| Workload/state | Taiyou1T ms | libass RGBA ms | 1T/libass | Painted pixels T/L | libass images | Taiyou bottleneck (prior profile) |",
-              "|---|---:|---:|---:|---|---:|---|"]
+    serial = ["| Workload/state | Taiyou1T ms | libass ass_render_frame ms | 1T/libass | libass host RGBA ms | libass total ms | Painted pixels T/L | libass images | Taiyou bottleneck (prior profile) |",
+              "|---|---:|---:|---:|---:|---:|---|---:|---|"]
     for case in manifest["cases"]:
         for scenario in SCENARIOS:
             group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
             if "taiyou-1" not in group or "libass" not in group:
                 continue
             a, b = group["taiyou-1"], group["libass"]
-            field = "cold_session_ms" if scenario == "cold" else "total_ms"
-            ta, lb = a[field]["median"], b[field]["median"]
+            ta = a["total_ms"]["median"]
+            lb = b["library_render_ms"]["median"]
+            host = b["client_compose_ms"]["median"]
+            total = b["total_ms"]["median"]
             area_a, area_b = a["nonzero_alpha_range"], b["nonzero_alpha_range"]
             images = [int(r["image_count"]) for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, "libass")]
             stage = ("span union/filter/masks; composition" if scenario in ("cold", "sequence", "seek") and case["workload"] != "dialogue"
                      else "composition/publication; base geometry")
-            serial.append(f"| {case['id']}/{scenario} | {ta:.3f} | {lb:.3f} | {ta/lb:.2f}x | {area_a[0]}-{area_a[1]} / {area_b[0]}-{area_b[1]} | {min(images)}-{max(images)} | {stage} |")
+            serial.append(f"| {case['id']}/{scenario} | {ta:.3f} | {lb:.3f} | {ta/lb:.2f}x | {host:.3f} | {total:.3f} | {area_a[0]}-{area_a[1]} / {area_b[0]}-{area_b[1]} | {min(images)}-{max(images)} | {stage} |")
     (output / "1t-table.md").write_text("\n".join(serial) + "\n")
     assert len(rows) == len(manifest["cases"]) * len(SCENARIOS) * 31 * len(ENGINES), "incomplete comparison inventory"
     assert not failures and not digest_differences, "process/sample/determinism failures remain failures"

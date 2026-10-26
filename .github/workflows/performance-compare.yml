@@ -103,7 +103,7 @@ jobs:
           make -j2
           make install
           git diff --exit-code -- libass/
-      - name: Build the full-RGBA libass client and record exact provenance
+      - name: Build libass caller with direct ass_render_frame primary timing
         env:
           PKG_CONFIG: /usr/bin/pkg-config
           PKG_CONFIG_PATH: ${{ runner.temp }}/performance-libass-install/lib/pkgconfig:${{ runner.temp }}/taiyou-native-install/lib/pkgconfig

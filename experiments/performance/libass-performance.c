@@ -1,5 +1,6 @@
-/* Actions-only normal libass API + scalar owned premultiplied RGBA consumer.
- * The library source is not instrumented. Never reuse the final RGBA frame. */
+/* Actions-only direct ass_render_frame benchmark + secondary scalar owned
+ * premultiplied RGBA consumer. The library source is not instrumented.
+ * Never reuse the final RGBA frame. */
 #define _POSIX_C_SOURCE 200809L
 #include <ass/ass.h>
 #include <inttypes.h>
