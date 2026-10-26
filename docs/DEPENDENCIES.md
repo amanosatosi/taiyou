@@ -1,5 +1,14 @@
 # T002 dependency and native recipe candidate
 
+PR36 comparison-only tool links normal libass at the existing reference pin
+`f61db567e6593df3470e91594bcd4ad2d0473aff` (ISC); it adds no Taiyou runtime
+dependency. The comparison links the same recipe's FreeType/HarfBuzz and the
+runner's FriBidi development package. Exact distro versions and installed
+copyright notices are archived with the run; this is not a distribution-license
+acceptance. Alternatives are an unpinned system libass or a larger FFmpeg player
+stack, which would obscure version/setup/composition boundaries. This isolated
+caller does not modify the existing frozen libass oracle or its source code.
+
 PR #36 performance candidate adds exact `rayon =1.11.0` (MIT OR Apache-2.0,
 upstream MSRV 1.80) for one renderer-owned fixed-size pool and safe disjoint row
 composition. [Pinned upstream manifest](https://github.com/rayon-rs/rayon/blob/v1.11.0/Cargo.toml)
