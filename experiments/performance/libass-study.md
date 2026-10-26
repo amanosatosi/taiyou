@@ -97,5 +97,9 @@ storage. The measured publication candidate retains every public validation and
 the existing output lease/capacity checks, but shares a boxed owned slice through
 Arc, avoiding that pixel-sized copy. Box length equals charged length, unlike
 retaining a spare-capacity Vec. All old conservative composition reservations
-remain unchanged. A branchless full-buffer RGB<=alpha reduction still checks
-every channel; no trusted-producer bypass, unsafe SIMD or new public interface.
+remain unchanged. The first branchless full-buffer RGB<=alpha reduction passed
+correctness but had mixed performance, including a border warm regression; it is
+rejected as-is (results/serial-publication). The next candidate checks every byte
+in all-zero blocks using portable word ORs; zero RGBA is necessarily valid. Every
+nonzero block and tail retains the original exact channel validator. There is no
+trusted-producer bypass, unsafe SIMD, weakened pixel assertion or new interface.

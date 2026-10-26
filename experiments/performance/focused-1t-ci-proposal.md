@@ -1,8 +1,9 @@
 # Proposed temporary draft performance probe deferral
 
-This proposal needs separate maintainer authorization before application because
-AGENTS.md protects existing CI coverage and regression policy. It implements the
-owner's requested focused exploration followed by one full candidate checkpoint.
+The maintainer separately authorized this exact proposal in the current chat on
+2026-10-26, limited to the scope below. It implements the owner's requested
+focused exploration followed by one full candidate checkpoint. AGENTS.md's
+protected CI policy applies outside this expressly authorized draft exception.
 
 Scope: only draft PR36, head branch perf/cache-multithread, and a head commit
 explicitly marked [perf-1t-probe]. The conservative platform selector, unsafe

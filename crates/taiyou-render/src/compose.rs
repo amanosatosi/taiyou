@@ -46,8 +46,9 @@ pub(crate) fn compose_inner(
     }
     let bytes = u64::try_from(length)
         .map_err(|_| RenderError::new(ErrorCode::LimitExceeded, "output length overflow"))?;
-    // Vec-to-Arc publication may temporarily retain the Vec while allocating the
-    // final Arc. Charge that temporary pixel buffer against the transient cap.
+    // Preserve the historical full-frame transient reservation even when Frame
+    // publication transfers the allocation. Faster ownership publication must
+    // not change previously rejected resource requests or retained-frame limits.
     if bytes > limits.transient_bytes() {
         return Err(RenderError::transient_limit(
             "composition transient byte limit exceeded",

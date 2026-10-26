@@ -386,14 +386,7 @@ impl Frame {
         if pixels.len() != length || u64::try_from(length).ok() != Some(reservation.bytes()) {
             return Err(render_invalid("frame length/reservation mismatch"));
         }
-        // Full validation is retained. A branchless reduction permits the
-        // compiler to batch comparisons on every supported target; no unsafe
-        // SIMD or trusted-producer bypass is introduced.
-        let invalid = pixels.chunks_exact(4).fold(0_u8, |invalid, pixel| {
-            invalid | u8::from(pixel[0] > pixel[3])
-                | u8::from(pixel[1] > pixel[3]) | u8::from(pixel[2] > pixel[3])
-        });
-        if invalid != 0 {
+        if !premultiplied_pixels(&pixels) {
             return Err(render_invalid("frame RGB must be premultiplied by alpha"));
         }
         Ok(Self {
@@ -431,6 +424,25 @@ impl Frame {
     pub fn charged_bytes(&self) -> u64 {
         self.lease.bytes()
     }
+}
+
+fn premultiplied_pixels(pixels: &[u8]) -> bool {
+    let invalid = |bytes: &[u8]| {
+        bytes.chunks_exact(4).any(|pixel| pixel[..3].iter().any(|c| *c > pixel[3]))
+    };
+    let mut blocks = pixels.chunks_exact(64);
+    for block in &mut blocks {
+        // A zero RGBA block is necessarily premultiplied. Check every byte in
+        // native words; endian cannot affect zero/nonzero. Nonzero blocks use
+        // the original exact validator, including colored transparent pixels.
+        let nonzero = block.chunks_exact(8).fold(0_u64, |bits, word| {
+            bits | u64::from_ne_bytes([word[0], word[1], word[2], word[3], word[4], word[5], word[6], word[7]])
+        });
+        if nonzero != 0 && invalid(block) {
+            return false;
+        }
+    }
+    !invalid(blocks.remainder())
 }
 impl ScriptPoint {
     pub const fn new(x: FiniteF64, y: FiniteF64) -> Self {
@@ -615,6 +627,31 @@ mod publication_tests {
     use super::*;
 
     #[test]
+    fn zero_block_validation_keeps_channel_boundaries_in_blocks_and_tail() {
+        for alpha in 0..=255_u8 {
+            for color in [0, alpha, alpha.saturating_add(1), 255] {
+                for channel in 0..3 {
+                    for position in [0, 15, 16, 31, 32] {
+                        let mut pixels = [0; 132];
+                        pixels[position * 4 + 3] = alpha;
+                        pixels[position * 4 + channel] = color;
+                        assert_eq!(premultiplied_pixels(&pixels), color <= alpha,
+                            "alpha={alpha}, color={color}, channel={channel}, position={position}");
+                    }
+                }
+            }
+        }
+        for seed in 0..128_usize {
+            let mut pixels = [0; 260];
+            for (n, value) in pixels.iter_mut().enumerate() {
+                *value = (n * 137 + seed * 31 + n / 7) as u8;
+            }
+            let expected = !pixels.chunks_exact(4).any(|p| p[0] > p[3] || p[1] > p[3] || p[2] > p[3]);
+            assert_eq!(premultiplied_pixels(&pixels), expected);
+        }
+    }
+
+    #[test]
     fn publication_checks_every_channel_alpha_boundary_and_releases_failed_leases() {
         let limits = Limits::default().with_output_bytes(4).unwrap();
         let mut budget = OutputBudget::new(&limits);
@@ -623,7 +660,12 @@ mod publication_tests {
                 for channel in 0..3 {
                     let mut pixels = vec![alpha; 4];
                     pixels[channel] = color;
-                    let result = Frame::from_owned_pixels(Size::new(1, 1), pixels.clone(), &limits, budget.reserve(4).unwrap());
+                    let result = Frame::from_owned_pixels(
+                        Size::new(1, 1),
+                        pixels.clone(),
+                        &limits,
+                        budget.reserve(4).unwrap(),
+                    );
                     if color <= alpha {
                         let frame = result.unwrap();
                         assert_eq!(frame.pixels(), pixels);
@@ -644,14 +686,27 @@ mod publication_tests {
         let mut spare = Vec::with_capacity(64);
         spare.resize(4, 0);
         let tiny = limits.clone().with_transient_bytes(4).unwrap();
-        let error = Frame::from_owned_pixels(Size::new(1, 1), spare, &tiny, budget.reserve(4).unwrap()).unwrap_err();
-        assert_eq!(error.resource_failure(), crate::ResourceFailure::TransientMemory);
+        let error =
+            Frame::from_owned_pixels(Size::new(1, 1), spare, &tiny, budget.reserve(4).unwrap())
+                .unwrap_err();
+        assert_eq!(
+            error.resource_failure(),
+            crate::ResourceFailure::TransientMemory
+        );
         assert_eq!(budget.retained_bytes(), 0);
         for position in [0, 7, 15] {
             let mut pixels = vec![0; 64];
             pixels[position * 4 + 2] = 1;
             let mut larger = OutputBudget::new(&Limits::default());
-            assert!(Frame::from_owned_pixels(Size::new(4, 4), pixels, &Limits::default(), larger.reserve(64).unwrap()).is_err());
+            assert!(
+                Frame::from_owned_pixels(
+                    Size::new(4, 4),
+                    pixels,
+                    &Limits::default(),
+                    larger.reserve(64).unwrap()
+                )
+                .is_err()
+            );
             assert_eq!(larger.retained_bytes(), 0);
         }
     }
