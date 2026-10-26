@@ -19,7 +19,7 @@ jobs:
       FROZEN_CHECKPOINT: 2b80565e4998e22032d6bb4a446013886df7c62c
       LIBASS_PIN: f61db567e6593df3470e91594bcd4ad2d0473aff
       SERIAL_PROBE: ${{ contains(github.event.head_commit.message, '[perf-1t-probe]') && '1' || '0' }}
-      SERIAL_REFERENCE: 8f44e6518a4b4ab8d03d6277163dcaa8ff7f40af
+      SERIAL_REFERENCE: bc7a38b57c29b7fef54a8d0b40e6cfe8bacd4580
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -34,7 +34,7 @@ jobs:
           git diff --binary > "$RUNNER_TEMP/performance-comparison/format.patch"
           if test "$SERIAL_PROBE" = 1; then
             # Only the measured serial traversal/sort may differ in this probe.
-            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs' ':!crates/taiyou-render/src/axis_widen.rs'
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs' ':!crates/taiyou-render/src/axis_widen.rs' ':!crates/taiyou-types/src/scene.rs'
           else
             git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json
           fi
@@ -67,17 +67,21 @@ jobs:
           TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
         run: |
           cargo test --locked -p taiyou-render --features native
+          cargo test --locked -p taiyou-types
           cargo test --locked -p taiyou-cli --features native --test performance_cache
           cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-candidate"
           cp crates/taiyou-render/src/compose.rs "$RUNNER_TEMP/candidate-compose.rs"
           cp crates/taiyou-render/src/axis_widen.rs "$RUNNER_TEMP/candidate-axis_widen.rs"
-          trap 'cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs; cp "$RUNNER_TEMP/candidate-axis_widen.rs" crates/taiyou-render/src/axis_widen.rs' EXIT
+          cp crates/taiyou-types/src/scene.rs "$RUNNER_TEMP/candidate-scene.rs"
+          trap 'cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs; cp "$RUNNER_TEMP/candidate-axis_widen.rs" crates/taiyou-render/src/axis_widen.rs; cp "$RUNNER_TEMP/candidate-scene.rs" crates/taiyou-types/src/scene.rs' EXIT
           git show "$SERIAL_REFERENCE:crates/taiyou-render/src/compose.rs" > crates/taiyou-render/src/compose.rs
           git show "$SERIAL_REFERENCE:crates/taiyou-render/src/axis_widen.rs" > crates/taiyou-render/src/axis_widen.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-types/src/scene.rs" > crates/taiyou-types/src/scene.rs
           cargo build --release --locked -p taiyou-cli --features native --example performance_compare
           cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-reference"
           cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs
           cp "$RUNNER_TEMP/candidate-axis_widen.rs" crates/taiyou-render/src/axis_widen.rs
+          cp "$RUNNER_TEMP/candidate-scene.rs" crates/taiyou-types/src/scene.rs
           cp "$RUNNER_TEMP/taiyou-candidate" target/release/examples/performance_compare
           echo "TAIYOU_REFERENCE_BINARY=$RUNNER_TEMP/taiyou-reference" >> "$GITHUB_ENV"
       - name: Normal pinned libass build with the same FreeType and HarfBuzz

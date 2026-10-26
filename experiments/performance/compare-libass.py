@@ -121,6 +121,8 @@ def run(output):
     verify_inputs(manifest)
     fonts = [f["path"] for f in manifest["fonts"]]
     rows, failures, processes, versions = [], [], [], set()
+    resources = {}
+    resource_differences = []
     for case_index, case in enumerate(manifest["cases"]):
         for scenario_index, scenario in enumerate(SCENARIOS):
             # Deterministic rotation avoids always putting one engine last.
@@ -145,6 +147,10 @@ def run(output):
                                       "exit_code": process.returncode, "process_elapsed_ns": elapsed,
                                       "command": command})
                     assert process.returncode == 0, f"process exit {process.returncode}"
+                    if REFERENCE and engine != "libass":
+                        observed = re.findall(r"^POST_SAMPLE_DEFAULT_RESOURCE_(.+)$", process.stderr.decode(), re.M)
+                        assert len(observed) == 2, "missing normal-limit cache OFF/ON observations"
+                        resources[(case["id"], scenario, engine)] = observed
                     measured = list(csv.DictReader(io.StringIO(process.stdout.decode())))
                     assert len(measured) == 31
                     assert [int(r["sample"]) for r in measured] == list(range(31))
@@ -190,6 +196,11 @@ def run(output):
             peer = "taiyou-reference" if REFERENCE else "taiyou-4"
             many = [r for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, peer)]
             if len(one) == len(many) == 31:
+                if REFERENCE:
+                    if resources[(case["id"], scenario, "taiyou-1")] != resources[(case["id"], scenario, peer)]:
+                        resource_differences.append({"case": case["id"], "scenario": scenario,
+                                                     "candidate": resources[(case["id"], scenario, "taiyou-1")],
+                                                     "reference": resources[(case["id"], scenario, peer)]})
                 for a, b in zip(one, many):
                     assert len(a["rgba_digest"]) == len(a["diagnostic_digest"]) == 64
                     if (a["rgba_digest"], a["diagnostic_digest"]) != (b["rgba_digest"], b["diagnostic_digest"]):
@@ -203,6 +214,7 @@ def run(output):
     prior_changes = [key for key in prior.keys() | current.keys() if prior.get(key) != current.get(key)]
     report = {"schema": 1, "libass_api_version": sorted(versions), "groups": summaries,
               "engines": ENGINES, "same_runner_1t_reference": os.environ.get("SERIAL_REFERENCE") if REFERENCE else None,
+              "normal_resource_differences": resource_differences,
               "failures": failures, "taiyou_digest_differences": digest_differences,
               "sparse_style_taiyou_rgba_differences": prior_changes,
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
@@ -228,9 +240,26 @@ def run(output):
                 ratio = a / c if REFERENCE else b / c
                 table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {ratio:.2f}x |")
     (output / "table.md").write_text("\n".join(table) + "\n")
+    serial = ["| Workload/state | Taiyou1T ms | libass RGBA ms | 1T/libass | Painted pixels T/L | libass images | Taiyou bottleneck (prior profile) |",
+              "|---|---:|---:|---:|---|---:|---|"]
+    for case in manifest["cases"]:
+        for scenario in SCENARIOS:
+            group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
+            if "taiyou-1" not in group or "libass" not in group:
+                continue
+            a, b = group["taiyou-1"], group["libass"]
+            field = "cold_session_ms" if scenario == "cold" else "total_ms"
+            ta, lb = a[field]["median"], b[field]["median"]
+            area_a, area_b = a["nonzero_alpha_range"], b["nonzero_alpha_range"]
+            images = [int(r["image_count"]) for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, "libass")]
+            stage = ("span union/filter/masks; composition" if scenario in ("cold", "sequence", "seek") and case["workload"] != "dialogue"
+                     else "composition/publication; base geometry")
+            serial.append(f"| {case['id']}/{scenario} | {ta:.3f} | {lb:.3f} | {ta/lb:.2f}x | {area_a[0]}-{area_a[1]} / {area_b[0]}-{area_b[1]} | {min(images)}-{max(images)} | {stage} |")
+    (output / "1t-table.md").write_text("\n".join(serial) + "\n")
     assert len(rows) == len(manifest["cases"]) * len(SCENARIOS) * 31 * len(ENGINES), "incomplete comparison inventory"
     assert not failures and not digest_differences, "process/sample/determinism failures remain failures"
     assert not prior_changes, "explicit style fields changed Taiyou output"
+    assert not resource_differences, "normal resource result or exact output changed"
 
 
 if __name__ == "__main__":

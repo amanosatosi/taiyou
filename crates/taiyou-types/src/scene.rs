@@ -358,7 +358,11 @@ impl Drop for OutputReservation {
 pub struct Frame {
     size: Size,
     stride: usize,
-    pixels: Arc<[u8]>,
+    // Share the owned slice allocation, rather than copying all pixels into
+    // an inline Arc slice. The box has exactly len bytes even for a spare-
+    // capacity input Vec; retained output charging remains exact.
+    #[allow(clippy::redundant_allocation)] // Deliberate: Arc<[u8]>::from(Vec) copies every byte.
+    pixels: Arc<Box<[u8]>>,
     diagnostics: Arc<[Diagnostic]>,
     lease: Arc<OutputReservation>,
 }
@@ -382,16 +386,20 @@ impl Frame {
         if pixels.len() != length || u64::try_from(length).ok() != Some(reservation.bytes()) {
             return Err(render_invalid("frame length/reservation mismatch"));
         }
-        if pixels
-            .chunks_exact(4)
-            .any(|pixel| pixel[..3].iter().any(|c| *c > pixel[3]))
-        {
+        // Full validation is retained. A branchless reduction permits the
+        // compiler to batch comparisons on every supported target; no unsafe
+        // SIMD or trusted-producer bypass is introduced.
+        let invalid = pixels.chunks_exact(4).fold(0_u8, |invalid, pixel| {
+            invalid | u8::from(pixel[0] > pixel[3])
+                | u8::from(pixel[1] > pixel[3]) | u8::from(pixel[2] > pixel[3])
+        });
+        if invalid != 0 {
             return Err(render_invalid("frame RGB must be premultiplied by alpha"));
         }
         Ok(Self {
             size,
             stride,
-            pixels: pixels.into(),
+            pixels: Arc::new(pixels.into_boxed_slice()),
             diagnostics: Arc::from([]),
             lease: Arc::new(reservation),
         })
@@ -599,5 +607,52 @@ impl Rgba8 {
     }
     pub const fn channels(self) -> [u8; 4] {
         [self.r, self.g, self.b, self.a]
+    }
+}
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+
+    #[test]
+    fn publication_checks_every_channel_alpha_boundary_and_releases_failed_leases() {
+        let limits = Limits::default().with_output_bytes(4).unwrap();
+        let mut budget = OutputBudget::new(&limits);
+        for alpha in 0..=255_u8 {
+            for color in 0..=255_u8 {
+                for channel in 0..3 {
+                    let mut pixels = vec![alpha; 4];
+                    pixels[channel] = color;
+                    let result = Frame::from_owned_pixels(Size::new(1, 1), pixels.clone(), &limits, budget.reserve(4).unwrap());
+                    if color <= alpha {
+                        let frame = result.unwrap();
+                        assert_eq!(frame.pixels(), pixels);
+                        let retained = frame.clone();
+                        drop(frame);
+                        assert_eq!(budget.retained_bytes(), 4);
+                        assert_eq!(retained.pixels(), pixels);
+                        drop(retained);
+                    } else {
+                        let error = result.unwrap_err();
+                        assert_eq!(error.code(), ErrorCode::InvalidArgument);
+                        assert_eq!(error.detail(), "frame RGB must be premultiplied by alpha");
+                    }
+                    assert_eq!(budget.retained_bytes(), 0);
+                }
+            }
+        }
+        let mut spare = Vec::with_capacity(64);
+        spare.resize(4, 0);
+        let tiny = limits.clone().with_transient_bytes(4).unwrap();
+        let error = Frame::from_owned_pixels(Size::new(1, 1), spare, &tiny, budget.reserve(4).unwrap()).unwrap_err();
+        assert_eq!(error.resource_failure(), crate::ResourceFailure::TransientMemory);
+        assert_eq!(budget.retained_bytes(), 0);
+        for position in [0, 7, 15] {
+            let mut pixels = vec![0; 64];
+            pixels[position * 4 + 2] = 1;
+            let mut larger = OutputBudget::new(&Limits::default());
+            assert!(Frame::from_owned_pixels(Size::new(4, 4), pixels, &Limits::default(), larger.reserve(64).unwrap()).is_err());
+            assert_eq!(larger.retained_bytes(), 0);
+        }
     }
 }

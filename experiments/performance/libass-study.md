@@ -87,3 +87,15 @@ Additional inspected file SHA-256:
 
 - test/test.c: 3babcee23a5d8fa8a796f4e2ae49e68faa2b1ba892f20b6637d386b680401fbf
 - libass/ass_rasterizer.c: dc3c3049b1322b63795055144d2b7e7c66aa86e2da50316dde39a6ee39fc590f
+
+The row partition probe reduces changing stress447.06->407.45ms and transforms
+79.27->67.67ms, but remaining span union is still242ms in its post-sample stress
+observation. The same run isolates Frame publication at13.91ms of a21.96ms warm
+4K dialogue frame. Taiyou validates every premultiplied pixel and copies a Vec
+into an inline Arc slice; libass's image API retains referenced immutable bitmap
+storage. The measured publication candidate retains every public validation and
+the existing output lease/capacity checks, but shares a boxed owned slice through
+Arc, avoiding that pixel-sized copy. Box length equals charged length, unlike
+retaining a spare-capacity Vec. All old conservative composition reservations
+remain unchanged. A branchless full-buffer RGB<=alpha reduction still checks
+every channel; no trusted-producer bypass, unsafe SIMD or new public interface.
