@@ -76,10 +76,18 @@ impl StageTimings {
         self.bitmap_clear += other.bitmap_clear;
         self.coverage_writes += other.coverage_writes;
         self.bitmap_publication += other.bitmap_publication;
-        self.raster_allocations = self.raster_allocations.saturating_add(other.raster_allocations);
-        self.raster_reallocations = self.raster_reallocations.saturating_add(other.raster_reallocations);
-        self.raster_capacity_growth_bytes = self.raster_capacity_growth_bytes.saturating_add(other.raster_capacity_growth_bytes);
-        self.coverage_write_samples = self.coverage_write_samples.saturating_add(other.coverage_write_samples);
+        self.raster_allocations = self
+            .raster_allocations
+            .saturating_add(other.raster_allocations);
+        self.raster_reallocations = self
+            .raster_reallocations
+            .saturating_add(other.raster_reallocations);
+        self.raster_capacity_growth_bytes = self
+            .raster_capacity_growth_bytes
+            .saturating_add(other.raster_capacity_growth_bytes);
+        self.coverage_write_samples = self
+            .coverage_write_samples
+            .saturating_add(other.coverage_write_samples);
         self.mask_generation += other.mask_generation;
         self.span_rows = self.span_rows.saturating_add(other.span_rows);
         self.expanded_candidates = self
