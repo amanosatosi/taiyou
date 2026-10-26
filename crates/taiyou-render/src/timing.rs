@@ -104,7 +104,9 @@ impl StageTimings {
         self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
         self.tiled_borders = self.tiled_borders.saturating_add(other.tiled_borders);
         self.tiled_border += other.tiled_border;
-        self.expanded_intervals_avoided = self.expanded_intervals_avoided.saturating_add(other.expanded_intervals_avoided);
+        self.expanded_intervals_avoided = self
+            .expanded_intervals_avoided
+            .saturating_add(other.expanded_intervals_avoided);
         self.tile_simple_borders = self
             .tile_simple_borders
             .saturating_add(other.tile_simple_borders);

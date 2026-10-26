@@ -114,7 +114,11 @@ impl TileImage {
         }
         let mut pixels = Vec::new();
         pixels.try_reserve_exact(length).ok()?;
-        if live.checked_add(pixels.capacity() as u64)?.checked_add(length as u64)? > allowance {
+        if live
+            .checked_add(pixels.capacity() as u64)?
+            .checked_add(length as u64)?
+            > allowance
+        {
             return None;
         }
         pixels.resize(length, 0);

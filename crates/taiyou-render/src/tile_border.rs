@@ -58,11 +58,8 @@ fn set_range(bits: &mut [u64; 2], left: usize, right: usize) {
 }
 
 struct Raster<'a> {
-    spans: &'a [ScanSpan],
     regions: Regions<'a>,
     arc: &'a [i64],
-    source_y: i64,
-    offsets: Vec<usize>,
     previous: Vec<bool>,
     indices: Vec<usize>,
     image: TileImage,
@@ -73,9 +70,6 @@ impl Raster<'_> {
     fn bytes(&self) -> Option<u64> {
         self.held
             .checked_add(STACK)?
-            .checked_add(
-                (self.offsets.capacity() as u64).checked_mul(std::mem::size_of::<usize>() as u64)?,
-            )?
             .checked_add(self.previous.capacity() as u64)?
             .checked_add(
                 (self.indices.capacity() as u64).checked_mul(std::mem::size_of::<usize>() as u64)?,
@@ -206,79 +200,42 @@ impl Raster<'_> {
         self.indices.truncate(mark);
         Some(())
     }
-    fn source_row(&self, y: i64) -> &[ScanSpan] {
-        let Ok(row) = usize::try_from(y - self.source_y) else {
-            return &[];
-        };
-        let (Some(&start), Some(&end)) = (self.offsets.get(row), self.offsets.get(row + 1)) else {
-            return &[];
-        };
-        &self.spans[start..end]
-    }
-    fn add_source_row(&self, bits: &mut [u64; 2], y: i64, width: i64, x0: i64, x1: i64) {
-        let row = self.source_row(y);
-        let first = row.partition_point(|s| s.right + width <= x0);
-        for span in &row[first..] {
-            if span.left - width >= x1 {
-                break;
-            }
-            let left = (span.left - width).max(x0) - x0;
-            let right = (span.right + width).min(x1) - x0;
-            if left < right {
-                set_range(bits, left as usize, right as usize);
-            }
-        }
-    }
     fn leaf(&mut self, r: [usize; 4], ids: Range<usize>) -> Option<()> {
         let native = self.native(r);
         let count = (r[2] - r[0]) * 8;
         let full = [low_mask(count), low_mask(count.saturating_sub(64))];
-        let single = if ids.len() == 1 {
-            Some(self.regions.get(*self.indices.get(ids.start)?)?)
-        } else {
-            None
-        };
-        if single.is_some() {
+        if ids.len() == 1 {
             self.image.stats.simple_border_tiles += 1;
         } else {
             self.image.stats.complex_tiles += 1;
         }
-        for y in native[1]..native[3] {
-            let mut bits = [0_u64; 2];
-            if let Some(band) = single {
-                if let Some(&width) = self.arc.get(distance(y, band)) {
-                    let left = (band.left - width).max(native[0]) - native[0];
-                    let right = (band.right + width).min(native[2]) - native[0];
-                    if left < right {
-                        set_range(&mut bits, left as usize, right as usize);
-                    }
-                }
-            } else {
-                // Positive union is saturated once the complete native row is
-                // set. Further contributors provably cannot change any sample.
-                for distance in 0..self.arc.len() {
-                    let width = self.arc[distance];
-                    self.add_source_row(
-                        &mut bits,
-                        y - distance as i64,
-                        width,
-                        native[0],
-                        native[2],
-                    );
-                    if distance != 0 {
-                        self.add_source_row(
-                            &mut bits,
-                            y + distance as i64,
-                            width,
-                            native[0],
-                            native[2],
-                        );
-                    }
-                    if bits == full {
-                        break;
-                    }
+        // Combine only this tile's compact support primitives. Keeping all
+        // native rows in a small local bitset avoids repeated global row
+        // searches for every ellipse distance and every output sample row.
+        let mut rows = [[0_u64; 2]; TILE * 8];
+        let row_count = (r[3] - r[1]) * 8;
+        let mut saturated = 0;
+        let radius_y = self.arc.len() as i64 - 1;
+        for at in ids {
+            let band = self.regions.get(*self.indices.get(at)?)?;
+            let first = native[1].max(band.first_y - radius_y);
+            let last = (native[3] - 1).min(band.last_y + radius_y);
+            for y in first..=last {
+                let bits = rows.get_mut((y - native[1]) as usize)?;
+                if *bits == full { continue; }
+                let width = *self.arc.get(distance(y, band))?;
+                let left = (band.left - width).max(native[0]) - native[0];
+                let right = (band.right + width).min(native[2]) - native[0];
+                if left < right {
+                    set_range(bits, left as usize, right as usize);
+                    if *bits == full { saturated += 1; }
                 }
             }
+            // Further positive union cannot change a fully covered tile.
+            if saturated == row_count { break; }
+        }
+        for y in native[1]..native[3] {
+            let bits = rows[(y - native[1]) as usize];
             let row = usize::try_from(y - i64::from(self.image.bounds.y0()) * 8).ok()?;
             let mut previous = *self.previous.get(row)?;
             for (word, valid) in [
@@ -352,22 +309,17 @@ pub(crate) fn rasterize(
             return None;
         }
     }
-    let source_y = spans[0].y;
-    let source_rows = usize::try_from(spans.last()?.y - source_y + 1).ok()?;
     let columns = width.div_ceil(TILE);
     let tiles = columns.checked_mul(height.div_ceil(TILE))?;
     let rows = height.checked_mul(8)?;
     let planned = held
         .checked_add(STACK)?
-        .checked_add((source_rows as u64 + 1).checked_mul(std::mem::size_of::<usize>() as u64)?)?
         .checked_add(rows as u64)?
         .checked_add((tiles as u64).checked_mul(256)?)?
         .checked_add((regions.len() as u64).checked_mul(std::mem::size_of::<usize>() as u64)?)?;
     if planned > allowance {
         return None;
     }
-    let mut offsets = Vec::new();
-    offsets.try_reserve_exact(source_rows + 1).ok()?;
     let mut previous = Vec::new();
     previous.try_reserve_exact(rows).ok()?;
     let mut indices = Vec::new();
@@ -375,11 +327,8 @@ pub(crate) fn rasterize(
     let mut pixels = Vec::new();
     pixels.try_reserve_exact(tiles).ok()?;
     let mut raster = Raster {
-        spans,
         regions,
         arc,
-        source_y,
-        offsets,
         previous,
         indices,
         image: TileImage {
@@ -394,14 +343,6 @@ pub(crate) fn rasterize(
         held,
     };
     raster.observe()?;
-    let mut cursor = 0;
-    for row in 0..source_rows {
-        raster.offsets.push(cursor);
-        while cursor < spans.len() && spans[cursor].y == source_y + row as i64 {
-            cursor += 1;
-        }
-    }
-    raster.offsets.push(cursor);
     raster.previous.resize(rows, false);
     raster.image.tiles.resize(tiles, [0; 256]);
     raster.indices.extend(0..regions.len());

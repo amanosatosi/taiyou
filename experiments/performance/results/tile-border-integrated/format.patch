@@ -1,0 +1,81 @@
+diff --git a/crates/taiyou-render/src/axis_widen.rs b/crates/taiyou-render/src/axis_widen.rs
+index 1337135..c55a60b 100644
+--- a/crates/taiyou-render/src/axis_widen.rs
++++ b/crates/taiyou-render/src/axis_widen.rs
+@@ -792,7 +792,17 @@ pub(crate) fn rasterize_axis_xy_timed(
+     limits: &Limits,
+     timings: &mut crate::timing::StageTimings,
+ ) -> Result<(Arc<Mask>, u64), RenderError> {
+-    rasterize_selected(ops, rx, ry, remaining, limits, true, None, Some(timings), true)
++    rasterize_selected(
++        ops,
++        rx,
++        ry,
++        remaining,
++        limits,
++        true,
++        None,
++        Some(timings),
++        true,
++    )
+ }
+ #[cfg(test)]
+ pub(crate) fn rasterize_legacy_axis_timed(
+@@ -1166,12 +1176,22 @@ fn rasterize_selected(
+         if let Some(hull) = hull {
+             let tile_timer = timings.as_ref().and_then(|t| t.start());
+             let result = try_tiled_border(
+-                &mut spans, bands.as_ref(), &arc, hull, count, remaining,
+-                span_bytes, (rx.max(ry) + 7).div_euclid(8), limits, &mut timings,
++                &mut spans,
++                bands.as_ref(),
++                &arc,
++                hull,
++                count,
++                remaining,
++                span_bytes,
++                (rx.max(ry) + 7).div_euclid(8),
++                limits,
++                &mut timings,
+             );
+             if let Some(t) = timings.as_mut() {
+                 t.tiled_border += crate::timing::StageTimings::elapsed(tile_timer);
+-                if matches!(&result, Ok(None)) { t.tile_fallbacks += 1; }
++                if matches!(&result, Ok(None)) {
++                    t.tile_fallbacks += 1;
++                }
+             }
+             if let Some(result) = result? {
+                 if let Some(t) = timings.as_mut() {
+diff --git a/crates/taiyou-render/src/tile_fill.rs b/crates/taiyou-render/src/tile_fill.rs
+index 23f522b..28e5799 100644
+--- a/crates/taiyou-render/src/tile_fill.rs
++++ b/crates/taiyou-render/src/tile_fill.rs
+@@ -114,7 +114,11 @@ impl TileImage {
+         }
+         let mut pixels = Vec::new();
+         pixels.try_reserve_exact(length).ok()?;
+-        if live.checked_add(pixels.capacity() as u64)?.checked_add(length as u64)? > allowance {
++        if live
++            .checked_add(pixels.capacity() as u64)?
++            .checked_add(length as u64)?
++            > allowance
++        {
+             return None;
+         }
+         pixels.resize(length, 0);
+diff --git a/crates/taiyou-render/src/timing.rs b/crates/taiyou-render/src/timing.rs
+index 6ff0ce2..2f36005 100644
+--- a/crates/taiyou-render/src/timing.rs
++++ b/crates/taiyou-render/src/timing.rs
+@@ -104,7 +104,9 @@ impl StageTimings {
+         self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
+         self.tiled_borders = self.tiled_borders.saturating_add(other.tiled_borders);
+         self.tiled_border += other.tiled_border;
+-        self.expanded_intervals_avoided = self.expanded_intervals_avoided.saturating_add(other.expanded_intervals_avoided);
++        self.expanded_intervals_avoided = self
++            .expanded_intervals_avoided
++            .saturating_add(other.expanded_intervals_avoided);
+         self.tile_simple_borders = self
+             .tile_simple_borders
+             .saturating_add(other.tile_simple_borders);

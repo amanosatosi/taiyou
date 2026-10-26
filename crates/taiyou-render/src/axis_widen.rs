@@ -792,7 +792,17 @@ pub(crate) fn rasterize_axis_xy_timed(
     limits: &Limits,
     timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
-    rasterize_selected(ops, rx, ry, remaining, limits, true, None, Some(timings), true)
+    rasterize_selected(
+        ops,
+        rx,
+        ry,
+        remaining,
+        limits,
+        true,
+        None,
+        Some(timings),
+        true,
+    )
 }
 #[cfg(test)]
 pub(crate) fn rasterize_legacy_axis_timed(
@@ -1166,12 +1176,22 @@ fn rasterize_selected(
         if let Some(hull) = hull {
             let tile_timer = timings.as_ref().and_then(|t| t.start());
             let result = try_tiled_border(
-                &mut spans, bands.as_ref(), &arc, hull, count, remaining,
-                span_bytes, (rx.max(ry) + 7).div_euclid(8), limits, &mut timings,
+                &mut spans,
+                bands.as_ref(),
+                &arc,
+                hull,
+                count,
+                remaining,
+                span_bytes,
+                (rx.max(ry) + 7).div_euclid(8),
+                limits,
+                &mut timings,
             );
             if let Some(t) = timings.as_mut() {
                 t.tiled_border += crate::timing::StageTimings::elapsed(tile_timer);
-                if matches!(&result, Ok(None)) { t.tile_fallbacks += 1; }
+                if matches!(&result, Ok(None)) {
+                    t.tile_fallbacks += 1;
+                }
             }
             if let Some(result) = result? {
                 if let Some(t) = timings.as_mut() {
