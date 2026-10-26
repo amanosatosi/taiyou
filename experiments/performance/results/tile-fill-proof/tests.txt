@@ -1,0 +1,103 @@
+   Compiling freetype-sys v0.23.0
+   Compiling harfbuzz-sys v0.8.0
+   Compiling taiyou-font v0.1.0 (/home/runner/work/taiyou/taiyou/crates/taiyou-font)
+   Compiling taiyou-render v0.1.0 (/home/runner/work/taiyou/taiyou/crates/taiyou-render)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.05s
+     Running unittests src/lib.rs (target/debug/deps/taiyou_render-a3e23555a8ba0803)
+
+running 2 tests
+test tile_fill::tests::unproved_extents_and_insufficient_optional_scratch_decline ... ok
+test tile_fill::tests::recursive_tiles_match_native_fill_for_phase_holes_overlap_and_self_intersection ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 2.54s
+
+     Running tests/blend.rs (target/debug/deps/blend-409e34f72feda4ca)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests/borders_shadows.rs (target/debug/deps/borders_shadows-e68cbe4df56ed332)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+     Running tests/collision_footprint.rs (target/debug/deps/collision_footprint-c40ebcd5096ac37c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/collision_interval_review.rs (target/debug/deps/collision_interval_review-9bb4fae663eaaa2d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/effects.rs (target/debug/deps/effects-098852622eeaea5e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/evaluate.rs (target/debug/deps/evaluate-e2faef150caf461e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+
+     Running tests/evaluate_blur.rs (target/debug/deps/evaluate_blur-17990bd39af3cf48)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/geometry_numeric.rs (target/debug/deps/geometry_numeric-6ddeafcdbafa86c2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/layout_fixed_font.rs (target/debug/deps/layout_fixed_font-ca159300d121fcc6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/layout_numeric.rs (target/debug/deps/layout_numeric-bb05db52d4b92284)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+     Running tests/previous_collision.rs (target/debug/deps/previous_collision-1fcd4c47f04e2c91)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/raster.rs (target/debug/deps/raster-45706d74613c6575)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/renderer_config.rs (target/debug/deps/renderer_config-5858fee2f5a01b1b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/source_mask.rs (target/debug/deps/source_mask-9ff8f41bfa5afae8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/wrapping_collision.rs (target/debug/deps/wrapping_collision-d1a422531f29d750)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+

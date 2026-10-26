@@ -82,6 +82,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Keep the full comparison failing when explicitly deferred for a draft probe
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request && "$PR_NUMBER" == 36 && "$PR_DRAFT" == true && "$HEAD_REF" == perf/cache-multithread ]] && git log -1 --format=%B | grep -Fq '[perf-1t-probe]'; then
+            echo '::error::Full external comparison deferred for draft 1T probe; no visual result is claimed. An unmarked full checkpoint is required.'
+            exit 1
+          fi
       - name: Materialize accepted baseline without candidate replacements
         env:
           BASE: ${{ needs.accepted_baseline.outputs.sha }}

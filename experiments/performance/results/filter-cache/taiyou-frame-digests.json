@@ -1,0 +1,615 @@
+{
+  "candidate_sha": "9fc4b5719682a5e278c85a059ef56e2192242a26",
+  "accepted_baseline": "2a49361a02e0e8f0ace17fa0a45925069eee3201",
+  "corpus_revision": "a5073319af8117271d8ac13ef5c088197ff2d59b",
+  "source_run": "https://github.com/amanosatosi/taiyou/actions/runs/40242294028",
+  "purpose": "Observed Taiyou output digests for performance regression audit; not promoted references",
+  "frames": [
+    {
+      "case": "regression/blurs-anamorphic/blur-0000.png",
+      "raw_sha256": "95fff8ba577a9ce7ce049ea6b1e20de495b5b2ba3edd1206475cb1a8fec1c2bb",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/be-0500.png",
+      "raw_sha256": "a894ac254c1b28ecba8d0763561edb74bc85af0fdf3195b9c32c6d694238a50c",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/be-1500.png",
+      "raw_sha256": "10ac01c77082f18341ff58e54d7980c345b3928bcc6cace2f2ecbbb8a29b5c13",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/be-2500.png",
+      "raw_sha256": "14896132ba9e42c0b11319b98b031980b9d05ea5ed6c1fbc0ab172b7748226a4",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/be-3500.png",
+      "raw_sha256": "f9fd4b67e20ed95b8098976b001e13cbfe8ed8208e71f8694262d2fad1a2ad9e",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1000.png",
+      "raw_sha256": "9076b45b30d7adefeb17125a394adaf45b597943601f4e5c09385e5b17a871a8",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1100.png",
+      "raw_sha256": "132b17686e7fa64dcb9d18e1f0eb6f651ada410768cccfd76a11a042ae389932",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1200.png",
+      "raw_sha256": "497c161ee35af2f6fc669d3a3565a522faf0e1f52a8adeb75d907e744cd43b52",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1300.png",
+      "raw_sha256": "de54af40c2f5a5459276105eb725f56a629f7ba5c58d63c33b86728f26b34e74",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1400.png",
+      "raw_sha256": "8e0f88ca003f09e9fe04e218c031351988212b2a5e90f035e8d415055a019e20",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1500.png",
+      "raw_sha256": "44a0373398483cfedfe70bfa1de8ae710a223b6bba3c82f437b08968a9e961bb",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1600.png",
+      "raw_sha256": "c78d43b2bc4db0bb022bdc0e277f7ccda4e18294dcc3c31e222cda33470b7ddb",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1700.png",
+      "raw_sha256": "80de835dacedd07edafbf748500e8a08528a9764b378ccbe9887f8be12a50786",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1800.png",
+      "raw_sha256": "f0f84573380fa5f6aa9131ce27444d5716cc0777c2a8d2fbf822acb28a4810b4",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/blurs/blur+t-1900.png",
+      "raw_sha256": "bf565fe46f10ce0b2294b77f7fedd29627a3816be4daca82ffe0a504bc2e8b30",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/draw-images/drawImg-104396.png",
+      "raw_sha256": "f833a63382de7fb8d5a7b625d9611c12ff7a8788bc4585ffa9def578984847f1",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/embedded-font/efont-1000.png",
+      "raw_sha256": "5b5374cfeefed690df12eac538d767ae8438b0a075035001450aea3562422f11",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/faux-italics/cff-0000.png",
+      "raw_sha256": "75b516913f5ceea12dd5aef105ad6c31c86a1690acd4eff14acd99ffd7498859",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/faux-italics/truetype-0000.png",
+      "raw_sha256": "61632166886731b7b56df036535ba6ec7dc10dcdc96e04232cdf9c2c318299e5",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/big5-hkscs-1000.png",
+      "raw_sha256": "04e9d2a8899a4118d4a10615c3296ffd07d45bac81ff8649def8abb1490e086f",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/legacy-arabic-simplified-1000.png",
+      "raw_sha256": "e77df835f844d876759894ce19f0b42695e96f4bf84f34d05edad1db8872b025",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/legacy-arabic-traditional-1000.png",
+      "raw_sha256": "201f0352968789032103ef7e4a829906d55ef6fd5bae5dcb49f17daebcdb7c25",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/shiftjis-1000.png",
+      "raw_sha256": "7ba5383bafde4633755489504d7ccd620df38221f85d47f3c49f52b8ea8ee511",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/symbol-first-char-0x0000-1000.png",
+      "raw_sha256": "079aa541923253fb25b9f959ecaeeccb86e5adfefd264c0f1cf9f6ee1cb07ac6",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/font_nonunicode/symbol-first-char-0xF000-1000.png",
+      "raw_sha256": "ed1693dd5726418ab14ddefd06daa3c23c2a42bd42603746630e9339c14fb64f",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/bordercollision-2000.png",
+      "raw_sha256": "05fec9993b8a1afea7d01fa58b075712320c1c0e73e59248920c74617042c97a",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-0500.png",
+      "raw_sha256": "14dcdd47eac3382432dc2e42b43cd1164ed659a54f0f4f3297865a28717185a0",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-1500.png",
+      "raw_sha256": "d8885ae9445c50d8a258c8ee670d288308fa7ff476c401a6dd52a8bcce313d31",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-2500.png",
+      "raw_sha256": "38cd62e81ae8c769af4f59dc27032524e2a68b19a03dab04af51d0ed2ff63bbf",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-3500.png",
+      "raw_sha256": "46b58fa19f0c5def73cbe6cd12771d58b558473c90b11c9afe1276235c7e6408",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-4500.png",
+      "raw_sha256": "884ca93dd9d4d5a096e2942f2041c73b98e5d69af757e42de792fd3f0826558c",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-5500.png",
+      "raw_sha256": "62d32304604fe173c45148e25aa0c5562539ca70fac2f0042e5c83a0cf6fdccf",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-6500.png",
+      "raw_sha256": "7d7e0395391e8e4e6ded98b4183290d1aa35c97947be5a676e2b955768f62f51",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-7500.png",
+      "raw_sha256": "19fc15218ed3b09aa4b0930448028cceb107fec0e13299d7f397fa52f142e7c3",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-8500.png",
+      "raw_sha256": "7515da64e718b8736a0218e8fd5614ff0c52d99aaf04141aad879c57b12cd2b9",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/implicit-pos/shift-dir-9500.png",
+      "raw_sha256": "ecdd54e7af52d8ca757fa4f6b58884c0d8b5c487abeebdf23a4008a3b1b810bf",
+      "observed_result": "PASS_EXACT",
+      "status": "PASS_EXACT"
+    },
+    {
+      "case": "regression/karaoke/216-vertical-2252.png",
+      "raw_sha256": "e0695509b9429122c0909a09b3874225bd77ccf28ff007f8cca884d520ea82a1",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-6798.png",
+      "raw_sha256": "bc92503687a148a76d5a394a5eea5faa19f3169aa70b1f0df1274aa00aa73333",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-7170.png",
+      "raw_sha256": "b3aa9a70be8571d9e0573ab8fdaa13192c6037695abc510f102282970811cc47",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/357-k-and-kf-desynced-8170.png",
+      "raw_sha256": "eea309cef66c2f7d32bfec54c05ab57c70202a5a2416bd9ca9b1bed9663cdda1",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/karaoke-and-runsplits-0000.png",
+      "raw_sha256": "23baff80c32b303872dfe170579a0654ae04b156127057fb9db064096ae75225",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/karaoke-and-runsplits-2040.png",
+      "raw_sha256": "b96daba04e4b9c2e50b7cc65a3d1f53f45294c1ac4ac2735fe30723ae9da8b04",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/karaoke-and-runsplits-2800.png",
+      "raw_sha256": "a8d84bdfa462d5fc40d3598f63eb253dd5132e7d8e706a97a58ec3b1ab5ace40",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/karaoke-and-runsplits-3120.png",
+      "raw_sha256": "2d95c9e4bb2f519e2a4e08d5780ff34cb6b9ba19fed77a59d116ab04116a41c7",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/karaoke/karaoke-and-runsplits-4600.png",
+      "raw_sha256": "3f12443f51d581d1a800a73453121bee406592a585e1d69a3ed24c7806555a82",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/ffmpeg-8000.png",
+      "raw_sha256": "10fdfee64fadcbd43c5e184e0b31ab94d0b2cbda8d3d533ed622d111597d025e",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/ffmpeg_legacy2+sbas-8000.png",
+      "raw_sha256": "3c7d87b1f670099935291e713516360cc3a3002148f623f802284bf102a38523",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/ffmpeg_legacy2-8000.png",
+      "raw_sha256": "3c7d87b1f670099935291e713516360cc3a3002148f623f802284bf102a38523",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/ffmpeg_legacy3-8000.png",
+      "raw_sha256": "3c7d87b1f670099935291e713516360cc3a3002148f623f802284bf102a38523",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/ffmpeg_legacy4-8000.png",
+      "raw_sha256": "3c7d87b1f670099935291e713516360cc3a3002148f623f802284bf102a38523",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaled-border-default/not-ffmpeg-8000.png",
+      "raw_sha256": "3c7d87b1f670099935291e713516360cc3a3002148f623f802284bf102a38523",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-no-0000.png",
+      "raw_sha256": "24a7c8c14bdda3757c93d90d5d1787e5b897d3e293e52ab93058cc3ab1231218",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-no-1000.png",
+      "raw_sha256": "6db8c18fcf1760c415f4c8bbcacb615dcd8fbae6ca295d8b0c3a7f89022c8890",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-no-2000.png",
+      "raw_sha256": "b1406fd18c41dbb849517a58d3c761441254d36d04d95ea8576bd43296634d10",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-yes-0000.png",
+      "raw_sha256": "5136df06f31a0bd071b1d3cae49af1ef08a61bdea613220499a641bd456c06f7",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-yes-1000.png",
+      "raw_sha256": "21f3152e8ef4d7351e4d4f946170e079dc7dfbffe23dcebcea1808e2a7d93594",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-yes-2000.png",
+      "raw_sha256": "0990b3bb0bd285f673b2617c8b8bb5a49f3ee672001f0f950e620bf223a3b24c",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-yes-3000.png",
+      "raw_sha256": "253e6d9569507ec2d230f75335302affadef9d49ed348014b482761c39a34492",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/scaling_playres/playresx_sbas-yes-4000.png",
+      "raw_sha256": "8972a5b9159e5a7f812393158c6c4596aad26f28fff1d4afde602d5d0993b693",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/alpha-0000.png",
+      "raw_sha256": "14a87d903b76c9c55975337a9a6743458ce8ce6ca48b4008fa831f6e4325ac7f",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/alpha-1000.png",
+      "raw_sha256": "26789e3feac8ec47944dfb89dce99d1e64cb847ede597bd383b0c3deb0562fd1",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/alpha-2000.png",
+      "raw_sha256": "028f64061c09c85d59dfb4bbed0b43c62ee33f574fc0dda425d9a68e4e82cdd7",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/alpha-3000.png",
+      "raw_sha256": "028f64061c09c85d59dfb4bbed0b43c62ee33f574fc0dda425d9a68e4e82cdd7",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/alpha-4000.png",
+      "raw_sha256": "14a87d903b76c9c55975337a9a6743458ce8ce6ca48b4008fa831f6e4325ac7f",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-0600.png",
+      "raw_sha256": "e6d45d2634605a2e36fd96d22fd84095c173d6255da79126785c65f5b3cb90b6",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-1600.png",
+      "raw_sha256": "eda94445689a4062d359175c79b7d6aae5748f59748362b699153341351db18c",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-2600.png",
+      "raw_sha256": "a69bc0e065a2d6a392b198aa5c83b52d42a7e1fbc0aca323c4990f722f62a881",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-3960.png",
+      "raw_sha256": "76c1273dcc97163b20af4b00c394b8e338d9c0ca1819a7cc3ad5634f14c57e27",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-4960.png",
+      "raw_sha256": "7099181c327c0e177009ee4be2955170f749a98843c1d62dde5ebdbb7a4c650b",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/ssa/effect-delay-5960.png",
+      "raw_sha256": "88efc54a31df024e6f0e1d93946c06987f2aacfe36a89664a9f8d7c4932f7a0f",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/token-parsing/trimming-0000.png",
+      "raw_sha256": "f8a73f583f8375d80e7cc671ab35bd27786f0722bcbcab37ec583965e0ab9227",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-01000.png",
+      "raw_sha256": "ae4bfc0503233b39c3f4262c9ae737a79a4adc816fcf90b3902604000075e26e",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-01500.png",
+      "raw_sha256": "1da3b9df35290a9b0896698c42ec529741c0576b85f089495e3d1cb1e0fb98e1",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-02000.png",
+      "raw_sha256": "22df46fe259b690742182f41327026619170100d3af9ba5bcc14331850792ab2",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-02480.png",
+      "raw_sha256": "d864baf10b52fce943e35f274db955a88a3af7c8036110d92d082871318cf56a",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-03000.png",
+      "raw_sha256": "5ab835fde3634ad9438b9c27f50c065cc2139395548a58f3118e7d22a505534e",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-03600.png",
+      "raw_sha256": "d7a8f656ff2df136a266cf7253b83f27113e7ce5400df35bbd50343aa73bca43",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-04000.png",
+      "raw_sha256": "011eca19acce3e0660cc560e76c7e2cf64f8495782848162cd0319c477c6ef9d",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-04500.png",
+      "raw_sha256": "9c0a7886a4b0311b12a129da9bf11bbf094358f0e6934a89e80bd302b9cef0a8",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-04800.png",
+      "raw_sha256": "1d193d0592c5e7deaa0efd42fa1d1588c312f569b75e59f92d12c99c351bce57",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-05100.png",
+      "raw_sha256": "ac95dc5004d33cf1349dea22d726d01e0a91bc231f73907b01c29c6ab6631ca0",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-05199.png",
+      "raw_sha256": "f90df2b1c68c0a8c7d0a578f519afc3c7adf361145c1a6c6f52a9e2bcc0108be",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-05200.png",
+      "raw_sha256": "0a2ebf9c36ec6ac2d93be590644f2609d54df402ffa0b6b87a0ad9121158e802",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-05280.png",
+      "raw_sha256": "cd7b6c25eec1678660350ecb223a4bee1d39ffc3de82e42dd3b972f16172818a",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-06000.png",
+      "raw_sha256": "22df46fe259b690742182f41327026619170100d3af9ba5bcc14331850792ab2",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-06700.png",
+      "raw_sha256": "6a2886156e9ab18abbc319999c27dbaead785f3bdd35749808082d3035fb9b83",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-07120.png",
+      "raw_sha256": "ed13ce2e3b464940a616fd83478540e3f3f1b7f4b5e5d7d9af30aa2abd0a1ee7",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-08000.png",
+      "raw_sha256": "88a7e2967ae984d8c9980d9b133d523c6da80cf714a85b5b0bead35dbd138a73",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-08640.png",
+      "raw_sha256": "82275c37ca312402c9a94d3faaf020fcda524b34025b62d7bbca430839c61a28",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-08920.png",
+      "raw_sha256": "2212998f987289c45f2f781dd8ca09553fa508059402b8a615ee3f787366e238",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-08960.png",
+      "raw_sha256": "aa9bf72528bd6e9de24074e10f988afd0294a6aba324543bd9b8977c10c0d77c",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-09000.png",
+      "raw_sha256": "0cf1136815131ad5683f450addadd72478e651ae16297feeb6f5adbf086b71a6",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-10000.png",
+      "raw_sha256": "c0749062132371f4aa6d0c82230a195e645a4ff0cc462c0cc34915b120973396",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-10480.png",
+      "raw_sha256": "c15f8d92002423006ff7915fb62ef979315b33484090718720b8b09a349abfe4",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-11000.png",
+      "raw_sha256": "f4c6818b03284a2d86b7da876b66243131764c92d1e5f801abe711d8676b2933",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/v4++/kt-11870.png",
+      "raw_sha256": "cad8d5fae35df22d966702ad69b01a4154ac57a0757ec2c8fcbcabc0f7c1b8f3",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/vsf-quirks-var/alpha-clipping-2040.png",
+      "raw_sha256": "4d97d50001af425e9dc81b2a466a85e012297cb0fb88070656abaa5e7c0e6089",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/vsf-quirks-var/alpha-clipping-2560.png",
+      "raw_sha256": "13e638cd8f7089786809fbedfcd3e5a002ad60b3e10321536c2830b39af8e9b6",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/vsf-quirks-var/alpha-clipping-4960.png",
+      "raw_sha256": "edda47f39c9770e0cc18c217b19cb5f9ae4ebd5ac2f2deacca3f65e6d12e69ab",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/zero-area/zero-area-2000.png",
+      "raw_sha256": "211f7ebdcc11ffd9b8a4b14737bb7c4307a7062b49d662b35a3b66f347b7dc57",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    },
+    {
+      "case": "regression/zero-area/zero-area-8000.png",
+      "raw_sha256": "211f7ebdcc11ffd9b8a4b14737bb7c4307a7062b49d662b35a3b66f347b7dc57",
+      "observed_result": "PIXEL_MISMATCH",
+      "status": "REGRESSION"
+    }
+  ]
+}

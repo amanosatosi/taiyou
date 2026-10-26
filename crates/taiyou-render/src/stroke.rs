@@ -81,6 +81,16 @@ pub fn rasterize_translated_xy(
     dx: Q6,
     dy: Q6,
 ) -> Result<Arc<Mask>, RenderError> {
+    rasterize_translated_xy_timed(context, group, dx, dy, &mut Default::default())
+}
+#[cfg(feature = "native")]
+pub(crate) fn rasterize_translated_xy_timed(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    dx: Q6,
+    dy: Q6,
+    timings: &mut crate::timing::StageTimings,
+) -> Result<Arc<Mask>, RenderError> {
     check_group(group)?;
     let ops = coverage_path(group, dx, dy, context.limits())?;
     let charge = (ops.len() as u64) * 3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64;
@@ -90,13 +100,14 @@ pub fn rasterize_translated_xy(
         .checked_sub(charge)
         .filter(|&n| n > 0)
         .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-    crate::axis_widen::rasterize_body(
+    crate::axis_widen::rasterize_body_timed(
         &ops,
         &context
             .limits()
             .clone()
             .with_transient_bytes(available)
             .map_err(|_| limited())?,
+        timings,
     )
 }
 
@@ -170,6 +181,29 @@ pub fn rasterize_expanded_axes_xy(
     dx: Q6,
     dy: Q6,
     remaining: u64,
+) -> Result<(Arc<Mask>, u64), RenderError> {
+    rasterize_expanded_axes_xy_timed(
+        context,
+        group,
+        rx,
+        ry,
+        dx,
+        dy,
+        remaining,
+        &mut Default::default(),
+    )
+}
+#[cfg(feature = "native")]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn rasterize_expanded_axes_xy_timed(
+    context: &mut RasterContext,
+    group: &CoverageGroup,
+    rx: Q6,
+    ry: Q6,
+    dx: Q6,
+    dy: Q6,
+    remaining: u64,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<Mask>, u64), RenderError> {
     check_group(group)?;
     if let Some(first) = group
@@ -248,7 +282,7 @@ pub fn rasterize_expanded_axes_xy(
         .checked_sub(charge)
         .filter(|&n| n > 0)
         .ok_or_else(|| limited().with_resource_failure(ResourceFailure::TransientMemory))?;
-    crate::axis_widen::rasterize_axis_xy(
+    crate::axis_widen::rasterize_axis_xy_timed(
         &ops,
         rx,
         ry,
@@ -258,6 +292,7 @@ pub fn rasterize_expanded_axes_xy(
             .clone()
             .with_transient_bytes(available)
             .map_err(|_| limited())?,
+        timings,
     )
 }
 

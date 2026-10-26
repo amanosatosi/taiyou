@@ -287,6 +287,14 @@ pub fn rasterize_xy(
     ctx: &mut RasterContext,
     group: &CoverageGroup,
 ) -> Result<Arc<Mask>, RenderError> {
+    rasterize_xy_timed(ctx, group, &mut Default::default())
+}
+#[cfg(feature = "native")]
+pub(crate) fn rasterize_xy_timed(
+    ctx: &mut RasterContext,
+    group: &CoverageGroup,
+    timings: &mut crate::timing::StageTimings,
+) -> Result<Arc<Mask>, RenderError> {
     let ops = coverage_path(group, Q6::from_ticks(0), Q6::from_ticks(0), ctx.limits())?;
     let bytes = (ops.len() as u64)
         .checked_mul(3 * std::mem::size_of::<PathOp<DevicePoint>>() as u64)
@@ -302,5 +310,5 @@ pub fn rasterize_xy(
         .clone()
         .with_transient_bytes(available)
         .map_err(|_| limited())?;
-    crate::axis_widen::rasterize_body(&ops, &limits)
+    crate::axis_widen::rasterize_body_timed(&ops, &limits, timings)
 }

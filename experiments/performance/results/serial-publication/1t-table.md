@@ -1,0 +1,30 @@
+| Workload/state | Taiyou1T ms | libass RGBA ms | 1T/libass | Painted pixels T/L | libass images | Taiyou bottleneck (prior profile) |
+|---|---:|---:|---:|---|---:|---|
+| dialogue-1920/cold | 14.251 | 2.829 | 5.04x | 12849-12849 / 12774-12774 | 3-3 | composition/publication; base geometry |
+| dialogue-1920/same-time | 6.077 | 0.959 | 6.34x | 12849-12849 / 12774-12774 | 3-3 | composition/publication; base geometry |
+| dialogue-1920/sequence | 6.029 | 1.007 | 5.99x | 12849-12849 / 12774-12774 | 3-3 | composition/publication; base geometry |
+| dialogue-1920/seek | 6.070 | 0.971 | 6.25x | 12849-12849 / 12774-12774 | 3-3 | composition/publication; base geometry |
+| thick-borders-1920/cold | 53.111 | 5.032 | 10.55x | 31448-31448 / 31408-31408 | 9-9 | span union/filter/masks; composition |
+| thick-borders-1920/same-time | 10.988 | 2.947 | 3.73x | 31448-31448 / 31408-31408 | 9-9 | composition/publication; base geometry |
+| thick-borders-1920/sequence | 11.034 | 3.021 | 3.65x | 31448-31448 / 31408-31408 | 9-9 | span union/filter/masks; composition |
+| thick-borders-1920/seek | 10.685 | 2.862 | 3.73x | 31448-31448 / 31408-31408 | 9-9 | span union/filter/masks; composition |
+| dialogue-3840/cold | 46.980 | 7.019 | 6.69x | 49029-49029 / 49081-49081 | 3-3 | composition/publication; base geometry |
+| dialogue-3840/same-time | 18.902 | 4.524 | 4.18x | 49029-49029 / 49081-49081 | 3-3 | composition/publication; base geometry |
+| dialogue-3840/sequence | 18.909 | 4.698 | 4.02x | 49029-49029 / 49081-49081 | 3-3 | composition/publication; base geometry |
+| dialogue-3840/seek | 18.758 | 4.520 | 4.15x | 49029-49029 / 49081-49081 | 3-3 | composition/publication; base geometry |
+| combined-abuse-3840/cold | 389.518 | 97.031 | 4.01x | 196920-196920 / 208166-208166 | 48-48 | span union/filter/masks; composition |
+| combined-abuse-3840/same-time | 73.220 | 93.409 | 0.78x | 196920-196920 / 208166-208166 | 48-48 | composition/publication; base geometry |
+| combined-abuse-3840/sequence | 401.223 | 101.281 | 3.96x | 188341-196920 / 200101-208166 | 48-48 | span union/filter/masks; composition |
+| combined-abuse-3840/seek | 94.674 | 149.189 | 0.63x | 125201-203393 / 134792-214192 | 48-48 | span union/filter/masks; composition |
+| large-blur-3840/cold | 122.759 | 13.340 | 9.20x | 118005-118005 / 134210-134210 | 6-6 | span union/filter/masks; composition |
+| large-blur-3840/same-time | 22.624 | 10.236 | 2.21x | 118005-118005 / 134210-134210 | 6-6 | composition/publication; base geometry |
+| large-blur-3840/sequence | 22.809 | 10.402 | 2.19x | 118005-118005 / 134210-134210 | 6-6 | span union/filter/masks; composition |
+| large-blur-3840/seek | 22.769 | 10.375 | 2.19x | 118005-118005 / 134210-134210 | 6-6 | span union/filter/masks; composition |
+| transforms-3840/cold | 59.079 | 14.163 | 4.17x | 55411-55411 / 57213-57213 | 6-6 | span union/filter/masks; composition |
+| transforms-3840/same-time | 23.856 | 11.693 | 2.04x | 55411-55411 / 57213-57213 | 6-6 | composition/publication; base geometry |
+| transforms-3840/sequence | 59.903 | 13.905 | 4.31x | 53931-56509 / 56411-58061 | 6-6 | span union/filter/masks; composition |
+| transforms-3840/seek | 30.565 | 25.784 | 1.19x | 49339-55411 / 51881-62860 | 6-6 | span union/filter/masks; composition |
+| upstream-karaoke-1920/cold | 33.240 | 3.457 | 9.61x | 46426-46426 / 46423-46423 | 12-12 | span union/filter/masks; composition |
+| upstream-karaoke-1920/same-time | 5.650 | 1.360 | 4.15x | 46426-46426 / 46423-46423 | 12-12 | composition/publication; base geometry |
+| upstream-karaoke-1920/sequence | 5.622 | 1.373 | 4.09x | 46426-46426 / 46423-46423 | 12-13 | span union/filter/masks; composition |
+| upstream-karaoke-1920/seek | 5.548 | 1.315 | 4.22x | 46426-46426 / 46423-46423 | 12-13 | span union/filter/masks; composition |

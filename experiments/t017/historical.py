@@ -38,6 +38,28 @@ def checked_dbcs_lock(original, current):
     after["package"].sort(key=key)
     assert expected == after, "dependency change exceeds pinned optional DBCS codec intake"
 
+def checked_lock_intake(original, current):
+    # Exact PR36 dependency intake only. Historical samples, sources, versions,
+    # workload hashes and output assertions remain unchanged. Candidate samples
+    # still execute; this is not a same-environment comparison claim.
+    old = original.replace(b"\r\n", b"\n")
+    new = current.replace(b"\r\n", b"\n")
+    if (digest(old) == "b5eb5bd5761ebcacc4a2da56e51a692da3f4c4b2f924e783a41432bfd2776170"
+            and digest(new) == "a4d5b3d431359cc4c63c45c5eb94f931b6bb7922467212dd9f3541d3eaf75bcd"):
+        return
+    checked_dbcs_lock(original, current)
+
+def check_performance_lock_negative(original, current):
+    checked_lock_intake(original, current)
+    for changed in [current + b"\n", current.replace(b"1.11.0", b"1.11.1", 1), current.replace(b"0.8.35", b"0.8.36", 1)]:
+        if changed == current:
+            continue
+        try:
+            checked_lock_intake(original, changed)
+        except AssertionError:
+            continue
+        raise AssertionError("unreviewed performance dependency intake accepted")
+
 def historical(kind, destination):
     # The reviewed commit fixes the manifest itself, not just self-authenticated
     # candidate-controlled hashes. Fetch that one small Git object if necessary.
@@ -68,7 +90,8 @@ def historical(kind, destination):
         current = (ROOT/path).read_bytes()
         changed = current.replace(b"\r\n",b"\n") != expected.replace(b"\r\n",b"\n")
         if path == "Cargo.lock" and changed:
-            checked_dbcs_lock(expected,current)
+            checked_lock_intake(expected,current)
+            check_performance_lock_negative(expected,current)
         else:
             assert not changed, path+" changed; historical reuse needs review"
         dependencies.append({"path":path,"historical_sha256":digest(expected),

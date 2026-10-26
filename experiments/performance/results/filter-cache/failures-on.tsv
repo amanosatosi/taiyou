@@ -1,0 +1,5 @@
+workload	width	scenario	result
+dialogue	3840	production-default-preflight	RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(0)), span: Some(SourceSpan { start: 217, end: 287 }), native_code: None, detail: "single-axis span widening budget", resource: Other })
+large-blur	3840	production-default-preflight	RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(0)), span: Some(SourceSpan { start: 217, end: 308 }), native_code: None, detail: "single-axis span widening budget", resource: Other })
+combined-abuse	1920	production-default-preflight	RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(0)), span: Some(SourceSpan { start: 217, end: 449 }), native_code: None, detail: "single-axis span widening budget", resource: Other })
+combined-abuse	3840	production-default-preflight	RenderError(ErrorData { code: LimitExceeded, event: Some(EventId(0)), span: Some(SourceSpan { start: 217, end: 449 }), native_code: None, detail: "single-axis span widening budget", resource: Other })

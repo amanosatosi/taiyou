@@ -283,8 +283,18 @@ struct DrawOp {
     clip: Arc<ResolvedClip>,
 }
 struct DrawOrder { layer: i32, event: EventId, pass: u16, group: u32 }
-struct Frame { size: Size, stride: usize, pixels: Arc<[u8]>, diagnostics: Arc<[Diagnostic]> }
+struct Frame { size: Size, stride: usize, pixels: Arc<Box<[u8]>>, diagnostics: Arc<[Diagnostic]> }
 ```
+
+Frame fields remain private: hosts borrow pixel bytes and retain Frame clones,
+never a separately exported pixel Arc. The serial performance candidate shares
+an owned boxed slice to avoid copying the entire Vec into an inline Arc slice.
+The box has exactly the published byte length; spare Vec capacity is not retained
+uncharged. Full premultiplied-pixel validation and the existing capacity, length,
+reservation and final-drop lease checks remain mandatory. Existing conservative
+composition transient reservations remain unchanged, preserving prior resource
+failures. This private storage choice changes neither the Rust accessors nor the
+opaque C frame/view ownership contract.
 
 RGBA8 means memory bytes R,G,B,A, independent of endian. Output is **premultiplied**, top-down, `stride=width*4`, transparent black initial pixels. Mask storage explicitly distinguishes A8 coverage (0..255) from native xy coverage (0..64); zero is transparent in both. Production source masks and their filtered descendants retain native xy units. Colors are blended in their encoded RGB domain for legacy display behavior; no implicit linear-light conversion, YUV conversion, premultiplication guessing, or video-background blending. Host performs video-dependent YCbCr conversion. The script matrix is retained as metadata and does not reject or alter raw RGB overlays; the header alone cannot determine a video-space transform. Fully transparent output has RGB zero.
 

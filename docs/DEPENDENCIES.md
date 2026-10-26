@@ -1,5 +1,31 @@
 # T002 dependency and native recipe candidate
 
+PR36 comparison-only tool links normal libass at the existing reference pin
+`f61db567e6593df3470e91594bcd4ad2d0473aff` (ISC); it adds no Taiyou runtime
+dependency. The comparison links the same recipe's FreeType/HarfBuzz and the
+runner's FriBidi development package. Exact distro versions and installed
+copyright notices are archived with the run; this is not a distribution-license
+acceptance. Alternatives are an unpinned system libass or a larger FFmpeg player
+stack, which would obscure version/setup/composition boundaries. This isolated
+caller does not modify the existing frozen libass oracle or its source code.
+
+PR #36 performance candidate adds exact `rayon =1.11.0` (MIT OR Apache-2.0,
+upstream MSRV 1.80) for one renderer-owned fixed-size pool and safe disjoint row
+composition. [Pinned upstream manifest](https://github.com/rayon-rs/rayon/blob/v1.11.0/Cargo.toml)
+and [pool API](https://docs.rs/rayon/latest/rayon/struct.ThreadPool.html) describe
+the selected API. Worker=1 remains inline; no global pool or native face sharing.
+Its resolved rayon-core, either and Crossbeam packages/checksums are recorded in
+the Actions-generated workspace lock and the existing Actions advisory/license
+audit. No optional WebAssembly spin-lock feature is enabled. Alternatives:
+per-frame std scoped threads impose repeated startup costs; a handwritten pool
+adds an unnecessary synchronization/lifetime framework. This is a candidate
+dependency/concurrency review surface, not a licensing or merge acceptance claim.
+The performance example also directly uses the already pinned workspace
+`sha2 =0.11.0` (MIT OR Apache-2.0) under the CLI native feature to audit frame and
+diagnostic digests outside render timing. It is not a cache identity or renderer
+dependency. Full image retention and noncryptographic fingerprints were rejected
+as higher storage cost and weaker audit evidence, respectively.
+
 PR #35 host-font provider proposal adds OS services, not a different shaping
 engine or Cargo dependency: Windows DirectWrite IDWriteFactory2/FontFallback
 (Windows 8.1+ system API, Microsoft Windows licensing); Linux Fontconfig

@@ -1,0 +1,36 @@
+diff --git a/crates/taiyou-render/src/axis_widen.rs b/crates/taiyou-render/src/axis_widen.rs
+index d54cdce..48c7435 100644
+--- a/crates/taiyou-render/src/axis_widen.rs
++++ b/crates/taiyou-render/src/axis_widen.rs
+@@ -932,9 +932,13 @@ fn try_tiled_border(
+         return Err(limit());
+     }
+     // Include source storage, tile storage and the Vec-to-Arc publication copy.
+-    let publication = held.checked_add(image.tiles.capacity() as u64 * 256)
+-        .and_then(|n| n.checked_add(2 * length)).ok_or_else(limit)?;
+-    if publication > limits.transient_bytes() { return Ok(None); }
++    let publication = held
++        .checked_add(image.tiles.capacity() as u64 * 256)
++        .and_then(|n| n.checked_add(2 * length))
++        .ok_or_else(limit)?;
++    if publication > limits.transient_bytes() {
++        return Ok(None);
++    }
+     let stats = image.stats;
+     let Some(pixels) = image.into_pixels(limits.transient_bytes().saturating_sub(held)) else {
+         return Ok(None);
+diff --git a/crates/taiyou-render/src/timing.rs b/crates/taiyou-render/src/timing.rs
+index a60170c..0448434 100644
+--- a/crates/taiyou-render/src/timing.rs
++++ b/crates/taiyou-render/src/timing.rs
+@@ -101,7 +101,9 @@ impl StageTimings {
+         self.tiled_fill += other.tiled_fill;
+         self.tiled_fills = self.tiled_fills.saturating_add(other.tiled_fills);
+         self.tiled_borders = self.tiled_borders.saturating_add(other.tiled_borders);
+-        self.tile_simple_borders = self.tile_simple_borders.saturating_add(other.tile_simple_borders);
++        self.tile_simple_borders = self
++            .tile_simple_borders
++            .saturating_add(other.tile_simple_borders);
+         self.tile_fallbacks = self.tile_fallbacks.saturating_add(other.tile_fallbacks);
+         self.tile_empty_regions = self
+             .tile_empty_regions

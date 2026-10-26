@@ -1,0 +1,5 @@
+TAIYOU_PERF_FAILURES=/home/runner/work/_temp/performance/failures.tsv
+TAIYOU_PERF_FIXED_SAMPLES=1
+TAIYOU_PERF_SAMPLES=31
+TAIYOU_PERF_SCENARIOS=cold,same-time,sequence,seek
+TAIYOU_PERF_WORKLOADS=dialogue,thick-borders,large-blur,karaoke,transforms,combined-abuse

@@ -2,12 +2,13 @@
 //!
 //! The explicit native feature connects evaluation, shaping, local layout,
 //! owned geometry, grayscale coverage, FreeType border/shadow masks and scalar
-//! composition through the single-worker CoreV1 coordinator.
+//! composition through the CoreV1 coordinator and its optional owned worker pool.
 
 #[cfg(feature = "native")]
 mod ass_clip;
 #[cfg(feature = "native")]
 mod axis_widen;
+pub mod cache;
 pub mod collision;
 pub mod collision_footprint;
 mod compose;
@@ -20,6 +21,11 @@ mod paint;
 pub mod raster;
 pub mod renderer;
 pub mod stroke;
+#[cfg(feature = "native")]
+mod tile_border;
+#[cfg(feature = "native")]
+mod tile_fill;
+pub mod timing;
 mod xy_wrap;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy, requires_font};

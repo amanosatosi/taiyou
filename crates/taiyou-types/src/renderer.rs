@@ -1,10 +1,14 @@
-//! C7 single-worker configuration and checked square-pixel viewport.
+//! C7 explicit worker/cache configuration and checked square-pixel viewport.
 use crate::*;
 use std::num::NonZeroUsize;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CacheConfig {
     Disabled,
+    /// Retain raster masks, bypassing filtered-result retention for diagnostics.
+    MasksOnly,
+    /// Bounded intermediate retention within Limits::cache_bytes().
+    Bounded,
 }
 #[derive(Clone, Debug)]
 pub struct RendererConfig {
@@ -18,8 +22,8 @@ impl Default for RendererConfig {
         Self {
             workers: NonZeroUsize::MIN,
             profile: Profile::CoreV1,
-            limits: Limits::default().with_cache_bytes(0),
-            cache: CacheConfig::Disabled,
+            limits: Limits::default(),
+            cache: CacheConfig::Bounded,
         }
     }
 }

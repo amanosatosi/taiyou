@@ -1,8 +1,8 @@
-//! Uncached inline CoreV1 coordinator. Native contexts exist only during a call.
+//! CoreV1 coordinator with bounded masks and ordered parallel composition.
 #[cfg(feature = "native")]
 use crate::collision::{CollisionInput, PlacedEvent, resolve_collisions};
 #[cfg(feature = "native")]
-use crate::{compose, geometry::*, layout, raster::*};
+use crate::{geometry::*, layout, raster::*};
 #[cfg(feature = "native")]
 use std::sync::Arc;
 use std::{cell::Cell, marker::PhantomData};
@@ -67,9 +67,12 @@ fn filter_mask(
     held: &mut u64,
     event_charge: u64,
     limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
+    masks: &mut crate::cache::MaskCache,
 ) -> Result<Arc<Mask>, RenderError> {
-    let filtered =
-        crate::effects::apply_effects(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+    let timer = timings.start();
+    let filtered = masks.filter(&mask, spec, &available(limits, add(*held, event_charge)?)?)?;
+    timings.effects += crate::timing::StageTimings::elapsed(timer);
     if !Arc::ptr_eq(&mask, &filtered) {
         charge_mask(&filtered, held, event_charge, limits)?;
         let old = (mask.data().len() as u64)
@@ -184,6 +187,7 @@ fn prepare_local(
     preparation: &Preparation<'_>,
     held: u64,
     diagnostics: &mut DiagnosticBuffer,
+    timings: &mut crate::timing::StageTimings,
 ) -> Result<(Arc<LocalLayout>, u64), RenderError> {
     #[cfg(test)]
     PREPARE_CALLS.with(|n| n.set(n.get() + 1));
@@ -195,6 +199,7 @@ fn prepare_local(
     } = *preparation;
     let limits = &config.limits;
     let profile = config.profile;
+    let timer = timings.start();
     let eval_charge = crate::evaluate::preflight(event)?;
     let (evaluated, report) = crate::evaluate::evaluate_event_with_policy(
         track,
@@ -206,6 +211,8 @@ fn prepare_local(
     )?;
     diagnostics.extend_finished(&report).map_err(convert)?;
     let stage_held = add(held, eval_charge)?;
+    timings.evaluation += crate::timing::StageTimings::elapsed(timer);
+    let timer = timings.start();
     let shaped = taiyou_font::shape_event(
         ctx,
         fonts,
@@ -233,6 +240,8 @@ fn prepare_local(
         )?,
     )?;
     let stage_held = add(stage_held, shape_charge)?;
+    timings.shaping += crate::timing::StageTimings::elapsed(timer);
+    let timer = timings.start();
     let mut constraints = LayoutConstraints::new(shaped.placement().alignment())
         .with_wrap(evaluated.wrap_mode())
         .with_metric_scale_x(
@@ -255,6 +264,7 @@ fn prepare_local(
     )?;
     let stage_held = add(stage_held, layout_charge)?;
     available(limits, stage_held)?;
+    timings.layout += crate::timing::StageTimings::elapsed(timer);
     Ok((local, stage_held.checked_sub(held).ok_or_else(limited)?))
 }
 #[cfg(feature = "native")]
@@ -386,6 +396,13 @@ fn transition_placement(
 /// faces migrate with it. Completed frames retain the C7 origin-budget lease.
 pub struct Renderer {
     config: RendererConfig,
+    #[cfg(feature = "native")]
+    pool: Option<rayon::ThreadPool>,
+    #[cfg(feature = "native")]
+    composition_band_rows: usize,
+    #[cfg(feature = "native")]
+    masks: crate::cache::MaskCache,
+    timings: crate::timing::StageTimings,
     output: OutputBudget,
     #[cfg(feature = "native")]
     attachment_catalogs: CatalogIngestor,
@@ -397,15 +414,56 @@ pub struct Renderer {
 }
 impl Renderer {
     pub fn new(config: RendererConfig) -> Result<Self, RenderError> {
-        if config.workers.get() != 1 || config.profile != Profile::CoreV1 {
+        if config.profile != Profile::CoreV1 {
             return Err(RenderError::new(
                 ErrorCode::UnsupportedFeature,
-                "T014 requires CoreV1 and exactly one worker",
+                "renderer requires CoreV1",
             ));
         }
         let output = OutputBudget::new(&config.limits);
+        #[cfg(feature = "native")]
+        let pool = if config.workers.get() == 1 {
+            None
+        } else {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(config.workers.get())
+                    .thread_name(|n| format!("taiyou-compose-{n}"))
+                    .build()
+                    .map_err(|_| {
+                        RenderError::new(
+                            ErrorCode::AllocationFailed,
+                            "renderer worker pool creation failed",
+                        )
+                    })?,
+            )
+        };
+        #[cfg(feature = "native")]
+        if pool
+            .as_ref()
+            .is_some_and(|pool| pool.current_num_threads() != config.workers.get())
+        {
+            return Err(RenderError::new(
+                ErrorCode::InvalidArgument,
+                "worker count exceeds pool support",
+            ));
+        }
+        #[cfg(feature = "native")]
+        let masks = crate::cache::MaskCache::new(if config.cache != CacheConfig::Disabled {
+            config.limits.cache_bytes()
+        } else {
+            0
+        })
+        .with_filter_retention(config.cache == CacheConfig::Bounded);
         Ok(Self {
+            #[cfg(feature = "native")]
+            pool,
+            #[cfg(feature = "native")]
+            composition_band_rows: 64,
             config,
+            #[cfg(feature = "native")]
+            masks,
+            timings: Default::default(),
             output,
             #[cfg(feature = "native")]
             attachment_catalogs: CatalogIngestor::new(),
@@ -416,6 +474,23 @@ impl Renderer {
     }
     pub fn config(&self) -> &RendererConfig {
         &self.config
+    }
+    /// Enable observational timing. Disabled by default; no scheduling uses it.
+    pub fn set_timing_enabled(&mut self, enabled: bool) {
+        self.timings.enabled = enabled;
+    }
+    /// Dispatch granularity for deterministic row composition, in whole rows.
+    /// Useful for explicit host tuning and benchmarks; does not change pixels.
+    #[cfg(feature = "native")]
+    pub fn set_composition_band_rows(&mut self, rows: std::num::NonZeroUsize) {
+        self.composition_band_rows = rows.get();
+    }
+    pub fn last_timings(&self) -> &crate::timing::StageTimings {
+        &self.timings
+    }
+    #[cfg(feature = "native")]
+    pub fn cache_stats(&self) -> crate::cache::CacheStats {
+        self.masks.stats()
     }
     pub fn retained_output_bytes(&self) -> u64 {
         self.output.retained_bytes()
@@ -517,6 +592,12 @@ impl Renderer {
         fonts: Arc<ValidatedFontCatalog>,
         request: &RenderRequest,
     ) -> Result<Frame, RenderError> {
+        self.timings = crate::timing::StageTimings {
+            enabled: self.timings.enabled,
+            ..Default::default()
+        };
+        let timer = self.timings.start();
+        self.masks.begin_frame();
         let mut optional_used = false;
         let result = self.render_staged(
             track.clone(),
@@ -534,8 +615,11 @@ impl Renderer {
                 .as_ref()
                 .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
         {
-            return self.render_staged(track, fonts, request, false, &mut false);
+            let result = self.render_staged(track, fonts, request, false, &mut false);
+            self.timings.total = crate::timing::StageTimings::elapsed(timer);
+            return result;
         }
+        self.timings.total = crate::timing::StageTimings::elapsed(timer);
         result
     }
 
@@ -674,7 +758,14 @@ impl Renderer {
                 // Publish compact descriptors; optionally retain the exact
                 // immutable local result and its diagnostics for the paint pass.
                 let mut report = DiagnosticBuffer::new();
-                let mut result = prepare_local(&mut ctx, event, &preparation, held, &mut report);
+                let mut result = prepare_local(
+                    &mut ctx,
+                    event,
+                    &preparation,
+                    held,
+                    &mut report,
+                    &mut self.timings,
+                );
                 if result
                     .as_ref()
                     .is_err_and(|e| e.resource_failure() == ResourceFailure::TransientMemory)
@@ -695,8 +786,15 @@ impl Renderer {
                         report = DiagnosticBuffer::new();
                         // If freeing optional state cannot help, preserve the
                         // original typed error for the existing minimal fallback.
-                        result = prepare_local(&mut ctx, event, &preparation, held, &mut report)
-                            .or(result);
+                        result = prepare_local(
+                            &mut ctx,
+                            event,
+                            &preparation,
+                            held,
+                            &mut report,
+                            &mut self.timings,
+                        )
+                        .or(result);
                     }
                 }
                 let (local, local_charge) = result.map_err(|e| {
@@ -705,6 +803,7 @@ impl Renderer {
                     e.with_context(id, span)
                 })?;
                 let placement = local.shaped().placement();
+                let timer = self.timings.start();
                 inputs.push(CollisionInput {
                     id: event.id(),
                     layer: event.layer(),
@@ -720,6 +819,7 @@ impl Renderer {
                     )?,
                     eligible: true,
                 });
+                self.timings.collision += crate::timing::StageTimings::elapsed(timer);
                 if admitting {
                     let report = report.finish().map_err(convert)?;
                     let report_charge =
@@ -756,8 +856,10 @@ impl Renderer {
                     }
                 }
             }
+            let timer = self.timings.start();
             let placed =
                 resolve_collisions(&inputs, self.config.profile, &available(limits, held)?)?;
+            self.timings.collision += crate::timing::StageTimings::elapsed(timer);
             held = add(held, bytes::<PlacedEvent>(collision_count)?)?;
             drop(inputs);
             held = held.checked_sub(input_charge).ok_or_else(limited)?;
@@ -799,7 +901,14 @@ impl Renderer {
                     // diagnostic reservation owns the merged records now.
                     (saved.local, saved.local_charge)
                 } else {
-                    prepare_local(&mut ctx, event, &preparation, held, &mut diagnostics)?
+                    prepare_local(
+                        &mut ctx,
+                        event,
+                        &preparation,
+                        held,
+                        &mut diagnostics,
+                        &mut self.timings,
+                    )?
                 };
                 held = add(held, local_charge)?;
                 let state = local.shaped().placement();
@@ -850,7 +959,8 @@ impl Renderer {
                     .with_path_segments_per_frame(remaining_segments)
                     .map_err(convert)?;
                 let origin = state.ass_origin(sx, sy)?;
-                let placed = Arc::new(geometry(
+                let timer = self.timings.start();
+                let placed = Arc::new(geometry_timed(
                     &mut ctx,
                     &fonts,
                     local,
@@ -860,7 +970,9 @@ impl Renderer {
                         device,
                     },
                     &geom_limits,
+                    &mut self.timings,
                 )?);
+                self.timings.geometry += crate::timing::StageTimings::elapsed(timer);
                 let mut geom_charge = bytes::<GeometryGlyph>(placed.glyphs().len())?
                     .checked_add(bytes::<crate::geometry::GeometryItem>(
                         placed.items().len(),
@@ -885,6 +997,7 @@ impl Renderer {
                 }
                 geom_charge = add(geom_charge, bytes::<CoverageGroup>(placed.items().len())?)?;
                 let mut event_charge = geom_charge;
+                let timer = self.timings.start();
                 let (mut event_clip, clip_mask, clip_segments) = crate::ass_clip::resolve(
                     placed.layout().shaped().evaluated().ass_clip(),
                     device,
@@ -908,6 +1021,8 @@ impl Renderer {
                 if let Some(mask) = clip_mask {
                     charge_mask(&mask, &mut held, event_charge, limits)?;
                 }
+                self.timings.clip += crate::timing::StageTimings::elapsed(timer);
+                let timer = self.timings.start();
                 let groups = coverage_groups(
                     placed.clone(),
                     &available(limits, add(held, event_charge)?)?,
@@ -927,7 +1042,9 @@ impl Renderer {
                         [placed.items()[first].association];
                     let mut fill_context =
                         RasterContext::with_limits(available(limits, add(held, event_charge)?)?)?;
-                    let mut fill = rasterize_xy(&mut fill_context, group)?;
+                    let mut fill = self
+                        .masks
+                        .fill(&mut fill_context, group, &mut self.timings)?;
                     drop(fill_context);
                     charge_mask(&fill, &mut held, event_charge, limits)?;
 
@@ -1018,7 +1135,15 @@ impl Renderer {
                         None
                     };
                     if opaque || !border_exists {
-                        fill = filter_mask(fill, &blur_spec, &mut held, event_charge, limits)?;
+                        fill = filter_mask(
+                            fill,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                            &mut self.masks,
+                        )?;
                     }
                     let mut expanded: Option<Arc<Mask>> = None;
                     let mut border = if let Some(boxes) = box_group.as_ref() {
@@ -1026,10 +1151,18 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let mask = rasterize_xy(&mut raster, boxes)?;
+                        let mask = self.masks.fill(&mut raster, boxes, &mut self.timings)?;
                         drop(raster);
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(
+                            mask,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                            &mut self.masks,
+                        )?;
                         expanded = Some(mask.clone());
                         if box_outline && state.paint().outline().a() != 0 {
                             Some(mask)
@@ -1045,7 +1178,7 @@ impl Renderer {
                             limits,
                             add(held, event_charge)?,
                         )?)?;
-                        let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
+                        let (mask, segments) = self.masks.border(
                             &mut stroke_context,
                             group,
                             border_radius,
@@ -1053,11 +1186,20 @@ impl Renderer {
                             Q6::from_ticks(0),
                             Q6::from_ticks(0),
                             remaining,
+                            &mut self.timings,
                         )?;
                         drop(stroke_context);
                         total_segments = add(total_segments, segments)?;
                         charge_mask(&mask, &mut held, event_charge, limits)?;
-                        let mask = filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?;
+                        let mask = filter_mask(
+                            mask,
+                            &blur_spec,
+                            &mut held,
+                            event_charge,
+                            limits,
+                            &mut self.timings,
+                            &mut self.masks,
+                        )?;
                         // RTS.cpp's outline fBody flag and libass's
                         // FILTER_FILL_IN_BORDER retain E under opaque primary
                         // AND secondary paint. Subtracting F in that case
@@ -1066,11 +1208,14 @@ impl Renderer {
                             mask.clone()
                         } else {
                             let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let timer = self.timings.start();
                             let border_mask = crate::stroke::subtract_coverage(
                                 &mask,
                                 &fill,
                                 &subtraction_limits,
                             )?;
+                            self.timings.mask_combination +=
+                                crate::timing::StageTimings::elapsed(timer);
                             charge_mask(&border_mask, &mut held, event_charge, limits)?;
                             border_mask
                         };
@@ -1108,11 +1253,24 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask =
-                                crate::stroke::rasterize_translated_xy(&mut raster, boxes, dx, dy)?;
+                            let mask = self.masks.translated(
+                                &mut raster,
+                                boxes,
+                                dx,
+                                dy,
+                                &mut self.timings,
+                            )?;
                             drop(raster);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                                &mut self.masks,
+                            )?
                         } else if border_exists {
                             let remaining = limits
                                 .path_segments_per_frame()
@@ -1122,7 +1280,7 @@ impl Renderer {
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let (mask, segments) = crate::stroke::rasterize_expanded_axes_xy(
+                            let (mask, segments) = self.masks.border(
                                 &mut stroke_context,
                                 group,
                                 border_radius,
@@ -1130,25 +1288,43 @@ impl Renderer {
                                 dx,
                                 dy,
                                 remaining,
+                                &mut self.timings,
                             )?;
                             drop(stroke_context);
                             total_segments = add(total_segments, segments)?;
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                                &mut self.masks,
+                            )?
                         } else {
                             let mut shadow_context = RasterContext::with_limits(available(
                                 limits,
                                 add(held, event_charge)?,
                             )?)?;
-                            let mask = crate::stroke::rasterize_translated_xy(
+                            let mask = self.masks.translated(
                                 &mut shadow_context,
                                 group,
                                 dx,
                                 dy,
+                                &mut self.timings,
                             )?;
                             drop(shadow_context);
                             charge_mask(&mask, &mut held, event_charge, limits)?;
-                            filter_mask(mask, &blur_spec, &mut held, event_charge, limits)?
+                            filter_mask(
+                                mask,
+                                &blur_spec,
+                                &mut held,
+                                event_charge,
+                                limits,
+                                &mut self.timings,
+                                &mut self.masks,
+                            )?
                         };
                         if !opaque && border_exists && !state.shadow_has_fill() {
                             // Both references subtract the unfiltered body
@@ -1162,22 +1338,26 @@ impl Renderer {
                                     limits,
                                     add(held, event_charge)?,
                                 )?)?;
-                                let body = crate::stroke::rasterize_translated_xy(
+                                let body = self.masks.translated(
                                     &mut raster,
                                     group,
                                     dx,
                                     dy,
+                                    &mut self.timings,
                                 )?;
                                 drop(raster);
                                 charge_mask(&body, &mut held, event_charge, limits)?;
                                 body
                             };
                             let subtraction_limits = available(limits, add(held, event_charge)?)?;
+                            let timer = self.timings.start();
                             let ring = crate::stroke::subtract_coverage(
                                 &mask,
                                 &body,
                                 &subtraction_limits,
                             )?;
+                            self.timings.mask_combination +=
+                                crate::timing::StageTimings::elapsed(timer);
                             charge_mask(&ring, &mut held, event_charge, limits)?;
                             for old in [&mask, &body] {
                                 if !Arc::ptr_eq(old, &fill)
@@ -1332,6 +1512,8 @@ impl Renderer {
                         shadow_paint: state.paint().shadow(),
                     });
                 }
+                self.timings.masks += crate::timing::StageTimings::elapsed(timer);
+                let timer = self.timings.start();
                 // C5 keeps pass order across every compatible group in this
                 // event; per-group shadow/border/fill triplets are forbidden.
                 for selector in [0_u16, 1, 2] {
@@ -1409,6 +1591,7 @@ impl Renderer {
                         )?;
                     }
                 }
+                self.timings.paint += crate::timing::StageTimings::elapsed(timer);
                 held = held.checked_sub(local_charge).ok_or_else(limited)?;
                 Ok(())
             })();
@@ -1422,13 +1605,18 @@ impl Renderer {
         *optional_used = false;
         held = held.checked_sub(prepared_charge).ok_or_else(limited)?;
         available(limits, held)?;
-        compose(
+        let timer = self.timings.start();
+        let frame = crate::compose::compose_inner(
             request.viewport.size(),
             &operations,
             limits,
             &mut self.output,
+            self.pool.as_ref(),
+            self.composition_band_rows,
         )?
-        .with_diagnostics(diagnostics)
+        .with_diagnostics(diagnostics);
+        self.timings.composition += crate::timing::StageTimings::elapsed(timer);
+        frame
     }
 }
 

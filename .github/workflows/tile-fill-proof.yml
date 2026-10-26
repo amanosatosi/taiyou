@@ -1,0 +1,47 @@
+name: Focused exact tiled fill proof
+on:
+  push:
+    branches: [perf/cache-multithread]
+permissions:
+  contents: read
+concurrency:
+  group: tile-fill-proof-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  proof:
+    if: contains(github.event.head_commit.message, '[perf-1t-probe]') && contains(github.event.head_commit.message, '[tile-proof]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
+      TAIYOU_FOCUSED_RENDERER: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: |
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+          mkdir -p "$RUNNER_TEMP/tile-proof"
+          cargo fmt --all
+          git diff --binary > "$RUNNER_TEMP/tile-proof/format.patch"
+          git rev-parse HEAD > "$RUNNER_TEMP/tile-proof/commit.txt"
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Discrete coverage and interval-count proof against the existing producer
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: |
+          set -o pipefail
+          cargo test --locked -p taiyou-render --features native tile_fill::tests -- --nocapture 2>&1 | tee "$RUNNER_TEMP/tile-proof/tests.txt"
+          cargo test --locked -p taiyou-render --features native --lib legacy_capacity_witness -- --nocapture 2>&1 | tee -a "$RUNNER_TEMP/tile-proof/tests.txt"
+          cargo test --locked -p taiyou-render --features native tile_border::tests -- --nocapture 2>&1 | tee -a "$RUNNER_TEMP/tile-proof/tests.txt"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tile-fill-proof-${{ github.sha }}
+          path: ${{ runner.temp }}/tile-proof/
+          retention-days: 7

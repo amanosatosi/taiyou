@@ -579,6 +579,24 @@ pub fn geometry(
     placement: GeometryPlacement,
     limits: &Limits,
 ) -> Result<GeometryEvent, RenderError> {
+    geometry_timed(
+        context,
+        catalog,
+        layout,
+        placement,
+        limits,
+        &mut Default::default(),
+    )
+}
+#[cfg(feature = "native")]
+pub(crate) fn geometry_timed(
+    context: &mut taiyou_font::FontContext,
+    catalog: &taiyou_font::ValidatedFontCatalog,
+    layout: Arc<LocalLayout>,
+    placement: GeometryPlacement,
+    limits: &Limits,
+    timings: &mut crate::timing::StageTimings,
+) -> Result<GeometryEvent, RenderError> {
     let count = layout.glyphs().len();
     let mut charge = (count as u64)
         .checked_mul(
@@ -753,6 +771,7 @@ pub fn geometry(
             )
             .map_err(font_error)?
             .get();
+        let timer = timings.start();
         let outline = if metric_font != blob.id() || size <= 0.0 {
             catalog.outline(context, blob.id(), glyph.glyph(), &intake_limits)
         } else {
@@ -765,6 +784,7 @@ pub fn geometry(
             )
         }
         .map_err(font_error)?;
+        timings.base_outlines += crate::timing::StageTimings::elapsed(timer);
         total = total
             .checked_add(outline.outline().ops().len())
             .ok_or_else(geometry_limit)?;

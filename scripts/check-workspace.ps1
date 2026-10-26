@@ -2,7 +2,7 @@
 param([string]$Root = (Split-Path -Parent $PSScriptRoot), [switch]$SelfTest)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-# Exact T008 intake only; normal workspace edges below remain unchanged.
+# Exact native/performance intake; normal workspace edges remain unchanged.
 $external = @{
     'freetype-sys' = @('=0.23.0', $false, '')
     'libz-sys' = @('=1.1.30', $true, 'static')
@@ -13,16 +13,23 @@ $external = @{
     'unicode-script' = @('=0.5.8', $true, '')
     'encoding_rs' = @('=0.8.35', $false, '')
     'png' = @('=0.18.1', $false, '')
+    'rayon' = @('=1.11.0', $true, '')
 }
 function Assert-ExternalDependency($packageName, $dependency) {
-    $owner = if ($dependency.name -ceq 'png') { 'taiyou-cli' } else { 'taiyou-font' }
-    if ($packageName -cne $owner -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
+    $owners = switch -CaseSensitive ($dependency.name) {
+        'png' { 'taiyou-cli' }
+        'rayon' { 'taiyou-render' }
+        'sha2' { 'taiyou-font'; 'taiyou-cli' }
+        default { 'taiyou-font' }
+    }
+    if ($owners -cnotcontains $packageName -or -not $external.ContainsKey($dependency.name)) { throw 'Unapproved external dependency' }
     $spec = $external[$dependency.name]
+    $optional = $dependency.name -cne 'rayon'
     $externalPath = if ($dependency -is [System.Collections.IDictionary]) { $dependency['path'] } elseif ($dependency.PSObject.Properties['path']) { $dependency.path } else { $null }
     if ($dependency.source -cne 'registry+https://github.com/rust-lang/crates.io-index' -or
         $dependency.req -cne $spec[0] -or $dependency.uses_default_features -ne $spec[1] -or
         (($dependency.features | Sort-Object) -join ',') -cne $spec[2] -or
-        -not $dependency.optional -or $dependency.kind -or $dependency.target -or $dependency.rename -or $externalPath) {
+        $dependency.optional -ne $optional -or $dependency.kind -or $dependency.target -or $dependency.rename -or $externalPath) {
         throw 'External dependency version/source/features/ownership mismatch'
     }
 }
@@ -68,6 +75,36 @@ if ($SelfTest) {
     $rejected = $false
     try { Assert-ExternalDependency 'taiyou-font' $png } catch { $rejected = $true }
     if (-not $rejected) { throw 'T014 PNG owner tamper test failed' }
+    $rayon = $sample.Clone()
+    $rayon.name = 'rayon'; $rayon.req = '=1.11.0'; $rayon.uses_default_features = $true; $rayon.optional = $false
+    Assert-ExternalDependency 'taiyou-render' $rayon
+    foreach ($mutation in @(@{req='1.11'}, @{uses_default_features=$false}, @{features=@('web_spin_lock')}, @{optional=$true}, @{source='git+https://example.invalid/rayon'}, @{target='cfg(windows)'}, @{rename='pool'}, @{kind='build'}, @{path='/tmp/pool'})) {
+        $changed = $rayon.Clone()
+        foreach ($key in $mutation.Keys) { $changed[$key] = $mutation[$key] }
+        $rejected = $false
+        try { Assert-ExternalDependency 'taiyou-render' $changed } catch { $rejected = $true }
+        if (-not $rejected) { throw 'Performance pool dependency tamper test failed' }
+    }
+    foreach ($owner in @('taiyou-font','taiyou-cli','taiyou-types')) {
+        $rejected = $false
+        try { Assert-ExternalDependency $owner $rayon } catch { $rejected = $true }
+        if (-not $rejected) { throw 'Performance pool owner tamper test failed' }
+    }
+    $audit = $sample.Clone()
+    $audit.name = 'sha2'; $audit.req = '=0.11.0'; $audit.uses_default_features = $true
+    Assert-ExternalDependency 'taiyou-font' $audit
+    Assert-ExternalDependency 'taiyou-cli' $audit
+    foreach ($mutation in @(@{req='*'}, @{features=@('asm')}, @{optional=$false}, @{source='git+https://example.invalid/hash'})) {
+        $changed = $audit.Clone()
+        foreach ($key in $mutation.Keys) { $changed[$key] = $mutation[$key] }
+        $rejected = $false
+        try { Assert-ExternalDependency 'taiyou-cli' $changed } catch { $rejected = $true }
+        if (-not $rejected) { throw 'Performance digest dependency tamper test failed' }
+    }
+    $rejected = $false
+    try { Assert-ExternalDependency 'taiyou-render' $audit } catch { $rejected = $true }
+    if (-not $rejected) { throw 'Performance digest owner tamper test failed' }
+    Write-Output 'PASS: exact renderer pool and CLI digest edges with seventeen additional tamper scenarios.'
 }
 Push-Location -LiteralPath $Root
 try {
@@ -115,7 +152,7 @@ try {
     # Cargo validates manifest syntax; resolver is not included in metadata JSON.
     $manifest = Get-Content -Raw -LiteralPath (Join-Path $Root 'Cargo.toml')
     if ($manifest -notmatch '(?m)^resolver\s*=\s*"3"\s*$') { throw 'Expected workspace resolver 3' }
-    Write-Output 'PASS: exact seven-package A3 DAG, exact optional T008 intake, edition 2024, resolver 3, unpublished packages.'
+    Write-Output 'PASS: exact seven-package A3 DAG, exact native/performance intake, edition 2024, resolver 3, unpublished packages.'
 } finally {
     Pop-Location
 }

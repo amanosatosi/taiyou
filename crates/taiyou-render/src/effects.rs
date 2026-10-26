@@ -24,6 +24,7 @@ fn zeros<T: Default + Clone>(n: usize) -> Result<Vec<T>, RenderError> {
 /// Resolved target-space filter. Target scale is output/original-video size,
 /// not text scale or SBAS. LayoutRes overrides the host's original video size;
 /// without either, target scale is (1,1).
+#[derive(Clone, Debug, PartialEq)]
 pub struct BlurSpec {
     gaussian: bool,
     sigma: [f64; 2],
@@ -178,6 +179,18 @@ fn extent(
     Ok((bounds, bounds.width() as usize, bounds.height() as usize))
 }
 
+/// Preserve the original full combined extent/scratch checks on retained hits.
+pub(crate) fn preflight_effects(
+    mask: &Mask,
+    spec: &BlurSpec,
+    limits: &Limits,
+) -> Result<(), RenderError> {
+    if spec.active && !mask.bounds().is_empty() {
+        extent(mask, spec.support(), limits)?;
+    }
+    Ok(())
+}
+
 /// Immutable full-support filtering, before viewport/clip composition.
 pub fn apply_effects(
     mask: &Arc<Mask>,
@@ -188,7 +201,7 @@ pub fn apply_effects(
         return Ok(mask.clone());
     }
     // Preflight the entire combined operation before any filtering/allocation.
-    extent(mask, spec.support(), limits)?;
+    preflight_effects(mask, spec, limits)?;
     let mut result = mask.clone();
     if spec.gaussian {
         result = gaussian(&result, spec, limits)?;
@@ -207,36 +220,45 @@ fn gaussian(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Result<Arc<Mask>, 
     let kx = coefficients(spec.sigma[0], spec.radius[0])?;
     let ky = coefficients(spec.sigma[1], spec.radius[1])?;
     let native = mask.is_xy_coverage();
-    // No byte quantization between Gaussian axes. No FMA or fast math.
-    for y in 0..mask.bounds().height() as usize {
-        for x in 0..w {
-            let mut sum = 0.0_f32;
-            for i in 0..kx.len() {
-                let k = gaussian_tap(i, kx.len(), native);
-                let weight = kx[k];
-                let sx = x as i64 + k as i64 - 2 * i64::from(spec.radius[0]);
-                if sx >= 0 && sx < i64::from(mask.bounds().width()) {
-                    sum += f32::from(mask.data()[y * mask.stride() + sx as usize]) * weight;
-                }
+    // Interchange independent pixel/tap loops without changing ANY pixel's
+    // f32 addition order. No byte quantization, FMA or fast math between axes.
+    let source_width = mask.bounds().width() as usize;
+    for (y, source) in mask.data().chunks(mask.stride())
+        .take(mask.bounds().height() as usize).enumerate()
+    {
+        let start = (y + spec.radius[1] as usize) * w;
+        let target = &mut horizontal[start..start + w];
+        for i in 0..kx.len() {
+            let k = gaussian_tap(i, kx.len(), native);
+            let weight = kx[k];
+            // Full-support padding proves this entire contiguous source row
+            // fits: shift is 2*radius-k, with k in 0..=2*radius.
+            let shift = 2 * spec.radius[0] as usize - k;
+            for (sum, &value) in target[shift..shift + source_width]
+                .iter_mut().zip(&source[..source_width])
+            {
+                *sum += f32::from(value) * weight;
             }
-            horizontal[(y + spec.radius[1] as usize) * w + x] = sum;
         }
     }
-    for y in 0..h {
-        for x in 0..w {
-            let mut sum = 0.0_f32;
-            for i in 0..ky.len() {
-                let k = gaussian_tap(i, ky.len(), native);
-                let weight = ky[k];
-                let sy = y as i64 + k as i64 - i64::from(spec.radius[1]);
-                if sy >= 0 && sy < h as i64 {
-                    sum += horizontal[sy as usize * w + x] * weight;
+    // One reusable row fits the existing preflight's two-float-plane allowance.
+    let mut sums = zeros::<f32>(w)?;
+    for (y, target) in output.chunks_exact_mut(w).enumerate() {
+        sums.fill(0.0);
+        for i in 0..ky.len() {
+            let k = gaussian_tap(i, ky.len(), native);
+            let weight = ky[k];
+            let sy = y as i64 + k as i64 - i64::from(spec.radius[1]);
+            if sy >= 0 && sy < h as i64 {
+                let start = sy as usize * w;
+                for (sum, &value) in sums.iter_mut().zip(&horizontal[start..start + w]) {
+                    *sum += value * weight;
                 }
             }
-            // xy's transposed byte conversion rounds complete 16-column
-            // blocks to nearest/even, then uses +0.5 for the remaining tail.
-            // Reproduce the arithmetic without a platform SIMD dependency.
-            output[y * w + x] = gaussian_byte(sum, native && x < w / 16 * 16);
+        }
+        for (x, (pixel, &sum)) in target.iter_mut().zip(&sums).enumerate() {
+            // Keep native complete-16-column nearest/even and tail +0.5.
+            *pixel = gaussian_byte(sum, native && x < w / 16 * 16);
         }
     }
     Ok(Arc::new(mask.with_data(bounds, w, output.into())?))
@@ -351,5 +373,85 @@ mod gaussian_conversion_tests {
             assert_eq!(gaussian_byte(64.0, native), 64);
             assert_eq!(gaussian_byte(255.0, native), 255);
         }
+    }
+}
+
+#[cfg(test)]
+mod gaussian_row_tests {
+    use super::*;
+
+    // Independent retained per-pixel producer; never derive expected bytes
+    // through the candidate's row accumulation.
+    fn scalar(mask: &Mask, spec: &BlurSpec, limits: &Limits) -> Arc<Mask> {
+        let (bounds, w, h) = extent(mask, spec.radius, limits).unwrap();
+        let mut horizontal = vec![0_f32; w * h];
+        let mut output = vec![0_u8; w * h];
+        let kx = coefficients(spec.sigma[0], spec.radius[0]).unwrap();
+        let ky = coefficients(spec.sigma[1], spec.radius[1]).unwrap();
+        let native = mask.is_xy_coverage();
+        for y in 0..mask.bounds().height() as usize {
+            for x in 0..w {
+                let mut sum = 0_f32;
+                for i in 0..kx.len() {
+                    let k = gaussian_tap(i, kx.len(), native);
+                    let sx = x as i64 + k as i64 - 2 * i64::from(spec.radius[0]);
+                    if sx >= 0 && sx < i64::from(mask.bounds().width()) {
+                        sum += f32::from(mask.data()[y * mask.stride() + sx as usize]) * kx[k];
+                    }
+                }
+                horizontal[(y + spec.radius[1] as usize) * w + x] = sum;
+            }
+        }
+        for y in 0..h {
+            for x in 0..w {
+                let mut sum = 0_f32;
+                for i in 0..ky.len() {
+                    let k = gaussian_tap(i, ky.len(), native);
+                    let sy = y as i64 + k as i64 - i64::from(spec.radius[1]);
+                    if sy >= 0 && sy < h as i64 {
+                        sum += horizontal[sy as usize * w + x] * ky[k];
+                    }
+                }
+                output[y * w + x] = gaussian_byte(sum, native && x < w / 16 * 16);
+            }
+        }
+        Arc::new(mask.with_data(bounds, w, output.into()).unwrap())
+    }
+
+    #[test]
+    fn contiguous_rows_preserve_order_units_stride_halos_and_native_tail() {
+        let limits = Limits::default();
+        let mut cases = 0;
+        for native in [false, true] {
+            for shape in 0..12 {
+                let w = [1, 7, 15, 16, 17, 31, 32, 63][shape % 8];
+                let h = [1, 3, 9, 17][shape % 4];
+                let stride = w + shape % 5;
+                let maximum = if native {64} else {255};
+                let mut seed = 71_u32;
+                let data: Vec<u8> = (0..stride * h).map(|i| {
+                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+                    match shape % 3 {
+                        0 => if i % 13 == 0 {maximum} else {0},
+                        1 => if i % 2 == 0 {maximum} else {0},
+                        _ => (seed % (u32::from(maximum) + 1)) as u8,
+                    }
+                }).collect();
+                let bounds = PixelRect::new(-37, -19, -37 + w as i32, -19 + h as i32).unwrap();
+                let mask = if native { Mask::new_xy(bounds, stride, data.into()) }
+                    else { Mask::new(bounds, stride, data.into()) }.unwrap();
+                for blur in [0.1, 0.34, 0.75, 1.0, 2.3, 6.0, 12.0] {
+                    let spec = BlurSpec::new(FiniteF64::new(blur).unwrap(),
+                        FiniteF64::new(1.5).unwrap(), [0.75, 1.25], &limits).unwrap();
+                    let a = scalar(&mask, &spec, &limits);
+                    let b = gaussian(&mask, &spec, &limits).unwrap();
+                    assert_eq!((a.bounds(), a.stride(), a.is_xy_coverage()),
+                        (b.bounds(), b.stride(), b.is_xy_coverage()));
+                    assert_eq!(a.data(), b.data(), "native={native} shape={shape} blur={blur}");
+                    cases += 1;
+                }
+            }
+        }
+        assert_eq!(cases, 168);
     }
 }

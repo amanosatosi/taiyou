@@ -1,0 +1,4748 @@
+{
+  "schema": 1,
+  "libass_api_version": [
+    "0x01705000"
+  ],
+  "groups": [
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 18.142427,
+        "p95": 19.001716,
+        "p99": 24.383182
+      },
+      "cold_session_ms": {
+        "median": 18.144742,
+        "p95": 19.01459,
+        "p99": 24.387019
+      },
+      "fps_equivalent": 54.8060253086552,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 14.142021,
+      "source_setup_ms": 0.050734,
+      "renderer_setup_ms": {
+        "median": 0.002585,
+        "p95": 0.004709,
+        "p99": 0.012874
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 18.413691,
+        "p95": 18.812272,
+        "p99": 19.060267
+      },
+      "cold_session_ms": {
+        "median": 18.563672,
+        "p95": 19.000604,
+        "p99": 19.221748
+      },
+      "fps_equivalent": 54.320191546592966,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.923875,
+      "source_setup_ms": 0.046807,
+      "renderer_setup_ms": {
+        "median": 0.147014,
+        "p95": 0.281616,
+        "p99": 0.287716
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 0.978912,
+        "p95": 1.844142,
+        "p99": 2.593868
+      },
+      "cold_session_ms": {
+        "median": 2.167003,
+        "p95": 3.060145,
+        "p99": 5.101996
+      },
+      "fps_equivalent": 947.5358276286837,
+      "nonzero_alpha_range": [
+        3124,
+        3124
+      ],
+      "font_setup_ms": 6.469111,
+      "source_setup_ms": 0.027691,
+      "renderer_setup_ms": {
+        "median": 1.206806,
+        "p95": 1.312803,
+        "p99": 2.508128
+      },
+      "library_render_ms": {
+        "median": 0.551266,
+        "p95": 0.586411,
+        "p99": 1.179495
+      },
+      "client_compose_ms": {
+        "median": 0.420863,
+        "p95": 1.263692,
+        "p99": 1.414192
+      },
+      "warnings": 31
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 6.776022,
+        "p95": 7.0277,
+        "p99": 7.560161
+      },
+      "cold_session_ms": {
+        "median": 6.776022,
+        "p95": 7.0277,
+        "p99": 7.569508
+      },
+      "fps_equivalent": 146.7325426992646,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.94796,
+      "source_setup_ms": 0.045034,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009347
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.155388,
+        "p95": 7.558929,
+        "p99": 7.852536
+      },
+      "cold_session_ms": {
+        "median": 7.155388,
+        "p95": 7.558929,
+        "p99": 8.151302
+      },
+      "fps_equivalent": 138.97225916904335,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.994777,
+      "source_setup_ms": 0.05347,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.298766
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 0.396949,
+        "p95": 0.515469,
+        "p99": 1.324034
+      },
+      "cold_session_ms": {
+        "median": 0.396949,
+        "p95": 0.515469,
+        "p99": 3.807587
+      },
+      "fps_equivalent": 2311.6314883581017,
+      "nonzero_alpha_range": [
+        3124,
+        3124
+      ],
+      "font_setup_ms": 6.637324,
+      "source_setup_ms": 0.030637,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.483553
+      },
+      "library_render_ms": {
+        "median": 0.034314,
+        "p95": 0.055353,
+        "p99": 0.055614
+      },
+      "client_compose_ms": {
+        "median": 0.362385,
+        "p95": 0.482107,
+        "p99": 1.268481
+      },
+      "warnings": 1
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 6.633506,
+        "p95": 7.074977,
+        "p99": 7.171427
+      },
+      "cold_session_ms": {
+        "median": 6.633506,
+        "p95": 7.074977,
+        "p99": 7.180384
+      },
+      "fps_equivalent": 149.13990463734706,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.720115,
+      "source_setup_ms": 0.038561,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.008957
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.046915,
+        "p95": 7.515788,
+        "p99": 7.78513
+      },
+      "cold_session_ms": {
+        "median": 7.046915,
+        "p95": 7.780581,
+        "p99": 7.78513
+      },
+      "fps_equivalent": 141.38575176329812,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.796357,
+      "source_setup_ms": 0.051206,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.264793
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 0.363867,
+        "p95": 0.40838,
+        "p99": 1.347568
+      },
+      "cold_session_ms": {
+        "median": 0.363867,
+        "p95": 0.40838,
+        "p99": 3.865935
+      },
+      "fps_equivalent": 2521.356089412492,
+      "nonzero_alpha_range": [
+        3124,
+        3124
+      ],
+      "font_setup_ms": 6.556223,
+      "source_setup_ms": 0.029425,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.518367
+      },
+      "library_render_ms": {
+        "median": 0.036067,
+        "p95": 0.053639,
+        "p99": 0.053669
+      },
+      "client_compose_ms": {
+        "median": 0.330766,
+        "p95": 0.369087,
+        "p99": 1.293757
+      },
+      "warnings": 1
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.032017,
+        "p95": 7.285079,
+        "p99": 8.523684
+      },
+      "cold_session_ms": {
+        "median": 7.032017,
+        "p95": 7.285079,
+        "p99": 8.533311
+      },
+      "fps_equivalent": 141.47324053507168,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.903557,
+      "source_setup_ms": 0.046516,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009627
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.369736,
+        "p95": 7.744554,
+        "p99": 8.123429
+      },
+      "cold_session_ms": {
+        "median": 7.369736,
+        "p95": 7.744554,
+        "p99": 8.3609
+      },
+      "fps_equivalent": 135.73160215818677,
+      "nonzero_alpha_range": [
+        12849,
+        12849
+      ],
+      "font_setup_ms": 13.966864,
+      "source_setup_ms": 0.05405,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.237471
+      },
+      "peak_cache_bytes": 106556
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 0.417577,
+        "p95": 0.501984,
+        "p99": 1.266457
+      },
+      "cold_session_ms": {
+        "median": 0.417577,
+        "p95": 0.501984,
+        "p99": 3.807706
+      },
+      "fps_equivalent": 2239.082594412001,
+      "nonzero_alpha_range": [
+        3124,
+        3124
+      ],
+      "font_setup_ms": 6.456817,
+      "source_setup_ms": 0.030216,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.541249
+      },
+      "library_render_ms": {
+        "median": 0.040696,
+        "p95": 0.05878,
+        "p99": 0.063168
+      },
+      "client_compose_ms": {
+        "median": 0.37599,
+        "p95": 0.45103,
+        "p99": 1.224388
+      },
+      "warnings": 1
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 64.624146,
+        "p95": 65.353183,
+        "p99": 71.710074
+      },
+      "cold_session_ms": {
+        "median": 64.626901,
+        "p95": 65.366037,
+        "p99": 71.717948
+      },
+      "fps_equivalent": 15.422490925175003,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 14.160014,
+      "source_setup_ms": 0.058138,
+      "renderer_setup_ms": {
+        "median": 0.002214,
+        "p95": 0.012854,
+        "p99": 0.013826
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 64.979068,
+        "p95": 70.689274,
+        "p99": 72.221917
+      },
+      "cold_session_ms": {
+        "median": 65.146649,
+        "p95": 70.850594,
+        "p99": 72.512308
+      },
+      "fps_equivalent": 15.262654602093567,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.655986,
+      "source_setup_ms": 0.056946,
+      "renderer_setup_ms": {
+        "median": 0.170988,
+        "p95": 0.290391,
+        "p99": 0.319843
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.853801,
+        "p95": 2.861536,
+        "p99": 3.273443
+      },
+      "cold_session_ms": {
+        "median": 3.098827,
+        "p95": 4.136639,
+        "p99": 5.876818
+      },
+      "fps_equivalent": 515.7708929721158,
+      "nonzero_alpha_range": [
+        9891,
+        9891
+      ],
+      "font_setup_ms": 6.613809,
+      "source_setup_ms": 0.040114,
+      "renderer_setup_ms": {
+        "median": 1.221684,
+        "p95": 1.475697,
+        "p99": 2.603375
+      },
+      "library_render_ms": {
+        "median": 0.817612,
+        "p95": 0.864269,
+        "p99": 1.18733
+      },
+      "client_compose_ms": {
+        "median": 1.039896,
+        "p95": 1.997107,
+        "p99": 2.085932
+      },
+      "warnings": 31
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.096001,
+        "p95": 12.400567,
+        "p99": 12.491346
+      },
+      "cold_session_ms": {
+        "median": 12.096001,
+        "p95": 12.400567,
+        "p99": 12.491346
+      },
+      "fps_equivalent": 82.49897265493044,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.976362,
+      "source_setup_ms": 0.050634,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009488
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.49304,
+        "p95": 12.730851,
+        "p99": 12.788579
+      },
+      "cold_session_ms": {
+        "median": 12.49304,
+        "p95": 12.786255,
+        "p99": 12.788579
+      },
+      "fps_equivalent": 80.12855701617652,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.915905,
+      "source_setup_ms": 0.057317,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.289799
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.055334,
+        "p95": 1.180096,
+        "p99": 2.022905
+      },
+      "cold_session_ms": {
+        "median": 1.055334,
+        "p95": 1.180096,
+        "p99": 4.640927
+      },
+      "fps_equivalent": 910.370152686401,
+      "nonzero_alpha_range": [
+        9891,
+        9891
+      ],
+      "font_setup_ms": 8.182539,
+      "source_setup_ms": 0.039414,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.618022
+      },
+      "library_render_ms": {
+        "median": 0.088545,
+        "p95": 0.107621,
+        "p99": 0.113151
+      },
+      "client_compose_ms": {
+        "median": 0.969073,
+        "p95": 1.066675,
+        "p99": 1.915946
+      },
+      "warnings": 1
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.071977,
+        "p95": 12.243566,
+        "p99": 12.369489
+      },
+      "cold_session_ms": {
+        "median": 12.071977,
+        "p95": 12.243566,
+        "p99": 12.369489
+      },
+      "fps_equivalent": 83.04440221312153,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.522263,
+      "source_setup_ms": 0.049081,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009939
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.491727,
+        "p95": 12.755147,
+        "p99": 12.911185
+      },
+      "cold_session_ms": {
+        "median": 12.505693,
+        "p95": 12.755147,
+        "p99": 12.911185
+      },
+      "fps_equivalent": 80.0939567220986,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.571876,
+      "source_setup_ms": 0.051986,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.259672
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.071312,
+        "p95": 1.13489,
+        "p99": 2.073736
+      },
+      "cold_session_ms": {
+        "median": 1.071312,
+        "p95": 1.13489,
+        "p99": 4.631952
+      },
+      "fps_equivalent": 905.1795248391481,
+      "nonzero_alpha_range": [
+        9891,
+        9891
+      ],
+      "font_setup_ms": 6.644214,
+      "source_setup_ms": 0.032401,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.558216
+      },
+      "library_render_ms": {
+        "median": 0.089457,
+        "p95": 0.101609,
+        "p99": 0.101789
+      },
+      "client_compose_ms": {
+        "median": 0.979982,
+        "p95": 1.038341,
+        "p99": 1.985802
+      },
+      "warnings": 1
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.113914,
+        "p95": 12.240159,
+        "p99": 12.381452
+      },
+      "cold_session_ms": {
+        "median": 12.118253,
+        "p95": 12.240159,
+        "p99": 12.381452
+      },
+      "fps_equivalent": 82.6620199589847,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.989451,
+      "source_setup_ms": 0.062487,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.013856
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 12.608374,
+        "p95": 12.867606,
+        "p99": 12.930853
+      },
+      "cold_session_ms": {
+        "median": 12.609796,
+        "p95": 12.895958,
+        "p99": 12.930853
+      },
+      "fps_equivalent": 79.39523817275517,
+      "nonzero_alpha_range": [
+        31448,
+        31448
+      ],
+      "font_setup_ms": 13.951982,
+      "source_setup_ms": 0.054682,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.287584
+      },
+      "peak_cache_bytes": 121124
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.114281,
+        "p95": 1.221481,
+        "p99": 2.005068
+      },
+      "cold_session_ms": {
+        "median": 1.114281,
+        "p95": 1.221481,
+        "p99": 4.591036
+      },
+      "fps_equivalent": 867.7490782055497,
+      "nonzero_alpha_range": [
+        9891,
+        9891
+      ],
+      "font_setup_ms": 6.648221,
+      "source_setup_ms": 0.033633,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.585968
+      },
+      "library_render_ms": {
+        "median": 0.099295,
+        "p95": 0.130412,
+        "p99": 0.136905
+      },
+      "client_compose_ms": {
+        "median": 1.007623,
+        "p95": 1.095997,
+        "p99": 1.917275
+      },
+      "warnings": 1
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 62.583042,
+        "p95": 63.427804,
+        "p99": 63.737161
+      },
+      "cold_session_ms": {
+        "median": 62.588081,
+        "p95": 63.432302,
+        "p99": 63.741389
+      },
+      "fps_equivalent": 16.000483119619602,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 14.053911,
+      "source_setup_ms": 0.045795,
+      "renderer_setup_ms": {
+        "median": 0.004709,
+        "p95": 0.006242,
+        "p99": 0.010439
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 61.729788,
+        "p95": 62.448626,
+        "p99": 62.817242
+      },
+      "cold_session_ms": {
+        "median": 61.885268,
+        "p95": 62.608444,
+        "p99": 63.14348
+      },
+      "fps_equivalent": 16.178522231306903,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 14.122695,
+      "source_setup_ms": 0.049612,
+      "renderer_setup_ms": {
+        "median": 0.157183,
+        "p95": 0.303598,
+        "p99": 0.326238
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 3.023562,
+        "p95": 4.295487,
+        "p99": 4.950675
+      },
+      "cold_session_ms": {
+        "median": 4.457298,
+        "p95": 5.685511,
+        "p99": 7.586186
+      },
+      "fps_equivalent": 319.61028495174565,
+      "nonzero_alpha_range": [
+        12184,
+        12184
+      ],
+      "font_setup_ms": 6.632773,
+      "source_setup_ms": 0.028312,
+      "renderer_setup_ms": {
+        "median": 1.450617,
+        "p95": 1.587963,
+        "p99": 2.635511
+      },
+      "library_render_ms": {
+        "median": 0.707886,
+        "p95": 0.75307,
+        "p99": 0.983038
+      },
+      "client_compose_ms": {
+        "median": 2.304916,
+        "p95": 3.608189,
+        "p99": 3.967337
+      },
+      "warnings": 31
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 22.805895,
+        "p95": 23.278965,
+        "p99": 24.282854
+      },
+      "cold_session_ms": {
+        "median": 22.805895,
+        "p95": 23.278965,
+        "p99": 24.292903
+      },
+      "fps_equivalent": 43.73708485328697,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 15.779368,
+      "source_setup_ms": 0.043181,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.010049
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 23.515856,
+        "p95": 24.582111,
+        "p99": 26.281233
+      },
+      "cold_session_ms": {
+        "median": 23.515856,
+        "p95": 24.582111,
+        "p99": 26.523574
+      },
+      "fps_equivalent": 42.51868540207277,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 15.795178,
+      "source_setup_ms": 0.043741,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.242341
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 2.371373,
+        "p95": 2.620968,
+        "p99": 3.176672
+      },
+      "cold_session_ms": {
+        "median": 2.371373,
+        "p95": 2.620968,
+        "p99": 5.732529
+      },
+      "fps_equivalent": 414.7226708696535,
+      "nonzero_alpha_range": [
+        12184,
+        12184
+      ],
+      "font_setup_ms": 6.73247,
+      "source_setup_ms": 0.029526,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.555857
+      },
+      "library_render_ms": {
+        "median": 0.078717,
+        "p95": 0.093394,
+        "p99": 0.098444
+      },
+      "client_compose_ms": {
+        "median": 2.290192,
+        "p95": 2.544255,
+        "p99": 3.092205
+      },
+      "warnings": 1
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 22.986719,
+        "p95": 23.570255,
+        "p99": 23.714764
+      },
+      "cold_session_ms": {
+        "median": 22.986719,
+        "p95": 23.570255,
+        "p99": 23.721907
+      },
+      "fps_equivalent": 43.4612943848504,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 15.994115,
+      "source_setup_ms": 0.064941,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.007143
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 25.00624,
+        "p95": 25.683879,
+        "p99": 26.569961
+      },
+      "cold_session_ms": {
+        "median": 25.00624,
+        "p95": 25.683879,
+        "p99": 26.860272
+      },
+      "fps_equivalent": 39.92191818831183,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 15.945286,
+      "source_setup_ms": 0.044873,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.290311
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 2.405416,
+        "p95": 2.588207,
+        "p99": 3.255339
+      },
+      "cold_session_ms": {
+        "median": 2.405416,
+        "p95": 2.588207,
+        "p99": 5.941838
+      },
+      "fps_equivalent": 407.67223898945997,
+      "nonzero_alpha_range": [
+        12184,
+        12184
+      ],
+      "font_setup_ms": 6.647781,
+      "source_setup_ms": 0.028583,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.686499
+      },
+      "library_render_ms": {
+        "median": 0.082573,
+        "p95": 0.09704,
+        "p99": 0.099956
+      },
+      "client_compose_ms": {
+        "median": 2.330237,
+        "p95": 2.497829,
+        "p99": 3.168396
+      },
+      "warnings": 1
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 23.132501,
+        "p95": 23.643151,
+        "p99": 23.796646
+      },
+      "cold_session_ms": {
+        "median": 23.132501,
+        "p95": 23.643151,
+        "p99": 23.796646
+      },
+      "fps_equivalent": 43.14271558544406,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 14.514312,
+      "source_setup_ms": 0.086902,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.011081
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 23.597677,
+        "p95": 24.721118,
+        "p99": 24.871466
+      },
+      "cold_session_ms": {
+        "median": 23.597677,
+        "p95": 24.721118,
+        "p99": 25.23929
+      },
+      "fps_equivalent": 42.51322870423645,
+      "nonzero_alpha_range": [
+        49029,
+        49029
+      ],
+      "font_setup_ms": 15.973929,
+      "source_setup_ms": 0.073998,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.367824
+      },
+      "peak_cache_bytes": 224298
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 2.432788,
+        "p95": 2.674618,
+        "p99": 3.478133
+      },
+      "cold_session_ms": {
+        "median": 2.432788,
+        "p95": 2.674618,
+        "p99": 6.047144
+      },
+      "fps_equivalent": 405.67864252702515,
+      "nonzero_alpha_range": [
+        12184,
+        12184
+      ],
+      "font_setup_ms": 6.745734,
+      "source_setup_ms": 0.029194,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.569011
+      },
+      "library_render_ms": {
+        "median": 0.081843,
+        "p95": 0.09678,
+        "p99": 0.106228
+      },
+      "client_compose_ms": {
+        "median": 2.347198,
+        "p95": 2.58985,
+        "p99": 3.371454
+      },
+      "warnings": 1
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 578.469704,
+        "p95": 583.319391,
+        "p99": 594.866256
+      },
+      "cold_session_ms": {
+        "median": 578.475586,
+        "p95": 583.330782,
+        "p99": 594.872849
+      },
+      "fps_equivalent": 1.7274567309941085,
+      "nonzero_alpha_range": [
+        196920,
+        196920
+      ],
+      "font_setup_ms": 14.207008,
+      "source_setup_ms": 0.104865,
+      "renderer_setup_ms": {
+        "median": 0.006953,
+        "p95": 0.008195,
+        "p99": 0.011391
+      },
+      "peak_cache_bytes": 2386032
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 471.536882,
+        "p95": 480.011338,
+        "p99": 491.095515
+      },
+      "cold_session_ms": {
+        "median": 471.699675,
+        "p95": 480.185071,
+        "p99": 491.257096
+      },
+      "fps_equivalent": 2.1175278962952584,
+      "nonzero_alpha_range": [
+        196920,
+        196920
+      ],
+      "font_setup_ms": 14.212132,
+      "source_setup_ms": 0.108181,
+      "renderer_setup_ms": {
+        "median": 0.166671,
+        "p95": 0.262548,
+        "p99": 0.353007
+      },
+      "peak_cache_bytes": 2386032
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 57.913176,
+        "p95": 60.011016,
+        "p99": 60.616315
+      },
+      "cold_session_ms": {
+        "median": 59.197677,
+        "p95": 61.20377,
+        "p99": 63.236469
+      },
+      "fps_equivalent": 17.21425959430428,
+      "nonzero_alpha_range": [
+        163695,
+        163695
+      ],
+      "font_setup_ms": 8.099939,
+      "source_setup_ms": 0.049703,
+      "renderer_setup_ms": {
+        "median": 1.250868,
+        "p95": 1.409433,
+        "p99": 2.620154
+      },
+      "library_render_ms": {
+        "median": 1.648613,
+        "p95": 1.822157,
+        "p99": 2.609744
+      },
+      "client_compose_ms": {
+        "median": 56.256834,
+        "p95": 58.006189,
+        "p99": 58.188488
+      },
+      "warnings": 31
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 228.519273,
+        "p95": 241.518206,
+        "p99": 243.066819
+      },
+      "cold_session_ms": {
+        "median": 228.519273,
+        "p95": 241.518206,
+        "p99": 243.066819
+      },
+      "fps_equivalent": 4.359308824329763,
+      "nonzero_alpha_range": [
+        196920,
+        196920
+      ],
+      "font_setup_ms": 14.054715,
+      "source_setup_ms": 0.101799,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.012042
+      },
+      "peak_cache_bytes": 2386032
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 123.880847,
+        "p95": 132.374092,
+        "p99": 132.81963
+      },
+      "cold_session_ms": {
+        "median": 123.880847,
+        "p95": 132.374092,
+        "p99": 132.81963
+      },
+      "fps_equivalent": 8.03343096436272,
+      "nonzero_alpha_range": [
+        196920,
+        196920
+      ],
+      "font_setup_ms": 14.147176,
+      "source_setup_ms": 0.109273,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.26907
+      },
+      "peak_cache_bytes": 2386032
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 56.532284,
+        "p95": 57.575094,
+        "p99": 57.975903
+      },
+      "cold_session_ms": {
+        "median": 56.532284,
+        "p95": 57.575094,
+        "p99": 60.516371
+      },
+      "fps_equivalent": 17.641858766818046,
+      "nonzero_alpha_range": [
+        163695,
+        163695
+      ],
+      "font_setup_ms": 9.02762,
+      "source_setup_ms": 0.046877,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.540468
+      },
+      "library_render_ms": {
+        "median": 0.288887,
+        "p95": 0.322139,
+        "p99": 0.323562
+      },
+      "client_compose_ms": {
+        "median": 56.235251,
+        "p95": 57.283602,
+        "p99": 57.66774
+      },
+      "warnings": 1
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 589.293281,
+        "p95": 609.004038,
+        "p99": 613.054235
+      },
+      "cold_session_ms": {
+        "median": 589.293281,
+        "p95": 609.004038,
+        "p99": 613.054235
+      },
+      "fps_equivalent": 1.7288832950935562,
+      "nonzero_alpha_range": [
+        188341,
+        196920
+      ],
+      "font_setup_ms": 14.005955,
+      "source_setup_ms": 0.115505,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.011842
+      },
+      "peak_cache_bytes": 54588957
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 485.133656,
+        "p95": 508.558731,
+        "p99": 522.078597
+      },
+      "cold_session_ms": {
+        "median": 485.133656,
+        "p95": 508.558731,
+        "p99": 522.078597
+      },
+      "fps_equivalent": 2.114193014704588,
+      "nonzero_alpha_range": [
+        188341,
+        196920
+      ],
+      "font_setup_ms": 15.920948,
+      "source_setup_ms": 0.116026,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.25276
+      },
+      "peak_cache_bytes": 54588957
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 60.73558,
+        "p95": 65.826844,
+        "p99": 67.690462
+      },
+      "cold_session_ms": {
+        "median": 60.73558,
+        "p95": 65.826844,
+        "p99": 67.690462
+      },
+      "fps_equivalent": 16.410172867953033,
+      "nonzero_alpha_range": [
+        163695,
+        167958
+      ],
+      "font_setup_ms": 6.630019,
+      "source_setup_ms": 0.045685,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.553462
+      },
+      "library_render_ms": {
+        "median": 1.44575,
+        "p95": 1.587494,
+        "p99": 2.864701
+      },
+      "client_compose_ms": {
+        "median": 59.368415,
+        "p95": 64.309361,
+        "p99": 64.825281
+      },
+      "warnings": 1
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 308.521308,
+        "p95": 576.026073,
+        "p99": 796.067611
+      },
+      "cold_session_ms": {
+        "median": 308.521308,
+        "p95": 576.026073,
+        "p99": 796.067611
+      },
+      "fps_equivalent": 3.28514990439393,
+      "nonzero_alpha_range": [
+        125201,
+        203393
+      ],
+      "font_setup_ms": 14.20933,
+      "source_setup_ms": 0.119352,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.011832
+      },
+      "peak_cache_bytes": 13683600
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 153.046414,
+        "p95": 465.618931,
+        "p99": 634.929594
+      },
+      "cold_session_ms": {
+        "median": 153.046414,
+        "p95": 465.618931,
+        "p99": 634.929594
+      },
+      "fps_equivalent": 5.663612596702984,
+      "nonzero_alpha_range": [
+        125201,
+        203393
+      ],
+      "font_setup_ms": 13.899208,
+      "source_setup_ms": 0.138137,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.271485
+      },
+      "peak_cache_bytes": 13683600
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 78.017597,
+        "p95": 84.821129,
+        "p99": 86.560677
+      },
+      "cold_session_ms": {
+        "median": 78.017597,
+        "p95": 84.821129,
+        "p99": 89.194279
+      },
+      "fps_equivalent": 14.908220189812777,
+      "nonzero_alpha_range": [
+        151530,
+        163695
+      ],
+      "font_setup_ms": 8.121745,
+      "source_setup_ms": 0.04841,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.633602
+      },
+      "library_render_ms": {
+        "median": 0.300329,
+        "p95": 1.533314,
+        "p99": 1.807985
+      },
+      "client_compose_ms": {
+        "median": 77.701047,
+        "p95": 84.520319,
+        "p99": 86.272251
+      },
+      "warnings": 1
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 152.16287,
+        "p95": 157.952884,
+        "p99": 159.876274
+      },
+      "cold_session_ms": {
+        "median": 152.168541,
+        "p95": 157.957693,
+        "p99": 159.881203
+      },
+      "fps_equivalent": 6.566361210564753,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 13.991717,
+      "source_setup_ms": 0.059901,
+      "renderer_setup_ms": {
+        "median": 0.005149,
+        "p95": 0.005891,
+        "p99": 0.010901
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 152.839637,
+        "p95": 155.95798,
+        "p99": 164.701162
+      },
+      "cold_session_ms": {
+        "median": 152.990488,
+        "p95": 156.213716,
+        "p99": 164.848215
+      },
+      "fps_equivalent": 6.525544362973673,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 14.076898,
+      "source_setup_ms": 0.072896,
+      "renderer_setup_ms": {
+        "median": 0.160268,
+        "p95": 0.255736,
+        "p99": 0.324084
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 5.328525,
+        "p95": 6.927631,
+        "p99": 7.442379
+      },
+      "cold_session_ms": {
+        "median": 6.621412,
+        "p95": 8.180131,
+        "p99": 9.974551
+      },
+      "fps_equivalent": 182.52475387464284,
+      "nonzero_alpha_range": [
+        44036,
+        44036
+      ],
+      "font_setup_ms": 6.630739,
+      "source_setup_ms": 0.041427,
+      "renderer_setup_ms": {
+        "median": 1.253042,
+        "p95": 1.414482,
+        "p99": 2.532172
+      },
+      "library_render_ms": {
+        "median": 0.900947,
+        "p95": 1.087093,
+        "p99": 1.408091
+      },
+      "client_compose_ms": {
+        "median": 4.426377,
+        "p95": 5.979075,
+        "p99": 6.033998
+      },
+      "warnings": 31
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 33.154775,
+        "p95": 34.055702,
+        "p99": 35.361742
+      },
+      "cold_session_ms": {
+        "median": 33.154775,
+        "p95": 34.055702,
+        "p99": 35.372552
+      },
+      "fps_equivalent": 30.065139839962814,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 14.151623,
+      "source_setup_ms": 0.072395,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.01081
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 33.252137,
+        "p95": 35.067305,
+        "p99": 35.199821
+      },
+      "cold_session_ms": {
+        "median": 33.252137,
+        "p95": 35.067305,
+        "p99": 35.504057
+      },
+      "fps_equivalent": 29.99578880412524,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 14.135955,
+      "source_setup_ms": 0.072575,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.304236
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 4.507588,
+        "p95": 4.838864,
+        "p99": 5.824368
+      },
+      "cold_session_ms": {
+        "median": 4.507588,
+        "p95": 4.838864,
+        "p99": 8.381897
+      },
+      "fps_equivalent": 219.07490265618708,
+      "nonzero_alpha_range": [
+        44036,
+        44036
+      ],
+      "font_setup_ms": 6.682375,
+      "source_setup_ms": 0.042359,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.557529
+      },
+      "library_render_ms": {
+        "median": 0.109313,
+        "p95": 0.130052,
+        "p99": 0.179544
+      },
+      "client_compose_ms": {
+        "median": 4.396541,
+        "p95": 4.728318,
+        "p99": 5.693876
+      },
+      "warnings": 1
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 33.828449,
+        "p95": 34.566222,
+        "p99": 34.927164
+      },
+      "cold_session_ms": {
+        "median": 33.828449,
+        "p95": 34.566222,
+        "p99": 34.937824
+      },
+      "fps_equivalent": 29.512168013480792,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 14.199212,
+      "source_setup_ms": 0.066363,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.01066
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 33.473328,
+        "p95": 35.339631,
+        "p99": 39.897291
+      },
+      "cold_session_ms": {
+        "median": 33.473328,
+        "p95": 35.623098,
+        "p99": 39.897291
+      },
+      "fps_equivalent": 30.397394005917285,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 15.738156,
+      "source_setup_ms": 0.062687,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.283467
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 4.50294,
+        "p95": 4.684668,
+        "p99": 5.80324
+      },
+      "cold_session_ms": {
+        "median": 4.50294,
+        "p95": 4.684668,
+        "p99": 8.421553
+      },
+      "fps_equivalent": 219.76479495590172,
+      "nonzero_alpha_range": [
+        44036,
+        44036
+      ],
+      "font_setup_ms": 6.478206,
+      "source_setup_ms": 0.032911,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.618313
+      },
+      "library_render_ms": {
+        "median": 0.104334,
+        "p95": 0.1183,
+        "p99": 0.118751
+      },
+      "client_compose_ms": {
+        "median": 4.391212,
+        "p95": 4.586696,
+        "p99": 5.686463
+      },
+      "warnings": 1
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 32.336909,
+        "p95": 33.383776,
+        "p99": 33.666944
+      },
+      "cold_session_ms": {
+        "median": 32.336909,
+        "p95": 33.383776,
+        "p99": 33.666944
+      },
+      "fps_equivalent": 30.83487247422856,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 15.77661,
+      "source_setup_ms": 0.058539,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009858
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 33.006525,
+        "p95": 33.829647,
+        "p99": 33.953948
+      },
+      "cold_session_ms": {
+        "median": 33.006525,
+        "p95": 33.829647,
+        "p99": 34.23477
+      },
+      "fps_equivalent": 30.375844319619713,
+      "nonzero_alpha_range": [
+        118005,
+        118005
+      ],
+      "font_setup_ms": 14.272191,
+      "source_setup_ms": 0.083516,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.280822
+      },
+      "peak_cache_bytes": 494828
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 4.480528,
+        "p95": 4.658389,
+        "p99": 5.878059
+      },
+      "cold_session_ms": {
+        "median": 4.480528,
+        "p95": 4.658389,
+        "p99": 8.596829
+      },
+      "fps_equivalent": 220.52318827645237,
+      "nonzero_alpha_range": [
+        44036,
+        44036
+      ],
+      "font_setup_ms": 8.238502,
+      "source_setup_ms": 0.046356,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.71877
+      },
+      "library_render_ms": {
+        "median": 0.108703,
+        "p95": 0.122157,
+        "p99": 0.147745
+      },
+      "client_compose_ms": {
+        "median": 4.378709,
+        "p95": 4.548294,
+        "p99": 5.755291
+      },
+      "warnings": 1
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 83.548176,
+        "p95": 84.997634,
+        "p99": 85.015347
+      },
+      "cold_session_ms": {
+        "median": 83.553055,
+        "p95": 85.005399,
+        "p99": 85.020106
+      },
+      "fps_equivalent": 11.956989935782286,
+      "nonzero_alpha_range": [
+        55411,
+        55411
+      ],
+      "font_setup_ms": 15.446005,
+      "source_setup_ms": 0.070651,
+      "renderer_setup_ms": {
+        "median": 0.00521,
+        "p95": 0.006152,
+        "p99": 0.007765
+      },
+      "peak_cache_bytes": 784652
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 84.503975,
+        "p95": 86.370127,
+        "p99": 86.485343
+      },
+      "cold_session_ms": {
+        "median": 84.659906,
+        "p95": 86.529424,
+        "p99": 86.648296
+      },
+      "fps_equivalent": 11.935030094417083,
+      "nonzero_alpha_range": [
+        55411,
+        55411
+      ],
+      "font_setup_ms": 15.81335,
+      "source_setup_ms": 0.062336,
+      "renderer_setup_ms": {
+        "median": 0.167122,
+        "p95": 0.283327,
+        "p99": 0.289877
+      },
+      "peak_cache_bytes": 784652
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 4.43328,
+        "p95": 5.852451,
+        "p99": 6.176835
+      },
+      "cold_session_ms": {
+        "median": 5.645216,
+        "p95": 7.026206,
+        "p99": 8.768989
+      },
+      "fps_equivalent": 220.41847699265182,
+      "nonzero_alpha_range": [
+        14598,
+        14598
+      ],
+      "font_setup_ms": 6.615581,
+      "source_setup_ms": 0.046336,
+      "renderer_setup_ms": {
+        "median": 1.215852,
+        "p95": 1.379438,
+        "p99": 2.592154
+      },
+      "library_render_ms": {
+        "median": 0.762228,
+        "p95": 0.836526,
+        "p99": 1.152895
+      },
+      "client_compose_ms": {
+        "median": 3.68047,
+        "p95": 5.023688,
+        "p99": 5.065106
+      },
+      "warnings": 31
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 36.600365,
+        "p95": 37.220458,
+        "p99": 37.470584
+      },
+      "cold_session_ms": {
+        "median": 36.600365,
+        "p95": 37.220458,
+        "p99": 37.481154
+      },
+      "fps_equivalent": 27.27561589642885,
+      "nonzero_alpha_range": [
+        55411,
+        55411
+      ],
+      "font_setup_ms": 14.369001,
+      "source_setup_ms": 0.063478,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.01057
+      },
+      "peak_cache_bytes": 784652
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 37.829132,
+        "p95": 38.565683,
+        "p99": 38.774572
+      },
+      "cold_session_ms": {
+        "median": 37.829132,
+        "p95": 38.774572,
+        "p99": 38.916304
+      },
+      "fps_equivalent": 26.596046875467415,
+      "nonzero_alpha_range": [
+        55411,
+        55411
+      ],
+      "font_setup_ms": 15.779857,
+      "source_setup_ms": 0.066695,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.359278
+      },
+      "peak_cache_bytes": 784652
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 3.753595,
+        "p95": 3.96004,
+        "p99": 4.834938
+      },
+      "cold_session_ms": {
+        "median": 3.753595,
+        "p95": 3.96004,
+        "p99": 7.349207
+      },
+      "fps_equivalent": 263.7715060779507,
+      "nonzero_alpha_range": [
+        14598,
+        14598
+      ],
+      "font_setup_ms": 7.994358,
+      "source_setup_ms": 0.034174,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.514269
+      },
+      "library_render_ms": {
+        "median": 0.106558,
+        "p95": 0.121887,
+        "p99": 0.1236
+      },
+      "client_compose_ms": {
+        "median": 3.643841,
+        "p95": 3.851749,
+        "p99": 4.720155
+      },
+      "warnings": 1
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 87.992181,
+        "p95": 95.21689,
+        "p99": 96.534092
+      },
+      "cold_session_ms": {
+        "median": 87.992181,
+        "p95": 95.21689,
+        "p99": 96.534092
+      },
+      "fps_equivalent": 11.348332978536854,
+      "nonzero_alpha_range": [
+        53931,
+        56509
+      ],
+      "font_setup_ms": 14.198502,
+      "source_setup_ms": 0.071894,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.010319
+      },
+      "peak_cache_bytes": 27073110
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 90.107394,
+        "p95": 94.680148,
+        "p99": 97.220251
+      },
+      "cold_session_ms": {
+        "median": 90.107394,
+        "p95": 94.680148,
+        "p99": 97.220251
+      },
+      "fps_equivalent": 11.277917620580983,
+      "nonzero_alpha_range": [
+        53931,
+        56509
+      ],
+      "font_setup_ms": 14.553515,
+      "source_setup_ms": 0.065903,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.283548
+      },
+      "peak_cache_bytes": 27073110
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 4.469952,
+        "p95": 4.820954,
+        "p99": 4.901074
+      },
+      "cold_session_ms": {
+        "median": 4.469952,
+        "p95": 4.901074,
+        "p99": 7.334979
+      },
+      "fps_equivalent": 222.6220338405743,
+      "nonzero_alpha_range": [
+        14598,
+        16256
+      ],
+      "font_setup_ms": 6.649184,
+      "source_setup_ms": 0.053991,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.514025
+      },
+      "library_render_ms": {
+        "median": 0.427034,
+        "p95": 0.487917,
+        "p99": 0.533763
+      },
+      "client_compose_ms": {
+        "median": 4.050662,
+        "p95": 4.438253,
+        "p99": 4.708194
+      },
+      "warnings": 1
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 63.362586,
+        "p95": 84.725676,
+        "p99": 157.852797
+      },
+      "cold_session_ms": {
+        "median": 63.362586,
+        "p95": 84.725676,
+        "p99": 157.852797
+      },
+      "fps_equivalent": 17.672367111958536,
+      "nonzero_alpha_range": [
+        49339,
+        55411
+      ],
+      "font_setup_ms": 14.260129,
+      "source_setup_ms": 0.068227,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.01053
+      },
+      "peak_cache_bytes": 7413820
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 41.360292,
+        "p95": 85.05207,
+        "p99": 137.045078
+      },
+      "cold_session_ms": {
+        "median": 41.360292,
+        "p95": 85.05207,
+        "p99": 137.045078
+      },
+      "fps_equivalent": 22.42040119498395,
+      "nonzero_alpha_range": [
+        49339,
+        55411
+      ],
+      "font_setup_ms": 14.015042,
+      "source_setup_ms": 0.071393,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.339402
+      },
+      "peak_cache_bytes": 7413820
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 6.51832,
+        "p95": 7.873774,
+        "p99": 8.825033
+      },
+      "cold_session_ms": {
+        "median": 6.51832,
+        "p95": 7.873774,
+        "p99": 11.457902
+      },
+      "fps_equivalent": 183.06843183610818,
+      "nonzero_alpha_range": [
+        12682,
+        21196
+      ],
+      "font_setup_ms": 6.607457,
+      "source_setup_ms": 0.035025,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.632869
+      },
+      "library_render_ms": {
+        "median": 0.114613,
+        "p95": 0.563449,
+        "p99": 0.652374
+      },
+      "client_compose_ms": {
+        "median": 6.41059,
+        "p95": 7.763978,
+        "p99": 8.689531
+      },
+      "warnings": 1
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 43.183192,
+        "p95": 43.908673,
+        "p99": 44.815661
+      },
+      "cold_session_ms": {
+        "median": 43.186728,
+        "p95": 43.911028,
+        "p99": 44.823035
+      },
+      "fps_equivalent": 23.088089617143773,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.698445,
+      "source_setup_ms": 0.084267,
+      "renderer_setup_ms": {
+        "median": 0.002886,
+        "p95": 0.003707,
+        "p99": 0.007374
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 43.332771,
+        "p95": 44.069533,
+        "p99": 45.83609
+      },
+      "cold_session_ms": {
+        "median": 43.479664,
+        "p95": 44.216026,
+        "p99": 46.093148
+      },
+      "fps_equivalent": 22.99891012319568,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 14.495917,
+      "source_setup_ms": 0.083425,
+      "renderer_setup_ms": {
+        "median": 0.148616,
+        "p95": 0.257058,
+        "p99": 0.291954
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 2.222386,
+        "p95": 3.147497,
+        "p99": 3.563642
+      },
+      "cold_session_ms": {
+        "median": 3.454469,
+        "p95": 4.385631,
+        "p99": 6.1365
+      },
+      "fps_equivalent": 433.9100235496967,
+      "nonzero_alpha_range": [
+        46423,
+        46423
+      ],
+      "font_setup_ms": 6.579584,
+      "source_setup_ms": 0.039964,
+      "renderer_setup_ms": {
+        "median": 1.221523,
+        "p95": 1.321569,
+        "p99": 2.572858
+      },
+      "library_render_ms": {
+        "median": 0.801972,
+        "p95": 0.842799,
+        "p99": 1.131495
+      },
+      "client_compose_ms": {
+        "median": 1.413621,
+        "p95": 2.32155,
+        "p99": 2.431976
+      },
+      "warnings": 0
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.087623,
+        "p95": 7.455845,
+        "p99": 7.632884
+      },
+      "cold_session_ms": {
+        "median": 7.087623,
+        "p95": 7.465233,
+        "p99": 7.632884
+      },
+      "fps_equivalent": 140.72189944023052,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.831917,
+      "source_setup_ms": 0.063658,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009388
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.154787,
+        "p95": 7.822165,
+        "p99": 8.988517
+      },
+      "cold_session_ms": {
+        "median": 7.154787,
+        "p95": 8.138794,
+        "p99": 8.988517
+      },
+      "fps_equivalent": 138.483939389904,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 14.061539,
+      "source_setup_ms": 0.08588,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.316629
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.416848,
+        "p95": 1.469415,
+        "p99": 2.224255
+      },
+      "cold_session_ms": {
+        "median": 1.416848,
+        "p95": 1.469415,
+        "p99": 4.825488
+      },
+      "fps_equivalent": 697.9096345704629,
+      "nonzero_alpha_range": [
+        46423,
+        46423
+      ],
+      "font_setup_ms": 7.979877,
+      "source_setup_ms": 0.042208,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.601233
+      },
+      "library_render_ms": {
+        "median": 0.058669,
+        "p95": 0.072785,
+        "p99": 0.085208
+      },
+      "client_compose_ms": {
+        "median": 1.359191,
+        "p95": 1.40748,
+        "p99": 2.166568
+      },
+      "warnings": 0
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.767203,
+        "p95": 8.054676,
+        "p99": 8.726221
+      },
+      "cold_session_ms": {
+        "median": 7.767203,
+        "p95": 8.054676,
+        "p99": 8.735909
+      },
+      "fps_equivalent": 128.63104538579216,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.394036,
+      "source_setup_ms": 0.069839,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.009688
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.27686,
+        "p95": 7.698004,
+        "p99": 7.761643
+      },
+      "cold_session_ms": {
+        "median": 7.27686,
+        "p95": 7.706059,
+        "p99": 7.761643
+      },
+      "fps_equivalent": 137.46900223663397,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.519758,
+      "source_setup_ms": 0.078135,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.259843
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.433979,
+        "p95": 1.624913,
+        "p99": 2.308821
+      },
+      "cold_session_ms": {
+        "median": 1.433979,
+        "p95": 1.624913,
+        "p99": 4.850414
+      },
+      "fps_equivalent": 685.0992850303861,
+      "nonzero_alpha_range": [
+        46423,
+        46423
+      ],
+      "font_setup_ms": 6.623903,
+      "source_setup_ms": 0.038802,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.541593
+      },
+      "library_render_ms": {
+        "median": 0.060883,
+        "p95": 0.077875,
+        "p99": 0.079929
+      },
+      "client_compose_ms": {
+        "median": 1.376112,
+        "p95": 1.552369,
+        "p99": 2.251745
+      },
+      "warnings": 0
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.134095,
+        "p95": 7.462425,
+        "p99": 7.695209
+      },
+      "cold_session_ms": {
+        "median": 7.134095,
+        "p95": 7.462425,
+        "p99": 7.706119
+      },
+      "fps_equivalent": 139.33837313037287,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.489312,
+      "source_setup_ms": 0.083115,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.01091
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "samples": 31,
+      "total_ms": {
+        "median": 7.185731,
+        "p95": 7.77658,
+        "p99": 7.839948
+      },
+      "cold_session_ms": {
+        "median": 7.185731,
+        "p95": 7.777312,
+        "p99": 7.839948
+      },
+      "fps_equivalent": 137.83657579797818,
+      "nonzero_alpha_range": [
+        46426,
+        46426
+      ],
+      "font_setup_ms": 15.587324,
+      "source_setup_ms": 0.074158,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 0.270874
+      },
+      "peak_cache_bytes": 166072
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "samples": 31,
+      "total_ms": {
+        "median": 1.426735,
+        "p95": 1.506543,
+        "p99": 2.276045
+      },
+      "cold_session_ms": {
+        "median": 1.426735,
+        "p95": 1.506543,
+        "p99": 4.788109
+      },
+      "fps_equivalent": 689.319315187499,
+      "nonzero_alpha_range": [
+        46423,
+        46423
+      ],
+      "font_setup_ms": 6.619838,
+      "source_setup_ms": 0.044292,
+      "renderer_setup_ms": {
+        "median": 0.0,
+        "p95": 0.0,
+        "p99": 2.512064
+      },
+      "library_render_ms": {
+        "median": 0.067957,
+        "p95": 0.077604,
+        "p99": 0.099316
+      },
+      "client_compose_ms": {
+        "median": 1.35424,
+        "p95": 1.435571,
+        "p99": 2.223547
+      },
+      "warnings": 0
+    }
+  ],
+  "failures": [],
+  "taiyou_digest_differences": [],
+  "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
+  "primary_taiyou_timing": "production stage timers disabled; frame/diagnostic SHA-256 outside timing",
+  "primary_libass_timing": "normal ass_render_frame plus scalar CPU full-RGBA allocation/clear/composition",
+  "libass_digest": "FNV anti-elision only; not a cryptographic visual oracle",
+  "processes": [
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 795615732,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 794429511,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 421232474,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 452455155,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 352335165,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 440210713,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 348696663,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 435805542,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 447736849,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 448756998,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 459571295,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 350327395,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-1920/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 2238576036,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 449428147,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 2211347310,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 373858841,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 648477377,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 658999232,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 644984033,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 659387166,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 371893266,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 663771156,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 373526324,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "thick-borders-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 648898922,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/thick-borders-1920/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/thick-borders-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1465477231,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 2732980185,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 2715048041,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1543134534,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1566260715,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1378300143,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1622727785,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1379904359,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1552206762,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1381311187,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1555900867,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "dialogue-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1565003229,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/dialogue-3840/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/dialogue-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 18731969675,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 15438364240,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 3162166485,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 5133382420,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 3120618301,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 8496444869,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 3265191180,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 19308281017,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 15924183630,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 11099702940,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 6978399336,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "combined-abuse-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 3469949271,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/combined-abuse-3840/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/combined-abuse-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 5558670040,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1526280537,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 5514615562,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1462390697,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1963588065,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1957001628,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1984328019,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1946041918,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1446309107,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1943580149,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1447929182,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "large-blur-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1927639434,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/large-blur-3840/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/large-blur-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1497287036,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 3383414855,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 3395376747,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1994549781,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 2023911047,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1422844995,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 3626286170,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1446839633,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 3607499793,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 1479504077,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 2724928476,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "transforms-3840",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 2325748379,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/transforms-3840/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms.ass",
+        "3840",
+        "2160",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/transforms-3840-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 1562196259,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/cold/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 1571557401,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/cold/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "cold",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 460647894,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/cold/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-cold.timestamps",
+        "cold",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 482125518,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/same-time/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 384039484,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/same-time/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "same-time",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 478364961,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/same-time/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-same-time.timestamps",
+        "same-time",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 383249158,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/sequence/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 503117043,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/sequence/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "sequence",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 484199246,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/sequence/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-sequence.timestamps",
+        "sequence",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "taiyou-1",
+      "exit_code": 0,
+      "process_elapsed_ns": 481408402,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/seek/taiyou-1-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "taiyou-4",
+      "exit_code": 0,
+      "process_elapsed_ns": 483344785,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/seek/taiyou-4-resources.txt",
+        "/home/runner/work/taiyou/taiyou/target/release/examples/performance_compare",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "4",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    },
+    {
+      "case": "upstream-karaoke-1920",
+      "scenario": "seek",
+      "engine": "libass",
+      "exit_code": 0,
+      "process_elapsed_ns": 383246567,
+      "command": [
+        "/usr/bin/time",
+        "-v",
+        "-o",
+        "/home/runner/work/_temp/performance-comparison/upstream-karaoke-1920/seek/libass-resources.txt",
+        "/home/runner/work/_temp/libass-performance",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke.ass",
+        "1920",
+        "1080",
+        "1",
+        "/home/runner/work/_temp/taiyou-performance-inputs/upstream-karaoke-1920-seek.timestamps",
+        "seek",
+        "/home/runner/work/_temp/taiyou-performance-inputs/SourceSans3-Regular.otf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Regular.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/Arimo-Bold.ttf",
+        "/home/runner/work/_temp/taiyou-performance-inputs/IPAexGothic.ttf"
+      ]
+    }
+  ]
+}

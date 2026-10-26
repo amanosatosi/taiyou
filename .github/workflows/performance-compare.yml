@@ -1,0 +1,179 @@
+name: Taiyou versus libass and Mangetsu performance
+on:
+  push:
+    branches: [perf/cache-multithread]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: performance-comparison-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compare:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libass-perf]') || (contains(github.event.head_commit.message, '[perf-1t-probe]') && !contains(github.event.head_commit.message, '[tile-proof]'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: 1.99.1
+      TAIYOU_FOCUSED_RENDERER: '1'
+      FROZEN_CHECKPOINT: 2b80565e4998e22032d6bb4a446013886df7c62c
+      LIBASS_PIN: f61db567e6593df3470e91594bcd4ad2d0473aff
+      MANGESTU_PIN: db2865d582142717e09160550160b52126aa656b
+      SERIAL_PROBE: ${{ contains(github.event.head_commit.message, '[perf-1t-probe]') && '1' || '0' }}
+      SERIAL_REFERENCE: dc14d7a6ac65ee5268e58e3eb0b3ff2766869950
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Verify frozen implementation and format only the new adapter
+        run: |
+          git fetch --no-tags origin "$FROZEN_CHECKPOINT"
+          git fetch --no-tags origin "$SERIAL_REFERENCE"
+          rustup toolchain install 1.99.1 --profile minimal --component rustfmt --component clippy
+          cargo fmt --all
+          mkdir -p "$RUNNER_TEMP/performance-comparison"
+          git diff --binary > "$RUNNER_TEMP/performance-comparison/format.patch"
+          if test "$SERIAL_PROBE" = 1; then
+            # Only the measured serial traversal/sort may differ in this probe.
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json ':!crates/taiyou-render/src/compose.rs' ':!crates/taiyou-render/src/axis_widen.rs' ':!crates/taiyou-render/src/timing.rs' ':!crates/taiyou-render/src/lib.rs' ':!crates/taiyou-render/src/tile_fill.rs' ':!crates/taiyou-render/src/tile_border.rs' ':!crates/taiyou-render/src/effects.rs' ':!crates/taiyou-types/src/scene.rs'
+          else
+            git diff --exit-code "$FROZEN_CHECKPOINT" -- crates/taiyou-render crates/taiyou-font crates/taiyou-types crates/taiyou-ass crates/taiyou-capi crates/taiyou-cli/src crates/taiyou-cli/Cargo.toml Cargo.lock Cargo.toml build-support validation tests docs/references.lock.json
+          fi
+          git rev-parse HEAD > "$RUNNER_TEMP/performance-comparison/commit.txt"
+          git rev-parse HEAD:crates/taiyou-render > "$RUNNER_TEMP/performance-comparison/renderer-tree.txt"
+          printf '%s\n' "$SERIAL_REFERENCE" > "$RUNNER_TEMP/performance-comparison/serial-reference.txt"
+          rustc -Vv > "$RUNNER_TEMP/performance-comparison/rustc.txt"
+          lscpu > "$RUNNER_TEMP/performance-comparison/cpu.txt"
+          uname -a > "$RUNNER_TEMP/performance-comparison/platform.txt"
+          env | sort | grep -E '^(ImageOS|ImageVersion|RUNNER_OS|RUNNER_ARCH)=' >> "$RUNNER_TEMP/performance-comparison/platform.txt"
+      - run: |
+          python -m pip install --only-binary=:all: --no-deps --require-hashes -r build-support/requirements.txt
+      - run: python build-support/acquire.py
+      - run: python build-support/build-native.py
+      - name: Build frozen Taiyou comparison caller
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+        run: cargo build --release --locked -p taiyou-cli --features native --example performance_compare
+      - name: Supplemental serial-candidate correctness and same-runner frozen binary
+        if: env.SERIAL_PROBE == '1'
+        env:
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_ALL_STATIC: '1'
+          LIBZ_SYS_STATIC: '1'
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_TEST_BOLD: ${{ runner.temp }}/taiyou-native-sources/bold.otf
+          TAIYOU_TEST_COLLECTION: ${{ runner.temp }}/taiyou-native-sources/collection.otc
+          TAIYOU_SHAPING_REFERENCES: ${{ runner.temp }}/taiyou-shaping-reference.tsv
+        run: |
+          cargo test --locked -p taiyou-render --features native
+          cargo test --locked -p taiyou-types
+          cargo test --locked -p taiyou-cli --features native --test performance_cache
+          cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-candidate"
+          cp crates/taiyou-render/src/compose.rs "$RUNNER_TEMP/candidate-compose.rs"
+          cp crates/taiyou-render/src/axis_widen.rs "$RUNNER_TEMP/candidate-axis_widen.rs"
+          cp crates/taiyou-types/src/scene.rs "$RUNNER_TEMP/candidate-scene.rs"
+          cp crates/taiyou-render/src/timing.rs "$RUNNER_TEMP/candidate-timing.rs"
+          cp crates/taiyou-render/src/lib.rs "$RUNNER_TEMP/candidate-lib.rs"
+          cp crates/taiyou-render/src/effects.rs "$RUNNER_TEMP/candidate-effects.rs"
+          # Tile sources are frozen for the isolated filter experiment.
+          git diff --exit-code "$SERIAL_REFERENCE" -- crates/taiyou-render/src/tile_fill.rs crates/taiyou-render/src/tile_border.rs
+          trap 'cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs; cp "$RUNNER_TEMP/candidate-axis_widen.rs" crates/taiyou-render/src/axis_widen.rs; cp "$RUNNER_TEMP/candidate-scene.rs" crates/taiyou-types/src/scene.rs; cp "$RUNNER_TEMP/candidate-timing.rs" crates/taiyou-render/src/timing.rs; cp "$RUNNER_TEMP/candidate-lib.rs" crates/taiyou-render/src/lib.rs; cp "$RUNNER_TEMP/candidate-effects.rs" crates/taiyou-render/src/effects.rs' EXIT
+          git show "$SERIAL_REFERENCE:crates/taiyou-render/src/compose.rs" > crates/taiyou-render/src/compose.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-render/src/axis_widen.rs" > crates/taiyou-render/src/axis_widen.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-types/src/scene.rs" > crates/taiyou-types/src/scene.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-render/src/timing.rs" > crates/taiyou-render/src/timing.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-render/src/lib.rs" > crates/taiyou-render/src/lib.rs
+          git show "$SERIAL_REFERENCE:crates/taiyou-render/src/effects.rs" > crates/taiyou-render/src/effects.rs
+          cargo build --release --locked -p taiyou-cli --features native --example performance_compare
+          cp target/release/examples/performance_compare "$RUNNER_TEMP/taiyou-reference"
+          cp "$RUNNER_TEMP/candidate-compose.rs" crates/taiyou-render/src/compose.rs
+          cp "$RUNNER_TEMP/candidate-axis_widen.rs" crates/taiyou-render/src/axis_widen.rs
+          cp "$RUNNER_TEMP/candidate-scene.rs" crates/taiyou-types/src/scene.rs
+          cp "$RUNNER_TEMP/candidate-timing.rs" crates/taiyou-render/src/timing.rs
+          cp "$RUNNER_TEMP/candidate-lib.rs" crates/taiyou-render/src/lib.rs
+          cp "$RUNNER_TEMP/candidate-effects.rs" crates/taiyou-render/src/effects.rs
+          cp "$RUNNER_TEMP/taiyou-candidate" target/release/examples/performance_compare
+          echo "TAIYOU_REFERENCE_BINARY=$RUNNER_TEMP/taiyou-reference" >> "$GITHUB_ENV"
+      - name: Normal pinned libass build with the same FreeType and HarfBuzz
+        env:
+          PKG_CONFIG: /usr/bin/pkg-config
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends autoconf automake libtool pkg-config nasm libfribidi-dev
+          python -c "import json,os; p=next(r for r in json.load(open('docs/references.lock.json'))['references'] if r['id']=='libass'); assert p['commit']==os.environ['LIBASS_PIN']"
+          git init "$RUNNER_TEMP/performance-libass-source"
+          git -C "$RUNNER_TEMP/performance-libass-source" fetch --depth=1 https://github.com/libass/libass "$LIBASS_PIN"
+          git -C "$RUNNER_TEMP/performance-libass-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/performance-libass-source" rev-parse HEAD)" = "$LIBASS_PIN"
+          git -C "$RUNNER_TEMP/performance-libass-source" fsck --full
+          cd "$RUNNER_TEMP/performance-libass-source"
+          sh autogen.sh
+          CFLAGS='-O3 -DNDEBUG' ./configure --prefix="$RUNNER_TEMP/performance-libass-install" --libdir="$RUNNER_TEMP/performance-libass-install/lib" --disable-shared --enable-static --disable-fontconfig --disable-require-system-font-provider
+          make -j2
+          make install
+          git diff --exit-code -- libass/
+      - name: Build pinned Mangetsu with the same FreeType and HarfBuzz
+        env:
+          PKG_CONFIG: /usr/bin/pkg-config
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+        run: |
+          git init "$RUNNER_TEMP/performance-mangetsu-source"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" fetch --depth=1 https://github.com/amanosatosi/libassmod "$MANGESTU_PIN"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/performance-mangetsu-source" rev-parse HEAD)" = "$MANGESTU_PIN"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" fsck --full
+          cd "$RUNNER_TEMP/performance-mangetsu-source"
+          sh autogen.sh
+          CFLAGS='-O3 -DNDEBUG' ./configure --prefix="$RUNNER_TEMP/performance-mangetsu-install" --libdir="$RUNNER_TEMP/performance-mangetsu-install/lib" --disable-shared --enable-static --disable-fontconfig --disable-require-system-font-provider
+          make -j2
+          make install
+          git diff --exit-code -- libass/
+      - name: Build libass and Mangetsu comparison callers
+        env:
+          PKG_CONFIG: /usr/bin/pkg-config
+        run: |
+          stock_pc="$RUNNER_TEMP/performance-libass-install/lib/pkgconfig:$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          mangetsu_pc="$RUNNER_TEMP/performance-mangetsu-install/lib/pkgconfig:$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-libass-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-mangetsu-install"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
+          PKG_CONFIG_PATH="$stock_pc" cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/libass-performance"
+          PKG_CONFIG_PATH="$mangetsu_pc" cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/mangetsu-performance"
+          PKG_CONFIG_PATH="$mangetsu_pc" cc -O3 -std=c11 -Wall -Wextra -Werror -DMANGESTU_RGBA_MODE=1 experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/mangetsu-rgba-performance"
+          PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/library-versions.txt"
+          PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/mangetsu-library-versions.txt"
+          PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/libass-link-flags.txt"
+          PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/mangetsu-link-flags.txt"
+          cc --version > "$RUNNER_TEMP/performance-comparison/cc.txt"
+          dpkg-query -W libfribidi-dev libfribidi0 nasm > "$RUNNER_TEMP/performance-comparison/packages.txt"
+          cp "$RUNNER_TEMP/performance-libass-source/RELEASEVERSION" "$RUNNER_TEMP/performance-comparison/libass-release.txt"
+          cp "$RUNNER_TEMP/performance-libass-source/config.log" "$RUNNER_TEMP/performance-comparison/libass-config.log"
+          cp "$RUNNER_TEMP/performance-mangetsu-source/RELEASEVERSION" "$RUNNER_TEMP/performance-comparison/mangetsu-release.txt"
+          cp "$RUNNER_TEMP/performance-mangetsu-source/config.log" "$RUNNER_TEMP/performance-comparison/mangetsu-config.log"
+          cp /usr/share/doc/libfribidi0/copyright "$RUNNER_TEMP/performance-comparison/fribidi-copyright.txt"
+          printf '%s\n' "$LIBASS_PIN" > "$RUNNER_TEMP/performance-comparison/libass-commit.txt"
+          printf '%s\n' "$MANGESTU_PIN" > "$RUNNER_TEMP/performance-comparison/mangetsu-commit.txt"
+          printf '%s\n' "$FROZEN_CHECKPOINT" > "$RUNNER_TEMP/performance-comparison/frozen-checkpoint.txt"
+      - name: Compare identical immutable inputs and fixed timestamp samples
+        env:
+          TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
+          TAIYOU_COMPARE_BINARY: ${{ github.workspace }}/target/release/examples/performance_compare
+          LIBASS_COMPARE_BINARY: ${{ runner.temp }}/libass-performance
+          MANGESTU_COMPARE_BINARY: ${{ runner.temp }}/mangetsu-performance
+          MANGESTU_RGBA_COMPARE_BINARY: ${{ runner.temp }}/mangetsu-rgba-performance
+        run: |
+          python experiments/performance/compare-libass.py prepare "$RUNNER_TEMP/performance-comparison"
+          python experiments/performance/compare-libass.py run "$RUNNER_TEMP/performance-comparison"
+          cat "$RUNNER_TEMP/performance-comparison/table.md"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: performance-comparison-${{ github.sha }}
+          path: ${{ runner.temp }}/performance-comparison/
+          retention-days: 7
