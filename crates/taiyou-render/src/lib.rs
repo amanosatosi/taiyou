@@ -22,6 +22,8 @@ pub mod raster;
 pub mod renderer;
 pub mod stroke;
 pub mod timing;
+#[cfg(all(test, feature = "native"))]
+mod tile_fill;
 mod xy_wrap;
 pub use compose::compose;
 pub use evaluate::{evaluate, evaluate_active, evaluate_with_policy, requires_font};

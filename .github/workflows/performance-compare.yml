@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   compare:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libass-perf]') || contains(github.event.head_commit.message, '[perf-1t-probe]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[libass-perf]') || (contains(github.event.head_commit.message, '[perf-1t-probe]') && !contains(github.event.head_commit.message, '[tile-proof]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
