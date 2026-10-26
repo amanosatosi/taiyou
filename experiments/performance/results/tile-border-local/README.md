@@ -59,3 +59,22 @@ workloads improve materially without a significant warm regression. Historical10
 frame and Windows/Linux/macOS validation are pending on the unmarked checkpoint.
 This probe remains non-mergeable; independent external oracle differences remain
 failures. CI formatting is recovered/applied; no local compilation occurred.
+
+## Full unmarked checkpoint
+
+dc14d7a6ac65ee5268e58e3eb0b3ff2766869950 passes the complete
+[platform run40367862277](https://github.com/amanosatosi/taiyou/actions/runs/40367862277),
+including Windows job121730473246, macOS121730473176, Linux121730473343 and
+Platform gate121740767833. The Linux recipe includes native MSRV and sanitizer
+validation. [Fast40367862285](https://github.com/amanosatosi/taiyou/actions/runs/40367862285)
+and documentation/T017 checks pass.
+
+The [full comparison40367862385](https://github.com/amanosatosi/taiyou/actions/runs/40367862385),
+job121730452012, artifact12670764104 preserves all101 recorded Taiyou raw frame
+digests, with0 changed/missing/added (frame-audit.json). The independent oracle
+remains red:1 exact frame,100 existing pixel mismatches,0 unsupported visual
+frames/crashes/infrastructure failures. Two parser safety probes and one
+upstream-disabled source are separate. T016's same five mismatches remain red.
+Corpus policy still requires the human owner's exact-head/base/change-digest
+acknowledgment; no agent acceptance or mergeability is claimed. This freezes the
+validated raster checkpoint while further serial performance work continues.

@@ -103,3 +103,33 @@ rejected as-is (results/serial-publication). The next candidate checks every byt
 in all-zero blocks using portable word ORs; zero RGBA is necessarily valid. Every
 nonzero block and tail retains the original exact channel validator. There is no
 trusted-producer bypass, unsafe SIMD, weakened pixel assertion or new interface.
+
+## After removing expanded-span storage and sorting
+
+results/tile-border-local records the paired changing4K reduction377.12->139.50ms.
+Its post-sample stress profile now has18.5ms tiled borders,54.7ms filters,45.7ms
+composition and12.8ms base-outline intake. The allocation counter is~0.08ms, so
+a new scratch-pool framework is not justified by this measurement. Existing
+Taiyou raster.rs:coverage_groups already joins compatible text before raster and
+filter work; drawing words deliberately remain separate to preserve seams and
+translucent overlaps. Do not add a second run-grouping system without evidence.
+
+Additional local files match stock pin f61db567e6593df3470e91594bcd4ad2d0473aff,
+verified by normalized Git blob identity against the pinned repository file:
+
+|File|Git blob|
+|---|---|
+|libass/ass_blur.c|ec91a92410d67ac7da426f373309720c1b7a8e4f|
+|libass/c/blur_template.h|7597b48a88be1ca446a88d38454e70d316d27b93|
+
+ass_blur.c's cascade downsamples, filters and upsamples using approximate kernels.
+That coefficient/rounding scheme cannot replace Taiyou's exact existing Gaussian.
+The C blur template instead offers a useful data-layout principle: accumulate
+multiple adjacent samples using contiguous local storage. Current Taiyou loops
+recompute coordinates/bounds for every pixel/tap and gather vertical samples.
+The narrow candidate is loop interchange with contiguous rows, preserving each
+pixel's original f32 tap order (including native0,2,1,3 groups), intermediate
+precision, coefficients and16-column/tail conversion. One reusable float row can
+fit the unchanged preflight allowance for two float planes. This is an unmeasured
+candidate direction, not a speed claim, adopted kernel approximation or SIMD plan.
+Production filter code remains unchanged at the tiled checkpoint.

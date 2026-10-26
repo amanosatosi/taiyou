@@ -1,0 +1,69 @@
+{
+  "candidate": "dc14d7a6ac65ee5268e58e3eb0b3ff2766869950",
+  "reference": "9fc4b5719682a5e278c85a059ef56e2192242a26",
+  "run": 40367862385,
+  "artifact": 12670764104,
+  "accepted_baseline": "2a49361a02e0e8f0ace17fa0a45925069eee3201",
+  "corpus_revision": "a5073319af8117271d8ac13ef5c088197ff2d59b",
+  "frames_before": 101,
+  "frames_after": 101,
+  "changed": [],
+  "missing": [],
+  "added": [],
+  "independent_summary": {
+    "total": 103,
+    "counts": {
+      "PASS_EXACT": 3,
+      "PASS_APPROVED_TOLERANCE": 0,
+      "EXPECTED_DIFFERENCE": 0,
+      "UNSUPPORTED": 0,
+      "REGRESSION": 100,
+      "CRASH": 0,
+      "INFRA_ERROR": 0
+    },
+    "disabled_upstream": 1,
+    "inventory_total": 104,
+    "selected_including_disabled": 104,
+    "unselected": [],
+    "carried_results": [],
+    "disabled": [
+      "regression/scaled-border-default/ffmpeg_legacy1.ass.disabled"
+    ],
+    "counts_scope": "all-active-cases-including-parser-safety",
+    "visual": {
+      "total": 101,
+      "counts": {
+        "PASS_EXACT": 1,
+        "PASS_APPROVED_TOLERANCE": 0,
+        "EXPECTED_DIFFERENCE": 0,
+        "UNSUPPORTED": 0,
+        "REGRESSION": 100,
+        "CRASH": 0,
+        "INFRA_ERROR": 0
+      },
+      "exact_matches": 1,
+      "observed": {
+        "PASS_EXACT": 1,
+        "PIXEL_MISMATCH": 100,
+        "BLOCKED_BY_UNSUPPORTED_FEATURE": 0,
+        "EXECUTION_FAILED": 0,
+        "INFRA_ERROR": 0,
+        "CRASH": 0
+      }
+    },
+    "safety": {
+      "total": 2,
+      "counts": {
+        "PASS_EXACT": 2,
+        "PASS_APPROVED_TOLERANCE": 0,
+        "EXPECTED_DIFFERENCE": 0,
+        "UNSUPPORTED": 0,
+        "REGRESSION": 0,
+        "CRASH": 0,
+        "INFRA_ERROR": 0
+      },
+      "successful_parser_probes": 2
+    }
+  },
+  "scope": "Supplemental Taiyou raw-output preservation only; independent oracle mismatches remain failures"
+}
