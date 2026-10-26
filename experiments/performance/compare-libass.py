@@ -15,10 +15,11 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = "a5073319af8117271d8ac13ef5c088197ff2d59b"
 SCENARIOS = ("cold", "same-time", "sequence", "seek")
-ENGINES = ("taiyou-1", "taiyou-4", "libass")
+ENGINES = ("taiyou-1", "taiyou-4", "libass", "mangetsu", "mangetsu-rgba")
 REFERENCE = os.environ.get("TAIYOU_REFERENCE_BINARY")
 if REFERENCE:
-    ENGINES = ("taiyou-1", "taiyou-reference", "libass")
+    ENGINES = ("taiyou-1", "taiyou-reference", "libass", "mangetsu", "mangetsu-rgba")
+EXTERNAL_ENGINES = ("libass", "mangetsu", "mangetsu-rgba")
 
 
 def sha(data):
@@ -120,19 +121,27 @@ def run(output):
     manifest = json.loads((output / "inputs.json").read_text())
     verify_inputs(manifest)
     fonts = [f["path"] for f in manifest["fonts"]]
-    rows, failures, processes, versions = [], [], [], set()
+    rows, failures, processes, versions = [], [], [], {}
     resources = {}
     resource_differences = []
     for case_index, case in enumerate(manifest["cases"]):
         for scenario_index, scenario in enumerate(SCENARIOS):
             # Deterministic rotation avoids always putting one engine last.
-            shift = (case_index + scenario_index) % 3
+            shift = (case_index + scenario_index) % len(ENGINES)
             order = ENGINES[shift:] + ENGINES[:shift]
             for engine in order:
                 directory = output / case["id"] / scenario
                 directory.mkdir(parents=True, exist_ok=True)
-                binary = (REFERENCE if engine == "taiyou-reference" else
-                          os.environ["TAIYOU_COMPARE_BINARY"] if engine != "libass" else os.environ["LIBASS_COMPARE_BINARY"])
+                if engine == "taiyou-reference":
+                    binary = REFERENCE
+                elif engine in ("taiyou-1", "taiyou-4"):
+                    binary = os.environ["TAIYOU_COMPARE_BINARY"]
+                elif engine == "libass":
+                    binary = os.environ["LIBASS_COMPARE_BINARY"]
+                elif engine == "mangetsu":
+                    binary = os.environ["MANGESTU_COMPARE_BINARY"]
+                else:
+                    binary = os.environ["MANGESTU_RGBA_COMPARE_BINARY"]
                 workers = "4" if engine == "taiyou-4" else "1"
                 arguments = [binary, case["source"]["path"], str(case["width"]), str(case["height"]), workers,
                              case["timestamps"][scenario]["path"], scenario, *fonts]
@@ -155,10 +164,10 @@ def run(output):
                     assert len(measured) == 31
                     assert [int(r["sample"]) for r in measured] == list(range(31))
                     assert [int(r["timestamp_ms"]) for r in measured] == case["timestamps"][scenario]["values_ms"]
-                    if engine == "libass":
+                    if engine in EXTERNAL_ENGINES:
                         version = re.findall(r"LIBASS_LIBRARY_VERSION=(0x[0-9a-f]+)", process.stderr.decode())
                         assert len(version) == 1
-                        versions.add(version[0])
+                        versions.setdefault(engine, set()).add(version[0])
                     for row in measured:
                         row.update(case=case["id"], scenario=scenario, engine=engine)
                     rows.extend(measured)
@@ -167,7 +176,7 @@ def run(output):
                     failures.append({"case": case["id"], "scenario": scenario, "engine": engine, "error": str(error)})
                     print(f"FAILED {case['id']} {scenario} {engine}: {error}", flush=True)
     verify_inputs(manifest)
-    assert len(versions) == 1, "missing/inconsistent compiled libass version"
+    assert all(len(versions.get(engine, ())) == 1 for engine in EXTERNAL_ENGINES), "missing/inconsistent compiled external renderer version"
     summaries = []
     digest_differences = []
     for case in manifest["cases"]:
@@ -185,7 +194,7 @@ def run(output):
                           "font_setup_ms": int(selected[0]["font_setup_ns"]) / 1e6,
                           "source_setup_ms": int(selected[0]["source_setup_ns"]) / 1e6,
                           "renderer_setup_ms": distribution([int(r["renderer_setup_ns"]) for r in selected])}
-                if engine == "libass":
+                if engine in EXTERNAL_ENGINES:
                     record.update(library_render_ms=distribution([int(r["library_render_ns"]) for r in selected]),
                                   client_compose_ms=distribution([int(r["client_compose_ns"]) for r in selected]),
                                   warnings=max(int(r["warning_count"]) for r in selected))
@@ -212,7 +221,11 @@ def run(output):
     current = {(r["case"], r["scenario"], r["engine"], r["sample"]): r["rgba_digest"]
                for r in rows if r["engine"] in ("taiyou-1", "taiyou-4")}
     prior_changes = [key for key in prior.keys() | current.keys() if prior.get(key) != current.get(key)]
-    report = {"schema": 1, "libass_api_version": sorted(versions), "groups": summaries,
+    report = {"schema": 2,
+              "external_api_versions": {engine: sorted(values) for engine, values in versions.items()},
+              "libass_commit": os.environ.get("LIBASS_PIN"),
+              "mangetsu_commit": os.environ.get("MANGESTU_PIN"),
+              "groups": summaries,
               "engines": ENGINES, "same_runner_1t_reference": os.environ.get("SERIAL_REFERENCE") if REFERENCE else None,
               "normal_resource_differences": resource_differences,
               "failures": failures, "taiyou_digest_differences": digest_differences,
@@ -220,8 +233,9 @@ def run(output):
               "visual_policy": "No cross-engine visual equality requirement; differences are valid performance samples",
               "primary_taiyou_timing": "render_parsed call only; renderer/font/source setup, stage timers and frame/diagnostic SHA-256 outside timing",
               "primary_libass_timing": "direct ass_render_frame call only (library_render_ns); renderer setup and host composition outside primary timing",
-              "secondary_libass_timing": "client_compose_ns retains scalar CPU RGBA allocation/clear/composition; total_ns retains ass_render_frame plus that host work",
-              "libass_digest": "FNV anti-elision only; not a cryptographic visual oracle",
+              "primary_mangetsu_timing": "direct ass_render_frame call only for mangetsu; direct ass_render_frame_rgba call only for mangetsu-rgba",
+              "secondary_external_timing": "client_compose_ns retains scalar CPU full-frame composition; total_ns retains library render plus that host work",
+              "external_digest": "FNV anti-elision only; not a cryptographic visual oracle",
               "processes": processes}
     (output / "comparison.json").write_text(json.dumps(report, indent=2) + "\n")
     fields = sorted({key for row in rows for key in row})
@@ -231,38 +245,47 @@ def run(output):
         writer.writerows(rows)
     peer_title = "reference1T" if REFERENCE else "Taiyou4T"
     peer_engine = "taiyou-reference" if REFERENCE else "taiyou-4"
-    ratio_title = "1T/libass" if REFERENCE else "MT/libass"
-    table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass ass_render_frame ms | {ratio_title} | libass host RGBA ms | libass total ms |",
-             "|---|---:|---:|---:|---:|---:|---:|"]
+    table = [f"| Workload / state | Taiyou1T ms | {peer_title} ms | libass ass_render_frame ms | Mangetsu ass_render_frame ms | Mangetsu ass_render_frame_rgba ms | Taiyou/libass | Taiyou/Mangetsu | Taiyou/Mangetsu-RGBA |",
+             "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for case in manifest["cases"]:
         for scenario in ("same-time", "sequence", "cold"):
             group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
-            if len(group) == 3:
-                a = group["taiyou-1"]["total_ms"]["median"]
-                b = group[peer_engine]["total_ms"]["median"]
-                c = group["libass"]["library_render_ms"]["median"]
-                host = group["libass"]["client_compose_ms"]["median"]
-                total = group["libass"]["total_ms"]["median"]
-                ratio = a / c if REFERENCE else b / c
-                table.append(f"| {case['id']} / {scenario} | {a:.3f} | {b:.3f} | {c:.3f} | {ratio:.2f}x | {host:.3f} | {total:.3f} |")
+            if all(engine in group for engine in ENGINES):
+                taiyou = group["taiyou-1"]["total_ms"]["median"]
+                peer = group[peer_engine]["total_ms"]["median"]
+                libass = group["libass"]["library_render_ms"]["median"]
+                mangetsu = group["mangetsu"]["library_render_ms"]["median"]
+                mangetsu_rgba = group["mangetsu-rgba"]["library_render_ms"]["median"]
+                table.append(
+                    f"| {case['id']} / {scenario} | {taiyou:.3f} | {peer:.3f} | {libass:.3f} | "
+                    f"{mangetsu:.3f} | {mangetsu_rgba:.3f} | {taiyou/libass:.2f}x | "
+                    f"{taiyou/mangetsu:.2f}x | {taiyou/mangetsu_rgba:.2f}x |")
     (output / "table.md").write_text("\n".join(table) + "\n")
-    serial = ["| Workload/state | Taiyou1T ms | libass ass_render_frame ms | 1T/libass | libass host RGBA ms | libass total ms | Painted pixels T/L | libass images | Taiyou bottleneck (prior profile) |",
-              "|---|---:|---:|---:|---:|---:|---|---:|---|"]
+    serial = ["| Workload/state | Taiyou1T | libass core | Mangetsu core | Mangetsu RGBA | libass host RGBA | Mangetsu host legacy | Mangetsu host RGBA | Painted pixels T/L/M/MR | Images L/M/MR |",
+              "|---|---:|---:|---:|---:|---:|---:|---:|---|---:|"]
     for case in manifest["cases"]:
         for scenario in SCENARIOS:
             group = {r["engine"]: r for r in summaries if r["case"] == case["id"] and r["scenario"] == scenario}
             if "taiyou-1" not in group or "libass" not in group:
                 continue
-            a, b = group["taiyou-1"], group["libass"]
+            a = group["taiyou-1"]
+            lb = group["libass"]
+            mg = group["mangetsu"]
+            mr = group["mangetsu-rgba"]
             ta = a["total_ms"]["median"]
-            lb = b["library_render_ms"]["median"]
-            host = b["client_compose_ms"]["median"]
-            total = b["total_ms"]["median"]
-            area_a, area_b = a["nonzero_alpha_range"], b["nonzero_alpha_range"]
-            images = [int(r["image_count"]) for r in rows if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, "libass")]
-            stage = ("span union/filter/masks; composition" if scenario in ("cold", "sequence", "seek") and case["workload"] != "dialogue"
-                     else "composition/publication; base geometry")
-            serial.append(f"| {case['id']}/{scenario} | {ta:.3f} | {lb:.3f} | {ta/lb:.2f}x | {host:.3f} | {total:.3f} | {area_a[0]}-{area_a[1]} / {area_b[0]}-{area_b[1]} | {min(images)}-{max(images)} | {stage} |")
+            areas = [a["nonzero_alpha_range"], lb["nonzero_alpha_range"],
+                     mg["nonzero_alpha_range"], mr["nonzero_alpha_range"]]
+            image_ranges = []
+            for engine in ("libass", "mangetsu", "mangetsu-rgba"):
+                images = [int(r["image_count"]) for r in rows
+                          if (r["case"], r["scenario"], r["engine"]) == (case["id"], scenario, engine)]
+                image_ranges.append(f"{min(images)}-{max(images)}")
+            serial.append(
+                f"| {case['id']}/{scenario} | {ta:.3f} | {lb['library_render_ms']['median']:.3f} | "
+                f"{mg['library_render_ms']['median']:.3f} | {mr['library_render_ms']['median']:.3f} | "
+                f"{lb['client_compose_ms']['median']:.3f} | {mg['client_compose_ms']['median']:.3f} | "
+                f"{mr['client_compose_ms']['median']:.3f} | "
+                f"{' / '.join(f'{x[0]}-{x[1]}' for x in areas)} | {' / '.join(image_ranges)} |")
     (output / "1t-table.md").write_text("\n".join(serial) + "\n")
     assert len(rows) == len(manifest["cases"]) * len(SCENARIOS) * 31 * len(ENGINES), "incomplete comparison inventory"
     assert not failures and not digest_differences, "process/sample/determinism failures remain failures"

@@ -18,6 +18,7 @@ jobs:
       TAIYOU_FOCUSED_RENDERER: '1'
       FROZEN_CHECKPOINT: 2b80565e4998e22032d6bb4a446013886df7c62c
       LIBASS_PIN: f61db567e6593df3470e91594bcd4ad2d0473aff
+      MANGESTU_PIN: db2865d582142717e09160550160b52126aa656b
       SERIAL_PROBE: ${{ contains(github.event.head_commit.message, '[perf-1t-probe]') && '1' || '0' }}
       SERIAL_REFERENCE: bc7a38b57c29b7fef54a8d0b40e6cfe8bacd4580
     steps:
@@ -103,29 +104,58 @@ jobs:
           make -j2
           make install
           git diff --exit-code -- libass/
-      - name: Build libass caller with direct ass_render_frame primary timing
+      - name: Build pinned Mangetsu with the same FreeType and HarfBuzz
         env:
           PKG_CONFIG: /usr/bin/pkg-config
-          PKG_CONFIG_PATH: ${{ runner.temp }}/performance-libass-install/lib/pkgconfig:${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
+          PKG_CONFIG_PATH: ${{ runner.temp }}/taiyou-native-install/lib/pkgconfig
         run: |
-          test "$("$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-libass-install"
-          test "$("$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
-          test "$("$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
-          cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $("$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/libass-performance"
-          "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/library-versions.txt"
-          "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/libass-link-flags.txt"
+          git init "$RUNNER_TEMP/performance-mangetsu-source"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" fetch --depth=1 https://github.com/amanosatosi/libassmod "$MANGESTU_PIN"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/performance-mangetsu-source" rev-parse HEAD)" = "$MANGESTU_PIN"
+          git -C "$RUNNER_TEMP/performance-mangetsu-source" fsck --full
+          cd "$RUNNER_TEMP/performance-mangetsu-source"
+          sh autogen.sh
+          CFLAGS='-O3 -DNDEBUG' ./configure --prefix="$RUNNER_TEMP/performance-mangetsu-install" --libdir="$RUNNER_TEMP/performance-mangetsu-install/lib" --disable-shared --enable-static --disable-fontconfig --disable-require-system-font-provider
+          make -j2
+          make install
+          git diff --exit-code -- libass/
+      - name: Build libass and Mangetsu comparison callers
+        env:
+          PKG_CONFIG: /usr/bin/pkg-config
+        run: |
+          stock_pc="$RUNNER_TEMP/performance-libass-install/lib/pkgconfig:$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          mangetsu_pc="$RUNNER_TEMP/performance-mangetsu-install/lib/pkgconfig:$RUNNER_TEMP/taiyou-native-install/lib/pkgconfig"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-libass-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix libass)" = "$RUNNER_TEMP/performance-mangetsu-install"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix freetype2)" = "$RUNNER_TEMP/taiyou-native-install"
+          test "$(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --variable=prefix harfbuzz)" = "$RUNNER_TEMP/taiyou-native-install"
+          PKG_CONFIG_PATH="$stock_pc" cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/libass-performance"
+          PKG_CONFIG_PATH="$mangetsu_pc" cc -O3 -std=c11 -Wall -Wextra -Werror experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/mangetsu-performance"
+          PKG_CONFIG_PATH="$mangetsu_pc" cc -O3 -std=c11 -Wall -Wextra -Werror -DMANGESTU_RGBA_MODE=1 experiments/performance/libass-performance.c $(PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass) -lstdc++ -o "$RUNNER_TEMP/mangetsu-rgba-performance"
+          PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/library-versions.txt"
+          PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --modversion libass freetype2 harfbuzz fribidi > "$RUNNER_TEMP/performance-comparison/mangetsu-library-versions.txt"
+          PKG_CONFIG_PATH="$stock_pc" "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/libass-link-flags.txt"
+          PKG_CONFIG_PATH="$mangetsu_pc" "$PKG_CONFIG" --static --cflags --libs libass > "$RUNNER_TEMP/performance-comparison/mangetsu-link-flags.txt"
           cc --version > "$RUNNER_TEMP/performance-comparison/cc.txt"
           dpkg-query -W libfribidi-dev libfribidi0 nasm > "$RUNNER_TEMP/performance-comparison/packages.txt"
           cp "$RUNNER_TEMP/performance-libass-source/RELEASEVERSION" "$RUNNER_TEMP/performance-comparison/libass-release.txt"
           cp "$RUNNER_TEMP/performance-libass-source/config.log" "$RUNNER_TEMP/performance-comparison/libass-config.log"
+          cp "$RUNNER_TEMP/performance-mangetsu-source/RELEASEVERSION" "$RUNNER_TEMP/performance-comparison/mangetsu-release.txt"
+          cp "$RUNNER_TEMP/performance-mangetsu-source/config.log" "$RUNNER_TEMP/performance-comparison/mangetsu-config.log"
           cp /usr/share/doc/libfribidi0/copyright "$RUNNER_TEMP/performance-comparison/fribidi-copyright.txt"
           printf '%s\n' "$LIBASS_PIN" > "$RUNNER_TEMP/performance-comparison/libass-commit.txt"
+          printf '%s\n' "$MANGESTU_PIN" > "$RUNNER_TEMP/performance-comparison/mangetsu-commit.txt"
           printf '%s\n' "$FROZEN_CHECKPOINT" > "$RUNNER_TEMP/performance-comparison/frozen-checkpoint.txt"
       - name: Compare identical immutable inputs and fixed timestamp samples
         env:
           TAIYOU_TEST_FONT: ${{ runner.temp }}/taiyou-native-sources/font.otf
           TAIYOU_COMPARE_BINARY: ${{ github.workspace }}/target/release/examples/performance_compare
           LIBASS_COMPARE_BINARY: ${{ runner.temp }}/libass-performance
+          MANGESTU_COMPARE_BINARY: ${{ runner.temp }}/mangetsu-performance
+          MANGESTU_RGBA_COMPARE_BINARY: ${{ runner.temp }}/mangetsu-rgba-performance
         run: |
           python experiments/performance/compare-libass.py prepare "$RUNNER_TEMP/performance-comparison"
           python experiments/performance/compare-libass.py run "$RUNNER_TEMP/performance-comparison"

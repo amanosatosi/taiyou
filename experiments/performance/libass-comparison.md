@@ -13,11 +13,13 @@ Taiyou uses its production timing-disabled path, default bounded128MiB cache,
 workers1 and explicit4, default64-row batches. The heavy benchmark's explicit
 512MiB/32M work allowance is recorded; production caps are unchanged.
 
-libass uses the existing pinned commit from docs/references.lock.json, normal
-production renderer/caches/CPU dispatch and complex shaping. No internal timers,
-cache-limit changes or source modifications. Both link the same pinned FreeType
-and HarfBuzz builds; the distro FriBidi version/notices and all build flags are
-recorded. Only explicitly supplied identical font files are registered; host
+libass uses the existing pinned commit from docs/references.lock.json. Mangetsu
+is pinned separately to libassmod commit
+`db2865d582142717e09160550160b52126aa656b`. Both use normal production
+renderer/caches/CPU dispatch and complex shaping with no internal instrumentation
+or source modifications. Stock libass, Mangetsu legacy, and Mangetsu RGBA callers
+all link the same pinned FreeType and HarfBuzz builds; the distro FriBidi
+version/notices and all build flags are recorded. Only explicitly supplied identical font files are registered; host
 font discovery is disabled for both. The actual API version and source release
 are recorded instead of inferring an archive identity.
 
@@ -37,11 +39,13 @@ Integer-ms timestamps avoid comparing Taiyou microsecond transforms with rounded
 libass timestamps. Four playback scenarios and deterministic engine-order rotation
 are recorded. No correctness test is reduced or replaced by this experiment.
 
-The primary table compares Taiyou's one-worker render call directly against
-libass's `ass_render_frame()` API time. libass host-side RGBA work is not part of
-the primary ratio. The scalar C client still allocates/clears/composes the returned
-ASS_Image list so host RGBA time and the combined end-to-end total remain available
-as separate secondary columns. The client never reuses a finished frame. This
+The primary table compares Taiyou's one-worker render call against three direct
+library calls on the same inputs: stock libass `ass_render_frame()`, Mangetsu
+`ass_render_frame()`, and Mangetsu `ass_render_frame_rgba()`. Host-side
+full-frame composition is not part of any primary ratio. The scalar C clients
+still allocate/clear/compose each returned list, so stock-libass host RGBA,
+Mangetsu legacy host RGBA, and Mangetsu native-RGBA host composition remain
+available as secondary measurements. The client never reuses a finished frame. This
 adapter is measured evidence, not a claim to represent every video host compositor.
 Different native mask/clip/metric semantics can produce different painted work;
 nonzero-alpha counts are recorded and visual mismatches never invalidate a sample.
@@ -72,3 +76,15 @@ identical flags/dependencies, restoring the candidate source after the frozen bu
 Post-sample observational stage and publication measurements never enter primary
 timings/distributions or warmup. Existing full tests remain required at a kept
 checkpoint; an exploratory run is never a mergeable checkpoint.
+
+
+## Mangetsu comparison pin
+
+The Mangetsu comparison is source-pinned to
+`amanosatosi/libassmod@db2865d582142717e09160550160b52126aa656b`.
+The legacy caller measures direct `ass_render_frame()`; the RGBA caller is
+compiled only against that fork and measures direct `ass_render_frame_rgba()`.
+The RGBA returned tiles are premultiplied RGBA and are freed by the caller after
+the secondary host-composition measurement. The current seven shared workloads
+remain unchanged so the primary rows stay comparable; no Mangetsu-only tag is
+silently substituted into the common corpus.

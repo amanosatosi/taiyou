@@ -1,6 +1,7 @@
-/* Actions-only direct ass_render_frame benchmark + secondary scalar owned
- * premultiplied RGBA consumer. The library source is not instrumented.
- * Never reuse the final RGBA frame. */
+/* Actions-only direct renderer benchmark + secondary scalar owned
+ * premultiplied RGBA consumer. Stock libass and Mangetsu legacy builds time
+ * ass_render_frame(); MANGESTU_RGBA_MODE times ass_render_frame_rgba().
+ * The library source is not instrumented. Never reuse the final RGBA frame. */
 #define _POSIX_C_SOURCE 200809L
 #include <ass/ass.h>
 #include <inttypes.h>
@@ -45,7 +46,14 @@ static uint8_t *render_rgba(ASS_Renderer *renderer, ASS_Track *track,
                           long long time_ms, int width, int height, uint64_t *render_time,
                           uint64_t *compose_time, unsigned *images, int *changed) {
     uint64_t start = clock_ns();
+#ifdef MANGESTU_RGBA_MODE
+#ifndef LIBASSMOD_FEATURE_RGBA
+#error "MANGESTU_RGBA_MODE requires the pinned libassmod RGBA API"
+#endif
+    ASS_ImageRGBA *head = ass_render_frame_rgba(renderer, track, time_ms, changed);
+#else
     ASS_Image *head = ass_render_frame(renderer, track, time_ms, changed);
+#endif
     *render_time = clock_ns() - start;
     start = clock_ns();
     size_t length = (size_t)width * (size_t)height * 4;
@@ -53,6 +61,31 @@ static uint8_t *render_rgba(ASS_Renderer *renderer, ASS_Track *track,
     if (!pixels) fail("RGBA allocation");
     memset(pixels, 0, length);
     *images = 0;
+#ifdef MANGESTU_RGBA_MODE
+    for (ASS_ImageRGBA *image = head; image; image = image->next) {
+        (*images)++;
+        int64_t x0 = image->dst_x > 0 ? image->dst_x : 0;
+        int64_t y0 = image->dst_y > 0 ? image->dst_y : 0;
+        int64_t x1 = (int64_t)image->dst_x + image->w;
+        int64_t y1 = (int64_t)image->dst_y + image->h;
+        if (x1 > width) x1 = width;
+        if (y1 > height) y1 = height;
+        if (x0 >= x1 || y0 >= y1) continue;
+        if (!image->rgba || image->stride < image->w * 4) fail("invalid ASS_ImageRGBA extent");
+        for (int64_t y = y0; y < y1; y++) {
+            const uint8_t *source = image->rgba + (size_t)(y - image->dst_y) * (size_t)image->stride +
+                                    (size_t)(x0 - image->dst_x) * 4;
+            uint8_t *destination = pixels + ((size_t)y * (size_t)width + (size_t)x0) * 4;
+            for (int64_t x = x0; x < x1; x++, source += 4, destination += 4) {
+                unsigned alpha = source[3];
+                for (int channel = 0; channel < 3; channel++)
+                    destination[channel] = (uint8_t)(source[channel] + mul255(destination[channel], 255 - alpha));
+                destination[3] = (uint8_t)(alpha + mul255(destination[3], 255 - alpha));
+            }
+        }
+    }
+    ass_free_images_rgba(head);
+#else
     for (ASS_Image *image = head; image; image = image->next) {
         (*images)++;
         int64_t x0 = image->dst_x > 0 ? image->dst_x : 0;
@@ -70,11 +103,13 @@ static uint8_t *render_rgba(ASS_Renderer *renderer, ASS_Track *track,
             uint8_t *destination = pixels + ((size_t)y * (size_t)width + (size_t)x0) * 4;
             for (int64_t x = x0; x < x1; x++, destination += 4) {
                 unsigned alpha = mul255(source[x - image->dst_x], opacity);
-                for (int c = 0; c < 3; c++) destination[c] = (uint8_t)(mul255(color[c], alpha) + mul255(destination[c], 255 - alpha));
+                for (int channel = 0; channel < 3; channel++)
+                    destination[channel] = (uint8_t)(mul255(color[channel], alpha) + mul255(destination[channel], 255 - alpha));
                 destination[3] = (uint8_t)(alpha + mul255(destination[3], 255 - alpha));
             }
         }
     }
+#endif
     *compose_time = clock_ns() - start;
     return pixels;
 }
