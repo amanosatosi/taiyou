@@ -68,7 +68,9 @@ fn main() {
             .map(|byte| format!("{byte:02x}"))
             .collect::<String>()
     };
-    println!("sample,timestamp_ms,total_ns,renderer_setup_ns,font_setup_ns,source_setup_ns,rgba_digest,diagnostic_digest,nonzero_alpha,cache_hits,cache_misses,cache_evictions,cache_bytes");
+    println!(
+        "sample,timestamp_ms,total_ns,renderer_setup_ns,font_setup_ns,source_setup_ns,rgba_digest,diagnostic_digest,nonzero_alpha,cache_hits,cache_misses,cache_evictions,cache_bytes"
+    );
     for (sample, &milliseconds) in times.iter().enumerate() {
         let setup = if cold {
             drop(renderer.take());
